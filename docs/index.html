@@ -4,55 +4,229 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>mq-agent</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
-    body { font-family: monospace; background: #0d1117; color: #c9d1d9; max-width: 760px; margin: 60px auto; padding: 0 20px; line-height: 1.7; }
-    h1 { color: #58a6ff; font-size: 2rem; margin-bottom: 4px; }
-    .sub { color: #8b949e; margin-bottom: 32px; }
-    .badge { display: inline-block; margin-right: 8px; }
-    pre { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; overflow-x: auto; color: #79c0ff; }
-    code { background: #161b22; padding: 2px 6px; border-radius: 4px; color: #79c0ff; }
-    h2 { color: #e6edf3; border-bottom: 1px solid #30363d; padding-bottom: 6px; margin-top: 40px; }
-    a { color: #58a6ff; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
-    .card h3 { color: #58a6ff; margin: 0 0 8px; font-size: 0.95rem; }
-    .card p { margin: 0; color: #8b949e; font-size: 0.88rem; }
+    :root {
+      --bg: #ffffff;
+      --fg: #1a0000;
+      --muted: #7a1e1e;
+      --red: #d00000;
+      --red-dark: #8b0000;
+      --soft-red: #fff0f0;
+      --border: #ffb3b3;
+      --code-bg: #fff7f7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      background:
+        linear-gradient(90deg, rgba(208, 0, 0, 0.035) 1px, transparent 1px),
+        linear-gradient(rgba(208, 0, 0, 0.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: 28px 28px;
+      color: var(--fg);
+      max-width: 860px;
+      margin: 52px auto;
+      padding: 0 22px 80px;
+      line-height: 1.7;
+    }
+
+    .frame {
+      border: 2px solid var(--red);
+      box-shadow: 8px 8px 0 var(--soft-red);
+      background: rgba(255, 255, 255, 0.92);
+      padding: 28px;
+    }
+
+    .ascii {
+      color: var(--red);
+      font-size: clamp(0.62rem, 1.7vw, 0.95rem);
+      line-height: 1.08;
+      margin: 0 0 18px;
+      white-space: pre;
+      overflow-x: auto;
+      font-weight: 700;
+    }
+
+    h1 {
+      color: var(--red);
+      font-size: 1.15rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 4px;
+    }
+
+    .sub {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 20px 0 34px;
+    }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--red);
+      color: var(--red-dark);
+      background: #fff;
+      padding: 3px 8px;
+      font-size: 0.78rem;
+      text-decoration: none;
+    }
+
+    .badge strong {
+      color: var(--red);
+    }
+
+    h2 {
+      color: var(--red);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-top: 40px;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    h2::before {
+      content: ">> ";
+      color: var(--red-dark);
+    }
+
+    a {
+      color: var(--red);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--red);
+    }
+
+    a:hover {
+      color: var(--red-dark);
+      border-bottom-style: solid;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--red);
+      padding: 16px;
+      overflow-x: auto;
+      color: var(--red-dark);
+    }
+
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      color: var(--red-dark);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 24px 0;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--red);
+      padding: 16px;
+    }
+
+    .card h3 {
+      color: var(--red);
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    ul {
+      padding-left: 22px;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    .prompt {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    @media (max-width: 680px) {
+      body {
+        margin: 28px auto;
+      }
+
+      .frame {
+        padding: 18px;
+        box-shadow: 5px 5px 0 var(--soft-red);
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
+  <main class="frame">
+<pre class="ascii">
+███╗   ███╗ ██████╗        █████╗  ██████╗ ███████╗███╗   ██╗████████╗
+████╗ ████║██╔═══██╗      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
+██╔████╔██║██║   ██║█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║
+██║╚██╔╝██║██║▄▄ ██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║
+██║ ╚═╝ ██║╚██████╔╝      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║
+╚═╝     ╚═╝ ╚══▀▀═╝       ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝
+</pre>
 
-<h1>mq-agent</h1>
-<div class="sub">Terminal-native AI agent orchestrator for the mq ecosystem.</div>
+    <h1>mq-agent</h1>
+    <div class="sub">Terminal-native AI agent orchestrator for the mq ecosystem.</div>
 
-<div>
-  <img class="badge" src="https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg" alt="Tests">
-  <img class="badge" src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python">
-  <img class="badge" src="https://img.shields.io/badge/status-v0.2.1-green" alt="Status">
-</div>
+    <div class="badges">
+      <a class="badge" href="https://github.com/MCamner/mq-agent/actions/workflows/tests.yml"><strong>CI</strong> GitHub Actions</a>
+      <span class="badge"><strong>Python</strong> 3.11+</span>
+      <span class="badge"><strong>Status</strong> v0.2.1</span>
+      <span class="badge"><strong>Mode</strong> terminal-native</span>
+    </div>
 
-<h2>What it is</h2>
-<p>
-  A controlled terminal workflow for AI agent work — explicit planning, tool routing, verification,
-  memory and safety gates. Every action is traceable. The model never runs unsupervised.
-</p>
+    <h2>What it is</h2>
+    <p>
+      A controlled terminal workflow for AI agent work — explicit planning, tool routing,
+      verification, memory and safety gates. Every action is traceable. The model never runs unsupervised.
+    </p>
 
-<div class="grid">
-  <div class="card"><h3>Planner</h3><p>Decomposes goals into steps using gpt-4o structured output.</p></div>
-  <div class="card"><h3>Executor</h3><p>Routes steps through a typed tool registry with dry-run support.</p></div>
-  <div class="card"><h3>Verifier</h3><p>Checks each result with gpt-4o-mini before moving on.</p></div>
-  <div class="card"><h3>Safety</h3><p>Four modes: read-only → suggest → execute → dangerous.</p></div>
-</div>
+    <div class="grid">
+      <div class="card"><h3>Planner</h3><p>Decomposes goals into steps using gpt-4o structured output.</p></div>
+      <div class="card"><h3>Executor</h3><p>Routes steps through a typed tool registry with dry-run support.</p></div>
+      <div class="card"><h3>Verifier</h3><p>Checks each result with gpt-4o-mini before moving on.</p></div>
+      <div class="card"><h3>Safety</h3><p>Four modes: read-only → suggest → execute → dangerous.</p></div>
+    </div>
 
-<h2>Quick start</h2>
-<pre>uv pip install -e ".[dev,signal]"
+    <h2>Quick start</h2>
+<pre><span class="prompt">$</span> uv pip install -e ".[dev,signal]"
 
-mq-agent doctor        # check environment
-mq-agent score .       # README + publish score (no API key)
-mq-agent signal .      # full AI-backed repo assessment
-mq-agent audit .       # read-only repo audit</pre>
+<span class="prompt">$</span> mq-agent doctor        # check environment
+<span class="prompt">$</span> mq-agent score .       # README + publish score
+<span class="prompt">$</span> mq-agent signal .      # repo-signal assessment
+<span class="prompt">$</span> mq-agent audit .       # read-only repo audit</pre>
 
-<h2>Commands</h2>
+    <h2>Commands</h2>
 <pre>mq-agent audit .              # repo audit
 mq-agent signal .             # repo-signal assessment + AI plan
 mq-agent score .              # instant README + publish score
@@ -62,14 +236,14 @@ mq-agent fix-ci               # diagnose CI failures
 mq-agent doctor               # environment check
 mq-agent tui                  # Textual dashboard</pre>
 
-<h2>Links</h2>
-<ul>
-  <li><a href="https://github.com/MCamner/mq-agent">GitHub</a></li>
-  <li><a href="https://github.com/MCamner/mq-agent/blob/main/CHANGELOG.md">Changelog</a></li>
-  <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/ROADMAP.md">Roadmap</a></li>
-  <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/SAFETY.md">Safety</a></li>
-  <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/EXAMPLES.md">Examples</a></li>
-</ul>
-
+    <h2>Links</h2>
+    <ul>
+      <li><a href="https://github.com/MCamner/mq-agent">GitHub</a></li>
+      <li><a href="https://github.com/MCamner/mq-agent/blob/main/CHANGELOG.md">Changelog</a></li>
+      <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/ROADMAP.md">Roadmap</a></li>
+      <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/SAFETY.md">Safety</a></li>
+      <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/EXAMPLES.md">Examples</a></li>
+    </ul>
+  </main>
 </body>
 </html>
