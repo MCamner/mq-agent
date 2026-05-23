@@ -7,48 +7,37 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — structural cleanup
-
-### Removed
-
-- `mq_agent/cli.py` — dead parallel CLI (click, v0.1.0, never registered as entrypoint)
-- `mq_agent/memory/` — empty directory left over from a refactor
+## [v0.4.1] — 2026-05-23
 
 ### Added
 
-- `mq-agent docs-audit .` — CLI command for `DocsAgent` (was implemented but had no entrypoint)
+- `docs/COMMAND_SURFACE.md` — canonical command-count reference for mq-agent, MCP commands, mqlaunch menu items, direct prompt commands and smoke-test coverage
+- Docs consistency checks guard mqlaunch command counts and require all six direct prompt commands to be documented
+- `mq-agent docs-audit .` — CLI command exposing `DocsAgent` (implementation existed but had no registered entrypoint)
 - `MQ_AGENT_MODEL` env var — overrides the planner model (default: `gpt-4o`)
 - `MQ_AGENT_VERIFIER_MODEL` env var — overrides the verifier model (default: `gpt-4o-mini`)
-- `memory` field on `AgentState` — `Memory` is now properly wired into the agent lifecycle
-- `AuditAgent` loads prior audit context from persistent memory and saves summary after each run
-- `__version__` now reads from package metadata instead of a hardcoded string in `__init__.py`
+- `memory` field on `AgentState` — `Memory` wired into the agent lifecycle; `AuditAgent` loads prior context and saves summary after each run
+
+### Removed
+
+- `mq_agent/cli.py` — dead parallel click-based CLI (never registered as entrypoint, `click` was an undeclared dependency)
+- `mq_agent/memory/` — empty directory left over from a refactor
 
 ### Fixed
 
-- Safety gate `_is_destructive()` matched text in step descriptions ("format output", "remove duplicates") — now checks `run_command` args instead
-- TUI version label was hardcoded to `v0.1.0` — now reads `__version__`
-- TUI command list was stale (7 entries, pre-v0.3.0) — now shows all 12 commands including MCP, score, signal and docs-audit
+- Safety gate `_is_destructive()` matched keywords in step descriptions ("format output", "remove duplicates") — now checks `run_command` args only
+- `find_files()` parameter renamed `suffix` → `pattern` to match AI planner output; default updated from `".py"` to `"*.py"`
+- TUI version label hardcoded to `v0.1.0` — now reads `__version__` from package metadata
+- TUI command list was stale (7 entries, pre-v0.3.0) — updated to all 12 current commands
 - TUI `subprocess.run()` blocked the Textual event loop — replaced with `asyncio.create_subprocess_exec` with streaming output
-- `docs/COMMAND_SURFACE.md` and `docs/index.html` updated to include `docs-audit`
-
----
-
-## [v0.4.1] — 2026-05-23
-
-### Added — release hygiene
-
-- `docs/COMMAND_SURFACE.md` — canonical command-count reference for mq-agent, MCP commands, mqlaunch menu items, direct prompt commands and smoke-test coverage
-- Docs consistency checks now guard mqlaunch command counts and require all six direct prompt commands to be documented
+- `__version__` now reads from package metadata instead of a hardcoded string
+- Smoke test removed `release-check --dry-run` (requires `OPENAI_API_KEY`); replaced with `repo-summary .`
 
 ### Changed
 
 - README and GitHub Pages updated to v0.4.1
-- README now links to the canonical command surface
-- v0.4.x docs clarify that `scripts/smoke-mqlaunch.sh` verifies the `mqlaunch agent ...` bridge
-
-### Version
-
-- Bumped to `0.4.1`
+- `docs/index.html` restructured: 6-card architecture grid, commands split by API-key requirement, links as 2-column grid
+- `docs/COMMAND_SURFACE.md` updated with `docs-audit` and corrected smoke-test coverage table
 
 ---
 

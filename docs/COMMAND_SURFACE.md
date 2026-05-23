@@ -106,8 +106,9 @@ a live interactive session or OpenAI API call.
 |---|---|
 | doctor | `mqlaunch agent doctor` |
 | score | `mqlaunch agent score .` |
-| release-check | `mqlaunch agent release-check --dry-run` |
+| repo-summary | `mqlaunch agent repo-summary .` |
 | mcp-status | `mqlaunch agent mcp-status` |
 
-`mq-mcp` does not need to be running for the `mcp-status` smoke check; the
-command is expected to report reachability cleanly.
+`release-check` is excluded from the smoke suite — it calls the AI planner and
+requires `OPENAI_API_KEY`. `mq-mcp` does not need to be running for the
+`mcp-status` smoke check; the command reports reachability cleanly.
