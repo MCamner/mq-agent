@@ -7,6 +7,46 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.3.0] — 2026-05-23
+
+### Added — local tool orchestration
+
+- `mq_agent/tools/mcp_registry.py` — `MCPToolSpec` dataclass, `classify_tool_name()`, and five safety classes: `read-only`, `write-capable`, `subprocess`, `dangerous`, `unknown`
+- `mq-agent mcp status` — checks mq-mcp reachability and reports tool counts by safety class
+- `mq-agent mcp tools` — lists all MCP-discovered tools with safety class and description
+- `mq-agent tools --describe <name>` — shows description, schema, examples and safety class for a tool
+- `mq-agent tools --mcp` — includes discovered MCP tools alongside built-in tools
+- `mq-agent tools --json` — JSON output for built-in and/or MCP tool listing
+- `mq-agent run-tool <tool>` — runs a specific MCP tool through mq-agent safety gates; `--arg key=value` for arguments
+- `docs/MCP_INTEGRATION.md` — architecture and usage guide for mq-mcp integration
+- `docs/TOOL_ROUTING.md` — safety classification reference and routing rules
+
+### Changed
+
+- `mq_agent/tools/mcp_bridge.py` — added `list_tool_specs()`, `describe_tool()`, `not_reachable_message()`, and `_fetch_tools_raw()` for structured metadata; backward-compatible
+- `mq-agent tools` — now accepts `--describe`, `--mcp`, and `--json` flags
+- README updated with v0.3.0 status, new CLI commands, and test count (70, was 37)
+- ROADMAP updated: v0.3.0 marked complete, v0.4.0 is mqlaunch integration
+
+### Safety
+
+- Unknown MCP tools are blocked by default — no classification, no execution
+- Write-capable and subprocess tools require `--approve` to run
+- Dangerous tools require `--dangerous` to run
+- Dry-run mode previews the intended MCP call without contacting mq-mcp
+- Fail-closed: when mq-mcp is unavailable, `run-tool` exits with a clear error and startup instructions
+
+### Tests
+
+- `tests/test_mcp.py` — 33 new tests covering: name classification (17), `MCPToolSpec` construction and round-trip (9), bridge behavior when unavailable (6), safety count validation (1)
+- Total: 70 tests pass (was 37) — no OpenAI API key or mq-mcp server required
+
+### Version
+
+- Bumped to `0.3.0`
+
+---
+
 ## [v0.2.4] — 2026-05-23
 
 ### Added — docs sync + self-checking

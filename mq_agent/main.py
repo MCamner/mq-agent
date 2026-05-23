@@ -24,6 +24,9 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
+mcp_app = typer.Typer(help="Inspect and manage the local mq-mcp tool server.")
+app.add_typer(mcp_app, name="mcp")
+
 console = Console()
 
 
@@ -376,15 +379,266 @@ def tui():
 # ── tools ──────────────────────────────────────────────────────────────────
 
 @app.command()
-def tools():
-    """List all registered tools."""
+def tools(
+    describe: Annotated[str | None, typer.Option("--describe", help="Show details for a specific tool")] = None,
+    include_mcp: Annotated[bool, typer.Option("--mcp", help="Include discovered MCP tools")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List registered tools. Use --describe <name> for details, --mcp to include MCP tools."""
     from mq_agent.tools import tool_names
+    from mq_agent.tools.mcp_bridge import MCPBridge
 
-    for name in tool_names():
+    if describe:
+        bridge = MCPBridge()
+        spec = bridge.describe_tool(describe)
+        if json_out:
+            typer.echo(json.dumps(spec.to_dict(), indent=2))
+            return
+        _print_tool_spec(spec)
+        return
+
+    built_in = tool_names()
+
+    if include_mcp:
+        bridge = MCPBridge()
+        mcp_specs = bridge.list_tool_specs()
+        if json_out:
+            data = {
+                "built_in": built_in,
+                "mcp": [s.to_dict() for s in mcp_specs],
+            }
+            typer.echo(json.dumps(data, indent=2))
+            return
+        console.print("[bold]Built-in tools:[/bold]")
+        for name in built_in:
+            console.print(f"  [cyan]•[/cyan] {name}")
+        console.print(f"\n[bold]MCP tools ({len(mcp_specs)} discovered):[/bold]")
+        _print_mcp_tool_table(mcp_specs)
+        return
+
+    if json_out:
+        typer.echo(json.dumps({"built_in": built_in}, indent=2))
+        return
+
+    for name in built_in:
         console.print(f"  [cyan]•[/cyan] {name}")
 
 
+# ── mcp status ─────────────────────────────────────────────────────────────
+
+@mcp_app.command("status")
+def mcp_status(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Check whether mq-mcp is reachable and show tool counts by safety class."""
+    from mq_agent.tools.mcp_bridge import MCPBridge
+    from mq_agent.tools.mcp_registry import MCPSafetyClass
+
+    bridge = MCPBridge()
+    available = bridge.is_available()
+
+    if available:
+        specs = bridge.list_tool_specs()
+        counts: dict[str, int] = {}
+        for s in specs:
+            counts[s.safety_class] = counts.get(s.safety_class, 0) + 1
+    else:
+        specs = []
+        counts = {}
+
+    if json_out:
+        typer.echo(json.dumps({
+            "available": available,
+            "endpoint": bridge.endpoint,
+            "tools": len(specs),
+            "counts": counts,
+        }, indent=2))
+        return
+
+    if available:
+        lines = (
+            f"[bold green]mq-mcp: reachable[/bold green]\n"
+            f"endpoint: {bridge.endpoint}\n"
+            f"tools:    {len(specs)}\n"
+            + "\n".join(
+                f"  {cls}: {counts.get(cls, 0)}"
+                for cls in [
+                    MCPSafetyClass.READ_ONLY,
+                    MCPSafetyClass.WRITE_CAPABLE,
+                    MCPSafetyClass.SUBPROCESS,
+                    MCPSafetyClass.DANGEROUS,
+                    MCPSafetyClass.UNKNOWN,
+                ]
+                if counts.get(cls, 0) > 0
+            )
+        )
+        console.print(Panel(lines, title="[bold]mq-mcp Status[/bold]", border_style="green"))
+    else:
+        console.print(
+            Panel(
+                f"[bold red]mq-mcp: not reachable[/bold red]\n\n{bridge.not_reachable_message()}",
+                title="[bold]mq-mcp Status[/bold]",
+                border_style="red",
+            )
+        )
+
+
+# ── mcp tools ──────────────────────────────────────────────────────────────
+
+@mcp_app.command("tools")
+def mcp_tools_list(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List all tools discovered from mq-mcp with safety classes."""
+    from mq_agent.tools.mcp_bridge import MCPBridge
+
+    bridge = MCPBridge()
+    if not bridge.is_available():
+        console.print(f"[bold red]mq-mcp not reachable[/bold red]\n{bridge.not_reachable_message()}")
+        raise typer.Exit(code=1)
+
+    specs = bridge.list_tool_specs()
+
+    if json_out:
+        typer.echo(json.dumps([s.to_dict() for s in specs], indent=2))
+        return
+
+    _print_mcp_tool_table(specs)
+
+
+# ── run-tool ───────────────────────────────────────────────────────────────
+
+@app.command(name="run-tool")
+def run_tool(
+    tool: Annotated[str, typer.Argument(help="MCP tool name to run")],
+    arg: Annotated[list[str], typer.Option("--arg", help="key=value argument (repeatable)")] = [],
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview without executing")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write-capable and subprocess tools")] = False,
+    dangerous: Annotated[bool, typer.Option("--dangerous", help="Allow dangerous-class tools")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run a specific MCP tool through mq-agent safety gates."""
+    from mq_agent.tools.mcp_bridge import MCPBridge
+    from mq_agent.tools.mcp_registry import MCPSafetyClass
+
+    bridge = MCPBridge()
+    spec = bridge.describe_tool(tool)
+
+    # Parse --arg key=value pairs
+    args: dict[str, str] = {}
+    for item in arg:
+        if "=" in item:
+            k, _, v = item.partition("=")
+            args[k.strip()] = v.strip()
+        else:
+            console.print(f"[yellow]Warning:[/yellow] --arg '{item}' is not key=value, skipping")
+
+    # Safety gate
+    cls = spec.safety_class
+    if cls == MCPSafetyClass.UNKNOWN:
+        console.print(
+            f"[bold red]Blocked:[/bold red] tool '{tool}' has unknown safety class.\n"
+            "Only tools with a known safety class can be run."
+        )
+        raise typer.Exit(code=1)
+
+    if cls == MCPSafetyClass.DANGEROUS and not dangerous:
+        console.print(
+            f"[bold red]Blocked:[/bold red] tool '{tool}' is classified [red]dangerous[/red].\n"
+            "Add [bold]--dangerous[/bold] to run it."
+        )
+        raise typer.Exit(code=1)
+
+    if cls in (MCPSafetyClass.WRITE_CAPABLE, MCPSafetyClass.SUBPROCESS) and not approve and not dangerous:
+        console.print(
+            f"[bold yellow]Blocked:[/bold yellow] tool '{tool}' is classified [yellow]{cls}[/yellow].\n"
+            "Add [bold]--approve[/bold] to run it."
+        )
+        raise typer.Exit(code=1)
+
+    if dry_run:
+        preview = {
+            "tool": tool,
+            "args": args,
+            "safety_class": cls,
+            "would_execute": not dry_run,
+        }
+        if json_out:
+            typer.echo(json.dumps(preview, indent=2))
+        else:
+            console.print(
+                Panel(
+                    f"[blue][dry-run][/blue] Would call [bold]{tool}[/bold]\n"
+                    f"args:         {args}\n"
+                    f"safety class: {cls}",
+                    title="[bold]Dry Run[/bold]",
+                )
+            )
+        return
+
+    if not bridge.is_available():
+        console.print(f"[bold red]mq-mcp not reachable[/bold red]\n{bridge.not_reachable_message()}")
+        raise typer.Exit(code=1)
+
+    with console.status(f"[bold cyan]Running {tool}...[/bold cyan]"):
+        result = bridge.call_tool(tool, args)
+
+    if json_out:
+        if isinstance(result, str):
+            typer.echo(json.dumps({"tool": tool, "result": result}))
+        else:
+            typer.echo(json.dumps({"tool": tool, "result": result}, indent=2))
+        return
+
+    if isinstance(result, (dict, list)):
+        import pprint
+        console.print(Panel(pprint.pformat(result, width=80), title=f"[bold]{tool}[/bold]"))
+    else:
+        console.print(Panel(str(result), title=f"[bold]{tool}[/bold]"))
+
+
 # ── helpers ────────────────────────────────────────────────────────────────
+
+def _print_tool_spec(spec) -> None:
+    """Print a single MCPToolSpec in human-readable form."""
+    lines = (
+        f"[bold]Tool:[/bold]        {spec.name}\n"
+        f"[bold]Source:[/bold]      {spec.source}\n"
+        f"[bold]Safety:[/bold]      {spec.safety_class}\n"
+    )
+    if spec.description:
+        lines += f"\n[bold]Description:[/bold]\n{spec.description}\n"
+    if spec.input_schema:
+        import pprint
+        lines += f"\n[bold]Input schema:[/bold]\n{pprint.pformat(spec.input_schema, width=60)}\n"
+    if spec.examples:
+        lines += "\n[bold]Examples:[/bold]\n" + "\n".join(f"  {e}" for e in spec.examples)
+    console.print(Panel(lines, title=f"[bold]{spec.name}[/bold]"))
+
+
+def _print_mcp_tool_table(specs: list) -> None:
+    """Print a table of MCPToolSpec objects."""
+    from rich.table import Table
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Tool", style="cyan")
+    table.add_column("Safety", width=14)
+    table.add_column("Description", overflow="fold")
+
+    safety_colors = {
+        "read-only": "green",
+        "write-capable": "yellow",
+        "subprocess": "yellow",
+        "dangerous": "red",
+        "unknown": "dim",
+    }
+
+    for spec in sorted(specs, key=lambda s: (s.safety_class, s.name)):
+        color = safety_colors.get(spec.safety_class, "white")
+        table.add_row(spec.name, f"[{color}]{spec.safety_class}[/{color}]", spec.description)
+
+    console.print(table)
+
 
 def _print_steps(steps: list[dict], title: str = "Steps") -> None:
     table = Table(title=title, show_header=True, header_style="bold")

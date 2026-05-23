@@ -23,14 +23,28 @@
 - `python-dotenv` auto-load from `.env`
 - 37 tests pass without OpenAI calls
 
-## Next — v0.2.4 (in progress)
+## Done — v0.2.4 (docs sync)
 
-- `docs/index.html` version sync (was stuck at v0.2.1)
-- `scripts/check-docs-consistency.sh` — catch version drift before release
-- `release-check.sh` pre-release gate
-- ROADMAP aligned with reality
+- `docs/index.html` version badge corrected from v0.2.1 to v0.2.4
+- `scripts/check-docs-consistency.sh` — version sync gate
+- `release-check.sh` pre-release gate (tests + lint + docs consistency)
+- CI docs-consistency step added to `tests.yml`
 
-## Next — v0.3.0 (mqlaunch integration)
+## Done — v0.3.0 (local tool orchestration)
+
+- `mq_agent/tools/mcp_registry.py` — `MCPToolSpec` dataclass + name-prefix safety classification
+- `mq-agent mcp status` — mq-mcp reachability + tool count by safety class
+- `mq-agent mcp tools` — list discovered MCP tools with safety classes
+- `mq-agent tools --describe <name>` — show tool metadata, schema and examples
+- `mq-agent tools --mcp` — include MCP tools in built-in listing
+- `mq-agent run-tool <tool>` — run an MCP tool through mq-agent safety gates
+- MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
+- Fail-closed: unknown blocked, write/subprocess require `--approve`, dangerous requires `--dangerous`
+- Helpful "not reachable" error with startup instructions
+- 70 tests (was 37) — all without OpenAI or mq-mcp required
+- `docs/MCP_INTEGRATION.md` and `docs/TOOL_ROUTING.md`
+
+## Next — v0.4.0 (mqlaunch integration)
 
 - `mqlaunch agent` bridge commands: `doctor`, `score`, `audit`, `release-check`
 - `docs/MQLAUNCH_INTEGRATION.md`

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.2.4-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.3.0-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -129,11 +129,16 @@ mq-agent run "pytest" --approve    # Safe shell execution
 mq-agent fix-ci                    # Diagnose CI failures
 mq-agent doctor                    # Check environment
 mq-agent tools                     # List registered tools
+mq-agent tools --mcp               # Include discovered MCP tools
+mq-agent tools --describe <name>   # Show tool metadata and safety class
+mq-agent mcp status                # Check mq-mcp reachability and tool counts
+mq-agent mcp tools                 # List all MCP tools with safety classes
+mq-agent run-tool <tool>           # Run an MCP tool through safety gates
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json
 mq-agent audit . --dry-run
-mq-agent audit . --json
+mq-agent run-tool read_repo_file --arg path=README.md --dry-run
 ```
 
 ## Safety modes
@@ -181,7 +186,7 @@ mq_agent/
 
 ## Proof
 
-- 37 tests pass — `uv run pytest -v` — no OpenAI calls required
+- 70 tests pass — `uv run pytest -v` — no OpenAI calls required
 - `mq-agent score .` — 100/100 README, 16/16 publish checklist [PASS]
 - `mq-agent doctor` — all required checks pass
 - `mq-agent audit . --dry-run` — safe, read-only plan generation
@@ -206,7 +211,7 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.2.4 status
+## v0.3.0 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
@@ -229,6 +234,13 @@ uv run pytest tests/ -v
 - [x] Command reference, safety contract, ecosystem docs
 - [x] GitHub Pages live at mcamner.github.io/mq-agent
 - [x] 11 GitHub topics, MIT license, issue templates
+- [x] `mq-agent mcp status` — mq-mcp reachability + tool count by safety class
+- [x] `mq-agent mcp tools` — list discovered MCP tools with safety classes
+- [x] `mq-agent tools --describe <name>` — show tool metadata, schema and examples
+- [x] `mq-agent run-tool <tool>` — run MCP tool through safety gates
+- [x] MCP tool safety classification: read-only / write-capable / subprocess / dangerous / unknown
+- [x] Fail-closed: unknown tools blocked, write/subprocess require `--approve`, dangerous requires `--dangerous`
+- [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
 
 ## Roadmap
 
