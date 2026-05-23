@@ -26,6 +26,17 @@ Most AI coding tools either wrap a model around shell commands or hide execution
 
 mq-agent is different: it treats agent work as a controlled terminal workflow with explicit planning, tool routing, verification, memory and safety gates. Every action is traceable, every operation is gated, and the model never runs unsupervised.
 
+## Use cases
+
+mq-agent is useful when you want to:
+
+- audit a repository before publishing
+- generate a release readiness plan with explicit approval gates
+- score README and publish quality without an API key
+- inspect and fix CI failures with AI-generated steps
+- run safe terminal workflows where the model cannot act without permission
+- combine repo-signal, mq-mcp and mq-hal into one local agent workflow
+
 ## What it is
 
 Not an AI wrapper script. An actual orchestrator with:
@@ -60,13 +71,25 @@ mq-agent audit .
 
 ## Install
 
+### Local development
+
 ```bash
-./scripts/install.sh
-# or
 uv pip install -e ".[dev,signal]"
 ```
 
-Requires `OPENAI_API_KEY` in environment (only for AI commands — `score` and `doctor` work without it).
+### From GitHub
+
+```bash
+pipx install git+https://github.com/MCamner/mq-agent.git
+```
+
+### PyPI (planned)
+
+```bash
+pipx install mq-agent   # coming soon
+```
+
+Requires `OPENAI_API_KEY` for AI commands. `score`, `doctor`, `repo-summary` and `tools` work without it.
 
 ## Demo
 
@@ -162,10 +185,13 @@ pytest tests/ -v
 
 ## Docs
 
+- [Command reference](docs/COMMANDS.md)
+- [Safety contract](docs/SAFETY_CONTRACT.md)
+- [mq ecosystem](docs/MQ_ECOSYSTEM.md)
+- [Skills](SKILLS.md)
 - [Examples](docs/EXAMPLES.md)
 - [Safety](docs/SAFETY.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Integrations](docs/INTEGRATIONS.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
