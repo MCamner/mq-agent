@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.4.0] — 2026-05-23
+
+### Added — mqlaunch integration
+
+- `mq-agent-menu.sh` (macos-scripts) — 12-item agent menu: REPO ANALYSIS (1-4), AI COMMANDS (5-8), ENVIRONMENT (9-10), MCP LOCAL TOOLS (11-12)
+- 3 new prompt commands wired into mqlaunch: `agent release-check`, `agent mcp-status`, `agent mcp-tools`
+- `scripts/smoke-mqlaunch.sh` — smoke test that exercises all 8 mqlaunch-callable mq-agent commands without a live session or API key
+- `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture, available commands, and smoke-test usage
+
+### Changed
+
+- README: v0.4.0 status section; mqlaunch bridge section added; Roadmap updated
+- ROADMAP: v0.4.0 marked done; v0.5.0 is autonomous loop mode
+
+### Version
+
+- Bumped to `0.4.0`
+
+---
+
 ## [v0.3.0] — 2026-05-23
 
 ### Added — local tool orchestration

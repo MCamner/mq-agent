@@ -43,20 +43,38 @@ mq-hal
 | Integration | Status | How |
 |-------------|--------|-----|
 | `repo-signal` | Active | `mq-agent signal .` / `mq-agent score .` |
-| `mqlaunch` | Active | `g` key → agent menu in mqlaunch |
-| `mq-mcp` | Bridge ready | HTTP bridge at `:8765` |
+| `mqlaunch` | Active | 12-item agent menu + 6 prompt commands |
+| `mq-mcp` | Active | HTTP bridge at `:8765`; safety classification offline |
 | `mq-hal` | Planned | `mq-agent brief --hal` |
 
 ## mqlaunch integration
 
-`mq-agent` is accessible from `mqlaunch` via the `g` key or by typing `agent`:
+`mq-agent` is fully wired into `mqlaunch` via a dedicated menu module and prompt commands.
+
+**Menu** — press `g` or type `agent` at the mqlaunch prompt, then choose 1–12:
 
 ```
 mqlaunch → g → Agent menu
-mqlaunch → agent score    (runs mq-agent score . directly)
-mqlaunch → agent audit    (runs mq-agent audit . directly)
-mqlaunch → agent doctor   (runs mq-agent doctor directly)
+  1  score .          2  signal .
+  3  repo-summary .   4  tools
+  5  audit .          6  signal .
+  7  release-check    8  fix-ci
+  9  doctor           10 tui
+  11 mcp status       12 mcp tools
 ```
+
+**Direct prompt commands:**
+
+```
+mqlaunch → agent score          # mq-agent score .
+mqlaunch → agent audit          # mq-agent audit .
+mqlaunch → agent doctor         # mq-agent doctor
+mqlaunch → agent release-check  # mq-agent release-check
+mqlaunch → agent mcp-status     # mq-agent mcp status
+mqlaunch → agent mcp-tools      # mq-agent mcp tools
+```
+
+See [MQLAUNCH_INTEGRATION.md](MQLAUNCH_INTEGRATION.md) for the full bridge spec.
 
 ## mq-mcp bridge
 

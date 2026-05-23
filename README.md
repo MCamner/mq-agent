@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.3.0-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.4.0-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -211,36 +211,44 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.3.0 status
+## v0.4.0 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
 - [x] Verifier (OpenAI gpt-4o-mini, per-step verification)
 - [x] Memory (session + persistent JSON)
 - [x] Safety (read-only / suggest / execute / dangerous)
-- [x] Git tools
-- [x] Shell tools (blocked pattern list)
-- [x] Repo tools
-- [x] MCP bridge (mq-mcp over HTTP)
-- [x] Audit agent, Release agent, CI agent, Docs agent
-- [x] Signal agent (repo-signal + AI improvement plan)
-- [x] Textual TUI
-- [x] JSON output and dry-run on all commands
+- [x] Git tools, shell tools, repo tools
+- [x] MCP bridge (mq-mcp over HTTP) with safety classification
+- [x] Audit agent, Release agent, CI agent, Docs agent, Signal agent
+- [x] Textual TUI, JSON output, `--dry-run` on all commands
 - [x] `mq-agent doctor` — full environment check
-- [x] `mq-agent signal` — scored repo assessment with AI plan
-- [x] `mq-agent score` — instant README + publish checklist (no API key)
-- [x] python-dotenv auto-load from `.env`
-- [x] Skills definitions (`SKILLS.md` + `skills/`)
-- [x] Command reference, safety contract, ecosystem docs
-- [x] GitHub Pages live at mcamner.github.io/mq-agent
-- [x] 11 GitHub topics, MIT license, issue templates
-- [x] `mq-agent mcp status` — mq-mcp reachability + tool count by safety class
-- [x] `mq-agent mcp tools` — list discovered MCP tools with safety classes
-- [x] `mq-agent tools --describe <name>` — show tool metadata, schema and examples
-- [x] `mq-agent run-tool <tool>` — run MCP tool through safety gates
-- [x] MCP tool safety classification: read-only / write-capable / subprocess / dangerous / unknown
-- [x] Fail-closed: unknown tools blocked, write/subprocess require `--approve`, dangerous requires `--dangerous`
+- [x] `mq-agent mcp status` / `mq-agent mcp tools` — MCP inspection
+- [x] `mq-agent tools --describe <name>` — tool metadata and safety class
+- [x] `mq-agent run-tool <tool>` — MCP tool through safety gates
+- [x] MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
+- [x] mqlaunch bridge — 12-item agent menu + 3 prompt commands
+- [x] `scripts/smoke-mqlaunch.sh` — bridge smoke test (8 commands, no API key)
+- [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
+
+## mqlaunch bridge
+
+`mq-agent` is fully wired into `mqlaunch`. From any mqlaunch session:
+
+```bash
+# Menu navigation
+mqlaunch → g → Agent menu  (12 options across 4 sections)
+
+# Direct prompt commands
+agent score           # mq-agent score .
+agent doctor          # mq-agent doctor
+agent release-check   # mq-agent release-check
+agent mcp-status      # mq-agent mcp status
+agent mcp-tools       # mq-agent mcp tools
+```
+
+See [docs/MQLAUNCH_INTEGRATION.md](docs/MQLAUNCH_INTEGRATION.md) for full details.
 
 ## Roadmap
 
@@ -248,7 +256,6 @@ uv run pytest tests/ -v
 - Browser control
 - Multi-agent swarms
 - Semantic repository memory
-- mqlaunch integration
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for details.
 

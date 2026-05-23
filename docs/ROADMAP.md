@@ -44,11 +44,19 @@
 - 70 tests (was 37) — all without OpenAI or mq-mcp required
 - `docs/MCP_INTEGRATION.md` and `docs/TOOL_ROUTING.md`
 
-## Next — v0.4.0 (mqlaunch integration)
+## Done — v0.4.0 (mqlaunch integration)
 
-- `mqlaunch agent` bridge commands: `doctor`, `score`, `audit`, `release-check`
-- `docs/MQLAUNCH_INTEGRATION.md`
-- Smoke test: mqlaunch can invoke mq-agent commands
+- `mq-agent-menu.sh` — 12-item agent menu in mqlaunch (4 sections: repo analysis, AI commands, environment, MCP local tools)
+- 3 prompt commands: `agent release-check`, `agent mcp-status`, `agent mcp-tools`
+- `scripts/smoke-mqlaunch.sh` — smoke test: 8 commands verified without API key or live session
+- `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
+
+## Next — v0.5.0 (autonomous loop mode)
+
+- Opt-in autonomous loop with strict safety gates
+- Loop supervisor: max steps, budget, kill switch
+- `mq-agent loop "goal"` — runs until goal is met or limit hit
+- `docs/AUTONOMOUS_MODE.md`
 
 ## Later
 

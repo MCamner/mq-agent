@@ -201,7 +201,7 @@
     <div class="badges">
       <a class="badge" href="https://github.com/MCamner/mq-agent/actions/workflows/tests.yml"><strong>CI</strong> GitHub Actions</a>
       <span class="badge"><strong>Python</strong> 3.11+</span>
-      <span class="badge"><strong>Status</strong> v0.3.0</span>
+      <span class="badge"><strong>Status</strong> v0.4.0</span>
       <span class="badge"><strong>Mode</strong> terminal-native</span>
     </div>
 
@@ -227,13 +227,17 @@
 <span class="prompt">$</span> mq-agent audit .       # read-only repo audit</pre>
 
     <h2>Commands</h2>
-<pre>mq-agent audit .              # repo audit
-mq-agent signal .             # repo-signal assessment + AI plan
+<pre>mq-agent doctor               # environment check
 mq-agent score .              # instant README + publish score
-mq-agent release-plan         # release plan
+mq-agent repo-summary .       # repo overview
+mq-agent tools                # list registered tools
+mq-agent audit .              # repo audit
+mq-agent signal .             # repo-signal assessment + AI plan
 mq-agent release-check        # validate release readiness
 mq-agent fix-ci               # diagnose CI failures
-mq-agent doctor               # environment check
+mq-agent mcp status           # check mq-mcp reachability
+mq-agent mcp tools            # list MCP tools with safety classes
+mq-agent run-tool &lt;tool&gt;      # run MCP tool through safety gates
 mq-agent tui                  # Textual dashboard</pre>
 
     <h2>Links</h2>
