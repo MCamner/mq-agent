@@ -16,7 +16,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev]" --system
+        run: uv pip install -e ".[dev,signal]"
 
       - name: Run tests
         run: uv run pytest -v
