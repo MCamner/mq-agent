@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Secrets / local config
+*.key
+*.pem
+*.p12
+*.pfx
+.env.local
+secrets.*
+settings.local.json
+.claude/settings.local.json
+
+# Logs
+*.log
+logs/
