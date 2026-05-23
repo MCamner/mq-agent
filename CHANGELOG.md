@@ -7,6 +7,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.2.3] — 2026-05-23
+
+### Added — credibility polish
+
+- `Proof` section in README — lists what is actually verified
+- `scripts/check-install.sh` — local install smoke test
+- `.github/workflows/install-smoke.yml` — CI smoke test (no API key)
+- README `Demo` section updated with real 100/100 output
+- README status section updated to `v0.2.3`
+
+### Changed — v0.2.3
+
+- Version bumped to `0.2.3`
+
+---
+
 ## [v0.2.2] — 2026-05-23
 
 ### Added — demo polish

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.2.2-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.2.3-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -104,23 +104,18 @@ Requires `OPENAI_API_KEY` for AI commands. `score`, `doctor`, `repo-summary` and
 
 ```text
 $ mq-agent score .
-╭─── README Score ───╮
-│ README score: 70/100  [███████░░░]
-│ ✓ title  ✓ install  ✓ usage  ✓ badges  ✓ license
-│ ✗ examples  ✗ screenshots_demo  ✗ roadmap
-╰────────────────────╯
-╭─── Publish Checklist ───╮
-│ Publish checklist: 8/16  [WARN]
-│ Next: add a Quick Start section
-╰─────────────────────────╯
-
-$ mq-agent doctor
-✓ OPENAI_API_KEY set
-✓ git found
-✓ uv found
-✓ Python 3.11.15
-✓ repo-signal available
+╭──────────────────────── README Score ─────────────────────────╮
+│ README score: 100/100  [██████████]                           │
+│ ✓ title  ✓ install  ✓ usage  ✓ examples  ✓ badges            │
+│ ✓ license  ✓ roadmap  ✓ contributing  (none missing)          │
+╰───────────────────────────────────────────────────────────────╯
+╭──────────────────── Publish Checklist ────────────────────────╮
+│ Publish checklist: 16/16  [PASS]                              │
+│ Repo looks publish-ready from the static checklist.           │
+╰───────────────────────────────────────────────────────────────╯
 ```
+
+See [docs/DEMO.md](docs/DEMO.md) for the full end-to-end walkthrough.
 
 ## CLI
 
@@ -184,13 +179,19 @@ mq_agent/
     └── fix_ci.yaml       # Declarative CI fix task
 ```
 
-## Tests
+## Proof
+
+- 37 tests pass — `uv run pytest -v` — no OpenAI calls required
+- `mq-agent score .` — 100/100 README, 16/16 publish checklist [PASS]
+- `mq-agent doctor` — all required checks pass
+- `mq-agent audit . --dry-run` — safe, read-only plan generation
+- `mq-agent signal . --dry-run` — repo-signal assessment without execution
+- Safety modes documented and enforced — dangerous patterns blocked at tool level
+- `--dry-run` and `--json` supported on all commands
 
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
-
-37 tests, no OpenAI calls required.
 
 ## Docs
 
@@ -205,7 +206,7 @@ pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.2.0 status
+## v0.2.3 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
@@ -216,16 +217,18 @@ pytest tests/ -v
 - [x] Shell tools (blocked pattern list)
 - [x] Repo tools
 - [x] MCP bridge (mq-mcp over HTTP)
-- [x] Audit agent
-- [x] Release agent
-- [x] CI agent
+- [x] Audit agent, Release agent, CI agent, Docs agent
+- [x] Signal agent (repo-signal + AI improvement plan)
 - [x] Textual TUI
-- [x] JSON output on all commands
-- [x] Dry-run on all commands
-- [x] `mq-agent doctor`
-- [x] repo-signal integration
-- [x] `mq-agent signal` — full scored repo assessment with AI improvement plan
-- [x] `mq-agent score` — instant README + publish checklist (no API key needed)
+- [x] JSON output and dry-run on all commands
+- [x] `mq-agent doctor` — full environment check
+- [x] `mq-agent signal` — scored repo assessment with AI plan
+- [x] `mq-agent score` — instant README + publish checklist (no API key)
+- [x] python-dotenv auto-load from `.env`
+- [x] Skills definitions (`SKILLS.md` + `skills/`)
+- [x] Command reference, safety contract, ecosystem docs
+- [x] GitHub Pages live at mcamner.github.io/mq-agent
+- [x] 11 GitHub topics, MIT license, issue templates
 
 ## Roadmap
 
