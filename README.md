@@ -37,6 +37,26 @@ Not an AI wrapper script. An actual orchestrator with:
 | **Memory**   | Session + persistent state   |
 | **Safety**   | Enforces operation modes     |
 
+## Quick start
+
+```bash
+# Install
+uv pip install -e ".[dev,signal]"
+
+# Check environment
+mq-agent doctor
+
+# Score a repo (no API key needed)
+mq-agent score .
+
+# Full AI-backed repo assessment
+export OPENAI_API_KEY=sk-...
+mq-agent signal .
+
+# Read-only audit
+mq-agent audit .
+```
+
 ## Install
 
 ```bash
@@ -45,7 +65,29 @@ Not an AI wrapper script. An actual orchestrator with:
 uv pip install -e ".[dev,signal]"
 ```
 
-Requires `OPENAI_API_KEY` in environment.
+Requires `OPENAI_API_KEY` in environment (only for AI commands — `score` and `doctor` work without it).
+
+## Demo
+
+```text
+$ mq-agent score .
+╭─── README Score ───╮
+│ README score: 70/100  [███████░░░]
+│ ✓ title  ✓ install  ✓ usage  ✓ badges  ✓ license
+│ ✗ examples  ✗ screenshots_demo  ✗ roadmap
+╰────────────────────╯
+╭─── Publish Checklist ───╮
+│ Publish checklist: 8/16  [WARN]
+│ Next: add a Quick Start section
+╰─────────────────────────╯
+
+$ mq-agent doctor
+✓ OPENAI_API_KEY set
+✓ git found
+✓ uv found
+✓ Python 3.11.15
+✓ repo-signal available
+```
 
 ## CLI
 
