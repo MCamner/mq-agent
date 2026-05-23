@@ -52,7 +52,7 @@ class Verifier:
             temperature=0,
         )
 
-        data = json.loads(response.choices[0].message.content)
+        data = json.loads(response.choices[0].message.content or "{}")
         success = bool(data.get("success", True))
         reason = data.get("reason", "")
 

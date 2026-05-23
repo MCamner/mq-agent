@@ -2,7 +2,7 @@
 
 ![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![Status](https://img.shields.io/badge/status-v0.1.0-green)
+![Status](https://img.shields.io/badge/status-v0.2.0-green)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
 
@@ -42,7 +42,7 @@ Not an AI wrapper script. An actual orchestrator with:
 ```bash
 ./scripts/install.sh
 # or
-uv pip install -e ".[dev]"
+uv pip install -e ".[dev,signal]"
 ```
 
 Requires `OPENAI_API_KEY` in environment.
@@ -90,12 +90,14 @@ mq_agent/
 │   ├── git_tools.py      # git_status, git_log, git_diff, git_branch, git_remote
 │   ├── shell_tools.py    # run_command (blocked pattern list)
 │   ├── repo_tools.py     # repo_summary, list_files, read_file, find_files
+│   ├── signal_tools.py   # repo_scan, repo_readme_score, repo_publish_checklist, repo_analyze
 │   └── mcp_bridge.py     # HTTP bridge to mq-mcp
 ├── agents/
 │   ├── audit_agent.py    # Repo audit (read-only)
 │   ├── release_agent.py  # Release validation
 │   ├── ci_agent.py       # CI failure diagnosis
-│   └── docs_agent.py     # Documentation audit
+│   ├── docs_agent.py     # Documentation audit
+│   └── signal_agent.py   # repo-signal static scan + AI improvement plan
 ├── tui/
 │   └── app.py            # Textual dashboard
 ├── prompts/
@@ -113,7 +115,7 @@ mq_agent/
 pytest tests/ -v
 ```
 
-26 tests, no OpenAI calls required.
+37 tests, no OpenAI calls required.
 
 ## Docs
 
@@ -125,7 +127,7 @@ pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.1.0 status
+## v0.2.0 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
@@ -143,13 +145,15 @@ pytest tests/ -v
 - [x] JSON output on all commands
 - [x] Dry-run on all commands
 - [x] `mq-agent doctor`
+- [x] repo-signal integration
+- [x] `mq-agent signal` — full scored repo assessment with AI improvement plan
+- [x] `mq-agent score` — instant README + publish checklist (no API key needed)
 
-## Not in v0.1.0
+## Not in v0.2.0
 
 - Autonomous looping agents
 - Browser control
 - Multi-agent swarms
-- repo-signal integration (next milestone)
 
 ## Notes
 

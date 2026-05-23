@@ -39,7 +39,7 @@ class Planner:
             temperature=0.2,
         )
 
-        raw = json.loads(response.choices[0].message.content)
+        raw = json.loads(response.choices[0].message.content or "{}")
         steps_data = raw.get("steps", raw) if isinstance(raw, dict) else raw
 
         return [

@@ -81,7 +81,7 @@ class MQAgentApp(App):
 
     CSS = CSS
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("q", "quit", "Quit"),
         Binding("ctrl+c", "quit", "Quit", show=False),
         Binding("enter", "run_selected", "Run"),
@@ -99,7 +99,7 @@ class MQAgentApp(App):
                     *[ListItem(Label(label), id=f"cmd-{cmd}") for label, cmd in COMMANDS]
                 )
             with ScrollableContainer(id="output"):
-                yield Log(id="log", highlight=True, markup=True)
+                yield Log(id="log", highlight=True)
         yield Static(self._status_text(), id="status-bar")
         yield Footer()
 
