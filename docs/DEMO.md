@@ -6,8 +6,8 @@ End-to-end walkthrough of `mq-agent` on a real repo.
 
 ```bash
 uv pip install -e ".[dev,signal]"
-export OPENAI_API_KEY="sk-..."
-cd ~/your-repo
+export OPENAI_API_KEY="sk-proj-..."
+cd ~/mq-agent
 ```
 
 ## Step 1 — Environment check
@@ -16,10 +16,11 @@ cd ~/your-repo
 mq-agent doctor
 ```
 
-```
-┌───────────────────┬────────┬───────────────────────┐
-│ Check             │ Status │ Action                │
-├───────────────────┼────────┼───────────────────────┤
+```text
+                   mq-agent Doctor
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Check             ┃ Status ┃ Action                ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩
 │ OPENAI_API_KEY    │ ✓ OK   │                       │
 │ git               │ ✓ OK   │                       │
 │ uv                │ ✓ OK   │                       │
@@ -36,16 +37,47 @@ All required checks passed.
 mq-agent score .
 ```
 
-```
-╭─── README Score ───────────────────────╮
-│ README score: 100/100  [██████████]    │
-│ ✓ title  ✓ install  ✓ usage            │
-│ ✓ badges  ✓ license  ✓ roadmap         │
-╰────────────────────────────────────────╯
-╭─── Publish Checklist ──────────────────╮
-│ Publish checklist: 16/16  [PASS]       │
-│ Repo looks publish-ready.              │
-╰────────────────────────────────────────╯
+```text
+╭──────────────────────────────── README Score ────────────────────────────────╮
+│ README score: 100/100  [██████████]                                          │
+│                                                                              │
+│ Present:                                                                     │
+│   ✓ title                                                                    │
+│   ✓ short_pitch                                                              │
+│   ✓ install                                                                  │
+│   ✓ usage                                                                    │
+│   ✓ examples                                                                 │
+│   ✓ screenshots_demo                                                         │
+│   ✓ badges                                                                   │
+│   ✓ license                                                                  │
+│   ✓ roadmap                                                                  │
+│   ✓ contributing                                                             │
+│                                                                              │
+│ Missing:                                                                     │
+│   (none — perfect score!)                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭───────────────────────────── Publish Checklist ──────────────────────────────╮
+│ Publish checklist: 16/16  [PASS]                                             │
+│                                                                              │
+│ [Front door]                                                                 │
+│   ✓ README exists                                                            │
+│   ✓ README has quick start                                                   │
+│   ✓ README links to GitHub Pages                                             │
+│   ✓ README mentions demo                                                     │
+│   ✓ README mentions screenshots or gallery                                   │
+│                                                                              │
+│ [Public quality]                                                             │
+│   ✓ LICENSE exists      ✓ CHANGELOG exists   ✓ VERSION exists               │
+│   ✓ .gitignore exists   ✓ README mentions roadmap                            │
+│   ✓ issue templates exist                                                    │
+│                                                                              │
+│ [GitHub Pages]                                                               │
+│   ✓ docs folder exists                                                       │
+│   ✓ GitHub Pages landing exists                                              │
+│   ✓ docs screenshots folder exists                                           │
+│                                                                              │
+│ Next: Repo looks publish-ready from the static checklist.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Step 3 — Full signal assessment
@@ -54,26 +86,29 @@ mq-agent score .
 mq-agent signal .
 ```
 
-```
-╭─── mq-agent · Python project ─────────╮
-│ Overall:  100/100                      │
-│ README:   100/100                      │
-│ Publish:  16/16  [PASS]                │
-╰────────────────────────────────────────╯
+```text
+╭─────────────────────────── mq-agent · Python project ───────────────────────╮
+│ Overall:  100/100                                                            │
+│ README:   100/100                                                            │
+│ Publish:  16/16  [PASS]                                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
 Focus areas:
   1. Foundation looks healthy; improve analysis depth next
 
-AI Improvement Plan
-┌───┬──────────────────────┬─────────┬─────────────────────┐
-│ # │ Step                 │ Status  │ Note                │
-├───┼──────────────────────┼─────────┼─────────────────────┤
-│ 1 │ Scan repository      │ success │ 60 files, main      │
-│ 2 │ Analyze repo         │ success │ Python project      │
-│ 3 │ Read README          │ success │ 100/100 score       │
-│ 4 │ Check git log        │ success │ Clean working tree  │
-└───┴──────────────────────┴─────────┴─────────────────────┘
+                            AI Improvement Plan
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+┃ # ┃ Step                                 ┃ Status     ┃ Note                ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+│ 1 │ Scan the repository                  │ success    │ 60 files, main      │
+│ 2 │ Analyze the repository               │ success    │ Python project      │
+│ 3 │ Read the README file                 │ success    │ 100/100 score       │
+│ 4 │ Check the git log                    │ success    │ Clean working tree  │
+│ 5 │ Review repository status             │ success    │ Clean working tree  │
+└───┴──────────────────────────────────────┴────────────┴─────────────────────┘
+
 ✓ Repo looks healthy
+Next: Repo looks publish-ready from the static checklist.
 ```
 
 ## Step 4 — Audit (dry-run)
@@ -82,7 +117,7 @@ AI Improvement Plan
 mq-agent audit . --dry-run
 ```
 
-Shows the full AI-generated audit plan without executing any steps.
+Shows the full AI-generated audit plan without executing any steps. Safe to run on any repo.
 
 ## Step 5 — Release check
 
