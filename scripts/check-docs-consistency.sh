@@ -51,6 +51,7 @@ for spec in \
   "README.md:200" \
   "CHANGELOG.md:150" \
   "pyproject.toml:40" \
+  "docs/COMMAND_SURFACE.md:80" \
   "scripts/smoke-mqlaunch.sh:35" \
   "release-check.sh:45" \
   ".github/workflows/tests.yml:20" \
