@@ -1,5 +1,4 @@
 """Tests for repo-signal integration tools."""
-import pytest
 
 from mq_agent.tools.signal_tools import (
     repo_analyze,

@@ -1,8 +1,8 @@
 """Tests for mq_agent tools layer."""
 import pytest
 
-from mq_agent.tools.git_tools import git_status, git_log
-from mq_agent.tools.repo_tools import repo_summary, list_files, read_file
+from mq_agent.tools.git_tools import git_log, git_status
+from mq_agent.tools.repo_tools import list_files, read_file, repo_summary
 from mq_agent.tools.shell_tools import run_command
 
 

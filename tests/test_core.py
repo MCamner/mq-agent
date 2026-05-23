@@ -1,11 +1,9 @@
 """Tests for mq_agent core layer (no OpenAI calls)."""
-import pytest
 
-from mq_agent.core.state import AgentState, PlanStep, SafetyMode, StepStatus
-from mq_agent.core.safety import SafetyGate
 from mq_agent.core.executor import Executor
 from mq_agent.core.memory import Memory
-
+from mq_agent.core.safety import SafetyGate
+from mq_agent.core.state import AgentState, PlanStep, SafetyMode, StepStatus
 
 # ── state ──────────────────────────────────────────────────────────────────
 

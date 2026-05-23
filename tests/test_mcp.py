@@ -1,8 +1,5 @@
 """Tests for MCP registry, bridge, and safety classification — no mq-mcp server required."""
-import pytest
-
 from mq_agent.tools.mcp_registry import MCPSafetyClass, MCPToolSpec, classify_tool_name
-
 
 # ── classify_tool_name ──────────────────────────────────────────────────────
 
