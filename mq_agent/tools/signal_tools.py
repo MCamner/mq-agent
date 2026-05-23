@@ -6,7 +6,8 @@ Install: uv pip install /path/to/repo-signal
 """
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 _AVAILABLE = False
 
@@ -16,10 +17,12 @@ _checklist: Callable[..., dict] | None = None
 _analyze_repo: Callable[..., str] | None = None
 
 try:
-    from repo_signal.analyze import analyze_repo as _analyze_repo
-    from repo_signal.core.scanner import scan_repository as _scan
-    from repo_signal.publish_checklist import build_publish_checklist as _checklist
-    from repo_signal.readme_score import score_readme as _score_readme
+    from repo_signal.analyze import analyze_repo as _analyze_repo  # type: ignore[no-redef]
+    from repo_signal.core.scanner import scan_repository as _scan  # type: ignore[no-redef]
+    from repo_signal.publish_checklist import (  # type: ignore[no-redef]
+        build_publish_checklist as _checklist,
+    )
+    from repo_signal.readme_score import score_readme as _score_readme  # type: ignore[no-redef]
 
     _AVAILABLE = True
 except ImportError:
