@@ -27,3 +27,6 @@ jobs:
 
       - name: Type check
         run: uv run mypy mq_agent/ --ignore-missing-imports
+
+      - name: Docs consistency
+        run: bash scripts/check-docs-consistency.sh

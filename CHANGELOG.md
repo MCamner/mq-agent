@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.2.4] — 2026-05-23
+
+### Added — docs sync + self-checking
+
+- `scripts/check-docs-consistency.sh` — verifies version sync across VERSION, pyproject.toml, README badge, README status section, CHANGELOG, and docs/index.html; blocks stale score strings (`70/100`, `8/16`) and old version references
+- `release-check.sh` — pre-release gate: tests, lint, docs consistency
+- Docs consistency step added to `tests.yml` CI workflow
+- ROADMAP rewritten to reflect actual done/next/later state (was showing everything as unchecked)
+
+### Fixed — v0.2.4
+
+- `docs/index.html` version badge corrected from `v0.2.1` to `v0.2.4`
+- README status badge and section heading updated from `v0.2.3` to `v0.2.4`
+- `scripts/check-install.sh`: `doctor` now uses `|| true` (matches CI, avoids failure without `OPENAI_API_KEY`)
+- Version bumped to `0.2.4` in VERSION and pyproject.toml
+
+---
+
 ## [v0.2.3] — 2026-05-23
 
 ### Added — credibility polish

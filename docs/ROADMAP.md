@@ -1,50 +1,48 @@
 # Roadmap
 
-## v0.1.x — Foundation hardening
+## Done
 
-Stabilise and polish the initial terminal-native agent foundation.
+- Planner (OpenAI gpt-4o, structured JSON output)
+- Executor (tool registry, dry-run, safety gate)
+- Verifier (per-step result checking with gpt-4o-mini)
+- Memory (session + persistent JSON)
+- Safety modes (read-only / suggest / execute / dangerous)
+- Git tools, shell tools, repo tools
+- MCP bridge (mq-mcp over HTTP)
+- Audit agent, Release agent, CI agent, Docs agent
+- Signal agent (repo-signal + AI improvement plan)
+- `mq-agent score` — instant README + publish score (no API key)
+- `mq-agent doctor` — full environment check
+- `mq-agent signal` — scored repo assessment with AI plan
+- `mq-agent tui` — Textual dashboard
+- JSON output and `--dry-run` on all commands
+- Skills definitions (`SKILLS.md` + `skills/`)
+- Command reference, safety contract, ecosystem docs
+- GitHub Pages landing
+- Install smoke test CI (no API key required)
+- `python-dotenv` auto-load from `.env`
+- 37 tests pass without OpenAI calls
 
-- [ ] Improve CLI reliability and error messages
-- [ ] Expand test coverage (target: 50+ tests)
-- [ ] Improve JSON output schema consistency
-- [ ] Harden safety checks and blocked pattern list
-- [ ] Add `mq-agent version` and structured version file
-- [ ] Shell completion (Typer built-in)
-- [ ] TUI: async command execution so UI doesn't freeze
+## Next — v0.2.4 (in progress)
 
-## v0.2.0 — Repo intelligence
+- `docs/index.html` version sync (was stuck at v0.2.1)
+- `scripts/check-docs-consistency.sh` — catch version drift before release
+- `release-check.sh` pre-release gate
+- ROADMAP aligned with reality
 
-Integrate repository awareness via repo-signal.
+## Next — v0.3.0 (mqlaunch integration)
 
-- [ ] repo-signal integration: pull repo health scores into audit output
-- [ ] Repository audit scoring (0–100 health score)
-- [ ] Release readiness scoring with blocking criteria
-- [ ] Semantic repository memory via OpenAI vector stores
-- [ ] `mq-agent audit --score` — output structured audit score
-
-## v0.3.0 — Local tool orchestration
-
-Expand local tool routing via mq-mcp.
-
-- [ ] mq-mcp full integration (tool discovery, routing, result handling)
-- [ ] Local MCP tool bridge with auto-discovery
-- [ ] Richer tool metadata (description, schema, examples)
-- [ ] `mq-agent tools --describe <tool>` — show tool schema and examples
-- [ ] Safer shell execution with sandboxing options
-
-## v0.4.0 — HAL integration
-
-Connect to mq-hal for local reasoning.
-
-- [ ] mq-hal reasoning layer integration
-- [ ] Local model fallback (when OpenAI is unavailable)
-- [ ] Hybrid planner: local first, cloud on escalation
-- [ ] mqlaunch as unified command surface
+- `mqlaunch agent` bridge commands: `doctor`, `score`, `audit`, `release-check`
+- `docs/MQLAUNCH_INTEGRATION.md`
+- Smoke test: mqlaunch can invoke mq-agent commands
 
 ## Later
 
-- Autonomous loop mode (explicit opt-in, strict safety)
+- Autonomous loop mode (explicit opt-in, strict safety gates)
 - Browser control (Playwright bridge)
 - Multi-agent workflows
-- Deeper mqlaunch integration
-- Distributed execution
+- Semantic repository memory (OpenAI vector stores)
+- Local model fallback (when OpenAI is unavailable)
+- Hybrid planner (local first, cloud on escalation)
+- Shell completion (Typer built-in)
+- TUI async command execution
