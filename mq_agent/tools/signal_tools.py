@@ -6,7 +6,14 @@ Install: uv pip install /path/to/repo-signal
 """
 from __future__ import annotations
 
+from typing import Any, Callable
+
 _AVAILABLE = False
+
+_scan: Callable[..., Any] | None = None
+_score_readme: Callable[..., dict] | None = None
+_checklist: Callable[..., dict] | None = None
+_analyze_repo: Callable[..., str] | None = None
 
 try:
     from repo_signal.analyze import analyze_repo as _analyze_repo
@@ -35,6 +42,7 @@ def repo_scan(path: str = ".") -> str:
     """Full repo-signal scan: project type, languages, tooling, focus areas."""
     if not _AVAILABLE:
         return _not_available_msg()
+    assert _scan is not None
 
     repo = _scan(path)
     tooling = [f"  • {t}" for t in repo.detected_tooling] or ["  (none)"]
@@ -66,6 +74,7 @@ def repo_readme_score(path: str = ".") -> str:
     """Score the README against 10 quality criteria (0–100)."""
     if not _AVAILABLE:
         return _not_available_msg()
+    assert _score_readme is not None
 
     result = _score_readme(path)
     score = result["score"]
@@ -90,6 +99,7 @@ def repo_publish_checklist(path: str = ".") -> str:
     """Run the publish readiness checklist against the repo."""
     if not _AVAILABLE:
         return _not_available_msg()
+    assert _checklist is not None
 
     result = _checklist(path)
     score = result["score"]
@@ -118,6 +128,7 @@ def repo_analyze(path: str = ".") -> str:
     """Full repo-signal analysis report (markdown)."""
     if not _AVAILABLE:
         return _not_available_msg()
+    assert _analyze_repo is not None
 
     return _analyze_repo(path)
 
@@ -126,6 +137,7 @@ def repo_signal_json(path: str = ".") -> dict:
     """Return all signal data as a structured dict (used by signal_agent)."""
     if not _AVAILABLE:
         return {"available": False, "error": _not_available_msg()}
+    assert _scan is not None and _score_readme is not None and _checklist is not None
 
     repo = _scan(path)
     readme = _score_readme(path)
