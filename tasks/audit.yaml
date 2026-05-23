@@ -1,0 +1,46 @@
+name: repo-audit
+version: "0.1"
+description: Read-only audit of a repository
+
+steps:
+  - name: repo-summary
+    description: Get repository overview
+    tool: repo_summary
+    args:
+      path: "."
+
+  - name: git-status
+    description: Check for uncommitted changes
+    tool: git_status
+    args:
+      path: "."
+
+  - name: git-log
+    description: Review recent commits
+    tool: git_log
+    args:
+      path: "."
+      n: 10
+
+  - name: git-diff
+    description: Check unstaged diffs
+    tool: git_diff
+    args:
+      path: "."
+
+  - name: list-python
+    description: List Python source files
+    tool: find_files
+    args:
+      path: "."
+      suffix: ".py"
+
+  - name: read-readme
+    description: Read README.md
+    tool: read_file
+    args:
+      path: "README.md"
+
+verify:
+  - all steps complete
+  - no tool errors

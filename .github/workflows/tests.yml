@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Run tests
+        run: uv run pytest -v
+
+      - name: Lint
+        run: uv run ruff check mq_agent/
+
+      - name: Type check
+        run: uv run mypy mq_agent/ --ignore-missing-imports

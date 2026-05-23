@@ -1,0 +1,47 @@
+name: release-check
+version: "0.1"
+description: Validate a repository is ready for a release
+
+steps:
+  - name: run-tests
+    description: Run the test suite
+    tool: run_command
+    args:
+      command: "pytest --tb=short -q"
+
+  - name: validate-packaging
+    description: Read and validate pyproject.toml
+    tool: read_file
+    args:
+      path: "pyproject.toml"
+
+  - name: verify-changelog
+    description: Verify CHANGELOG.md exists and has content
+    tool: read_file
+    args:
+      path: "CHANGELOG.md"
+
+  - name: check-readme
+    description: Check README.md is present and non-empty
+    tool: read_file
+    args:
+      path: "README.md"
+
+  - name: git-status
+    description: Confirm working tree is clean (no uncommitted changes)
+    tool: git_status
+    args:
+      path: "."
+
+  - name: git-log
+    description: Review recent commits for release context
+    tool: git_log
+    args:
+      path: "."
+      n: 5
+
+verify:
+  - all steps pass
+  - test suite exits 0
+  - no uncommitted changes
+  - changelog updated

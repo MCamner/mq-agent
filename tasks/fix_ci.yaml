@@ -1,0 +1,38 @@
+name: fix-ci
+version: "0.1"
+description: Diagnose and fix CI failures
+
+steps:
+  - name: run-tests
+    description: Run pytest to identify failures
+    tool: run_command
+    args:
+      command: "pytest --tb=short -q 2>&1 | head -100"
+
+  - name: run-lint
+    description: Run ruff linter
+    tool: run_command
+    args:
+      command: "ruff check . 2>&1 | head -50"
+
+  - name: run-types
+    description: Run mypy type checker
+    tool: run_command
+    args:
+      command: "mypy . --ignore-missing-imports 2>&1 | head -50"
+
+  - name: read-ci-config
+    description: Read CI configuration
+    tool: read_file
+    args:
+      path: ".github/workflows/ci.yml"
+
+verify:
+  - tests pass
+  - no lint errors
+  - no type errors
+
+on_failure:
+  - report specific failures with line numbers
+  - suggest targeted fixes
+  - do not rewrite entire files
