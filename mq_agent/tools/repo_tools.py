@@ -42,9 +42,9 @@ def read_file(path: str = "", file_path: str = "") -> str:
     return p.read_text(errors="replace")
 
 
-def find_files(path: str = ".", suffix: str = ".py") -> str:
+def find_files(path: str = ".", pattern: str = "*.py") -> str:
     p = Path(path).resolve()
-    files = sorted(f for f in p.rglob(f"*{suffix}") if ".git" not in f.parts)
+    files = sorted(f for f in p.rglob(pattern) if ".git" not in f.parts)
     return "\n".join(str(f.relative_to(p)) for f in files[:200])
 
 
