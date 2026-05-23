@@ -1,8 +1,9 @@
 # mq-agent
 
-![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![Status](https://img.shields.io/badge/status-v0.2.0-green)
+[![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![Status](https://img.shields.io/badge/status-v0.2.1-green)](https://mcamner.github.io/mq-agent/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
 

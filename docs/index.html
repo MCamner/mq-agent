@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mq-agent</title>
+  <style>
+    body { font-family: monospace; background: #0d1117; color: #c9d1d9; max-width: 760px; margin: 60px auto; padding: 0 20px; line-height: 1.7; }
+    h1 { color: #58a6ff; font-size: 2rem; margin-bottom: 4px; }
+    .sub { color: #8b949e; margin-bottom: 32px; }
+    .badge { display: inline-block; margin-right: 8px; }
+    pre { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; overflow-x: auto; color: #79c0ff; }
+    code { background: #161b22; padding: 2px 6px; border-radius: 4px; color: #79c0ff; }
+    h2 { color: #e6edf3; border-bottom: 1px solid #30363d; padding-bottom: 6px; margin-top: 40px; }
+    a { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+    .card h3 { color: #58a6ff; margin: 0 0 8px; font-size: 0.95rem; }
+    .card p { margin: 0; color: #8b949e; font-size: 0.88rem; }
+  </style>
+</head>
+<body>
+
+<h1>mq-agent</h1>
+<div class="sub">Terminal-native AI agent orchestrator for the mq ecosystem.</div>
+
+<div>
+  <img class="badge" src="https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg" alt="Tests">
+  <img class="badge" src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python">
+  <img class="badge" src="https://img.shields.io/badge/status-v0.2.1-green" alt="Status">
+</div>
+
+<h2>What it is</h2>
+<p>
+  A controlled terminal workflow for AI agent work — explicit planning, tool routing, verification,
+  memory and safety gates. Every action is traceable. The model never runs unsupervised.
+</p>
+
+<div class="grid">
+  <div class="card"><h3>Planner</h3><p>Decomposes goals into steps using gpt-4o structured output.</p></div>
+  <div class="card"><h3>Executor</h3><p>Routes steps through a typed tool registry with dry-run support.</p></div>
+  <div class="card"><h3>Verifier</h3><p>Checks each result with gpt-4o-mini before moving on.</p></div>
+  <div class="card"><h3>Safety</h3><p>Four modes: read-only → suggest → execute → dangerous.</p></div>
+</div>
+
+<h2>Quick start</h2>
+<pre>uv pip install -e ".[dev,signal]"
+
+mq-agent doctor        # check environment
+mq-agent score .       # README + publish score (no API key)
+mq-agent signal .      # full AI-backed repo assessment
+mq-agent audit .       # read-only repo audit</pre>
+
+<h2>Commands</h2>
+<pre>mq-agent audit .              # repo audit
+mq-agent signal .             # repo-signal assessment + AI plan
+mq-agent score .              # instant README + publish score
+mq-agent release-plan         # release plan
+mq-agent release-check        # validate release readiness
+mq-agent fix-ci               # diagnose CI failures
+mq-agent doctor               # environment check
+mq-agent tui                  # Textual dashboard</pre>
+
+<h2>Links</h2>
+<ul>
+  <li><a href="https://github.com/MCamner/mq-agent">GitHub</a></li>
+  <li><a href="https://github.com/MCamner/mq-agent/blob/main/CHANGELOG.md">Changelog</a></li>
+  <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/ROADMAP.md">Roadmap</a></li>
+  <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/SAFETY.md">Safety</a></li>
+  <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/EXAMPLES.md">Examples</a></li>
+</ul>
+
+</body>
+</html>
