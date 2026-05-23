@@ -192,11 +192,15 @@ pytest tests/ -v
 - [x] `mq-agent signal` — full scored repo assessment with AI improvement plan
 - [x] `mq-agent score` — instant README + publish checklist (no API key needed)
 
-## Not in v0.2.0
+## Roadmap
 
 - Autonomous looping agents
 - Browser control
 - Multi-agent swarms
+- Semantic repository memory
+- mqlaunch integration
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for details.
 
 ## Notes
 
