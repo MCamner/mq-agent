@@ -2,10 +2,19 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.2.1-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.2.2-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
+
+## 30 second demo
+
+```bash
+mq-agent doctor                    # check environment
+mq-agent score .                   # README + publish score (no API key)
+mq-agent audit . --dry-run         # repo audit plan
+mq-agent release-check --dry-run   # release readiness plan
+```
 
 ```mermaid
 flowchart TD

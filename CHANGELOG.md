@@ -7,6 +7,35 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.2.2] — 2026-05-23
+
+### Added — demo polish
+
+- `docs/DEMO.md` — end-to-end walkthrough with real command output
+- `docs/COMMANDS.md` — full command reference with safety modes and flags
+- `docs/SAFETY_CONTRACT.md` — what the agent may/must not do, blocked patterns, audit trail
+- `docs/MQ_ECOSYSTEM.md` — mqlaunch, mq-agent, mq-hal, mq-mcp, repo-signal integration map
+- `SKILLS.md` + `skills/` — four skill definitions: repo-audit, release-readiness, signal-assessment, ci-diagnosis
+- README: 30-second demo section, Use cases, tiered install (dev/GitHub/PyPI)
+- GitHub: 11 topics set
+
+### Fixed — v0.2.2
+
+- `read_file()` accepts `file_path` kwarg (GPT-4o natural argument compat)
+- `signal_tools.py` ruff + mypy clean (UP035, no-redef, import sort)
+- `mcp_bridge` list_tools return type narrowed to `list[str]`
+- planner/verifier: `json.loads(content or "{}")` — `str | None` guard
+- TUI: `BINDINGS` type aligned with Textual `App` base class
+- TUI: `Log()` markup kwarg removed (not supported)
+- CI: `--system` flag removed from uv install; `[signal]` extra added
+- `python-dotenv` auto-load from `~/mq-agent/.env` and `./.env`
+
+### Changed — v0.2.2
+
+- Version bumped to `0.2.2`
+
+---
+
 ## [v0.2.0] — 2026-05-23
 
 ### Added — repo-signal integration
