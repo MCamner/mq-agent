@@ -48,6 +48,16 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# Memory smoke
+echo ""
+echo "--- memory smoke ---"
+if bash "$ROOT/scripts/smoke-memory.sh" > /dev/null 2>&1; then
+  ok "smoke-memory.sh"
+else
+  bash "$ROOT/scripts/smoke-memory.sh" || true
+  ERRORS=$((ERRORS + 1))
+fi
+
 # Summary
 echo ""
 if [[ "$ERRORS" -eq 0 ]]; then

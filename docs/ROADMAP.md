@@ -59,13 +59,16 @@
 - Docs consistency gate checks source readability and mqlaunch command counts
 - Release-check includes docs consistency and mqlaunch smoke checks
 
-## Next — stabilization before v0.5.0
+## Done — v0.5.0 (semantic repository memory)
 
-- Keep command surface, release notes and GitHub Pages in sync
-- Keep source markdown, TOML, shell and workflow files reviewable
-- Expand consistency gates only when a real drift risk appears
+- `mq-agent memory status` — check vector store ID and repo-signal availability
+- `mq-agent memory build .` — dry-run semantic upload (safe default)
+- `mq-agent memory refresh . --approve` — upload with explicit gate
+- `mq_agent/memory/semantic.py` — SemanticMemoryStatus, status(), build()
+- `docs/SEMANTIC_MEMORY.md` — commands, safety model, failure states
+- `scripts/smoke-memory.sh` — smoke test for memory commands
 
-## Later — v0.5.0 candidates
+## Later — v0.6.0 candidates
 
 - Opt-in autonomous loop with strict safety gates
 - Loop supervisor: max steps, budget, kill switch
@@ -73,8 +76,6 @@
 - `docs/AUTONOMOUS_MODE.md`
 - Browser control (Playwright bridge)
 - Multi-agent workflows
-- Semantic repository memory (OpenAI vector stores)
 - Local model fallback (when OpenAI is unavailable)
 - Hybrid planner (local first, cloud on escalation)
 - Shell completion (Typer built-in)
-- TUI async command execution

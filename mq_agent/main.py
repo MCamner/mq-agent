@@ -27,6 +27,9 @@ app = typer.Typer(
 mcp_app = typer.Typer(help="Inspect and manage the local mq-mcp tool server.")
 app.add_typer(mcp_app, name="mcp")
 
+memory_app = typer.Typer(help="Semantic repository memory commands.")
+app.add_typer(memory_app, name="memory")
+
 console = Console()
 
 
@@ -621,6 +624,95 @@ def run_tool(
         console.print(Panel(pprint.pformat(result, width=80), title=f"[bold]{tool}[/bold]"))
     else:
         console.print(Panel(str(result), title=f"[bold]{tool}[/bold]"))
+
+
+# ── memory status ──────────────────────────────────────────────────────────
+
+@memory_app.command("status")
+def memory_status_cmd(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Check semantic repository memory availability."""
+    from mq_agent.memory.semantic import status as mem_status
+
+    state = mem_status(path)
+
+    if json_out:
+        typer.echo(json.dumps({
+            "status": state.status,
+            "enabled": state.enabled,
+            "vector_store_id": state.vector_store_id,
+            "repo_signal_available": state.repo_signal_available,
+            "repo_path": state.repo_path,
+        }, indent=2))
+        return
+
+    color = "green" if state.enabled else "yellow" if state.status == "missing-repo-signal" else "red"
+    lines = (
+        f"[bold]status:[/bold]       [{color}]{state.status}[/{color}]\n"
+        f"[bold]vector store:[/bold] {state.vector_store_id or '[dim](not set — export OPENAI_VECTOR_STORE_ID)[/dim]'}\n"
+        f"[bold]repo-signal:[/bold]  {'[green]available[/green]' if state.repo_signal_available else '[yellow]not found[/yellow]'}\n"
+        f"[bold]repo:[/bold]         {state.repo_path}"
+    )
+    console.print(Panel(lines, title="[bold]Semantic Memory[/bold]",
+                        border_style="green" if state.enabled else "yellow"))
+
+
+# ── memory build ───────────────────────────────────────────────────────────
+
+@memory_app.command("build")
+def memory_build_cmd(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    dry_run: Annotated[bool, typer.Option("--dry-run/--no-dry-run")] = True,
+):
+    """Upload semantic repo memory via repo-signal. Dry-run by default."""
+    from mq_agent.memory.semantic import build as mem_build
+
+    if dry_run:
+        console.print("[blue][dry-run][/blue] Would run: [bold]repo-signal semantic-upload[/bold]")
+        console.print("Add [bold]--no-dry-run[/bold] to execute, or use [bold]memory refresh --approve[/bold].")
+        return
+
+    with console.status("[bold cyan]Building semantic memory...[/bold cyan]"):
+        result = mem_build(path, dry_run=False)
+
+    if result.stdout:
+        console.print(result.stdout)
+    if result.stderr:
+        console.print(f"[yellow]{result.stderr}[/yellow]")
+    if result.returncode != 0:
+        console.print(f"[bold red]Build failed (exit {result.returncode})[/bold red]")
+        raise typer.Exit(result.returncode)
+    console.print("[bold green]✓ Semantic memory built[/bold green]")
+
+
+# ── memory refresh ─────────────────────────────────────────────────────────
+
+@memory_app.command("refresh")
+def memory_refresh_cmd(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    approve: Annotated[bool, typer.Option("--approve", help="Allow upload")] = False,
+):
+    """Refresh semantic repo memory. Requires --approve to upload."""
+    from mq_agent.memory.semantic import build as mem_build
+
+    if not approve:
+        console.print("[yellow]Refusing to upload semantic memory without [bold]--approve[/bold].[/yellow]")
+        console.print("Run [bold]mq-agent memory build .[/bold] first to preview.")
+        raise typer.Exit(1)
+
+    with console.status("[bold cyan]Refreshing semantic memory...[/bold cyan]"):
+        result = mem_build(path, dry_run=False)
+
+    if result.stdout:
+        console.print(result.stdout)
+    if result.stderr:
+        console.print(f"[yellow]{result.stderr}[/yellow]")
+    if result.returncode != 0:
+        console.print(f"[bold red]Refresh failed (exit {result.returncode})[/bold red]")
+        raise typer.Exit(result.returncode)
+    console.print("[bold green]✓ Semantic memory refreshed[/bold green]")
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
