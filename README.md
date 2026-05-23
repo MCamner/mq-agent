@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.4.1-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.5.0-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -215,7 +215,7 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.4.1 status
+## v0.5.0 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
@@ -236,6 +236,21 @@ uv run pytest tests/ -v
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] `docs/COMMAND_SURFACE.md` — single source of truth for command counts
 - [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
+- [x] Semantic repository memory — `mq-agent memory status / build / refresh`
+
+## Semantic repository memory
+
+mq-agent v0.5.0 can inspect and build semantic repository memory via repo-signal.
+
+```bash
+mq-agent memory status          # check vector store and repo-signal
+mq-agent memory build .         # preview upload (dry-run default)
+mq-agent memory refresh . --approve  # upload when ready
+```
+
+Memory upload is explicit and gated. mq-agent never uploads silently.
+
+See [docs/SEMANTIC_MEMORY.md](docs/SEMANTIC_MEMORY.md).
 
 ## mqlaunch integration
 
@@ -261,7 +276,6 @@ for bridge details.
 - Autonomous looping agents
 - Browser control
 - Multi-agent swarms
-- Semantic repository memory
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for details.
 

@@ -52,8 +52,10 @@ for spec in \
   "CHANGELOG.md:150" \
   "pyproject.toml:40" \
   "docs/COMMAND_SURFACE.md:80" \
+  "docs/SEMANTIC_MEMORY.md:40" \
   "scripts/smoke-mqlaunch.sh:35" \
-  "release-check.sh:45" \
+  "scripts/smoke-memory.sh:20" \
+  "release-check.sh:55" \
   ".github/workflows/tests.yml:20" \
   ".github/workflows/install-smoke.yml:20"; do
   file="${spec%%:*}"

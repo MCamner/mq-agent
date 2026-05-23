@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.5.0] — 2026-05-24
+
+### Added
+
+- `mq-agent memory status` — check vector store ID and repo-signal availability
+- `mq-agent memory build .` — dry-run semantic upload preview (safe default)
+- `mq-agent memory refresh . --approve` — upload semantic memory (gate required)
+- `mq_agent/memory/semantic.py` — `SemanticMemoryStatus`, `get_vector_store_id()`, `status()`, `build()`
+- `docs/SEMANTIC_MEMORY.md` — commands, environment, safety model and failure states
+- `scripts/smoke-memory.sh` — smoke test for memory status and build dry-run
+
+### Safety
+
+- `memory build` defaults to `--dry-run`; no upload without `--no-dry-run`
+- `memory refresh` requires `--approve`; exits 1 without it
+- Missing vector store and missing repo-signal reported explicitly, never silent
+
+### Changed
+
+- README updated to v0.5.0 with semantic memory section
+- Roadmap updated: v0.5.0 semantic memory marked complete; autonomous loop/browser moved to Later
+
+---
+
 ## [v0.4.1] — 2026-05-23
 
 ### Added

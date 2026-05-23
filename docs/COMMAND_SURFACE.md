@@ -39,6 +39,15 @@ mqlaunch -> mq-agent -> mq-hal / mq-mcp / repo-signal
 | `mq-agent run "cmd" --approve` | execute | no | Safe shell command execution |
 | `mq-agent tui` | read-only | no | Textual dashboard |
 
+## Memory Commands
+
+| Command | Needs vector store | Notes |
+|---|---:|---|
+| `mq-agent memory status` | no | Reports vector store ID and repo-signal availability |
+| `mq-agent memory build .` | no | Dry-run preview of semantic upload (safe default) |
+| `mq-agent memory build . --no-dry-run` | yes | Upload semantic memory |
+| `mq-agent memory refresh . --approve` | yes | Upload with explicit approval gate |
+
 ## MCP Commands
 
 | Command | Needs mq-mcp | Notes |
