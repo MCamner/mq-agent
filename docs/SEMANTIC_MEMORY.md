@@ -25,6 +25,30 @@ mq-agent memory build .         # dry-run semantic upload (safe default)
 mq-agent memory refresh . --approve  # upload semantic memory (requires approval)
 ```
 
+### Example output
+
+```text
+$ mq-agent memory status
+╭────────────────────────────── Semantic Memory ───────────────────────────────╮
+│ status:       missing-vector-store                                           │
+│ vector store: (not set — export OPENAI_VECTOR_STORE_ID)                      │
+│ repo-signal:  available                                                      │
+│ repo:         /path/to/mq-agent                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+$ mq-agent memory build .
+ Would run: repo-signal semantic-upload
+Add --no-dry-run to execute, or use memory refresh --approve.
+
+$ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
+╭────────────────────────────── Semantic Memory ───────────────────────────────╮
+│ status:       ready                                                          │
+│ vector store: vs_abc                                                         │
+│ repo-signal:  available                                                      │
+│ repo:         /path/to/mq-agent                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ---
 
 ## Environment
