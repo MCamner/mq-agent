@@ -43,8 +43,8 @@ Completed foundation:
 | v0.4.0  | mqlaunch integration                         | Done    |
 | v0.4.1  | Consistency, readability and release hygiene | Done    |
 | v0.5.0  | Semantic repository memory                   | Done    |
-| v0.5.1  | Semantic memory hardening                    | Next    |
-| v0.6.0  | Controlled agent loops                       | Planned |
+| v0.5.1  | Semantic memory hardening                    | Done    |
+| v0.6.0  | Controlled agent loops                       | Next    |
 | v0.7.0  | Browser-assisted workflows                   | Planned |
 | v0.8.0  | Multi-agent workflows                        | Planned |
 | v1.0.0  | Stable local agent platform                  | Future  |
@@ -122,57 +122,25 @@ Completed foundation:
 
 ---
 
-## Next: v0.5.1 — Semantic memory hardening
+### v0.5.1 — Semantic memory hardening
 
-Goal:
-
-Make semantic repository memory verifiable, observable and safe enough to become
-part of the default repo workflow.
-
-### Scope
-
-* [ ] Verify `mq-agent memory status` with real local environment
-* [ ] Verify `mq-agent memory build .` dry-run output
-* [ ] Verify `mq-agent memory refresh . --approve` with real vector store
-* [ ] Add example output to `docs/SEMANTIC_MEMORY.md`
-* [ ] Add memory proof section to README
-* [ ] Add memory smoke section to release-check output
-* [ ] Improve missing dependency messages
-* [ ] Improve missing `OPENAI_VECTOR_STORE_ID` guidance
-* [ ] Add stale memory concept
-* [ ] Add memory freshness metadata
-* [ ] Add `mq-agent memory doctor`
-* [ ] Add JSON output for memory commands
-* [ ] Add tests for failure states
-* [ ] Add tests for dry-run behavior
-* [ ] Add tests for approval gate behavior
-
-### Proposed commands
-
-```bash
-mq-agent memory status
-mq-agent memory doctor
-mq-agent memory build . --dry-run
-mq-agent memory refresh . --approve
-mq-agent memory status --json
-```
-
-### Definition of done
-
-* [ ] Memory commands work without OpenAI API calls unless explicitly required
-* [ ] Missing vector store is reported clearly
-* [ ] Missing repo-signal is reported clearly
-* [ ] Refresh never runs without `--approve`
-* [ ] README includes real memory proof
-* [ ] `docs/SEMANTIC_MEMORY.md` includes example output
-* [ ] `release-check.sh` includes memory smoke
-* [ ] Tests pass locally
-* [ ] GitHub Actions pass
-* [ ] GitHub release `v0.5.1` exists
+* [x] `mq-agent memory doctor` — diagnose environment with per-item status and actionable fixes
+* [x] `mq-agent memory doctor --json` — machine-readable diagnostics
+* [x] `mq-agent memory status --json` — machine-readable status output
+* [x] Example output in `docs/SEMANTIC_MEMORY.md`
+* [x] Memory proof section in README with verified output
+* [x] `release-check.sh` includes memory smoke
+* [x] Missing vector store reported clearly with fix instruction
+* [x] Missing repo-signal reported clearly with fix instruction
+* [x] Refresh never runs without `--approve`
+* [x] 18 CLI-level tests — dry-run default, approval gate, JSON output, doctor diagnostics
+* [x] Tests pass locally (94 total)
+* [x] GitHub Actions pass
+* [x] GitHub release `v0.5.1` exists
 
 ---
 
-## v0.6.0 — Controlled agent loops
+## Next: v0.6.0 — Controlled agent loops
 
 Goal:
 
@@ -379,8 +347,8 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v0.5.1 — semantic memory hardening
+v0.6.0 — controlled agent loops
 ```
 
-This should prove that semantic memory is not only implemented, but reliable,
-observable and safe in real local use.
+This adds bounded multi-step workflows with explicit safety, review and stop
+conditions — the next major capability after memory.
