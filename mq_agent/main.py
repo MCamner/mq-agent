@@ -715,6 +715,46 @@ def memory_refresh_cmd(
     console.print("[bold green]✓ Semantic memory refreshed[/bold green]")
 
 
+# ── memory doctor ───────────────────────────────────────────────────────────
+
+@memory_app.command("doctor")
+def memory_doctor_cmd(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Diagnose semantic memory environment."""
+    from mq_agent.memory.semantic import doctor as mem_doctor
+
+    report = mem_doctor(path)
+
+    if json_out:
+        typer.echo(json.dumps({
+            "healthy": report.healthy,
+            "items": [
+                {"ok": item.ok, "label": item.label, "detail": item.detail, "fix": item.fix}
+                for item in report.items
+            ],
+        }, indent=2))
+        if not report.healthy:
+            raise typer.Exit(1)
+        return
+
+    lines = []
+    for item in report.items:
+        icon = "[green]✓[/green]" if item.ok else "[red]✗[/red]"
+        line = f"{icon} [bold]{item.label}:[/bold] {item.detail}"
+        if not item.ok and item.fix:
+            line += f"\n  [dim]fix:[/dim] [yellow]{item.fix}[/yellow]"
+        lines.append(line)
+
+    border = "green" if report.healthy else "red"
+    title = "[bold]Memory Doctor[/bold]"
+    console.print(Panel("\n".join(lines), title=title, border_style=border))
+
+    if not report.healthy:
+        raise typer.Exit(1)
+
+
 # ── helpers ────────────────────────────────────────────────────────────────
 
 def _print_tool_spec(spec) -> None:

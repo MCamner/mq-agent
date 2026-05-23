@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.5.0-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.5.1-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -215,7 +215,7 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.5.0 status
+## v0.5.1 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
@@ -235,20 +235,48 @@ uv run pytest tests/ -v
 - [x] `scripts/smoke-mqlaunch.sh` — verifies `mqlaunch agent ...` reaches mq-agent
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] `docs/COMMAND_SURFACE.md` — single source of truth for command counts
-- [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
+- [x] 94 tests pass — `uv run pytest -v` — no OpenAI calls required
 - [x] Semantic repository memory — `mq-agent memory status / build / refresh`
+- [x] `mq-agent memory doctor` — diagnose memory environment with actionable fixes
+- [x] `mq-agent memory status --json` / `mq-agent memory doctor --json` — machine-readable output
 
 ## Semantic repository memory
 
-mq-agent v0.5.0 can inspect and build semantic repository memory via repo-signal.
+mq-agent v0.5.0 adds semantic repository memory via repo-signal.
 
 ```bash
-mq-agent memory status          # check vector store and repo-signal
-mq-agent memory build .         # preview upload (dry-run default)
-mq-agent memory refresh . --approve  # upload when ready
+mq-agent memory status                # check vector store and repo-signal
+mq-agent memory doctor                # diagnose environment with actionable fixes
+mq-agent memory build .               # preview upload (dry-run default)
+mq-agent memory refresh . --approve   # upload when ready
+mq-agent memory status --json         # machine-readable output
 ```
 
 Memory upload is explicit and gated. mq-agent never uploads silently.
+
+### Verified output
+
+```text
+$ mq-agent memory status
+╭────────────────────────────── Semantic Memory ───────────────────────────────╮
+│ status:       missing-vector-store                                           │
+│ vector store: (not set — export OPENAI_VECTOR_STORE_ID)                      │
+│ repo-signal:  available                                                      │
+│ repo:         /Users/mansys/mq-agent                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+$ mq-agent memory build .
+[dry-run] Would run: repo-signal semantic-upload
+Add --no-dry-run to execute, or use memory refresh --approve.
+
+$ mq-agent memory doctor
+╭──────────────────────── Memory Doctor ───────────────────────────╮
+│ ✗ OPENAI_VECTOR_STORE_ID: (not set)                              │
+│   fix: export OPENAI_VECTOR_STORE_ID=vs_...                      │
+│ ✓ repo-signal: available                                         │
+│ ✓ repo path: /Users/mansys/mq-agent                              │
+╰──────────────────────────────────────────────────────────────────╯
+```
 
 See [docs/SEMANTIC_MEMORY.md](docs/SEMANTIC_MEMORY.md).
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -17,6 +17,23 @@ class SemanticMemoryStatus:
     repo_path: str
     repo_signal_available: bool
     status: str
+
+
+@dataclass(frozen=True)
+class DiagnosticItem:
+    ok: bool
+    label: str
+    detail: str
+    fix: str = ""
+
+
+@dataclass(frozen=True)
+class DoctorReport:
+    items: list[DiagnosticItem] = field(default_factory=list)
+
+    @property
+    def healthy(self) -> bool:
+        return all(item.ok for item in self.items)
 
 
 def get_vector_store_id() -> str | None:
@@ -74,3 +91,43 @@ def build(
         text=True,
         check=False,
     )
+
+
+def doctor(repo_path: str | Path = ".") -> DoctorReport:
+    """Diagnose semantic memory environment and return actionable findings."""
+    repo = Path(repo_path).resolve()
+    items: list[DiagnosticItem] = []
+
+    vs_id = get_vector_store_id()
+    if vs_id:
+        items.append(DiagnosticItem(ok=True, label="OPENAI_VECTOR_STORE_ID", detail=vs_id))
+    else:
+        raw = os.getenv("OPENAI_VECTOR_STORE_ID", "")
+        detail = "(whitespace-only)" if raw.strip() == "" and raw else "(not set)"
+        items.append(DiagnosticItem(
+            ok=False,
+            label="OPENAI_VECTOR_STORE_ID",
+            detail=detail,
+            fix="export OPENAI_VECTOR_STORE_ID=vs_...",
+        ))
+
+    has_rs = repo_signal_available()
+    if has_rs:
+        items.append(DiagnosticItem(ok=True, label="repo-signal", detail="available"))
+    else:
+        items.append(DiagnosticItem(
+            ok=False,
+            label="repo-signal",
+            detail="not found",
+            fix="uv pip install repo-signal",
+        ))
+
+    repo_ok = repo.exists() and repo.is_dir()
+    items.append(DiagnosticItem(
+        ok=repo_ok,
+        label="repo path",
+        detail=str(repo),
+        fix="" if repo_ok else f"path does not exist: {repo}",
+    ))
+
+    return DoctorReport(items=items)

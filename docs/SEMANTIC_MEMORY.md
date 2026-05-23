@@ -21,8 +21,11 @@ audit / release-check / score with repo context
 
 ```bash
 mq-agent memory status          # check vector store and repo-signal availability
+mq-agent memory doctor          # diagnose environment with actionable fixes
 mq-agent memory build .         # dry-run semantic upload (safe default)
 mq-agent memory refresh . --approve  # upload semantic memory (requires approval)
+mq-agent memory status --json   # machine-readable output
+mq-agent memory doctor --json   # machine-readable diagnostics
 ```
 
 ### Example output
@@ -35,6 +38,14 @@ $ mq-agent memory status
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
+$ mq-agent memory doctor
+╭──────────────────────── Memory Doctor ───────────────────────────╮
+│ ✗ OPENAI_VECTOR_STORE_ID: (not set)                              │
+│   fix: export OPENAI_VECTOR_STORE_ID=vs_...                      │
+│ ✓ repo-signal: available                                         │
+│ ✓ repo path: /path/to/mq-agent                                   │
+╰──────────────────────────────────────────────────────────────────╯
 
 $ mq-agent memory build .
  Would run: repo-signal semantic-upload
