@@ -44,6 +44,9 @@ mqlaunch -> mq-agent -> mq-hal / mq-mcp / repo-signal
 | Command | Needs vector store | Notes |
 |---|---:|---|
 | `mq-agent memory status` | no | Reports vector store ID and repo-signal availability |
+| `mq-agent memory status --json` | no | Machine-readable status output |
+| `mq-agent memory doctor` | no | Diagnose environment with actionable fixes |
+| `mq-agent memory doctor --json` | no | Machine-readable diagnostics |
 | `mq-agent memory build .` | no | Dry-run preview of semantic upload (safe default) |
 | `mq-agent memory build . --no-dry-run` | yes | Upload semantic memory |
 | `mq-agent memory refresh . --approve` | yes | Upload with explicit approval gate |

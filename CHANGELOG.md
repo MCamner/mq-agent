@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.5.1] — 2026-05-24
+
+### Added
+
+- `mq-agent memory doctor` — diagnose environment with per-item status and actionable fixes
+- `mq-agent memory doctor --json` — machine-readable diagnostics
+- `mq-agent memory status --json` — machine-readable status output
+- `DoctorReport` and `DiagnosticItem` dataclasses in `mq_agent/memory/semantic.py`
+- `doctor()` function in `mq_agent/memory/semantic.py`
+- `tests/test_memory_cli.py` — 18 CLI-level tests covering dry-run default, approval gate, JSON output and doctor diagnostics
+- Example output for `memory doctor` in `docs/SEMANTIC_MEMORY.md` and README
+
+### Changed
+
+- README semantic memory section expanded with verified output and `memory doctor` example
+- `docs/COMMAND_SURFACE.md` updated with `memory doctor` and `--json` variants
+
+---
+
 ## [v0.5.0] — 2026-05-24
 
 ### Added
