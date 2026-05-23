@@ -227,8 +227,8 @@ uv run pytest tests/ -v
 - [x] `mq-agent tools --describe <name>` — tool metadata and safety class
 - [x] `mq-agent run-tool <tool>` — MCP tool through safety gates
 - [x] MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
-- [x] mqlaunch bridge — 12-item agent menu + 3 prompt commands
-- [x] `scripts/smoke-mqlaunch.sh` — bridge smoke test (8 commands, no API key)
+- [x] mqlaunch bridge — 12-item agent menu + 6 direct prompt commands
+- [x] `scripts/smoke-mqlaunch.sh` — bridge smoke test (8 no-API-key checks)
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
 
@@ -242,6 +242,7 @@ mqlaunch → g → Agent menu  (12 options across 4 sections)
 
 # Direct prompt commands
 agent score           # mq-agent score .
+agent audit           # mq-agent audit .
 agent doctor          # mq-agent doctor
 agent release-check   # mq-agent release-check
 agent mcp-status      # mq-agent mcp status

@@ -12,8 +12,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added — mqlaunch integration
 
 - `mq-agent-menu.sh` (macos-scripts) — 12-item agent menu: REPO ANALYSIS (1-4), AI COMMANDS (5-8), ENVIRONMENT (9-10), MCP LOCAL TOOLS (11-12)
-- 3 new prompt commands wired into mqlaunch: `agent release-check`, `agent mcp-status`, `agent mcp-tools`
-- `scripts/smoke-mqlaunch.sh` — smoke test that exercises all 8 mqlaunch-callable mq-agent commands without a live session or API key
+- 6 direct prompt commands wired into mqlaunch: `agent score`, `agent audit`, `agent doctor`, `agent release-check`, `agent mcp-status`, `agent mcp-tools`
+- `scripts/smoke-mqlaunch.sh` — smoke test that exercises 8 no-API-key bridge checks without a live session
 - `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture, available commands, and smoke-test usage
 
 ### Changed

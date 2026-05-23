@@ -47,8 +47,8 @@
 ## Done — v0.4.0 (mqlaunch integration)
 
 - `mq-agent-menu.sh` — 12-item agent menu in mqlaunch (4 sections: repo analysis, AI commands, environment, MCP local tools)
-- 3 prompt commands: `agent release-check`, `agent mcp-status`, `agent mcp-tools`
-- `scripts/smoke-mqlaunch.sh` — smoke test: 8 commands verified without API key or live session
+- 6 direct prompt commands: `agent score`, `agent audit`, `agent doctor`, `agent release-check`, `agent mcp-status`, `agent mcp-tools`
+- `scripts/smoke-mqlaunch.sh` — smoke test: 8 no-API-key bridge checks verified without a live session
 - `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 
 ## Next — v0.5.0 (autonomous loop mode)

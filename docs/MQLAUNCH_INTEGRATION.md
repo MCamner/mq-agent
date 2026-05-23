@@ -84,8 +84,8 @@ Type these at the mqlaunch main prompt — no menu navigation needed:
 
 ## Smoke test
 
-`scripts/smoke-mqlaunch.sh` verifies all mqlaunch-callable commands without a
-live mqlaunch session or `OPENAI_API_KEY`:
+`scripts/smoke-mqlaunch.sh` verifies the no-API-key bridge checks without a
+live mqlaunch session:
 
 ```bash
 bash scripts/smoke-mqlaunch.sh

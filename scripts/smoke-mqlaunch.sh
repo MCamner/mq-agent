@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# smoke-mqlaunch.sh — verifies all commands that mqlaunch calls via mq-agent-menu.sh.
+# smoke-mqlaunch.sh — verifies mqlaunch bridge checks that do not need API access.
 # Runs without a live mqlaunch session or OPENAI_API_KEY.
 set -euo pipefail
 
