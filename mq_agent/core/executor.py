@@ -56,7 +56,11 @@ class Executor:
         for i, step in enumerate(state.plan):
             state.current_step = i
             self.run_step(step, state)
-            # Stop on failure unless in dangerous mode
-            if step.status == StepStatus.FAILED and not self.safety.mode.value == "dangerous":
+            # Read-only: continue past failures to collect as much info as possible.
+            # Execute/suggest: stop on first failure to avoid cascading side effects.
+            if (
+                step.status == StepStatus.FAILED
+                and self.safety.mode.value not in ("read-only", "dangerous")
+            ):
                 break
         return state

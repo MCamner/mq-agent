@@ -13,7 +13,7 @@ def test_git_status_in_current_repo():
     assert len(result) > 0
 
 def test_git_log_returns_commits():
-    result = git_log(".", n=3)
+    result = git_log(".", limit=3)
     assert isinstance(result, str)
 
 def test_repo_summary_contains_fields():

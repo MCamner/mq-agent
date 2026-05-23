@@ -20,7 +20,7 @@ steps:
     tool: git_log
     args:
       path: "."
-      n: 10
+      limit: 10
 
   - name: git-diff
     description: Check unstaged diffs

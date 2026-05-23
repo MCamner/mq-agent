@@ -4,9 +4,13 @@ SAFE_TOOLS = {
     "git_status",
     "git_log",
     "git_diff",
+    "git_branch",
+    "git_remote",
     "repo_summary",
     "list_files",
     "read_file",
+    "find_files",
+    "which",
 }
 
 DESTRUCTIVE_PATTERNS = [

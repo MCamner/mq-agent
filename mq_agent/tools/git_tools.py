@@ -11,8 +11,8 @@ def git_status(path: str = ".") -> str:
     return out if out != "(no output)" else "Clean working tree"
 
 
-def git_log(path: str = ".", n: int = 10) -> str:
-    return _run(["git", "log", "--oneline", f"-{n}"], cwd=path)
+def git_log(path: str = ".", limit: int = 10) -> str:
+    return _run(["git", "log", "--oneline", f"-{limit}"], cwd=path)
 
 
 def git_diff(path: str = ".") -> str:
