@@ -47,7 +47,7 @@ class MCPBridge:
             response = httpx.get(f"{self.endpoint}/tools", timeout=5)
             data = response.json()
             self._available = data.get("tools", [])
-            return self._available
+            return self._available or []
         except Exception:
             return []
 
