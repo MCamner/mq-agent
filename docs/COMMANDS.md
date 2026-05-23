@@ -1,5 +1,8 @@
 # Command Reference
 
+See [COMMAND_SURFACE.md](COMMAND_SURFACE.md) for the canonical command-count
+reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
+
 ## All commands
 
 | Command | Safety mode | Needs API key | Description |

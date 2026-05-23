@@ -52,16 +52,25 @@
 - `scripts/smoke-mqlaunch.sh` — smoke test verifies mqlaunch can call mq-agent without a live session
 - `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 
-## Next — v0.5.0 (autonomous loop mode)
+## Done — v0.4.1 (consistency and release hygiene)
+
+- `docs/COMMAND_SURFACE.md` — single source of truth for command counts
+- README, GitHub Pages, changelog and command docs synced to v0.4.1
+- Docs consistency gate checks source readability and mqlaunch command counts
+- Release-check includes docs consistency and mqlaunch smoke checks
+
+## Next — stabilization before v0.5.0
+
+- Keep command surface, release notes and GitHub Pages in sync
+- Keep source markdown, TOML, shell and workflow files reviewable
+- Expand consistency gates only when a real drift risk appears
+
+## Later — v0.5.0 candidates
 
 - Opt-in autonomous loop with strict safety gates
 - Loop supervisor: max steps, budget, kill switch
 - `mq-agent loop "goal"` — runs until goal is met or limit hit
 - `docs/AUTONOMOUS_MODE.md`
-
-## Later
-
-- Autonomous loop mode (explicit opt-in, strict safety gates)
 - Browser control (Playwright bridge)
 - Multi-agent workflows
 - Semantic repository memory (OpenAI vector stores)

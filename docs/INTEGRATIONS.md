@@ -8,7 +8,7 @@ mq-agent is the orchestration layer for the mq ecosystem. It routes goals to the
 
 mqlaunch is the top-level CLI that users interact with. It delegates tasks to mq-agent for orchestration. mq-agent should be callable directly or via mqlaunch.
 
-**Status:** Planned integration. mq-agent currently runs standalone.
+**Status:** Active. See [COMMAND_SURFACE.md](COMMAND_SURFACE.md) and [MQLAUNCH_INTEGRATION.md](MQLAUNCH_INTEGRATION.md).
 
 ---
 
@@ -16,9 +16,9 @@ mqlaunch is the top-level CLI that users interact with. It delegates tasks to mq
 
 **Role:** Reasoning and local assistant layer.
 
-mq-hal provides local AI reasoning capabilities. The planned integration lets mq-agent use mq-hal as a fallback planner when OpenAI is not available, or as a local-first reasoning layer for faster, cheaper planning on simple tasks.
+mq-hal provides local AI reasoning capabilities. Future integration may let mq-agent use mq-hal as a fallback planner when OpenAI is not available, or as a local-first reasoning layer for faster, cheaper planning on simple tasks.
 
-**Status:** Planned for v0.4.0.
+**Status:** Planned.
 
 ---
 
@@ -43,7 +43,7 @@ Check availability:
 mq-agent doctor   # shows mq-mcp (optional) status
 ```
 
-**Status:** Bridge implemented. Full tool discovery and routing planned for v0.3.0.
+**Status:** Active. Tool discovery, tool listing, metadata inspection and gated tool execution are implemented.
 
 ---
 
@@ -51,13 +51,13 @@ mq-agent doctor   # shows mq-mcp (optional) status
 
 **Role:** Repository intelligence, scoring and release readiness.
 
-repo-signal analyses repositories and produces structured health scores and release readiness signals. mq-agent will integrate repo-signal output into:
+repo-signal analyses repositories and produces structured health scores and release readiness signals. mq-agent integrates repo-signal output into:
 
 - `mq-agent audit` — health score per repo
 - `mq-agent release-check` — release readiness score with blocking criteria
 - `mq-agent repo-summary` — signal-enriched summary
 
-**Status:** Planned for v0.2.0. This is the next milestone.
+**Status:** Active.
 
 ---
 

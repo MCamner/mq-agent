@@ -46,12 +46,43 @@ else
   fail "docs/index.html missing v${VERSION}"
 fi
 
+# Source readability guards
+for spec in \
+  "README.md:200" \
+  "CHANGELOG.md:150" \
+  "pyproject.toml:40" \
+  "scripts/smoke-mqlaunch.sh:35" \
+  "release-check.sh:45" \
+  ".github/workflows/tests.yml:20" \
+  ".github/workflows/install-smoke.yml:20"; do
+  file="${spec%%:*}"
+  min_lines="${spec##*:}"
+  line_count="$(wc -l < "$ROOT/$file" | tr -d ' ')"
+  if [[ "$line_count" -ge "$min_lines" ]]; then
+    ok "$file has readable line structure ($line_count lines)"
+  else
+    fail "$file appears flattened ($line_count lines, expected at least $min_lines)"
+  fi
+done
+
 # Stale score guards — check README only (docs/ may contain historical references in ROADMAP/CHANGELOG)
 for stale in "70/100" "8/16" "v0.2.1" "v0.2.0 status"; do
   if grep -q "$stale" "$ROOT/README.md" 2>/dev/null; then
     fail "Stale string found in README.md: '$stale'"
   else
     ok "README.md clean of: '$stale'"
+  fi
+done
+
+for stale in \
+  "Planned for v0.4.0" \
+  "planned for v0.3.0" \
+  "Planned for v0.2.0" \
+  "mq-agent currently runs standalone"; do
+  if grep -R -n "$stale" "$ROOT/docs" "$ROOT/README.md" >/dev/null 2>&1; then
+    fail "Stale integration wording found: '$stale'"
+  else
+    ok "integration docs clean of: '$stale'"
   fi
 done
 
@@ -68,6 +99,7 @@ done
 MQ_DOCS=(
   "$ROOT/README.md"
   "$ROOT/CHANGELOG.md"
+  "$ROOT/docs/COMMAND_SURFACE.md"
   "$ROOT/docs/ROADMAP.md"
   "$ROOT/docs/MQLAUNCH_INTEGRATION.md"
   "$ROOT/docs/MQ_ECOSYSTEM.md"
@@ -98,11 +130,31 @@ else
   fail "MQ_ECOSYSTEM.md missing canonical mqlaunch count"
 fi
 
+if [[ -f "$ROOT/docs/COMMAND_SURFACE.md" ]]; then
+  ok "docs/COMMAND_SURFACE.md exists"
+else
+  fail "docs/COMMAND_SURFACE.md missing"
+fi
+
+for required in \
+  "The mqlaunch agent menu has exactly 12 items." \
+  "exposes 6 direct subcommands plus the menu entrypoint." \
+  "exposes exactly 6 direct prompt commands." \
+  "scripts/smoke-mqlaunch.sh"; do
+  if grep -q "$required" "$ROOT/docs/COMMAND_SURFACE.md"; then
+    ok "COMMAND_SURFACE.md contains: $required"
+  else
+    fail "COMMAND_SURFACE.md missing: $required"
+  fi
+done
+
 for cmd in "agent score" "agent audit" "agent doctor" "agent release-check" "agent mcp-status" "agent mcp-tools"; do
-  if grep -q "$cmd" "$ROOT/README.md" && grep -q "$cmd" "$ROOT/docs/MQLAUNCH_INTEGRATION.md"; then
+  if grep -q "$cmd" "$ROOT/README.md" && \
+     grep -q "$cmd" "$ROOT/docs/MQLAUNCH_INTEGRATION.md" && \
+     grep -q "$cmd" "$ROOT/docs/COMMAND_SURFACE.md"; then
     ok "mqlaunch direct command documented: $cmd"
   else
-    fail "mqlaunch direct command missing from README or MQLAUNCH_INTEGRATION: $cmd"
+    fail "mqlaunch direct command missing from README, MQLAUNCH_INTEGRATION or COMMAND_SURFACE: $cmd"
   fi
 done
 

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.4.0-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.4.1-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -204,6 +204,7 @@ uv run pytest tests/ -v
 ## Docs
 
 - [Command reference](docs/COMMANDS.md)
+- [Command surface](docs/COMMAND_SURFACE.md)
 - [Safety contract](docs/SAFETY_CONTRACT.md)
 - [mq ecosystem](docs/MQ_ECOSYSTEM.md)
 - [Skills](SKILLS.md)
@@ -214,7 +215,7 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.4.0 status
+## v0.4.1 status
 
 - [x] Planner (OpenAI gpt-4o, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
@@ -231,8 +232,9 @@ uv run pytest tests/ -v
 - [x] `mq-agent run-tool <tool>` — MCP tool through safety gates
 - [x] MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
 - [x] mqlaunch bridge — 12-item agent menu + 6 direct prompt commands
-- [x] `scripts/smoke-mqlaunch.sh` — bridge smoke test (8 no-API-key checks)
+- [x] `scripts/smoke-mqlaunch.sh` — verifies `mqlaunch agent ...` reaches mq-agent
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
+- [x] `docs/COMMAND_SURFACE.md` — single source of truth for command counts
 - [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
 
 ## mqlaunch integration
@@ -250,7 +252,9 @@ mqlaunch agent mcp-status
 mqlaunch agent mcp-tools
 ```
 
-See [docs/MQLAUNCH_INTEGRATION.md](docs/MQLAUNCH_INTEGRATION.md) for full details.
+See [docs/COMMAND_SURFACE.md](docs/COMMAND_SURFACE.md) for the canonical
+command surface and [docs/MQLAUNCH_INTEGRATION.md](docs/MQLAUNCH_INTEGRATION.md)
+for bridge details.
 
 ## Roadmap
 

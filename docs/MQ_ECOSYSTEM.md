@@ -50,6 +50,7 @@ mq-hal
 ## mqlaunch integration
 
 `mq-agent` is fully wired into `mqlaunch` via a dedicated menu module and prompt commands.
+See [COMMAND_SURFACE.md](COMMAND_SURFACE.md) for the canonical command-count reference.
 
 **Menu** — press `g` or type `agent` at the mqlaunch prompt, then choose 1–12:
 

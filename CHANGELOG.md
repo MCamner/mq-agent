@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.4.1] — 2026-05-23
+
+### Added — release hygiene
+
+- `docs/COMMAND_SURFACE.md` — canonical command-count reference for mq-agent, MCP commands, mqlaunch menu items, direct prompt commands and smoke-test coverage
+- Docs consistency checks now guard mqlaunch command counts and require all six direct prompt commands to be documented
+
+### Changed
+
+- README and GitHub Pages updated to v0.4.1
+- README now links to the canonical command surface
+- v0.4.x docs clarify that `scripts/smoke-mqlaunch.sh` verifies the `mqlaunch agent ...` bridge
+
+### Version
+
+- Bumped to `0.4.1`
+
+---
+
 ## [v0.4.0] — 2026-05-23
 
 ### Added — mqlaunch integration

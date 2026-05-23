@@ -1,6 +1,8 @@
 # mqlaunch Integration
 
 `mq-agent` is accessible from `mqlaunch` without typing the full command path.
+The canonical command-count reference is [COMMAND_SURFACE.md](COMMAND_SURFACE.md).
+
 The integration is split between two files in the `macos-scripts` repo:
 
 - `terminal/menus/mq-agent-menu.sh` — the 12-item agent menu module
