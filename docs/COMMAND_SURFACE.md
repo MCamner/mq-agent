@@ -29,6 +29,7 @@ mqlaunch -> mq-agent -> mq-hal / mq-mcp / repo-signal
 | `mq-agent tools --describe <name>` | read-only | no | Tool metadata and safety class |
 | `mq-agent tools --mcp` | read-only | no | Include discovered MCP tools |
 | `mq-agent audit .` | read-only | yes | AI-assisted repo audit |
+| `mq-agent docs-audit .` | read-only | yes | Audit README, CHANGELOG, docstrings and /docs |
 | `mq-agent signal .` | read-only | yes | repo-signal plus AI improvement plan |
 | `mq-agent plan "goal"` | suggest | yes | Generate an execution plan |
 | `mq-agent release-plan` | suggest | yes | Show the standard release plan |

@@ -18,16 +18,16 @@ SAFE_TOOLS = {
     "repo_analyze",
 }
 
-DESTRUCTIVE_PATTERNS = [
-    "delete",
-    "remove",
-    "drop",
-    "force push",
+DESTRUCTIVE_COMMANDS = [
     "git push",
+    "git reset --hard",
+    "git clean",
+    "git force",
+    "rm -rf",
+    "drop ",
+    "force-push",
     "publish",
     "deploy",
-    "rm -rf",
-    "format",
 ]
 
 
@@ -56,8 +56,10 @@ class SafetyGate:
         return False, f"Unknown safety mode: {self.mode}"
 
     def _is_destructive(self, step: PlanStep) -> bool:
-        desc = step.description.lower()
-        return any(pattern in desc for pattern in DESTRUCTIVE_PATTERNS)
+        if step.tool == "run_command":
+            cmd = str(step.args.get("command", "")).lower()
+            return any(pattern in cmd for pattern in DESTRUCTIVE_COMMANDS)
+        return False
 
     def requires_approval(self, step: PlanStep) -> bool:
         return self._is_destructive(step)

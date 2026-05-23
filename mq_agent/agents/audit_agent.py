@@ -18,7 +18,13 @@ class AuditAgent:
         self.verifier = Verifier(client)
 
     def run(self, path: str = ".", dry_run: bool = False) -> dict:
+        from ..core.memory import Memory
+
+        memory = Memory()
         summary = repo_summary(path)
+
+        prior = memory.get(f"audit:{path}")
+        extra_context = {"prior_audit": prior} if prior else {}
 
         state = AgentState(
             goal=f"Perform a thorough audit of the repository at '{path}'. "
@@ -26,7 +32,8 @@ class AuditAgent:
             safety_mode=SafetyMode.READ_ONLY,
             dry_run=dry_run,
             working_dir=path,
-            context={"repo_summary": summary},
+            context={"repo_summary": summary, **extra_context},
+            memory=memory,
         )
 
         safety = SafetyGate(SafetyMode.READ_ONLY)
@@ -41,7 +48,7 @@ class AuditAgent:
         executor.run_plan(state)
         verification = self.verifier.verify_plan(state.plan)
 
-        return {
+        result = {
             "repo": path,
             "summary": summary,
             "plan": [s.description for s in state.plan],
@@ -60,3 +67,6 @@ class AuditAgent:
             "verification": verification,
             "passed": verification["all_passed"],
         }
+
+        memory.set(f"audit:{path}", {"summary": summary, "passed": result["passed"]}, persistent=True)
+        return result

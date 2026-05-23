@@ -366,6 +366,32 @@ def score(
     console.print(Panel(repo_publish_checklist(path), title="[bold]Publish Checklist[/bold]"))
 
 
+# ── docs-audit ─────────────────────────────────────────────────────────────
+
+@app.command(name="docs-audit")
+def docs_audit(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Audit repository documentation: README, CHANGELOG, docstrings, /docs."""
+    from mq_agent.agents.docs_agent import DocsAgent
+
+    with console.status("[bold cyan]Auditing docs...[/bold cyan]"):
+        result = DocsAgent(_client()).audit(path)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        return
+
+    _print_steps(result["steps"], title="Docs Audit")
+    if result["verification"]["all_passed"]:
+        console.print("\n[bold green]✓ Docs audit passed[/bold green]")
+    else:
+        console.print("\n[bold red]✗ Docs audit found issues[/bold red]")
+        for f in result["verification"].get("failures", []):
+            console.print(f"  [red]•[/red] {f['step']}: {f['note']}")
+
+
 # ── tui ────────────────────────────────────────────────────────────────────
 
 @app.command()

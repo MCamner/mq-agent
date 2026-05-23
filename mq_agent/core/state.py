@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .memory import Memory
 
 
 class SafetyMode(StrEnum):
@@ -31,6 +36,11 @@ class PlanStep:
     verification_note: str = ""
 
 
+def _default_memory() -> Memory:
+    from .memory import Memory
+    return Memory()
+
+
 @dataclass
 class AgentState:
     goal: str
@@ -41,6 +51,7 @@ class AgentState:
     plan: list[PlanStep] = field(default_factory=list)
     context: dict = field(default_factory=dict)
     current_step: int = 0
+    memory: Memory = field(default_factory=_default_memory)
 
     @property
     def is_complete(self) -> bool:

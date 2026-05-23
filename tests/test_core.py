@@ -59,14 +59,24 @@ def test_suggest_blocks_all():
 
 def test_execute_blocks_destructive():
     gate = SafetyGate(SafetyMode.EXECUTE)
-    step = PlanStep(index=0, description="Force push to main", tool="run_command")
+    step = PlanStep(
+        index=0,
+        description="Force push to main",
+        tool="run_command",
+        args={"command": "git push --force origin main"},
+    )
     allowed, reason = gate.check(step)
     assert not allowed
     assert "--approve" in reason
 
 def test_execute_allows_safe():
     gate = SafetyGate(SafetyMode.EXECUTE)
-    step = PlanStep(index=0, description="Run test suite", tool="run_command")
+    step = PlanStep(
+        index=0,
+        description="Run test suite",
+        tool="run_command",
+        args={"command": "pytest -q"},
+    )
     allowed, _ = gate.check(step)
     assert allowed
 

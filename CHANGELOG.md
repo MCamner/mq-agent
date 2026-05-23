@@ -7,6 +7,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased] — structural cleanup
+
+### Removed
+
+- `mq_agent/cli.py` — dead parallel CLI (click, v0.1.0, never registered as entrypoint)
+- `mq_agent/memory/` — empty directory left over from a refactor
+
+### Added
+
+- `mq-agent docs-audit .` — CLI command for `DocsAgent` (was implemented but had no entrypoint)
+- `MQ_AGENT_MODEL` env var — overrides the planner model (default: `gpt-4o`)
+- `MQ_AGENT_VERIFIER_MODEL` env var — overrides the verifier model (default: `gpt-4o-mini`)
+- `memory` field on `AgentState` — `Memory` is now properly wired into the agent lifecycle
+- `AuditAgent` loads prior audit context from persistent memory and saves summary after each run
+- `__version__` now reads from package metadata instead of a hardcoded string in `__init__.py`
+
+### Fixed
+
+- Safety gate `_is_destructive()` matched text in step descriptions ("format output", "remove duplicates") — now checks `run_command` args instead
+- TUI version label was hardcoded to `v0.1.0` — now reads `__version__`
+- TUI command list was stale (7 entries, pre-v0.3.0) — now shows all 12 commands including MCP, score, signal and docs-audit
+- TUI `subprocess.run()` blocked the Textual event loop — replaced with `asyncio.create_subprocess_exec` with streaming output
+- `docs/COMMAND_SURFACE.md` and `docs/index.html` updated to include `docs-audit`
+
+---
+
 ## [v0.4.1] — 2026-05-23
 
 ### Added — release hygiene

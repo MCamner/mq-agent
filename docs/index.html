@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="mq-agent — terminal-native AI agent orchestrator with explicit planning, safety gates, tool routing and persistent memory.">
   <title>mq-agent</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
@@ -17,9 +18,7 @@
       --code-bg: #fff7f7;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -39,14 +38,14 @@
       border: 2px solid var(--red);
       box-shadow: 8px 8px 0 var(--soft-red);
       background: rgba(255, 255, 255, 0.92);
-      padding: 28px;
+      padding: 28px 28px 36px;
     }
 
     .ascii {
       color: var(--red);
-      font-size: clamp(0.62rem, 1.7vw, 0.95rem);
+      font-size: clamp(0.55rem, 1.55vw, 0.88rem);
       line-height: 1.08;
-      margin: 0 0 18px;
+      margin: 0 0 20px;
       white-space: pre;
       overflow-x: auto;
       font-weight: 700;
@@ -63,13 +62,14 @@
     .sub {
       color: var(--muted);
       margin-bottom: 24px;
+      font-size: 0.95rem;
     }
 
     .badges {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin: 20px 0 34px;
+      margin: 20px 0 36px;
     }
 
     .badge {
@@ -77,20 +77,23 @@
       border: 1px solid var(--red);
       color: var(--red-dark);
       background: #fff;
-      padding: 3px 8px;
-      font-size: 0.78rem;
+      padding: 3px 9px;
+      font-size: 0.77rem;
       text-decoration: none;
     }
 
-    .badge strong {
-      color: var(--red);
+    .badge strong { color: var(--red); }
+
+    .badge:hover {
+      background: var(--soft-red);
     }
 
     h2 {
       color: var(--red);
       border-bottom: 1px solid var(--border);
       padding-bottom: 6px;
-      margin-top: 40px;
+      margin-top: 44px;
+      margin-bottom: 16px;
       font-size: 1rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -99,6 +102,24 @@
     h2::before {
       content: ">> ";
       color: var(--red-dark);
+    }
+
+    h3.cmd-group {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 20px 0 6px;
+      font-weight: 600;
+    }
+
+    h3.cmd-group::before {
+      content: "# ";
+      opacity: 0.5;
+    }
+
+    p {
+      margin: 0 0 12px;
     }
 
     a {
@@ -115,10 +136,13 @@
     pre {
       background: var(--code-bg);
       border: 1px solid var(--border);
-      border-left: 5px solid var(--red);
-      padding: 16px;
+      border-left: 4px solid var(--red);
+      padding: 14px 16px;
       overflow-x: auto;
       color: var(--red-dark);
+      margin: 0 0 4px;
+      font-size: 0.88rem;
+      line-height: 1.65;
     }
 
     code {
@@ -126,41 +150,58 @@
       border: 1px solid var(--border);
       padding: 2px 6px;
       color: var(--red-dark);
+      font-size: 0.9em;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin: 24px 0;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin: 20px 0;
     }
 
     .card {
       background: #fff;
       border: 1px solid var(--border);
-      border-top: 4px solid var(--red);
-      padding: 16px;
+      border-top: 3px solid var(--red);
+      padding: 14px 16px;
     }
 
     .card h3 {
       color: var(--red);
-      margin: 0 0 8px;
-      font-size: 0.95rem;
+      margin: 0 0 6px;
+      font-size: 0.88rem;
       text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .card p {
       margin: 0;
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
     }
 
-    ul {
-      padding-left: 22px;
+    .card .env {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: var(--red-dark);
+      opacity: 0.7;
     }
 
-    li {
-      margin: 6px 0;
+    .links-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .links-grid li::before {
+      content: "→ ";
+      color: var(--red);
     }
 
     .prompt {
@@ -168,32 +209,29 @@
       font-weight: 700;
     }
 
-    @media (max-width: 680px) {
-      body {
-        margin: 28px auto;
-      }
+    .comment { opacity: 0.55; }
 
-      .frame {
-        padding: 18px;
-        box-shadow: 5px 5px 0 var(--soft-red);
-      }
+    @media (max-width: 720px) {
+      body { margin: 28px auto; }
+      .frame { padding: 18px 18px 28px; box-shadow: 5px 5px 0 var(--soft-red); }
+      .grid { grid-template-columns: 1fr 1fr; }
+      .links-grid { grid-template-columns: 1fr; }
+    }
 
-      .grid {
-        grid-template-columns: 1fr;
-      }
+    @media (max-width: 480px) {
+      .grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <main class="frame">
-<pre class="ascii">
+    <pre class="ascii">
 ███╗   ███╗ ██████╗        █████╗  ██████╗ ███████╗███╗   ██╗████████╗
 ████╗ ████║██╔═══██╗      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
 ██╔████╔██║██║   ██║█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║
 ██║╚██╔╝██║██║▄▄ ██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║
 ██║ ╚═╝ ██║╚██████╔╝      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║
-╚═╝     ╚═╝ ╚══▀▀═╝       ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝
-</pre>
+╚═╝     ╚═╝ ╚══▀▀═╝       ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝</pre>
 
     <h1>mq-agent</h1>
     <div class="sub">Terminal-native AI agent orchestrator for the mq ecosystem.</div>
@@ -201,52 +239,83 @@
     <div class="badges">
       <a class="badge" href="https://github.com/MCamner/mq-agent/actions/workflows/tests.yml"><strong>CI</strong> GitHub Actions</a>
       <span class="badge"><strong>Python</strong> 3.11+</span>
-      <span class="badge"><strong>Status</strong> v0.4.1</span>
-      <span class="badge"><strong>Mode</strong> terminal-native</span>
+      <span class="badge" id="status-badge"><strong>Status</strong> v0.4.1</span>
+      <span class="badge"><strong>License</strong> MIT</span>
     </div>
 
     <h2>What it is</h2>
     <p>
       A controlled terminal workflow for AI agent work — explicit planning, tool routing,
-      verification, memory and safety gates. Every action is traceable. The model never runs unsupervised.
+      verification, persistent memory and safety gates. Every action is traceable.
+      The model never runs unsupervised.
     </p>
 
     <div class="grid">
-      <div class="card"><h3>Planner</h3><p>Decomposes goals into steps using gpt-4o structured output.</p></div>
-      <div class="card"><h3>Executor</h3><p>Routes steps through a typed tool registry with dry-run support.</p></div>
-      <div class="card"><h3>Verifier</h3><p>Checks each result with gpt-4o-mini before moving on.</p></div>
-      <div class="card"><h3>Safety</h3><p>Four modes: read-only → suggest → execute → dangerous.</p></div>
+      <div class="card">
+        <h3>Planner</h3>
+        <p>Decomposes goals into ordered steps via structured JSON output.</p>
+        <span class="env">MQ_AGENT_MODEL</span>
+      </div>
+      <div class="card">
+        <h3>Executor</h3>
+        <p>Routes steps through a typed tool registry with dry-run support.</p>
+      </div>
+      <div class="card">
+        <h3>Verifier</h3>
+        <p>Checks each step result before advancing.</p>
+        <span class="env">MQ_AGENT_VERIFIER_MODEL</span>
+      </div>
+      <div class="card">
+        <h3>Safety</h3>
+        <p>Four modes: read-only → suggest → execute → dangerous.</p>
+      </div>
+      <div class="card">
+        <h3>Memory</h3>
+        <p>Persistent JSON store — carries context across sessions.</p>
+      </div>
+      <div class="card">
+        <h3>MCP Bridge</h3>
+        <p>Routes tool calls to mq-mcp with safety classification.</p>
+      </div>
     </div>
 
     <h2>Quick start</h2>
-<pre><span class="prompt">$</span> uv pip install -e ".[dev,signal]"
+    <pre><span class="prompt">$</span> uv pip install -e ".[dev,signal]"
 
-<span class="prompt">$</span> mq-agent doctor        # check environment
-<span class="prompt">$</span> mq-agent score .       # README + publish score
-<span class="prompt">$</span> mq-agent signal .      # repo-signal assessment
-<span class="prompt">$</span> mq-agent audit .       # read-only repo audit</pre>
+<span class="prompt">$</span> mq-agent doctor        <span class="comment"># check environment</span>
+<span class="prompt">$</span> mq-agent score .       <span class="comment"># README + publish score</span>
+<span class="prompt">$</span> mq-agent signal .      <span class="comment"># repo-signal assessment</span>
+<span class="prompt">$</span> mq-agent audit .       <span class="comment"># read-only repo audit</span></pre>
 
     <h2>Commands</h2>
-<pre>mq-agent doctor               # environment check
-mq-agent score .              # instant README + publish score
-mq-agent repo-summary .       # repo overview
-mq-agent tools                # list registered tools
-mq-agent audit .              # repo audit
-mq-agent signal .             # repo-signal assessment + AI plan
-mq-agent release-check        # validate release readiness
-mq-agent fix-ci               # diagnose CI failures
-mq-agent mcp status           # check mq-mcp reachability
-mq-agent mcp tools            # list MCP tools with safety classes
-mq-agent run-tool &lt;tool&gt;      # run MCP tool through safety gates
-mq-agent tui                  # Textual dashboard</pre>
+
+    <h3 class="cmd-group">No API key needed</h3>
+    <pre>mq-agent doctor               <span class="comment"># environment check</span>
+mq-agent score .              <span class="comment"># README + publish score</span>
+mq-agent repo-summary .       <span class="comment"># repo overview</span>
+mq-agent tools                <span class="comment"># list registered tools</span>
+mq-agent tui                  <span class="comment"># Textual dashboard</span></pre>
+
+    <h3 class="cmd-group">AI-powered (needs OPENAI_API_KEY)</h3>
+    <pre>mq-agent audit .              <span class="comment"># read-only repo audit</span>
+mq-agent docs-audit .         <span class="comment"># audit README, CHANGELOG and /docs</span>
+mq-agent signal .             <span class="comment"># repo-signal + AI improvement plan</span>
+mq-agent plan "goal"          <span class="comment"># decompose a goal into steps</span>
+mq-agent release-check        <span class="comment"># validate release readiness</span>
+mq-agent fix-ci               <span class="comment"># diagnose CI failures</span></pre>
+
+    <h3 class="cmd-group">MCP local tools</h3>
+    <pre>mq-agent mcp status           <span class="comment"># check mq-mcp reachability</span>
+mq-agent mcp tools            <span class="comment"># list tools with safety classes</span>
+mq-agent run-tool &lt;tool&gt;      <span class="comment"># run tool through safety gates</span></pre>
 
     <h2>Links</h2>
-    <ul>
+    <ul class="links-grid">
       <li><a href="https://github.com/MCamner/mq-agent">GitHub</a></li>
       <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/COMMAND_SURFACE.md">Command surface</a></li>
       <li><a href="https://github.com/MCamner/mq-agent/blob/main/CHANGELOG.md">Changelog</a></li>
       <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/ROADMAP.md">Roadmap</a></li>
-      <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/SAFETY.md">Safety</a></li>
+      <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/SAFETY.md">Safety contract</a></li>
       <li><a href="https://github.com/MCamner/mq-agent/blob/main/docs/EXAMPLES.md">Examples</a></li>
     </ul>
   </main>

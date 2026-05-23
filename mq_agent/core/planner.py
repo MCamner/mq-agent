@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from openai import OpenAI
@@ -7,12 +8,15 @@ from .state import AgentState, PlanStep
 
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "planner.md"
 
+_DEFAULT_MODEL = "gpt-4o"
+
 
 class Planner:
     """Uses OpenAI to decompose a goal into a sequence of tool-backed steps."""
 
     def __init__(self, client: OpenAI):
         self.client = client
+        self._model = os.environ.get("MQ_AGENT_MODEL", _DEFAULT_MODEL)
         self._system_prompt = (
             PROMPT_PATH.read_text() if PROMPT_PATH.exists() else _FALLBACK_SYSTEM
         )
@@ -30,7 +34,7 @@ class Planner:
         )
 
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model=self._model,
             messages=[
                 {"role": "system", "content": self._system_prompt},
                 {"role": "user", "content": user_msg},

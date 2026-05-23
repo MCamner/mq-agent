@@ -1,7 +1,9 @@
 """Textual TUI for mq-agent — HAL-style dashboard."""
 from __future__ import annotations
 
+import asyncio
 import os
+import shlex
 from typing import ClassVar
 
 from textual.app import App, ComposeResult
@@ -18,14 +20,21 @@ from textual.widgets import (
     Static,
 )
 
+from mq_agent import __version__
+
 COMMANDS = [
-    ("audit .", "audit"),
+    ("audit .", "audit ."),
+    ("score .", "score ."),
+    ("signal .", "signal ."),
+    ("docs-audit .", "docs-audit ."),
     ("release-plan", "release-plan"),
     ("release-check", "release-check"),
-    ("repo-summary .", "repo-summary"),
     ("fix-ci", "fix-ci"),
+    ("repo-summary .", "repo-summary ."),
     ("doctor", "doctor"),
     ("tools", "tools"),
+    ("mcp status", "mcp status"),
+    ("mcp tools", "mcp tools"),
 ]
 
 CSS = """
@@ -94,9 +103,9 @@ class MQAgentApp(App):
         yield Header(show_clock=True)
         with Horizontal():
             with Vertical(id="sidebar"):
-                yield Label(" mq-agent v0.1.0", id="sidebar-title")
+                yield Label(f" mq-agent v{__version__}", id="sidebar-title")
                 yield ListView(
-                    *[ListItem(Label(label), id=f"cmd-{cmd}") for label, cmd in COMMANDS]
+                    *[ListItem(Label(label), id=f"cmd-{i}") for i, (label, _) in enumerate(COMMANDS)]
                 )
             with ScrollableContainer(id="output"):
                 yield Log(id="log", highlight=True)
@@ -112,37 +121,35 @@ class MQAgentApp(App):
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id or ""
         if item_id.startswith("cmd-"):
-            self.selected_command = item_id[4:]
+            idx = int(item_id[4:])
+            self.selected_command = COMMANDS[idx][1]
             self._update_status()
 
-    def action_run_selected(self) -> None:
+    async def action_run_selected(self) -> None:
         if not self.selected_command:
             return
         log = self.query_one(Log)
         log.write_line(f"\n[bold cyan]▶ mq-agent {self.selected_command}[/bold cyan]")
-        self._run_command(self.selected_command, log)
+        await self._run_command(self.selected_command, log)
 
     def action_clear_log(self) -> None:
         self.query_one(Log).clear()
 
-    def _run_command(self, cmd: str, log: Log) -> None:
-        import shlex
-        import subprocess
-
+    async def _run_command(self, cmd: str, log: Log) -> None:
+        parts = shlex.split(f"mq-agent {cmd}")
         try:
-            parts = shlex.split(f"mq-agent {cmd}")
-            result = subprocess.run(
-                parts,
-                capture_output=True,
-                text=True,
-                timeout=120,
+            proc = await asyncio.create_subprocess_exec(
+                *parts,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
                 env={**os.environ},
             )
-            output = result.stdout or result.stderr or "(no output)"
-            for line in output.splitlines():
-                log.write_line(line)
-        except subprocess.TimeoutExpired:
-            log.write_line("[red]Command timed out[/red]")
+            assert proc.stdout is not None
+            async for line in proc.stdout:
+                log.write_line(line.decode(errors="replace").rstrip())
+            await proc.wait()
+            if proc.returncode != 0:
+                log.write_line(f"[yellow]exit {proc.returncode}[/yellow]")
         except FileNotFoundError:
             log.write_line("[red]mq-agent CLI not found — install with: uv pip install -e .[/red]")
         except Exception as exc:
