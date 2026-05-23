@@ -1,51 +1,45 @@
 #!/usr/bin/env bash
-# smoke-mqlaunch.sh — verifies mqlaunch bridge checks that do not need API access.
+# smoke-mqlaunch.sh — verifies mqlaunch can reach mq-agent.
 # Runs without a live mqlaunch session or OPENAI_API_KEY.
 set -euo pipefail
 
-AGENT_DIR="${MQ_AGENT_BIN:-$HOME/mq-agent}"
-ERRORS=0
+TMPDIR="${TMPDIR:-/tmp}"
 
-run() { (cd "$AGENT_DIR" && uv run mq-agent "$@"); }
-ok()   { echo "OK:   $1"; }
-fail() { echo "FAIL: $1" >&2; ERRORS=$((ERRORS + 1)); }
+run_check() {
+  local label="$1"
+  shift
+  local outfile="$TMPDIR/mq-agent-${label//[^A-Za-z0-9_-]/-}.out"
 
-echo "=== mq-agent mqlaunch bridge smoke test ==="
+  echo "[check] mqlaunch agent $label"
+  if mqlaunch agent "$@" > "$outfile" 2>&1; then
+    echo "[PASS] mqlaunch can call mq-agent $label"
+  else
+    cat "$outfile"
+    echo "[FAIL] mqlaunch agent $label failed" >&2
+    exit 1
+  fi
+}
 
-echo ""
-echo "--- REPO ANALYSIS (no API key) ---"
+echo "[smoke] mqlaunch integration"
 
-run score . > /dev/null 2>&1        && ok "score ."           || fail "score ."
-run repo-summary . > /dev/null 2>&1 && ok "repo-summary ."    || fail "repo-summary ."
-run tools > /dev/null 2>&1          && ok "tools"             || fail "tools"
-run tools --json > /dev/null 2>&1   && ok "tools --json"      || fail "tools --json"
+if ! command -v mqlaunch >/dev/null 2>&1; then
+  echo "[SKIP] mqlaunch not found"
+  echo "Install or link macos-scripts first:"
+  echo "  cd ~/macos-scripts && ./install.sh"
+  exit 0
+fi
 
-echo ""
-echo "--- ENVIRONMENT ---"
+run_check doctor doctor
+run_check score score .
+run_check release-check release-check --dry-run
 
-# doctor always exits 0 — it shows FAIL rows but doesn't error out
-run doctor > /dev/null 2>&1         && ok "doctor"            || fail "doctor"
-
-echo ""
-echo "--- MCP LOCAL TOOLS (mq-mcp not required) ---"
-
-# mcp status exits 0 whether or not mq-mcp is running
-run mcp status --json > /dev/null 2>&1  && ok "mcp status --json"  || fail "mcp status --json"
-
-# tools --describe works offline (name-prefix classification)
-run tools --describe read_repo_file --json > /dev/null 2>&1 \
-  && ok "tools --describe read_repo_file --json" \
-  || fail "tools --describe read_repo_file --json"
-
-# run-tool dry-run requires no server
-run run-tool read_repo_file --dry-run --json > /dev/null 2>&1 \
-  && ok "run-tool read_repo_file --dry-run" \
-  || fail "run-tool read_repo_file --dry-run"
-
-echo ""
-if [[ "$ERRORS" -eq 0 ]]; then
-  echo "=== All mqlaunch bridge checks passed ==="
+echo "[check] mqlaunch agent mcp-status"
+if mqlaunch agent mcp-status > "$TMPDIR/mq-agent-mcp-status.out" 2>&1; then
+  echo "[PASS] mqlaunch can call mq-agent mcp status"
 else
-  echo "=== $ERRORS check(s) failed ===" >&2
+  cat "$TMPDIR/mq-agent-mcp-status.out"
+  echo "[FAIL] mqlaunch agent mcp-status failed" >&2
   exit 1
 fi
+
+echo "[PASS] mqlaunch integration smoke passed"

@@ -4,7 +4,8 @@
 The integration is split between two files in the `macos-scripts` repo:
 
 - `terminal/menus/mq-agent-menu.sh` — the 12-item agent menu module
-- `terminal/menus/mq-main-menu.sh` — direct prompt commands at the top-level prompt
+- `terminal/launchers/mqlaunch.sh` — direct `mqlaunch agent ...` command routing
+- `terminal/menus/mq-main-menu.sh` — prompt commands at the top-level prompt
 
 ---
 
@@ -13,6 +14,7 @@ The integration is split between two files in the `macos-scripts` repo:
 ```
 mqlaunch (sourced from mqlaunch.sh)
   └── sources mq-agent-menu.sh
+        ├── run_agent_command() for mqlaunch agent ...
         └── _run_agent() { (cd "$MQ_AGENT_BIN" && uv run mq-agent "$@") }
 ```
 
@@ -21,6 +23,22 @@ mqlaunch (sourced from mqlaunch.sh)
 ```bash
 export MQ_AGENT_BIN=/path/to/mq-agent
 ```
+
+---
+
+## Direct command surface
+
+Run these from any shell:
+
+| mqlaunch command | Runs |
+|---|---|
+| `mqlaunch agent` | opens the mq-agent menu |
+| `mqlaunch agent doctor` | `mq-agent doctor` |
+| `mqlaunch agent score .` | `mq-agent score .` |
+| `mqlaunch agent audit .` | `mq-agent audit .` |
+| `mqlaunch agent release-check --dry-run` | `mq-agent release-check --dry-run` |
+| `mqlaunch agent mcp-status` | `mq-agent mcp status` |
+| `mqlaunch agent mcp-tools` | `mq-agent mcp tools` |
 
 ---
 
@@ -84,8 +102,8 @@ Type these at the mqlaunch main prompt — no menu navigation needed:
 
 ## Smoke test
 
-`scripts/smoke-mqlaunch.sh` verifies the no-API-key bridge checks without a
-live mqlaunch session:
+`scripts/smoke-mqlaunch.sh` verifies that `mqlaunch agent ...` can reach
+`mq-agent` without a live interactive session or `OPENAI_API_KEY`:
 
 ```bash
 bash scripts/smoke-mqlaunch.sh
@@ -94,23 +112,11 @@ bash scripts/smoke-mqlaunch.sh
 Expected output:
 
 ```
-=== mq-agent mqlaunch bridge smoke test ===
-
---- REPO ANALYSIS (no API key) ---
-OK:   score .
-OK:   repo-summary .
-OK:   tools
-OK:   tools --json
-
---- ENVIRONMENT ---
-OK:   doctor
-
---- MCP LOCAL TOOLS (mq-mcp not required) ---
-OK:   mcp status --json
-OK:   tools --describe read_repo_file --json
-OK:   run-tool read_repo_file --dry-run
-
-=== All mqlaunch bridge checks passed ===
+[PASS] mqlaunch can call mq-agent doctor
+[PASS] mqlaunch can call mq-agent score
+[PASS] mqlaunch can call mq-agent release-check
+[PASS] mqlaunch can call mq-agent mcp status
+[PASS] mqlaunch integration smoke passed
 ```
 
 ---

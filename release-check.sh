@@ -38,6 +38,16 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# mqlaunch integration smoke
+echo ""
+echo "--- mqlaunch smoke ---"
+if bash "$ROOT/scripts/smoke-mqlaunch.sh" > /dev/null 2>&1; then
+  ok "smoke-mqlaunch.sh"
+else
+  bash "$ROOT/scripts/smoke-mqlaunch.sh" || true
+  ERRORS=$((ERRORS + 1))
+fi
+
 # Summary
 echo ""
 if [[ "$ERRORS" -eq 0 ]]; then

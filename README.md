@@ -29,6 +29,9 @@ flowchart TD
     B --> J[Safety]
 ```
 
+Screenshots/gallery: the GitHub Pages demo page shows the current command
+surface and release proof.
+
 ## Why
 
 Most AI coding tools either wrap a model around shell commands or hide execution behind a chat UI.
@@ -232,21 +235,19 @@ uv run pytest tests/ -v
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] 70 tests pass — `uv run pytest -v` — no OpenAI calls required
 
-## mqlaunch bridge
+## mqlaunch integration
 
-`mq-agent` is fully wired into `mqlaunch`. From any mqlaunch session:
+`mq-agent` is fully wired into `mqlaunch` as both a direct command surface and
+an interactive menu.
 
 ```bash
-# Menu navigation
-mqlaunch → g → Agent menu  (12 options across 4 sections)
-
-# Direct prompt commands
-agent score           # mq-agent score .
-agent audit           # mq-agent audit .
-agent doctor          # mq-agent doctor
-agent release-check   # mq-agent release-check
-agent mcp-status      # mq-agent mcp status
-agent mcp-tools       # mq-agent mcp tools
+mqlaunch agent
+mqlaunch agent score .
+mqlaunch agent audit .
+mqlaunch agent doctor
+mqlaunch agent release-check --dry-run
+mqlaunch agent mcp-status
+mqlaunch agent mcp-tools
 ```
 
 See [docs/MQLAUNCH_INTEGRATION.md](docs/MQLAUNCH_INTEGRATION.md) for full details.
