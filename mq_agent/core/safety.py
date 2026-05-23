@@ -11,6 +11,11 @@ SAFE_TOOLS = {
     "read_file",
     "find_files",
     "which",
+    # repo-signal tools are read-only by definition
+    "repo_scan",
+    "repo_readme_score",
+    "repo_publish_checklist",
+    "repo_analyze",
 }
 
 DESTRUCTIVE_PATTERNS = [

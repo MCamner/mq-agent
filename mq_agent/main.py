@@ -224,6 +224,9 @@ def doctor():
     py_ok = sys.version_info >= (3, 11)
     checks.append(("Python ≥ 3.11", py_ok, f"Upgrade Python (have {sys.version.split()[0]})"))
 
+    from mq_agent.tools.signal_tools import signal_available
+    checks.append(("repo-signal", signal_available(), "uv pip install repo-signal"))
+
     try:
         import httpx
         mcp_ok = httpx.get("http://localhost:8765/health", timeout=1).status_code == 200
@@ -247,6 +250,112 @@ def doctor():
         console.print("\n[bold green]All required checks passed.[/bold green]")
     else:
         console.print("\n[bold yellow]Fix the issues above before using mq-agent.[/bold yellow]")
+
+
+# ── signal ─────────────────────────────────────────────────────────────────
+
+@app.command()
+def signal(
+    path: Annotated[str, typer.Argument(help="Repo path to analyse")] = ".",
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """
+    Run a full repo-signal assessment: scan + README score + publish checklist + AI plan.
+
+    Requires repo-signal to be installed:
+      uv pip install repo-signal
+    """
+    from mq_agent.agents.signal_agent import SignalAgent
+    from mq_agent.tools.signal_tools import signal_available
+
+    if not signal_available():
+        console.print(
+            "[bold red]repo-signal not installed.[/bold red]\n"
+            "Run: [bold]uv pip install repo-signal[/bold]"
+        )
+        raise typer.Exit(code=1)
+
+    with console.status("[bold cyan]Running repo-signal assessment...[/bold cyan]"):
+        result = SignalAgent(_client()).run(path, dry_run=dry_run)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        return
+
+    scores = result["scores"]
+    readme = result["readme"]
+    publish = result["publish"]
+
+    # Score panel
+    overall = scores["overall"]
+    color = "green" if overall >= 80 else "yellow" if overall >= 50 else "red"
+    score_lines = (
+        f"Overall:  [{color}]{overall}/100[/{color}]\n"
+        f"README:   {scores['readme']}/{scores['readme_max']}\n"
+        f"Publish:  {scores['publish']}/{scores['publish_total']}  [{publish['status'].upper()}]"
+    )
+    console.print(Panel(score_lines, title=f"[bold]{result['repo']}[/bold] · {result['project_type']}"))
+
+    # README gaps
+    if readme["missing"]:
+        console.print("\n[bold yellow]README gaps:[/bold yellow]")
+        for m in readme["missing"]:
+            console.print(f"  [yellow]✗[/yellow] {m}")
+
+    # Focus areas
+    if result["focus_areas"]:
+        console.print("\n[bold]Focus areas:[/bold]")
+        for i, f in enumerate(result["focus_areas"], 1):
+            console.print(f"  {i}. {f}")
+
+    # AI plan steps
+    if result["steps"]:
+        _print_steps(result["steps"], title="AI Improvement Plan")
+
+    # Verdict
+    if overall >= 80:
+        console.print("\n[bold green]✓ Repo looks healthy[/bold green]")
+    elif overall >= 50:
+        console.print("\n[bold yellow]~ Repo needs some work[/bold yellow]")
+    else:
+        console.print("\n[bold red]✗ Repo needs significant improvement[/bold red]")
+
+    if publish["next_action"]:
+        console.print(f"\n[dim]Next: {publish['next_action']}[/dim]")
+
+
+@app.command()
+def score(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """
+    Quick README score (0–100) and publish checklist — no AI, instant result.
+
+    Requires repo-signal to be installed:
+      uv pip install repo-signal
+    """
+    from mq_agent.tools.signal_tools import (
+        repo_publish_checklist,
+        repo_readme_score,
+        signal_available,
+    )
+
+    if not signal_available():
+        console.print(
+            "[bold red]repo-signal not installed.[/bold red]\n"
+            "Run: [bold]uv pip install repo-signal[/bold]"
+        )
+        raise typer.Exit(code=1)
+
+    if json_out:
+        from mq_agent.tools.signal_tools import repo_signal_json
+        typer.echo(json.dumps(repo_signal_json(path), indent=2, default=str))
+        return
+
+    console.print(Panel(repo_readme_score(path), title="[bold]README Score[/bold]"))
+    console.print(Panel(repo_publish_checklist(path), title="[bold]Publish Checklist[/bold]"))
 
 
 # ── tui ────────────────────────────────────────────────────────────────────
