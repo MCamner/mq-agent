@@ -4,13 +4,18 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
+load_dotenv(Path.home() / "mq-agent" / ".env", override=False)
+load_dotenv(Path(".env"), override=False)
 
 app = typer.Typer(
     name="mq-agent",
