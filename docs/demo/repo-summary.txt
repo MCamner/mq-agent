@@ -1,0 +1,14 @@
+$ mq-agent repo-summary .
+
+╭───────────────────────── . ──────────────────────────╮
+│ Repo:   mq-agent                                     │
+│ Branch: main                                         │
+│ Files:  35 total, 16 Python                          │
+│ Status: clean                                        │
+│                                                      │
+│ Recent commits:                                      │
+│ 88a0617 fix: rename git_log n→limit, expand          │
+│          SAFE_TOOLS, continue past failures          │
+│ 3f55a64 feat: mq-agent v0.1.0 foundation             │
+│ 209dc82 Initial commit                               │
+╰──────────────────────────────────────────────────────╯

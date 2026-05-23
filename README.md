@@ -1,26 +1,29 @@
 # mq-agent
 
+![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-v0.1.0-green)
+
 Terminal-native AI agent orchestrator for the mq ecosystem.
 
-```text
-                 ┌─────────────────┐
-                 │   mqlaunch      │
-                 │ command surface │
-                 └────────┬────────┘
-                          │
-                          ▼
-                 ┌─────────────────┐
-                 │    mq-agent     │
-                 │ orchestration   │
-                 └────────┬────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
- ┌────────────┐   ┌────────────┐   ┌────────────┐
- │   mq-hal   │   │   mq-mcp   │   │repo-signal│
- │ reasoning  │   │ tool layer │   │repo intel │
- └────────────┘   └────────────┘   └────────────┘
+```mermaid
+flowchart TD
+    A[mqlaunch] --> B[mq-agent]
+    B --> C[mq-hal\nreasoning]
+    B --> D[mq-mcp\ntool layer]
+    B --> E[repo-signal\nrepo intel]
+    B --> F[Planner]
+    B --> G[Executor]
+    B --> H[Verifier]
+    B --> I[Memory]
+    B --> J[Safety]
 ```
+
+## Why
+
+Most AI coding tools either wrap a model around shell commands or hide execution behind a chat UI.
+
+mq-agent is different: it treats agent work as a controlled terminal workflow with explicit planning, tool routing, verification, memory and safety gates. Every action is traceable, every operation is gated, and the model never runs unsupervised.
 
 ## What it is
 
@@ -111,6 +114,16 @@ pytest tests/ -v
 ```
 
 26 tests, no OpenAI calls required.
+
+## Docs
+
+- [Examples](docs/EXAMPLES.md)
+- [Safety](docs/SAFETY.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Integrations](docs/INTEGRATIONS.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
 
 ## v0.1.0 status
 

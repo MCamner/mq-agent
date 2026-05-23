@@ -1,0 +1,26 @@
+$ mq-agent fix-ci
+
+⠋ Diagnosing CI...
+
+╭─── Tests ────────────────────────────────────────────╮
+│ ============================= test session starts     │
+│ collected 26 items                                   │
+│                                                      │
+│ tests/test_core.py .................. [ 69%]         │
+│ tests/test_tools.py ........ [100%]                  │
+│                                                      │
+│ 26 passed in 0.43s                                   │
+╰──────────────────────────────────────────────────────╯
+
+╭─── Lint ─────────────────────────────────────────────╮
+│ All checks passed!                                   │
+╰──────────────────────────────────────────────────────╯
+
+                    CI Fix Plan
+┏━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
+┃ # ┃ Step                          ┃ Status  ┃ Note   ┃
+┡━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
+│ 1 │ Review test output for errors │ skipped │ Suggest│
+│ 2 │ Check lint output for issues  │ skipped │ Suggest│
+│ 3 │ Inspect type errors           │ skipped │ Suggest│
+└───┴───────────────────────────────┴─────────┴────────┘
