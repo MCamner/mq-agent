@@ -64,6 +64,48 @@ for stale in "70/100" "8/16"; do
   fi
 done
 
+# mqlaunch command-count consistency
+MQ_DOCS=(
+  "$ROOT/README.md"
+  "$ROOT/CHANGELOG.md"
+  "$ROOT/docs/ROADMAP.md"
+  "$ROOT/docs/MQLAUNCH_INTEGRATION.md"
+  "$ROOT/docs/MQ_ECOSYSTEM.md"
+)
+
+for stale in \
+  "3 prompt commands" \
+  "3 direct prompt commands" \
+  "5 prompt commands" \
+  "5 direct prompt commands" \
+  "all 8 mqlaunch-callable"; do
+  if grep -R -n "$stale" "${MQ_DOCS[@]}" >/dev/null 2>&1; then
+    fail "Stale mqlaunch command-count wording found: '$stale'"
+  else
+    ok "mqlaunch docs clean of: '$stale'"
+  fi
+done
+
+if grep -q "12-item agent menu + 6 direct prompt commands" "$ROOT/README.md"; then
+  ok "README.md has canonical mqlaunch count"
+else
+  fail "README.md missing canonical mqlaunch count"
+fi
+
+if grep -q "12-item agent menu + 6 prompt commands" "$ROOT/docs/MQ_ECOSYSTEM.md"; then
+  ok "MQ_ECOSYSTEM.md has canonical mqlaunch count"
+else
+  fail "MQ_ECOSYSTEM.md missing canonical mqlaunch count"
+fi
+
+for cmd in "agent score" "agent audit" "agent doctor" "agent release-check" "agent mcp-status" "agent mcp-tools"; do
+  if grep -q "$cmd" "$ROOT/README.md" && grep -q "$cmd" "$ROOT/docs/MQLAUNCH_INTEGRATION.md"; then
+    ok "mqlaunch direct command documented: $cmd"
+  else
+    fail "mqlaunch direct command missing from README or MQLAUNCH_INTEGRATION: $cmd"
+  fi
+done
+
 echo ""
 if [[ "$ERRORS" -eq 0 ]]; then
   echo "=== All consistency checks passed ==="
