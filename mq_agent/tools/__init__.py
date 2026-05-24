@@ -2,13 +2,14 @@ from collections.abc import Callable
 
 from .git_tools import git_branch, git_diff, git_log, git_remote, git_status
 from .mcp_bridge import mcp_call
-from .repo_tools import find_files, list_files, read_file, repo_summary
+from .repo_tools import find_files, list_files, read_file, repo_summary, write_file
 from .shell_tools import run_command, which
 from .signal_tools import (
     repo_analyze,
     repo_publish_checklist,
     repo_readme_score,
     repo_scan,
+    repo_signal_json,
 )
 
 TOOL_REGISTRY: dict[str, Callable] = {
@@ -25,12 +26,14 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "repo_summary": repo_summary,
     "list_files": list_files,
     "read_file": read_file,
+    "write_file": write_file,
     "find_files": find_files,
     # repo-signal (optional — degrades gracefully if not installed)
     "repo_scan": repo_scan,
     "repo_readme_score": repo_readme_score,
     "repo_publish_checklist": repo_publish_checklist,
     "repo_analyze": repo_analyze,
+    "repo_signal_json": repo_signal_json,
     # MCP
     "mcp_call": mcp_call,
 }

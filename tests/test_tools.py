@@ -1,8 +1,11 @@
 """Tests for mq_agent tools layer."""
+import inspect
+
 import pytest
 
+from mq_agent.tools import TOOL_REGISTRY
 from mq_agent.tools.git_tools import git_log, git_status
-from mq_agent.tools.repo_tools import list_files, read_file, repo_summary
+from mq_agent.tools.repo_tools import find_files, list_files, read_file, repo_summary, write_file
 from mq_agent.tools.shell_tools import run_command
 
 
@@ -41,3 +44,48 @@ def test_run_command_echo():
 def test_run_command_blocks_dangerous():
     with pytest.raises(ValueError, match="Blocked"):
         run_command("rm -rf /")
+
+def test_run_command_default_timeout_is_120():
+    sig = inspect.signature(run_command)
+    assert sig.parameters["timeout"].default == 120
+
+def test_read_file_single_path_param():
+    sig = inspect.signature(read_file)
+    assert list(sig.parameters.keys()) == ["path"]
+
+def test_find_files_excludes_venv(tmp_path):
+    venv = tmp_path / ".venv" / "lib"
+    venv.mkdir(parents=True)
+    (venv / "site.py").write_text("x")
+    (tmp_path / "main.py").write_text("x")
+    result = find_files(str(tmp_path), "*.py")
+    assert "main.py" in result
+    assert ".venv" not in result
+
+def test_repo_summary_excludes_venv(tmp_path):
+    import subprocess
+    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+    venv = tmp_path / ".venv" / "lib"
+    venv.mkdir(parents=True)
+    for i in range(10):
+        (venv / f"pkg{i}.py").write_text("x")
+    (tmp_path / "main.py").write_text("x")
+    result = repo_summary(str(tmp_path))
+    assert "Files:  1 total, 1 Python" in result
+
+def test_write_file_creates_file(tmp_path):
+    target = str(tmp_path / "out.txt")
+    result = write_file(target, "hello")
+    assert "Written:" in result
+    assert (tmp_path / "out.txt").read_text() == "hello"
+
+def test_write_file_creates_parent_dirs(tmp_path):
+    target = str(tmp_path / "sub" / "dir" / "file.md")
+    write_file(target, "content")
+    assert (tmp_path / "sub" / "dir" / "file.md").exists()
+
+def test_write_file_in_registry():
+    assert "write_file" in TOOL_REGISTRY
+
+def test_repo_signal_json_in_registry():
+    assert "repo_signal_json" in TOOL_REGISTRY
