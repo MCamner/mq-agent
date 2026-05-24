@@ -13,8 +13,17 @@ surface.
 Latest stable release:
 
 ```text
-v0.6.0 — controlled agent loops (task runner)
+v0.8.0 — controlled specialist workflows
 ```
+
+Current recommended next step:
+
+```text
+v0.6.1 — orchestration stabilization before browser-assisted workflows
+```
+
+This repo is already an orchestration runtime. The next work is stabilization,
+documentation and behavior locks, not a rewrite.
 
 Completed foundation:
 
@@ -46,10 +55,10 @@ Completed foundation:
 | v0.5.1  | Semantic memory hardening                    | Done    |
 | v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops (task runner)         | Done    |
-| v0.7.0  | Browser-assisted workflows                   | Next    |
+| v0.6.1  | Orchestration stabilization                  | Next    |
 | v0.7.0  | Browser-assisted workflows                   | Planned |
-| v0.8.0  | Multi-agent workflows                        | Planned |
-| v1.0.0  | Stable local agent platform                  | Future  |
+| v0.8.0  | Controlled specialist workflows              | Planned |
+| v1.0.0  | Stable local agent platform                  | Next    |
 
 ---
 
@@ -152,81 +161,101 @@ Completed foundation:
 * [x] `mq_agent/core/task_runner.py` — `load_task`, `run_task`, `find_task_files`
 * [x] Task lookup by filename stem OR internal YAML `name:` field
 * [x] `tests/test_task_runner.py` — 18 tests
-* [x] 126 tests total
+* [x] Tool registry hardened — `_EXCLUDE_DIRS`, `write_file`, `repo_signal_json`, timeout 120s
+* [x] Task YAML args corrected (`suffix→pattern`, `n→limit`, `ci.yml→tests.yml`)
+* [x] 134 tests total
 
 ---
 
-## Next: v0.7.0 — Browser-assisted workflows
+## Next: v0.6.1 — Orchestration stabilization
 
 Goal:
 
-Add controlled browser-adjacent workflows for research, documentation and release
-verification.
+Stabilize the existing orchestration runtime before adding browser-assisted workflows.
 
-### Planned scope
+Scope:
 
-* [ ] Browser task planning
-* [ ] URL inspection mode
-* [ ] Docs verification from live pages
-* [ ] Release page verification
-* [ ] GitHub issue and PR summarization
-* [ ] Browser-safe mode
-* [ ] Explicit human confirmation before web actions
+* Document current Planner / Executor / Verifier flow
+* Document Task Runner lifecycle
+* Document Tool Registry and safety gate flow
+* Document Memory lifecycle
+* Document mq-mcp bridge flow
+* Document mqlaunch bridge boundaries
+* Identify CLI/TUI/orchestration coupling
+* Identify duplicated workflow logic
+* Add tests that lock current command behavior
 
-### Possible commands
+Non-goals:
 
-```bash
-mq-agent browser inspect <url>
-mq-agent browser summarize <url>
-mq-agent browser verify-release <url>
-```
+* No TUI rewrite
+* No mqlaunch layout changes
+* No new autonomous behavior
+* No multi-agent/swarm work
+* No browser automation yet
 
-### Non-goals
+Dependency note:
+
+The repository already contains browser and swarm-era implementation history.
+Future work in those areas should still be gated by this stabilization phase:
+preserve current commands, document current boundaries and lock behavior with
+tests before adding new workflow scope.
+
+---
+
+### v0.7.0 — Browser-assisted workflows
+
+* [x] `mq-agent browser inspect <url>` — structured URL metadata: title, description, h1/h2, links, word count
+* [x] `mq-agent browser summarize <url>` — plain-text content summary
+* [x] `mq-agent browser verify-release <url>` — release page field verification; `--tag <v>` for version check
+* [x] `mq_agent/tools/browser_tools.py` — `fetch_url`, `inspect_url`, `summarize_url`, `verify_release_url`
+* [x] URL safety gate: blocks `file://`, `ftp://`, `data:`, `javascript:` schemes
+* [x] Browser tools registered in `TOOL_REGISTRY` — usable in task YAML workflows
+* [x] `tasks/browser_verify.yaml` — declarative browser verification task
+* [x] `tests/test_browser.py` — 27 tests (URL safety, HTML parsing, CLI commands)
+* [x] 161 tests total
+
+### Non-goals (v0.7.0)
 
 * No credential handling
 * No hidden form submission
 * No checkout/payment flows
 * No unsafe automation
 
+### Architectural guardrails (v0.7.0)
+
+* Browser workflows must be read-only by default
+* No credential capture or storage
+* No hidden form submission
+* No purchase, booking or account actions
+* No autonomous browser control
+* All browser actions require explicit operator confirmation
+* Browser results must be inspectable and citeable
+* Browser workflow logic must use existing task/orchestration systems
+* Do not create a second workflow engine
+
 ---
 
-## v0.8.0 — Multi-agent workflows
+### v0.8.0 — Controlled specialist workflows
 
-Goal:
+Do not build swarms.
 
-Coordinate specialized local agents for repo audits, release readiness,
-documentation, CI diagnosis and semantic memory.
+This phase should coordinate existing specialized agents through the existing
+task runner and safety model.
 
-### Planned agents
+The goal is controlled specialization, not autonomous multi-agent behavior.
 
-* [ ] Audit agent
-* [ ] Release agent
-* [ ] Docs agent
-* [ ] CI agent
-* [ ] Memory agent
-* [ ] Safety agent
-* [ ] mqlaunch integration agent
-* [ ] mq-mcp tool agent
-* [ ] repo-signal intelligence agent
-
-### Possible commands
-
-```bash
-mq-agent swarm plan .
-mq-agent swarm audit .
-mq-agent swarm release-check .
-```
-
-### Safety model
-
-Every agent must declare:
-
-* purpose
-* allowed tools
-* safety class
-* approval requirements
-* output contract
-* failure behavior
+* [x] `mq-agent swarm list` — list swarm configs with agents and safety classes
+* [x] `mq-agent swarm plan <config>` — dry plan; no API, no execution
+* [x] `mq-agent swarm run <config> [path]` — execute swarm, unified report
+* [x] `mq-agent swarm audit [path]` — audit + signal + docs
+* [x] `mq-agent swarm release-check [path]` — CI + audit + release
+* [x] `AgentManifest` — declares purpose, safety_class, allowed_tools, requires_approve, output_contract, failure_behavior
+* [x] `SwarmRunner` — dispatches agents, collects results, handles failures per manifest policy
+* [x] `--approve` gate for write-capable agents
+* [x] Dry-run requires no API key
+* [x] Built-in swarm configs: `audit`, `release-check`, `ci`
+* [x] `tests/test_swarm.py` — 29 tests
+* [x] 190 tests total
 
 ---
 
@@ -324,8 +353,8 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v0.7.0 — browser-assisted workflows
+v0.6.1 — orchestration stabilization before browser-assisted workflows
 ```
 
-This adds controlled browser-adjacent workflows for research, documentation
-and release verification.
+This stabilizes the orchestration runtime before adding more browser-adjacent
+workflow scope.

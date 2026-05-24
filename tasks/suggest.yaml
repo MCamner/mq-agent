@@ -1,0 +1,68 @@
+name: suggest-patches
+version: "0.1"
+description: Safe patch suggestion planning — reads repo signals, produces actionable suggestions, never mutates
+
+steps:
+  - name: signal-scan
+    description: Full repo-signal scan — project type, languages, tooling, focus areas
+    tool: repo_scan
+    args:
+      path: "."
+
+  - name: publish-check
+    description: Publish readiness checklist — identifies failed checks as suggestion sources
+    tool: repo_publish_checklist
+    args:
+      path: "."
+
+  - name: readme-score
+    description: README quality score — missing sections become suggestions
+    tool: repo_readme_score
+    args:
+      path: "."
+
+  - name: git-state
+    description: Check working tree — dirty state is flagged as a suggestion
+    tool: git_status
+    args:
+      path: "."
+
+  - name: git-log
+    description: Recent commits — context for grouping suggestions
+    tool: git_log
+    args:
+      path: "."
+      limit: 5
+
+  - name: signal-json
+    description: Full structured signal data for downstream consumers
+    tool: repo_signal_json
+    args:
+      path: "."
+
+  - name: suggest-text
+    description: Safe patch suggestions in text format
+    tool: repo_suggest
+    args:
+      path: "."
+      output_format: "text"
+
+  - name: suggest-markdown
+    description: Safe patch suggestions in markdown
+    tool: repo_suggest
+    args:
+      path: "."
+      output_format: "markdown"
+
+  - name: write-report
+    description: Write markdown suggestions to suggest-report.md for human review
+    tool: write_file
+    args:
+      path: "suggest-report.md"
+      content: "{{step:suggest-markdown}}"
+
+verify:
+  - all steps complete
+  - no tool errors
+  - suggest steps produce suggest.v1 compatible output
+  - suggest-report.md written with markdown output from suggest-markdown step

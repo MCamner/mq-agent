@@ -38,7 +38,7 @@ steps:
     tool: git_log
     args:
       path: "."
-      n: 5
+      limit: 5
 
 verify:
   - all steps pass

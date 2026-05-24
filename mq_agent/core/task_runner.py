@@ -1,9 +1,12 @@
 """Declarative task execution from YAML task files."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+_TEMPLATE_RE = re.compile(r"\{\{step:([^}]+)\}\}")
 
 
 @dataclass
@@ -28,6 +31,19 @@ class Task:
     steps: list[TaskStep]
     version: str = "0.1"
     description: str = ""
+
+
+def _resolve_templates(args: dict[str, Any], step_outputs: dict[str, str]) -> dict[str, Any]:
+    """Replace {{step:name}} in string args with output from a completed step."""
+    resolved: dict[str, Any] = {}
+    for key, value in args.items():
+        if isinstance(value, str):
+            resolved[key] = _TEMPLATE_RE.sub(
+                lambda m: step_outputs.get(m.group(1), m.group(0)), value
+            )
+        else:
+            resolved[key] = value
+    return resolved
 
 
 def load_task(path: Path) -> Task:
@@ -58,6 +74,8 @@ def run_task(task: Task, dry_run: bool = False) -> list[StepResult]:
     from mq_agent.tools import TOOL_REGISTRY
 
     results: list[StepResult] = []
+    step_outputs: dict[str, str] = {}
+
     for step in task.steps:
         if dry_run:
             results.append(StepResult(
@@ -79,12 +97,15 @@ def run_task(task: Task, dry_run: bool = False) -> list[StepResult]:
             continue
 
         try:
-            output = fn(**step.args)
+            resolved_args = _resolve_templates(step.args, step_outputs)
+            output = fn(**resolved_args)
+            output_str = str(output)
+            step_outputs[step.name] = output_str
             results.append(StepResult(
                 step=step.name,
                 tool=step.tool,
                 status="ok",
-                output=str(output),
+                output=output_str,
             ))
         except Exception as exc:
             results.append(StepResult(

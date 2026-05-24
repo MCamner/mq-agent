@@ -10,7 +10,7 @@ BLOCKED = [
 ]
 
 
-def run_command(command: str, cwd: str = ".", timeout: int = 60) -> str:
+def run_command(command: str, cwd: str = ".", timeout: int = 120) -> str:
     for pattern in BLOCKED:
         if pattern in command:
             raise ValueError(f"Blocked command pattern: '{pattern}'")

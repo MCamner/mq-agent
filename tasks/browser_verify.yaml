@@ -1,0 +1,33 @@
+name: browser-verify
+version: "0.1"
+description: Inspect and verify a release page URL
+
+steps:
+  - name: inspect-url
+    description: Fetch and parse release page metadata
+    tool: inspect_url
+    args:
+      url: "https://github.com/McAmner/mq-agent/releases/latest"
+
+  - name: summarize-url
+    description: Generate plain-text content summary
+    tool: summarize_url
+    args:
+      url: "https://github.com/McAmner/mq-agent/releases/latest"
+
+  - name: verify-release
+    description: Verify release page fields are present
+    tool: verify_release_url
+    args:
+      url: "https://github.com/McAmner/mq-agent/releases/latest"
+      expected_tag: ""
+
+verify:
+  - page is reachable
+  - page has title
+  - page has content
+
+on_failure:
+  - report specific check failures
+  - suggest verifying the URL is correct
+  - do not retry automatically

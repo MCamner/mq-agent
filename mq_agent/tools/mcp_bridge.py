@@ -27,8 +27,8 @@ class MCPBridge:
             return False
         import httpx
         try:
-            httpx.get(f"{self.endpoint}/health", timeout=2)
-            return True
+            response = httpx.get(f"{self.endpoint}/health", timeout=2)
+            return response.status_code == 200
         except Exception:
             return False
 
@@ -65,16 +65,18 @@ class MCPBridge:
             for item in raw
         ]
 
-    def list_tool_specs(self) -> list:
+    def list_tool_specs(self, source: str = "mq-mcp") -> list:
         """Return MCPToolSpec objects for all discovered tools."""
         from .mcp_registry import MCPToolSpec
         raw = self._fetch_tools_raw()
         specs = []
         for item in raw:
             if isinstance(item, dict):
-                specs.append(MCPToolSpec.from_dict(item))
+                spec = MCPToolSpec.from_dict(item)
             else:
-                specs.append(MCPToolSpec.from_name(str(item)))
+                spec = MCPToolSpec.from_name(str(item))
+            spec.source = source
+            specs.append(spec)
         return specs
 
     # ── tool description ───────────────────────────────────────────────────
@@ -123,7 +125,58 @@ class MCPBridge:
             return f"MCP bridge error: {exc}"
 
 
-_default_bridge = MCPBridge()
+class MultiMCPBridge:
+    """Aggregates multiple MCP server bridges."""
+
+    def __init__(self):
+        from ..core.config import get_mcp_servers
+        self.servers = get_mcp_servers()
+        self.bridges = {name: MCPBridge(url) for name, url in self.servers.items()}
+
+    def is_available(self) -> bool:
+        """Returns True if ANY registered server is reachable."""
+        return any(b.is_available() for b in self.bridges.values())
+
+    def list_tool_specs(self) -> list:
+        """Aggregate tool specs from all bridges."""
+        all_specs = []
+        for name, bridge in self.bridges.items():
+            all_specs.extend(bridge.list_tool_specs(source=name))
+        return all_specs
+
+    def describe_tool(self, name: str) -> Any:
+        """Find and describe a tool from any bridge."""
+        # Try to find which bridge has this tool
+        for bridge in self.bridges.values():
+            if name in bridge.list_tools():
+                return bridge.describe_tool(name)
+        # Fallback to default classification
+        from .mcp_registry import MCPToolSpec
+        return MCPToolSpec.from_name(name)
+
+    def call_tool(self, tool_name: str, args: dict) -> Any:
+        """Route tool call to the first bridge that has the tool."""
+        for name, bridge in self.bridges.items():
+            if tool_name in bridge.list_tools():
+                return bridge.call_tool(tool_name, args)
+        return f"Tool '{tool_name}' not found on any connected MCP server."
+
+    def get_server_statuses(self) -> dict[str, dict[str, Any]]:
+        """Get reachability and tool counts for all servers."""
+        status = {}
+        for name, bridge in self.bridges.items():
+            available = bridge.is_available()
+            specs = bridge.list_tool_specs(source=name) if available else []
+            status[name] = {
+                "available": available,
+                "endpoint": bridge.endpoint,
+                "tools": len(specs),
+                "specs": specs,
+            }
+        return status
+
+
+_default_bridge = MultiMCPBridge()
 
 
 def mcp_call(tool_name: str, args_json: str = "{}") -> str:
