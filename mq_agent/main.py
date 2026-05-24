@@ -30,6 +30,9 @@ app.add_typer(mcp_app, name="mcp")
 memory_app = typer.Typer(help="Semantic repository memory commands.")
 app.add_typer(memory_app, name="memory")
 
+task_app = typer.Typer(help="Run declarative YAML task workflows.")
+app.add_typer(task_app, name="task")
+
 console = Console()
 
 
@@ -841,6 +844,126 @@ def memory_doctor_cmd(
     console.print(Panel("\n".join(lines), title=title, border_style=border))
 
     if not report.healthy:
+        raise typer.Exit(1)
+
+
+# ── task list ──────────────────────────────────────────────────────────────
+
+@task_app.command("list")
+def task_list(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List available task definitions."""
+    from mq_agent.core.task_runner import find_task_files, load_task
+
+    package_tasks = Path(__file__).parent.parent / "tasks"
+    local_tasks = Path(".") / "tasks"
+    files = find_task_files(package_tasks, local_tasks)
+
+    if json_out:
+        items = []
+        for f in files:
+            try:
+                t = load_task(f)
+                items.append({"name": t.name, "description": t.description, "steps": len(t.steps), "file": str(f)})
+            except Exception:
+                items.append({"name": f.stem, "file": str(f), "error": "failed to load"})
+        typer.echo(json.dumps(items, indent=2))
+        return
+
+    if not files:
+        console.print("[yellow]No task files found.[/yellow]")
+        return
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Name")
+    table.add_column("Steps", justify="right")
+    table.add_column("Description")
+    for f in files:
+        try:
+            t = load_task(f)
+            table.add_row(t.name, str(len(t.steps)), t.description or "—")
+        except Exception as exc:
+            table.add_row(f.stem, "?", f"[red]load error: {exc}[/red]")
+    console.print(table)
+
+
+# ── task run ───────────────────────────────────────────────────────────────
+
+@task_app.command("run")
+def task_run(
+    name: Annotated[str, typer.Argument(help="Task name or path to YAML file")],
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run a declarative YAML task workflow."""
+    from mq_agent.core.task_runner import find_task_files, load_task, run_task
+
+    # Resolve task file — direct path, stem match, or internal name match
+    task_path = Path(name)
+    if not task_path.exists():
+        package_tasks = Path(__file__).parent.parent / "tasks"
+        local_tasks = Path(".") / "tasks"
+        all_files = find_task_files(package_tasks, local_tasks)
+        # stem match first (fast)
+        task_path = next((f for f in all_files if f.stem == name), None)  # type: ignore[assignment]
+        # fall back to internal name match
+        if task_path is None:
+            for f in all_files:
+                try:
+                    t = load_task(f)
+                    if t.name == name:
+                        task_path = f
+                        break
+                except Exception:
+                    pass
+        if task_path is None:
+            console.print(f"[bold red]Task not found:[/bold red] {name}")
+            raise typer.Exit(1)
+
+    try:
+        task = load_task(task_path)
+    except Exception as exc:
+        console.print(f"[bold red]Failed to load task:[/bold red] {exc}")
+        raise typer.Exit(1)
+
+    results = run_task(task, dry_run=dry_run)
+
+    passed = all(r.status in ("ok", "dry-run") for r in results)
+
+    if json_out:
+        typer.echo(json.dumps({
+            "task": task.name,
+            "dry_run": dry_run,
+            "passed": passed,
+            "steps": [{"step": r.step, "tool": r.tool, "status": r.status, "output": r.output} for r in results],
+        }, indent=2))
+        if not passed:
+            raise typer.Exit(1)
+        return
+
+    mode_label = "[dim](dry-run)[/dim] " if dry_run else ""
+    console.print(f"\n[bold]Task:[/bold] {task.name} {mode_label}— {task.description}\n")
+
+    for r in results:
+        icon = {
+            "ok": "[bold green]✓[/bold green]",
+            "dry-run": "[bold blue]~[/bold blue]",
+            "error": "[bold red]✗[/bold red]",
+            "unknown-tool": "[bold red]?[/bold red]",
+        }.get(r.status, "[dim]•[/dim]")
+        console.print(f"  {icon} [bold]{r.step}[/bold] ({r.tool})")
+        if r.output:
+            for line in r.output.splitlines()[:6]:
+                console.print(f"      [dim]{line}[/dim]")
+            if len(r.output.splitlines()) > 6:
+                console.print(f"      [dim]... ({len(r.output.splitlines())} lines total)[/dim]")
+
+    border = "green" if passed else "red"
+    label = "[bold green]✓ All steps passed[/bold green]" if passed else "[bold red]✗ Some steps failed[/bold red]"
+    console.print(Panel(label, border_style=border))
+
+    if not passed:
         raise typer.Exit(1)
 
 
