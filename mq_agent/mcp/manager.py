@@ -81,8 +81,7 @@ def stop() -> tuple[bool, int | None, str]:
     pid = read_pid()
 
     if pid is None:
-        if not is_running():
-            return False, None, "not running"
+        return False, None, "not running"
 
     if not is_running():
         return False, pid, "not running (stale PID file removed)"
