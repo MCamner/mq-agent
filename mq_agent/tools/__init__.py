@@ -11,6 +11,7 @@ from .signal_tools import (
     repo_readme_score,
     repo_scan,
     repo_signal_json,
+    repo_suggest,
 )
 
 TOOL_REGISTRY: dict[str, Callable] = {
@@ -35,6 +36,7 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "repo_publish_checklist": repo_publish_checklist,
     "repo_analyze": repo_analyze,
     "repo_signal_json": repo_signal_json,
+    "repo_suggest": repo_suggest,
     # MCP
     "mcp_call": mcp_call,
     # Browser (read-only, safe GET requests only)

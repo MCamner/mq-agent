@@ -15,6 +15,8 @@ _scan: Callable[..., Any] | None = None
 _score_readme: Callable[..., dict] | None = None
 _checklist: Callable[..., dict] | None = None
 _analyze_repo: Callable[..., str] | None = None
+_build_suggestions: Callable[..., dict] | None = None
+_format_suggestions: Callable[..., str] | None = None
 
 try:
     from repo_signal.analyze import analyze_repo as _analyze_repo  # type: ignore[no-redef]
@@ -23,6 +25,10 @@ try:
         build_publish_checklist as _checklist,
     )
     from repo_signal.readme_score import score_readme as _score_readme  # type: ignore[no-redef]
+    from repo_signal.suggest import (  # type: ignore[no-redef]
+        build_suggestions as _build_suggestions,
+        format_suggestions as _format_suggestions,
+    )
 
     _AVAILABLE = True
 except ImportError:
@@ -134,6 +140,17 @@ def repo_analyze(path: str = ".") -> str:
     assert _analyze_repo is not None
 
     return _analyze_repo(path)
+
+
+def repo_suggest(path: str = ".", output_format: str = "text") -> str:
+    """Safe patch suggestions — what to improve, no mutations (text/markdown/json)."""
+    if not _AVAILABLE:
+        return _not_available_msg()
+    assert _build_suggestions is not None
+    assert _format_suggestions is not None
+
+    data = _build_suggestions(path)
+    return _format_suggestions(data, output_format=output_format)
 
 
 def repo_signal_json(path: str = ".") -> dict:
