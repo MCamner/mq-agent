@@ -19,11 +19,8 @@ v0.8.0 — controlled specialist workflows
 Current recommended next step:
 
 ```text
-v0.6.1 — orchestration stabilization before browser-assisted workflows
+v1.0.0 — stable local agent platform
 ```
-
-This repo is already an orchestration runtime. The next work is stabilization,
-documentation and behavior locks, not a rewrite.
 
 Completed foundation:
 
@@ -31,7 +28,7 @@ Completed foundation:
 * Planner / Executor / Verifier architecture
 * Safety modes
 * Tool registry
-* repo-signal integration
+* repo-signal integration (v0.7.0+ with version guard)
 * mq-mcp bridge
 * mqlaunch integration
 * Command surface documentation
@@ -39,6 +36,10 @@ Completed foundation:
 * GitHub Pages documentation
 * Release hygiene and docs consistency checks
 * Protected `main` workflow
+* Browser-assisted workflows (read-only, GET only)
+* Declarative task runner with `{{step:name}}` templates
+* Controlled specialist workflows (swarm)
+* `run_task` tool — task chaining
 
 ---
 
@@ -55,9 +56,9 @@ Completed foundation:
 | v0.5.1  | Semantic memory hardening                    | Done    |
 | v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops (task runner)         | Done    |
-| v0.6.1  | Orchestration stabilization                  | Next    |
-| v0.7.0  | Browser-assisted workflows                   | Planned |
-| v0.8.0  | Controlled specialist workflows              | Planned |
+| v0.6.1  | Orchestration stabilization                  | Done    |
+| v0.7.0  | Browser-assisted workflows                   | Done    |
+| v0.8.0  | Controlled specialist workflows              | Done    |
 | v1.0.0  | Stable local agent platform                  | Next    |
 
 ---
@@ -167,38 +168,14 @@ Completed foundation:
 
 ---
 
-## Next: v0.6.1 — Orchestration stabilization
+### v0.6.1 — Orchestration stabilization
 
-Goal:
-
-Stabilize the existing orchestration runtime before adding browser-assisted workflows.
-
-Scope:
-
-* Document current Planner / Executor / Verifier flow
-* Document Task Runner lifecycle
-* Document Tool Registry and safety gate flow
-* Document Memory lifecycle
-* Document mq-mcp bridge flow
-* Document mqlaunch bridge boundaries
-* Identify CLI/TUI/orchestration coupling
-* Identify duplicated workflow logic
-* Add tests that lock current command behavior
-
-Non-goals:
-
-* No TUI rewrite
-* No mqlaunch layout changes
-* No new autonomous behavior
-* No multi-agent/swarm work
-* No browser automation yet
-
-Dependency note:
-
-The repository already contains browser and swarm-era implementation history.
-Future work in those areas should still be gated by this stabilization phase:
-preserve current commands, document current boundaries and lock behavior with
-tests before adding new workflow scope.
+* [x] Tool registry hardened — excludes, `write_file`, `repo_signal_json`, timeout 120s
+* [x] Task YAML args corrected (`suffix→pattern`, `n→limit`, `ci.yml→tests.yml`)
+* [x] `{{step:name}}` template system — string args resolved from prior step output
+* [x] `run_task` tool registered — tasks can chain other tasks
+* [x] Version guard for repo-signal — clear error when too old
+* [x] 204 tests total
 
 ---
 
@@ -268,21 +245,21 @@ ecosystem.
 
 ### v1.0.0 requirements
 
-* [ ] Stable CLI command surface
+* [x] Stable CLI command surface — `COMMAND_SURFACE.md` is single source of truth
 * [ ] Stable config format
-* [ ] Stable safety model
-* [ ] Stable memory model
-* [ ] Stable mqlaunch integration
-* [ ] Stable mq-mcp integration
-* [ ] Stable repo-signal integration
+* [x] Stable safety model — read-only / suggest / execute / approve gates
+* [x] Stable memory model — dry-run default, explicit `--approve`
+* [x] Stable mqlaunch integration — bridge tested, menu + direct commands
+* [x] Stable mq-mcp integration — start/stop, tool listing, safety classes
+* [x] Stable repo-signal integration — version guard, suggest.v1, signal_json
 * [ ] Complete docs
 * [ ] Complete examples
-* [ ] Complete release checklist
-* [ ] Green CI
-* [ ] Protected main branch
-* [ ] Versioned GitHub release
-* [ ] GitHub Pages documentation
-* [ ] No known critical safety gaps
+* [x] Complete release checklist — `release-check.sh` verified
+* [x] Green CI
+* [x] Protected main branch
+* [ ] Versioned GitHub release (v0.6.0–v0.8.0 releases missing)
+* [x] GitHub Pages documentation
+* [x] No known critical safety gaps
 
 ---
 
@@ -353,8 +330,8 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v0.6.1 — orchestration stabilization before browser-assisted workflows
+v1.0.0 — stable local agent platform
 ```
 
-This stabilizes the orchestration runtime before adding more browser-adjacent
-workflow scope.
+All foundation work is complete. The next step is locking stability,
+completing docs and publishing a versioned stable release.
