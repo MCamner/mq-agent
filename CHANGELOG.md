@@ -7,6 +7,43 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.8.0] — 2026-05-24
+
+### Added
+
+- `mq-agent swarm list` — list available swarm configs with agents and safety classes
+- `mq-agent swarm plan <config>` — show participating agents; no API calls needed
+- `mq-agent swarm run <config> [path]` — execute a named swarm, unified report
+- `mq-agent swarm audit [path]` — shorthand: audit + signal + docs swarm
+- `mq-agent swarm release-check [path]` — shorthand: CI + audit + release swarm
+- `mq_agent/core/swarm.py` — `AgentManifest`, `SwarmConfig`, `AgentResult`, `SwarmResult`, `SwarmRunner`
+- `mq_agent/agents/swarm_registry.py` — built-in swarm configs: `audit`, `release-check`, `ci`
+- Each `AgentManifest` declares: purpose, safety_class, allowed_tools, requires_approve, output_contract, failure_behavior
+- Dry-run mode requires no API key and skips all agent execution
+- `--approve` gate for write-capable agents (`release` manifest)
+- `tasks/swarm_audit.yaml` — declarative swarm audit task workflow
+- `tests/test_swarm.py` — 29 tests covering manifests, configs, runner, registry, CLI
+- 190 tests total
+
+---
+
+## [v0.7.0] — 2026-05-24
+
+### Added
+
+- `mq-agent browser inspect <url>` — fetch and parse URL metadata: title, description, headings, links, word count
+- `mq-agent browser summarize <url>` — plain-text content summary from a URL
+- `mq-agent browser verify-release <url>` — verify release page fields; `--tag <v>` checks expected version tag
+- `mq_agent/tools/browser_tools.py` — `fetch_url`, `inspect_url`, `summarize_url`, `verify_release_url`
+- `_HTMLExtractor` — stdlib-only HTML parser (title, description, h1/h2, links, text)
+- URL safety gate: blocks `file://`, `ftp://`, `data:`, `javascript:` schemes
+- Browser tools registered in `TOOL_REGISTRY` — usable in task YAML workflows
+- `tasks/browser_verify.yaml` — declarative task for release page verification
+- `tests/test_browser.py` — 27 tests covering URL safety, HTML parsing, inspect/summarize/verify, and CLI commands
+- 161 tests total
+
+---
+
 ## [v0.6.0] — 2026-05-24
 
 ### Added

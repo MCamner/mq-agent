@@ -374,5 +374,5 @@ def test_cli_mcp_status_json_process_running():
 
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["process_running"] is True
-    assert data["pid"] == 42000
+    assert data["mq_mcp_process"]["running"] is True
+    assert data["mq_mcp_process"]["pid"] == 42000

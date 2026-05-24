@@ -1,6 +1,6 @@
 # Command Surface
 
-This file is the canonical command-count reference for `mq-agent` v0.4.1.
+This file is the canonical command-count reference for `mq-agent` v0.8.0.
 README, release notes, GitHub Pages and integration docs should link here
 instead of redefining command counts in prose.
 
@@ -62,6 +62,57 @@ mqlaunch -> mq-agent -> mq-hal / mq-mcp / repo-signal
 | `mq-agent run-tool <name> --arg k=v` | yes | Pass tool arguments |
 | `mq-agent run-tool <name> --approve` | yes | Allow write-capable or subprocess tools |
 | `mq-agent run-tool <name> --dangerous` | yes | Allow dangerous delete/remove class tools |
+
+## Browser Commands
+
+All browser commands are read-only (GET requests only). No credentials, no form submission.
+
+| Command | Needs network | Notes |
+|---|---:|---|
+| `mq-agent browser inspect <url>` | yes | Structured URL metadata: title, h1/h2, links, word count |
+| `mq-agent browser inspect <url> --json` | yes | Machine-readable metadata |
+| `mq-agent browser summarize <url>` | yes | Plain-text content summary |
+| `mq-agent browser summarize <url> --json` | yes | Machine-readable summary |
+| `mq-agent browser verify-release <url>` | yes | Verify release page fields |
+| `mq-agent browser verify-release <url> --tag v0.7.0` | yes | Also check expected version tag |
+| `mq-agent browser verify-release <url> --json` | yes | Machine-readable verification result |
+
+## Task Commands
+
+| Command | Notes |
+|---|---|
+| `mq-agent task list` | List available YAML task workflow files |
+| `mq-agent task list --json` | Machine-readable task list |
+| `mq-agent task run <name>` | Execute a declarative YAML workflow |
+| `mq-agent task run <name> --dry-run` | Preview steps without execution |
+| `mq-agent task run <name> --json` | Machine-readable step results |
+
+## Swarm Commands
+
+Each swarm runs multiple agents in sequence with declared safety contracts.
+
+| Command | Needs API key | Notes |
+|---|---:|---|
+| `mq-agent swarm list` | no | List swarm configs with agents and safety classes |
+| `mq-agent swarm list --json` | no | Machine-readable |
+| `mq-agent swarm plan <config>` | no | Show agents that would run — no execution |
+| `mq-agent swarm plan <config> --json` | no | Machine-readable plan |
+| `mq-agent swarm run <config> [path]` | yes | Execute swarm, unified report |
+| `mq-agent swarm run <config> [path] --dry-run` | no | Preview without execution |
+| `mq-agent swarm run <config> [path] --approve` | yes | Allow write-capable agents |
+| `mq-agent swarm run <config> [path] --json` | yes | Machine-readable results |
+| `mq-agent swarm audit [path]` | yes | Shorthand: audit + signal + docs |
+| `mq-agent swarm audit [path] --dry-run` | no | Preview |
+| `mq-agent swarm release-check [path]` | yes | Shorthand: CI + audit + release |
+| `mq-agent swarm release-check [path] --approve` | yes | Enable release agent |
+
+### Built-in swarm configs
+
+| Config | Agents | Approve needed? |
+|---|---|---|
+| `audit` | audit + signal + docs | no |
+| `release-check` | ci + audit + release | yes (for release agent) |
+| `ci` | ci + audit | no |
 
 ## mqlaunch Agent Menu
 

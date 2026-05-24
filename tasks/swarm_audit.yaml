@@ -1,0 +1,51 @@
+name: swarm-audit
+version: "0.1"
+description: Multi-agent read-only repo health check (audit + signal + docs)
+
+steps:
+  - name: repo-summary
+    description: Get repository overview
+    tool: repo_summary
+    args:
+      path: "."
+
+  - name: git-status
+    description: Check uncommitted changes
+    tool: git_status
+    args:
+      path: "."
+
+  - name: git-log
+    description: Review recent commits
+    tool: git_log
+    args:
+      path: "."
+      limit: 10
+
+  - name: find-python
+    description: List Python source files
+    tool: find_files
+    args:
+      path: "."
+      pattern: "*.py"
+
+  - name: read-changelog
+    description: Read CHANGELOG for recent entries
+    tool: read_file
+    args:
+      path: "CHANGELOG.md"
+
+  - name: read-readme
+    description: Read README for documentation coverage
+    tool: read_file
+    args:
+      path: "README.md"
+
+verify:
+  - all steps complete
+  - no tool errors
+  - git status clean or changes explained
+
+on_failure:
+  - report step failures with tool output
+  - do not abort remaining steps

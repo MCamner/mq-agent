@@ -13,7 +13,7 @@ surface.
 Latest stable release:
 
 ```text
-v0.6.0 — controlled agent loops (task runner)
+v0.8.0 — multi-agent workflows
 ```
 
 Completed foundation:
@@ -46,9 +46,9 @@ Completed foundation:
 | v0.5.1  | Semantic memory hardening                    | Done    |
 | v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops (task runner)         | Done    |
-| v0.7.0  | Browser-assisted workflows                   | Next    |
-| v0.7.0  | Browser-assisted workflows                   | Planned |
-| v0.8.0  | Multi-agent workflows                        | Planned |
+| v0.7.0  | Browser-assisted workflows                   | Done    |
+| v0.8.0  | Multi-agent workflows                        | Done    |
+| v1.0.0  | Stable local agent platform                  | Next    |
 | v1.0.0  | Stable local agent platform                  | Future  |
 
 ---
@@ -158,32 +158,19 @@ Completed foundation:
 
 ---
 
-## Next: v0.7.0 — Browser-assisted workflows
+### v0.7.0 — Browser-assisted workflows
 
-Goal:
+* [x] `mq-agent browser inspect <url>` — structured URL metadata: title, description, h1/h2, links, word count
+* [x] `mq-agent browser summarize <url>` — plain-text content summary
+* [x] `mq-agent browser verify-release <url>` — release page field verification; `--tag <v>` for version check
+* [x] `mq_agent/tools/browser_tools.py` — `fetch_url`, `inspect_url`, `summarize_url`, `verify_release_url`
+* [x] URL safety gate: blocks `file://`, `ftp://`, `data:`, `javascript:` schemes
+* [x] Browser tools registered in `TOOL_REGISTRY` — usable in task YAML workflows
+* [x] `tasks/browser_verify.yaml` — declarative browser verification task
+* [x] `tests/test_browser.py` — 27 tests (URL safety, HTML parsing, CLI commands)
+* [x] 161 tests total
 
-Add controlled browser-adjacent workflows for research, documentation and release
-verification.
-
-### Planned scope
-
-* [ ] Browser task planning
-* [ ] URL inspection mode
-* [ ] Docs verification from live pages
-* [ ] Release page verification
-* [ ] GitHub issue and PR summarization
-* [ ] Browser-safe mode
-* [ ] Explicit human confirmation before web actions
-
-### Possible commands
-
-```bash
-mq-agent browser inspect <url>
-mq-agent browser summarize <url>
-mq-agent browser verify-release <url>
-```
-
-### Non-goals
+### Non-goals (v0.7.0)
 
 * No credential handling
 * No hidden form submission
@@ -192,43 +179,20 @@ mq-agent browser verify-release <url>
 
 ---
 
-## v0.8.0 — Multi-agent workflows
+### v0.8.0 — Multi-agent workflows
 
-Goal:
-
-Coordinate specialized local agents for repo audits, release readiness,
-documentation, CI diagnosis and semantic memory.
-
-### Planned agents
-
-* [ ] Audit agent
-* [ ] Release agent
-* [ ] Docs agent
-* [ ] CI agent
-* [ ] Memory agent
-* [ ] Safety agent
-* [ ] mqlaunch integration agent
-* [ ] mq-mcp tool agent
-* [ ] repo-signal intelligence agent
-
-### Possible commands
-
-```bash
-mq-agent swarm plan .
-mq-agent swarm audit .
-mq-agent swarm release-check .
-```
-
-### Safety model
-
-Every agent must declare:
-
-* purpose
-* allowed tools
-* safety class
-* approval requirements
-* output contract
-* failure behavior
+* [x] `mq-agent swarm list` — list swarm configs with agents and safety classes
+* [x] `mq-agent swarm plan <config>` — dry plan; no API, no execution
+* [x] `mq-agent swarm run <config> [path]` — execute swarm, unified report
+* [x] `mq-agent swarm audit [path]` — audit + signal + docs
+* [x] `mq-agent swarm release-check [path]` — CI + audit + release
+* [x] `AgentManifest` — declares purpose, safety_class, allowed_tools, requires_approve, output_contract, failure_behavior
+* [x] `SwarmRunner` — dispatches agents, collects results, handles failures per manifest policy
+* [x] `--approve` gate for write-capable agents
+* [x] Dry-run requires no API key
+* [x] Built-in swarm configs: `audit`, `release-check`, `ci`
+* [x] `tests/test_swarm.py` — 29 tests
+* [x] 190 tests total
 
 ---
 

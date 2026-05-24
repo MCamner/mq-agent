@@ -33,6 +33,12 @@ app.add_typer(memory_app, name="memory")
 task_app = typer.Typer(help="Run declarative YAML task workflows.")
 app.add_typer(task_app, name="task")
 
+browser_app = typer.Typer(help="Browser-safe URL inspection and release verification.")
+app.add_typer(browser_app, name="browser")
+
+swarm_app = typer.Typer(help="Multi-agent swarm workflows.")
+app.add_typer(swarm_app, name="swarm")
+
 console = Console()
 
 
@@ -418,10 +424,10 @@ def tools(
 ):
     """List registered tools. Use --describe <name> for details, --mcp to include MCP tools."""
     from mq_agent.tools import tool_names
-    from mq_agent.tools.mcp_bridge import MCPBridge
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     if describe:
-        bridge = MCPBridge()
+        bridge = MultiMCPBridge()
         spec = bridge.describe_tool(describe)
         if json_out:
             typer.echo(json.dumps(spec.to_dict(), indent=2))
@@ -432,7 +438,7 @@ def tools(
     built_in = tool_names()
 
     if include_mcp:
-        bridge = MCPBridge()
+        bridge = MultiMCPBridge()
         mcp_specs = bridge.list_tool_specs()
         if json_out:
             data = {
@@ -454,6 +460,53 @@ def tools(
 
     for name in built_in:
         console.print(f"  [cyan]•[/cyan] {name}")
+
+
+# ── mcp connect ────────────────────────────────────────────────────────────
+
+@mcp_app.command("connect")
+def mcp_connect(
+    name: Annotated[str, typer.Argument(help="Server name (e.g. RepoPrompt)")],
+    url: Annotated[str, typer.Argument(help="MCP server URL (e.g. http://localhost:PORT)")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Register an external MCP server."""
+    from mq_agent.core.config import add_mcp_server
+
+    add_mcp_server(name, url)
+
+    if json_out:
+        typer.echo(json.dumps({"name": name, "url": url, "status": "connected"}))
+        return
+
+    console.print(Panel(
+        f"[bold green]Connected to {name}[/bold green]\nURL: {url}",
+        title="[bold]MCP Connect[/bold]",
+        border_style="green",
+    ))
+
+
+@mcp_app.command("disconnect")
+def mcp_disconnect(
+    name: Annotated[str, typer.Argument(help="Server name to remove")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Remove a registered MCP server."""
+    from mq_agent.core.config import remove_mcp_server
+
+    removed = remove_mcp_server(name)
+
+    if json_out:
+        typer.echo(json.dumps({"name": name, "removed": removed}))
+        return
+
+    if removed:
+        console.print(f"[bold green]Disconnected from {name}[/bold green]")
+    else:
+        console.print(f"[bold yellow]Server '{name}' not found[/bold yellow]")
+
+
+# ── mcp start ──────────────────────────────────────────────────────────────
 
 
 # ── mcp start ──────────────────────────────────────────────────────────────
@@ -531,47 +584,53 @@ def mcp_stop(
 def mcp_status(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """Check whether mq-mcp is reachable and show tool counts by safety class."""
+    """Check whether MCP servers are reachable and show tool counts."""
     from mq_agent.mcp.manager import is_running as process_is_running
     from mq_agent.mcp.manager import read_pid
-    from mq_agent.tools.mcp_bridge import MCPBridge
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
     from mq_agent.tools.mcp_registry import MCPSafetyClass
 
-    bridge = MCPBridge()
-    available = bridge.is_available()
+    bridge = MultiMCPBridge()
+    statuses = bridge.get_server_statuses()
 
-    process_running = process_is_running()
-    pid = read_pid()
-
-    if available:
-        specs = bridge.list_tool_specs()
-        counts: dict[str, int] = {}
-        for s in specs:
-            counts[s.safety_class] = counts.get(s.safety_class, 0) + 1
-    else:
-        specs = []
-        counts = {}
+    mq_mcp_pid = read_pid()
+    mq_mcp_running = process_is_running()
 
     if json_out:
         typer.echo(json.dumps({
-            "available": available,
-            "process_running": process_running,
-            "pid": pid,
-            "endpoint": bridge.endpoint,
-            "tools": len(specs),
-            "counts": counts,
-        }, indent=2))
+            "servers": statuses,
+            "mq_mcp_process": {
+                "running": mq_mcp_running,
+                "pid": mq_mcp_pid,
+            }
+        }, indent=2, default=str))
         return
 
-    pid_line = f"process:  PID {pid}" if pid else "process:  not started"
+    for name, s in statuses.items():
+        available = s["available"]
+        endpoint = s["endpoint"]
+        tools_count = s["tools"]
+        specs = s["specs"]
 
-    if available:
+        counts: dict[str, int] = {}
+        for spec in specs:
+            counts[spec.safety_class] = counts.get(spec.safety_class, 0) + 1
+
+        color = "green" if available else "red"
+        status_text = "[bold green]reachable[/bold green]" if available else "[bold red]not reachable[/bold red]"
+        
         lines = (
-            f"[bold green]mq-mcp: reachable[/bold green]\n"
-            f"endpoint: {bridge.endpoint}\n"
-            f"{pid_line}\n"
-            f"tools:    {len(specs)}\n"
-            + "\n".join(
+            f"status:   {status_text}\n"
+            f"endpoint: {endpoint}\n"
+        )
+        
+        if name == "mq-mcp":
+            pid_line = f"process:  PID {mq_mcp_pid}" if mq_mcp_pid else "process:  not started"
+            lines += f"{pid_line}\n"
+
+        if available:
+            lines += f"tools:    {tools_count}\n"
+            lines += "\n".join(
                 f"  {cls}: {counts.get(cls, 0)}"
                 for cls in [
                     MCPSafetyClass.READ_ONLY,
@@ -582,26 +641,8 @@ def mcp_status(
                 ]
                 if counts.get(cls, 0) > 0
             )
-        )
-        console.print(Panel(lines, title="[bold]mq-mcp Status[/bold]", border_style="green"))
-    elif process_running:
-        console.print(Panel(
-            "[bold yellow]mq-mcp: process running, HTTP not reachable[/bold yellow]\n\n"
-            f"{pid_line}\n"
-            f"endpoint: {bridge.endpoint}\n\n"
-            "mq-mcp runs in stdio mode — the HTTP bridge at :8765 is not available.",
-            title="[bold]mq-mcp Status[/bold]",
-            border_style="yellow",
-        ))
-    else:
-        console.print(
-            Panel(
-                "[bold red]mq-mcp: not running[/bold red]\n\n"
-                "Start with:\n  mq-agent mcp start",
-                title="[bold]mq-mcp Status[/bold]",
-                border_style="red",
-            )
-        )
+        
+        console.print(Panel(lines, title=f"[bold]{name} Status[/bold]", border_style=color))
 
 
 # ── mcp tools ──────────────────────────────────────────────────────────────
@@ -610,12 +651,12 @@ def mcp_status(
 def mcp_tools_list(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """List all tools discovered from mq-mcp with safety classes."""
-    from mq_agent.tools.mcp_bridge import MCPBridge
+    """List all tools discovered from all connected MCP servers."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    bridge = MCPBridge()
+    bridge = MultiMCPBridge()
     if not bridge.is_available():
-        console.print(f"[bold red]mq-mcp not reachable[/bold red]\n{bridge.not_reachable_message()}")
+        console.print("[bold red]No MCP servers reachable[/bold red]")
         raise typer.Exit(code=1)
 
     specs = bridge.list_tool_specs()
@@ -639,10 +680,10 @@ def run_tool(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Run a specific MCP tool through mq-agent safety gates."""
-    from mq_agent.tools.mcp_bridge import MCPBridge
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
     from mq_agent.tools.mcp_registry import MCPSafetyClass
 
-    bridge = MCPBridge()
+    bridge = MultiMCPBridge()
     spec = bridge.describe_tool(tool)
 
     # Parse --arg key=value pairs
@@ -682,6 +723,7 @@ def run_tool(
             "tool": tool,
             "args": args,
             "safety_class": cls,
+            "source": spec.source,
             "would_execute": not dry_run,
         }
         if json_out:
@@ -690,6 +732,7 @@ def run_tool(
             console.print(
                 Panel(
                     f"[blue][dry-run][/blue] Would call [bold]{tool}[/bold]\n"
+                    f"source:       {spec.source}\n"
                     f"args:         {args}\n"
                     f"safety class: {cls}",
                     title="[bold]Dry Run[/bold]",
@@ -698,24 +741,24 @@ def run_tool(
         return
 
     if not bridge.is_available():
-        console.print(f"[bold red]mq-mcp not reachable[/bold red]\n{bridge.not_reachable_message()}")
+        console.print("[bold red]No MCP servers reachable[/bold red]")
         raise typer.Exit(code=1)
 
-    with console.status(f"[bold cyan]Running {tool}...[/bold cyan]"):
+    with console.status(f"[bold cyan]Running {tool} ({spec.source})...[/bold cyan]"):
         result = bridge.call_tool(tool, args)
 
     if json_out:
         if isinstance(result, str):
-            typer.echo(json.dumps({"tool": tool, "result": result}))
+            typer.echo(json.dumps({"tool": tool, "source": spec.source, "result": result}))
         else:
-            typer.echo(json.dumps({"tool": tool, "result": result}, indent=2))
+            typer.echo(json.dumps({"tool": tool, "source": spec.source, "result": result}, indent=2))
         return
 
     if isinstance(result, (dict, list)):
         import pprint
-        console.print(Panel(pprint.pformat(result, width=80), title=f"[bold]{tool}[/bold]"))
+        console.print(Panel(pprint.pformat(result, width=80), title=f"[bold]{tool} ({spec.source})[/bold]"))
     else:
-        console.print(Panel(str(result), title=f"[bold]{tool}[/bold]"))
+        console.print(Panel(str(result), title=f"[bold]{tool} ({spec.source})[/bold]"))
 
 
 # ── memory status ──────────────────────────────────────────────────────────
@@ -967,6 +1010,279 @@ def task_run(
         raise typer.Exit(1)
 
 
+# ── browser inspect ────────────────────────────────────────────────────────
+
+@browser_app.command("inspect")
+def browser_inspect(
+    url: Annotated[str, typer.Argument(help="URL to inspect")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    timeout: Annotated[int, typer.Option("--timeout")] = 10,
+):
+    """Fetch a URL and show structured metadata: title, headings, links, word count."""
+    from mq_agent.tools.browser_tools import inspect_url
+
+    with console.status(f"[bold cyan]Inspecting {url}...[/bold cyan]"):
+        meta = inspect_url(url, timeout=timeout)
+
+    if json_out:
+        typer.echo(json.dumps(meta, indent=2))
+        if not meta.get("ok"):
+            raise typer.Exit(1)
+        return
+
+    if not meta.get("ok"):
+        console.print(f"[bold red]Error:[/bold red] {meta.get('error', 'fetch failed')}")
+        raise typer.Exit(1)
+
+    lines = [
+        f"[bold]URL:[/bold]         {meta['url']}",
+        f"[bold]Status:[/bold]      {meta['status_code']}",
+        f"[bold]Title:[/bold]       {meta['title'] or '[dim](none)[/dim]'}",
+        f"[bold]Description:[/bold] {meta['description'] or '[dim](none)[/dim]'}",
+        f"[bold]Word count:[/bold]  {meta['word_count']}",
+        f"[bold]Links:[/bold]       {len(meta['links'])} found",
+    ]
+    if meta["h1s"]:
+        lines.append("[bold]H1:[/bold]          " + " / ".join(meta["h1s"]))
+    if meta["h2s"]:
+        lines.append("[bold]H2:[/bold]          " + " / ".join(meta["h2s"][:5]))
+
+    console.print(Panel("\n".join(lines), title=f"[bold]Inspect: {url[:60]}[/bold]", border_style="cyan"))
+
+
+# ── browser summarize ──────────────────────────────────────────────────────
+
+@browser_app.command("summarize")
+def browser_summarize(
+    url: Annotated[str, typer.Argument(help="URL to summarize")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    timeout: Annotated[int, typer.Option("--timeout")] = 10,
+):
+    """Fetch a URL and return a plain-text content summary."""
+    from mq_agent.tools.browser_tools import summarize_url
+
+    with console.status(f"[bold cyan]Summarizing {url}...[/bold cyan]"):
+        summary = summarize_url(url, timeout=timeout)
+
+    if json_out:
+        typer.echo(json.dumps({"url": url, "summary": summary}))
+        return
+
+    console.print(Panel(summary, title=f"[bold]Summary: {url[:60]}[/bold]", border_style="cyan"))
+
+
+# ── browser verify-release ─────────────────────────────────────────────────
+
+@browser_app.command("verify-release")
+def browser_verify_release(
+    url: Annotated[str, typer.Argument(help="Release page URL to verify")],
+    tag: Annotated[str, typer.Option("--tag", help="Expected version tag (e.g. v0.7.0)")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    timeout: Annotated[int, typer.Option("--timeout")] = 10,
+):
+    """Inspect a release page and verify expected release fields are present."""
+    from mq_agent.tools.browser_tools import verify_release_url
+
+    with console.status(f"[bold cyan]Verifying release page...[/bold cyan]"):
+        result = verify_release_url(url, expected_tag=tag, timeout=timeout)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2))
+        if not result.get("passed"):
+            raise typer.Exit(1)
+        return
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Check")
+    table.add_column("Status", width=8)
+    table.add_column("Note", overflow="fold")
+
+    for check in result["checks"]:
+        icon = "[green]✓[/green]" if check["passed"] else "[red]✗[/red]"
+        table.add_row(check["check"], icon, check.get("note", ""))
+
+    console.print(table)
+
+    if result["passed"]:
+        console.print("\n[bold green]✓ Release page verified[/bold green]")
+    else:
+        console.print("\n[bold red]✗ Release page verification failed[/bold red]")
+        raise typer.Exit(1)
+
+
+# ── swarm list ─────────────────────────────────────────────────────────────
+
+@swarm_app.command("list")
+def swarm_list(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List available swarm configurations and their agents."""
+    from mq_agent.agents.swarm_registry import list_swarms
+
+    items = list_swarms()
+
+    if json_out:
+        typer.echo(json.dumps(items, indent=2))
+        return
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Name", style="cyan")
+    table.add_column("Agents")
+    table.add_column("Approve?", width=9)
+    table.add_column("Description", overflow="fold")
+
+    for item in items:
+        approve = "[yellow]yes[/yellow]" if item["requires_approve"] else "[green]no[/green]"
+        table.add_row(
+            item["name"],
+            " + ".join(item["agents"]),
+            approve,
+            item["description"],
+        )
+    console.print(table)
+
+
+# ── swarm plan ─────────────────────────────────────────────────────────────
+
+@swarm_app.command("plan")
+def swarm_plan(
+    config: Annotated[str, typer.Argument(help="Swarm config name (audit, release-check, ci)")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show which agents would run — no execution, no API calls."""
+    from mq_agent.agents.swarm_registry import get_swarm
+    from mq_agent.core.swarm import SwarmRunner
+
+    try:
+        cfg = get_swarm(config)
+    except KeyError as exc:
+        console.print(f"[bold red]{exc}[/bold red]")
+        raise typer.Exit(1)
+
+    plan = SwarmRunner(None).plan(cfg)
+
+    if json_out:
+        typer.echo(json.dumps({"config": config, "goal": cfg.goal, "agents": plan}, indent=2))
+        return
+
+    console.print(f"\n[bold]Swarm:[/bold] {cfg.name} — {cfg.description}")
+    console.print(f"[dim]{cfg.goal}[/dim]\n")
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("#", width=3)
+    table.add_column("Agent", style="cyan")
+    table.add_column("Safety", width=14)
+    table.add_column("Approve?", width=9)
+    table.add_column("On failure", width=8)
+    table.add_column("Purpose", overflow="fold")
+
+    safety_colors = {"read-only": "green", "write-capable": "yellow", "subprocess": "yellow"}
+    for i, step in enumerate(plan, 1):
+        color = safety_colors.get(step["safety_class"], "white")
+        approve = "[yellow]yes[/yellow]" if step["requires_approve"] else "[green]no[/green]"
+        table.add_row(
+            str(i),
+            step["agent"],
+            f"[{color}]{step['safety_class']}[/{color}]",
+            approve,
+            step["failure_behavior"],
+            step["purpose"],
+        )
+    console.print(table)
+
+
+# ── swarm run ──────────────────────────────────────────────────────────────
+
+@swarm_app.command("run")
+def swarm_run(
+    config: Annotated[str, typer.Argument(help="Swarm config name (audit, release-check, ci)")],
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write-capable agents")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run a named swarm config against a repo path."""
+    from mq_agent.agents.swarm_registry import get_swarm
+    from mq_agent.core.swarm import SwarmRunner
+
+    try:
+        cfg = get_swarm(config)
+    except KeyError as exc:
+        console.print(f"[bold red]{exc}[/bold red]")
+        raise typer.Exit(1)
+
+    client = None if dry_run else _client()
+    with console.status(f"[bold cyan]Running swarm '{config}'...[/bold cyan]"):
+        result = SwarmRunner(client).run(cfg, path=path, dry_run=dry_run, approve=approve)
+
+    if json_out:
+        typer.echo(json.dumps(result.to_dict(), indent=2, default=str))
+        if not result.passed:
+            raise typer.Exit(1)
+        return
+
+    _print_swarm_result(result)
+    if not result.passed:
+        raise typer.Exit(1)
+
+
+# ── swarm audit ────────────────────────────────────────────────────────────
+
+@swarm_app.command("audit")
+def swarm_audit(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Full read-only repo health check: audit + signal + docs."""
+    from mq_agent.agents.swarm_registry import SWARM_AUDIT
+    from mq_agent.core.swarm import SwarmRunner
+
+    client = None if dry_run else _client()
+    with console.status("[bold cyan]Running audit swarm...[/bold cyan]"):
+        result = SwarmRunner(client).run(SWARM_AUDIT, path=path, dry_run=dry_run)
+
+    if json_out:
+        typer.echo(json.dumps(result.to_dict(), indent=2, default=str))
+        if not result.passed:
+            raise typer.Exit(1)
+        return
+
+    _print_swarm_result(result)
+    if not result.passed:
+        raise typer.Exit(1)
+
+
+# ── swarm release-check ────────────────────────────────────────────────────
+
+@swarm_app.command("release-check")
+def swarm_release_check(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = True,
+    approve: Annotated[bool, typer.Option("--approve")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Release readiness swarm: CI + audit + release validation."""
+    from mq_agent.agents.swarm_registry import SWARM_RELEASE_CHECK
+    from mq_agent.core.swarm import SwarmRunner
+
+    client = None if dry_run else _client()
+    with console.status("[bold cyan]Running release-check swarm...[/bold cyan]"):
+        result = SwarmRunner(client).run(
+            SWARM_RELEASE_CHECK, path=path, dry_run=dry_run, approve=approve
+        )
+
+    if json_out:
+        typer.echo(json.dumps(result.to_dict(), indent=2, default=str))
+        if not result.passed:
+            raise typer.Exit(1)
+        return
+
+    _print_swarm_result(result)
+    if not result.passed:
+        raise typer.Exit(1)
+
+
 # ── helpers ────────────────────────────────────────────────────────────────
 
 def _print_tool_spec(spec) -> None:
@@ -1008,6 +1324,40 @@ def _print_mcp_tool_table(specs: list) -> None:
         table.add_row(spec.name, f"[{color}]{spec.safety_class}[/{color}]", spec.description)
 
     console.print(table)
+
+
+def _print_swarm_result(result) -> None:
+    """Print a SwarmResult in human-readable form."""
+    status_icons = {
+        "ok": "[bold green]✓[/bold green]",
+        "dry-run": "[bold blue]~[/bold blue]",
+        "skipped": "[dim]–[/dim]",
+        "error": "[bold red]✗[/bold red]",
+    }
+    safety_colors = {"read-only": "green", "write-capable": "yellow", "subprocess": "yellow"}
+
+    table = Table(show_header=True, header_style="bold", title=f"Swarm: {result.config}")
+    table.add_column("Agent", style="cyan")
+    table.add_column("Status", width=10)
+    table.add_column(f"Elapsed", width=9)
+    table.add_column("Note", overflow="fold")
+
+    for r in result.results:
+        icon = status_icons.get(r.status, r.status)
+        note = r.error if r.error else ""
+        if not note and r.status == "ok":
+            passed = r.output.get("passed", r.output.get("ready", ""))
+            if passed is not None:
+                note = "passed" if passed else "issues found"
+        table.add_row(r.agent, icon, f"{r.elapsed_s:.1f}s", note)
+
+    console.print(table)
+    console.print(f"[dim]Total: {result.elapsed_s:.1f}s · path: {result.path}[/dim]")
+
+    if result.passed:
+        console.print("\n[bold green]✓ Swarm passed[/bold green]")
+    else:
+        console.print(f"\n[bold red]✗ Swarm failed — {', '.join(result.failed_agents)}[/bold red]")
 
 
 def _print_steps(steps: list[dict], title: str = "Steps") -> None:

@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from .browser_tools import fetch_url, inspect_url, summarize_url, verify_release_url
 from .git_tools import git_branch, git_diff, git_log, git_remote, git_status
 from .mcp_bridge import mcp_call
 from .repo_tools import find_files, list_files, read_file, repo_summary, write_file
@@ -36,6 +37,11 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "repo_signal_json": repo_signal_json,
     # MCP
     "mcp_call": mcp_call,
+    # Browser (read-only, safe GET requests only)
+    "fetch_url": fetch_url,
+    "inspect_url": inspect_url,
+    "summarize_url": summarize_url,
+    "verify_release_url": verify_release_url,
 }
 
 
