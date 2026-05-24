@@ -152,7 +152,9 @@ Completed foundation:
 * [x] `mq_agent/core/task_runner.py` — `load_task`, `run_task`, `find_task_files`
 * [x] Task lookup by filename stem OR internal YAML `name:` field
 * [x] `tests/test_task_runner.py` — 18 tests
-* [x] 126 tests total
+* [x] Tool registry hardened — `_EXCLUDE_DIRS`, `write_file`, `repo_signal_json`, timeout 120s
+* [x] Task YAML args corrected (`suffix→pattern`, `n→limit`, `ci.yml→tests.yml`)
+* [x] 134 tests total
 
 ---
 
