@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e ".[dev,signal]"
 
+      - name: Install repo-signal suggest branch
+        run: uv pip install "repo-signal @ git+https://github.com/MCamner/repo-signal.git@feat/v0.7.0-suggest"
+
       - name: Run tests
         run: uv run pytest -v
 
