@@ -23,6 +23,7 @@ npm-debug.log*
 secrets.*
 settings.local.json
 .claude/settings.local.json
+.claude/settings.json
 
 # Logs
 *.log
