@@ -1083,7 +1083,7 @@ def browser_verify_release(
     """Inspect a release page and verify expected release fields are present."""
     from mq_agent.tools.browser_tools import verify_release_url
 
-    with console.status(f"[bold cyan]Verifying release page...[/bold cyan]"):
+    with console.status("[bold cyan]Verifying release page...[/bold cyan]"):
         result = verify_release_url(url, expected_tag=tag, timeout=timeout)
 
     if json_out:
@@ -1334,12 +1334,11 @@ def _print_swarm_result(result) -> None:
         "skipped": "[dim]–[/dim]",
         "error": "[bold red]✗[/bold red]",
     }
-    safety_colors = {"read-only": "green", "write-capable": "yellow", "subprocess": "yellow"}
 
     table = Table(show_header=True, header_style="bold", title=f"Swarm: {result.config}")
     table.add_column("Agent", style="cyan")
     table.add_column("Status", width=10)
-    table.add_column(f"Elapsed", width=9)
+    table.add_column("Elapsed", width=9)
     table.add_column("Note", overflow="fold")
 
     for r in result.results:

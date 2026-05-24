@@ -43,6 +43,8 @@ try:
         from repo_signal.readme_score import score_readme as _score_readme  # type: ignore[no-redef]
         from repo_signal.suggest import (  # type: ignore[no-redef]
             build_suggestions as _build_suggestions,
+        )
+        from repo_signal.suggest import (
             format_suggestions as _format_suggestions,
         )
         _AVAILABLE = True

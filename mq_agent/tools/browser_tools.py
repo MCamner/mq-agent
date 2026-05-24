@@ -114,7 +114,7 @@ def inspect_url(url: str, timeout: int = 10) -> dict:
             "description": parser.description,
             "h1s": parser.h1s[:5],
             "h2s": parser.h2s[:10],
-            "links": [urljoin(url, l) for l in parser.links[:20]],
+            "links": [urljoin(url, link) for link in parser.links[:20]],
             "word_count": word_count,
         }
 
