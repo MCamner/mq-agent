@@ -257,7 +257,7 @@ ecosystem.
 * [x] Complete release checklist — `release-check.sh` verified
 * [x] Green CI
 * [x] Protected main branch
-* [ ] Versioned GitHub release (v0.6.0–v0.8.0 releases missing)
+* [x] Versioned GitHub releases — v0.6.0, v0.7.0, v0.8.0 published on GitHub
 * [x] GitHub Pages documentation
 * [x] No known critical safety gaps
 
