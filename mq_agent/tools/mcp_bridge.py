@@ -10,10 +10,7 @@ try:
 except ImportError:
     _HAS_HTTPX = False
 
-MCP_START_HINT = (
-    "Start mq-mcp with:\n"
-    "  uv --directory ~/mq-mcp/mq-mcp run python server.py"
-)
+MCP_START_HINT = "Start mq-mcp with:\n  mq-agent mcp start"
 
 
 class MCPBridge:

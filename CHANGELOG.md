@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.5.2] — 2026-05-24
+
+### Added
+
+- `mq-agent mcp start` — start mq-mcp server in background (SSE transport, PID file managed)
+- `mq-agent mcp stop` — stop the background mq-mcp server
+- `mq_agent/mcp/manager.py` — PID-file-based process lifecycle: `start()`, `stop()`, `is_running()`, `read_pid()`
+- `mq-agent mcp status` now shows process state (running/not running) from PID file alongside HTTP reachability
+- `mq-agent mcp status --json` includes `process_running` and `pid` fields
+- `mq-agent mcp start/stop --json` — machine-readable output
+- 14 new tests in `tests/test_mcp.py` covering manager module and CLI commands
+
+### Changed
+
+- `mq-agent mcp status` — not-running state now shows "Start with: mq-agent mcp start"
+- `MCPBridge.not_reachable_message()` — now suggests `mq-agent mcp start` instead of raw uv command
+
+---
+
 ## [v0.5.1] — 2026-05-24
 
 ### Added

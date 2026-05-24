@@ -453,6 +453,75 @@ def tools(
         console.print(f"  [cyan]•[/cyan] {name}")
 
 
+# ── mcp start ──────────────────────────────────────────────────────────────
+
+@mcp_app.command("start")
+def mcp_start(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Start mq-mcp server in the background."""
+    from mq_agent.mcp.manager import start
+
+    already_running, pid, msg = start()
+
+    if json_out:
+        typer.echo(json.dumps({
+            "already_running": already_running,
+            "pid": pid,
+            "message": msg,
+            "ok": pid is not None,
+        }, indent=2))
+        if pid is None:
+            raise typer.Exit(1)
+        return
+
+    if pid is None:
+        console.print(Panel(
+            f"[bold red]Failed to start mq-mcp[/bold red]\n{msg}",
+            title="[bold]mq-mcp Start[/bold]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    if already_running:
+        console.print(Panel(
+            f"[bold yellow]mq-mcp already running[/bold yellow]\n{msg}",
+            title="[bold]mq-mcp Start[/bold]",
+            border_style="yellow",
+        ))
+        return
+
+    console.print(Panel(
+        f"[bold green]mq-mcp started[/bold green]\n{msg}",
+        title="[bold]mq-mcp Start[/bold]",
+        border_style="green",
+    ))
+
+
+# ── mcp stop ───────────────────────────────────────────────────────────────
+
+@mcp_app.command("stop")
+def mcp_stop(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Stop the background mq-mcp server."""
+    from mq_agent.mcp.manager import stop
+
+    was_running, pid, msg = stop()
+
+    if json_out:
+        typer.echo(json.dumps({
+            "was_running": was_running,
+            "pid": pid,
+            "message": msg,
+        }, indent=2))
+        return
+
+    border = "green" if was_running else "yellow"
+    icon = "[bold green]mq-mcp stopped[/bold green]" if was_running else "[bold yellow]mq-mcp not running[/bold yellow]"
+    console.print(Panel(f"{icon}\n{msg}", title="[bold]mq-mcp Stop[/bold]", border_style=border))
+
+
 # ── mcp status ─────────────────────────────────────────────────────────────
 
 @mcp_app.command("status")
@@ -460,11 +529,16 @@ def mcp_status(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Check whether mq-mcp is reachable and show tool counts by safety class."""
+    from mq_agent.mcp.manager import is_running as process_is_running
+    from mq_agent.mcp.manager import read_pid
     from mq_agent.tools.mcp_bridge import MCPBridge
     from mq_agent.tools.mcp_registry import MCPSafetyClass
 
     bridge = MCPBridge()
     available = bridge.is_available()
+
+    process_running = process_is_running()
+    pid = read_pid()
 
     if available:
         specs = bridge.list_tool_specs()
@@ -478,16 +552,21 @@ def mcp_status(
     if json_out:
         typer.echo(json.dumps({
             "available": available,
+            "process_running": process_running,
+            "pid": pid,
             "endpoint": bridge.endpoint,
             "tools": len(specs),
             "counts": counts,
         }, indent=2))
         return
 
+    pid_line = f"process:  PID {pid}" if pid else "process:  not started"
+
     if available:
         lines = (
             f"[bold green]mq-mcp: reachable[/bold green]\n"
             f"endpoint: {bridge.endpoint}\n"
+            f"{pid_line}\n"
             f"tools:    {len(specs)}\n"
             + "\n".join(
                 f"  {cls}: {counts.get(cls, 0)}"
@@ -502,10 +581,20 @@ def mcp_status(
             )
         )
         console.print(Panel(lines, title="[bold]mq-mcp Status[/bold]", border_style="green"))
+    elif process_running:
+        console.print(Panel(
+            "[bold yellow]mq-mcp: process running, HTTP not reachable[/bold yellow]\n\n"
+            f"{pid_line}\n"
+            f"endpoint: {bridge.endpoint}\n\n"
+            "mq-mcp runs in stdio mode — the HTTP bridge at :8765 is not available.",
+            title="[bold]mq-mcp Status[/bold]",
+            border_style="yellow",
+        ))
     else:
         console.print(
             Panel(
-                f"[bold red]mq-mcp: not reachable[/bold red]\n\n{bridge.not_reachable_message()}",
+                "[bold red]mq-mcp: not running[/bold red]\n\n"
+                "Start with:\n  mq-agent mcp start",
                 title="[bold]mq-mcp Status[/bold]",
                 border_style="red",
             )

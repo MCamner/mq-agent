@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.5.1-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.5.2-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -214,6 +214,15 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v0.5.2 status
+
+- [x] `mq-agent mcp start` — start mq-mcp server in background (SSE transport, PID file managed)
+- [x] `mq-agent mcp stop` — stop the background mq-mcp server
+- [x] `mq-agent mcp status` — shows process state (PID) alongside HTTP reachability
+- [x] `mq_agent/mcp/manager.py` — PID-file-based lifecycle: `start()`, `stop()`, `is_running()`
+- [x] `mq-agent mcp start/stop --json` — machine-readable output
+- [x] 108 tests pass — `uv run pytest -v` — no OpenAI calls required
 
 ## v0.5.1 status
 
