@@ -46,10 +46,10 @@ Completed foundation:
 | v0.5.1  | Semantic memory hardening                    | Done    |
 | v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops (task runner)         | Done    |
+| v0.6.1  | Orchestration stabilization checkpoint       | Done    |
 | v0.7.0  | Browser-assisted workflows                   | Done    |
 | v0.8.0  | Multi-agent workflows                        | Done    |
 | v1.0.0  | Stable local agent platform                  | Next    |
-| v1.0.0  | Stable local agent platform                  | Future  |
 
 ---
 
@@ -155,6 +155,39 @@ Completed foundation:
 * [x] Tool registry hardened — `_EXCLUDE_DIRS`, `write_file`, `repo_signal_json`, timeout 120s
 * [x] Task YAML args corrected (`suffix→pattern`, `n→limit`, `ci.yml→tests.yml`)
 * [x] 134 tests total
+
+---
+
+### v0.6.1 — Orchestration Stabilization
+
+Goal:
+
+Stabilize the existing orchestration runtime before adding more browser
+automation or multi-agent behavior.
+
+Rules:
+
+* [x] Do not rewrite existing Planner / Executor / Verifier.
+* [x] Do not rewrite TUI.
+* [x] Do not change mqlaunch layout.
+* [x] Do not duplicate task runner logic.
+* [x] Do not start new multi-agent workflows.
+* [x] Preserve all current commands.
+* [x] Add architecture docs around current orchestration flow.
+* [x] Identify coupling between CLI, TUI, tasks, tools, memory and MCP.
+* [x] Add tests that lock current no-API command behavior.
+
+Artifacts:
+
+* [x] `docs/ARCHITECTURE.md` — current orchestration flow, boundaries and coupling risks
+* [x] `tests/test_orchestration_contract.py` — command and registry contract tests
+
+Dependency note:
+
+v0.7.0 browser-assisted workflows and v0.8.0 multi-agent workflows are already
+implemented. Future expansion in those areas should depend on this stabilization
+checkpoint: preserve current commands, keep browser automation read-only unless
+explicitly re-scoped, and avoid adding new swarm behavior without contract tests.
 
 ---
 

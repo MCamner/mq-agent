@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.6.0-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.8.0-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -189,7 +189,7 @@ mq_agent/
 
 ## Proof
 
-- 70 tests pass — `uv run pytest -v` — no OpenAI calls required
+- 211 tests pass — `uv run pytest -v` — no OpenAI calls required
 - `mq-agent score .` — 100/100 README, 16/16 publish checklist [PASS]
 - `mq-agent doctor` — all required checks pass
 - `mq-agent audit . --dry-run` — safe, read-only plan generation
@@ -205,6 +205,7 @@ uv run pytest tests/ -v
 
 - [Command reference](docs/COMMANDS.md)
 - [Command surface](docs/COMMAND_SURFACE.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Safety contract](docs/SAFETY_CONTRACT.md)
 - [mq ecosystem](docs/MQ_ECOSYSTEM.md)
 - [Skills](SKILLS.md)
@@ -215,17 +216,14 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
-## v0.6.0 status
+## v0.8.0 status
 
-- [x] `mq-agent task list` — list available YAML task workflows
-- [x] `mq-agent task list --json` — machine-readable task list
-- [x] `mq-agent task run <name>` — run a declarative YAML workflow
-- [x] `mq-agent task run <name> --dry-run` — preview steps without executing
-- [x] `mq-agent task run <name> --json` — machine-readable step results
-- [x] `mq_agent/core/task_runner.py` — `load_task`, `run_task`, `find_task_files`
-- [x] Task name resolved by filename stem or internal YAML `name:` field
-- [x] 18 new tests in `tests/test_task_runner.py`
-- [x] 126 tests pass — `uv run pytest -v` — no OpenAI calls required
+- [x] Controlled task runner workflows — `mq-agent task list/run`
+- [x] Browser-safe URL inspection and release verification
+- [x] Multi-agent swarm planning and dry-run workflows
+- [x] Orchestration stabilization checkpoint — `docs/ARCHITECTURE.md`
+- [x] Contract tests for no-API command behavior and registry stability
+- [x] 211 tests pass — `uv run pytest -v` — no OpenAI calls required
 
 ## v0.5.1 status
 
