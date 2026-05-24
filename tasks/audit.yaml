@@ -33,7 +33,7 @@ steps:
     tool: find_files
     args:
       path: "."
-      suffix: ".py"
+      pattern: "*.py"
 
   - name: read-readme
     description: Read README.md
