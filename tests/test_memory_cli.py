@@ -1,7 +1,6 @@
 """CLI-level tests for mq-agent memory commands — no OpenAI calls, no real upload."""
 import json
 
-import pytest
 from typer.testing import CliRunner
 
 from mq_agent.main import app

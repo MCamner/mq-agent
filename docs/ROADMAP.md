@@ -13,7 +13,7 @@ surface.
 Latest stable release:
 
 ```text
-v0.5.2 — mcp start/stop process management
+v0.6.0 — controlled agent loops (task runner)
 ```
 
 Completed foundation:
@@ -45,7 +45,8 @@ Completed foundation:
 | v0.5.0  | Semantic repository memory                   | Done    |
 | v0.5.1  | Semantic memory hardening                    | Done    |
 | v0.5.2  | mcp start/stop process management            | Done    |
-| v0.6.0  | Controlled agent loops                       | Next    |
+| v0.6.0  | Controlled agent loops (task runner)         | Done    |
+| v0.7.0  | Browser-assisted workflows                   | Next    |
 | v0.7.0  | Browser-assisted workflows                   | Planned |
 | v0.8.0  | Multi-agent workflows                        | Planned |
 | v1.0.0  | Stable local agent platform                  | Future  |
@@ -141,46 +142,21 @@ Completed foundation:
 
 ---
 
-## Next: v0.6.0 — Controlled agent loops
+### v0.6.0 — Controlled agent loops (task runner)
 
-Goal:
-
-Allow mq-agent to run bounded multi-step workflows while preserving explicit
-safety, review and stop conditions.
-
-### Planned scope
-
-* [ ] Loop controller
-* [ ] Maximum step count
-* [ ] Maximum runtime
-* [ ] Stop conditions
-* [ ] Per-step verification
-* [ ] Failure recovery strategy
-* [ ] Human approval checkpoints
-* [ ] Loop transcript output
-* [ ] `mq-agent loop` command
-* [ ] `mq-agent task run <task>` command
-* [ ] YAML-defined loop workflows
-* [ ] Tests for bounded execution
-
-### Possible commands
-
-```bash
-mq-agent loop "improve release readiness" --dry-run
-mq-agent task run tasks/release.yaml --approve
-mq-agent task status
-```
-
-### Non-goals
-
-* No unsupervised destructive actions
-* No infinite loops
-* No hidden shell execution
-* No automatic commits without explicit approval
+* [x] `mq-agent task list` — list available YAML task workflow files
+* [x] `mq-agent task list --json` — machine-readable task list
+* [x] `mq-agent task run <name>` — execute declarative YAML workflow via tool registry
+* [x] `mq-agent task run <name> --dry-run` — preview steps without execution
+* [x] `mq-agent task run <name> --json` — machine-readable step results
+* [x] `mq_agent/core/task_runner.py` — `load_task`, `run_task`, `find_task_files`
+* [x] Task lookup by filename stem OR internal YAML `name:` field
+* [x] `tests/test_task_runner.py` — 18 tests
+* [x] 126 tests total
 
 ---
 
-## v0.7.0 — Browser-assisted workflows
+## Next: v0.7.0 — Browser-assisted workflows
 
 Goal:
 
@@ -348,8 +324,8 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v0.6.0 — controlled agent loops
+v0.7.0 — browser-assisted workflows
 ```
 
-This adds bounded multi-step workflows with explicit safety, review and stop
-conditions — the next major capability after memory.
+This adds controlled browser-adjacent workflows for research, documentation
+and release verification.

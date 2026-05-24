@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.6.0] — 2026-05-24
+
+### Added
+
+- `mq-agent task list` — list available YAML task workflow files
+- `mq-agent task list --json` — machine-readable task list with name, description, step count
+- `mq-agent task run <name>` — execute a declarative YAML workflow via the tool registry
+- `mq-agent task run <name> --dry-run` — preview steps without execution (default: False)
+- `mq-agent task run <name> --json` — machine-readable step results
+- `mq_agent/core/task_runner.py` — `TaskStep`, `StepResult`, `Task`, `load_task`, `run_task`, `find_task_files`
+- Task lookup by filename stem OR internal YAML `name:` field — both `audit` and `repo-audit` resolve correctly
+- `tests/test_task_runner.py` — 18 tests covering `load_task`, `run_task`, `find_task_files` and CLI commands
+
+---
+
 ## [v0.5.2] — 2026-05-24
 
 ### Added

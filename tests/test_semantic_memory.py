@@ -1,5 +1,4 @@
 """Tests for mq_agent.memory.semantic — no OpenAI calls, no repo-signal required."""
-import pytest
 
 from mq_agent.memory.semantic import SemanticMemoryStatus, get_vector_store_id, status
 

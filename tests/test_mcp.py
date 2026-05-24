@@ -1,6 +1,5 @@
 """Tests for MCP registry, bridge, safety classification, and process manager."""
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from mq_agent.tools.mcp_registry import MCPSafetyClass, MCPToolSpec, classify_tool_name
@@ -276,7 +275,7 @@ def test_manager_stop_kills_process(tmp_path):
     pid_file.write_text("12345")
 
     with patch.object(manager, "PID_FILE", pid_file):
-        with patch("mq_agent.mcp.manager.os.kill") as mock_kill:
+        with patch("mq_agent.mcp.manager.os.kill"):
             was_running, pid, msg = manager.stop()
 
     assert was_running is True
@@ -289,6 +288,7 @@ def test_manager_stop_kills_process(tmp_path):
 
 def test_cli_mcp_start_json_success(tmp_path):
     from typer.testing import CliRunner
+
     from mq_agent.main import app
     from mq_agent.mcp import manager
 
@@ -304,6 +304,7 @@ def test_cli_mcp_start_json_success(tmp_path):
 
 def test_cli_mcp_start_json_already_running(tmp_path):
     from typer.testing import CliRunner
+
     from mq_agent.main import app
     from mq_agent.mcp import manager
 
@@ -318,6 +319,7 @@ def test_cli_mcp_start_json_already_running(tmp_path):
 
 def test_cli_mcp_start_json_failure(tmp_path):
     from typer.testing import CliRunner
+
     from mq_agent.main import app
     from mq_agent.mcp import manager
 
@@ -332,6 +334,7 @@ def test_cli_mcp_start_json_failure(tmp_path):
 
 def test_cli_mcp_stop_json_was_running():
     from typer.testing import CliRunner
+
     from mq_agent.main import app
     from mq_agent.mcp import manager
 
@@ -346,6 +349,7 @@ def test_cli_mcp_stop_json_was_running():
 
 def test_cli_mcp_stop_json_not_running():
     from typer.testing import CliRunner
+
     from mq_agent.main import app
     from mq_agent.mcp import manager
 
@@ -359,6 +363,7 @@ def test_cli_mcp_stop_json_not_running():
 
 def test_cli_mcp_status_json_process_running():
     from typer.testing import CliRunner
+
     from mq_agent.main import app
     from mq_agent.mcp import manager
 
