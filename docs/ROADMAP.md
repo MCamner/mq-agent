@@ -13,7 +13,7 @@ surface.
 Latest stable release:
 
 ```text
-v0.5.0 — semantic repository memory
+v0.5.2 — mcp start/stop process management
 ```
 
 Completed foundation:
@@ -44,6 +44,7 @@ Completed foundation:
 | v0.4.1  | Consistency, readability and release hygiene | Done    |
 | v0.5.0  | Semantic repository memory                   | Done    |
 | v0.5.1  | Semantic memory hardening                    | Done    |
+| v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops                       | Next    |
 | v0.7.0  | Browser-assisted workflows                   | Planned |
 | v0.8.0  | Multi-agent workflows                        | Planned |
