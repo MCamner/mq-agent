@@ -44,7 +44,7 @@ try:
         from repo_signal.suggest import (  # type: ignore[no-redef]
             build_suggestions as _build_suggestions,
         )
-        from repo_signal.suggest import (
+        from repo_signal.suggest import (  # type: ignore[no-redef]
             format_suggestions as _format_suggestions,
         )
         _AVAILABLE = True
