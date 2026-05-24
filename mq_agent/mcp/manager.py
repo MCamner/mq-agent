@@ -7,8 +7,22 @@ import subprocess
 import time
 from pathlib import Path
 
+try:
+    from dotenv import dotenv_values
+    _HAS_DOTENV = True
+except ImportError:
+    _HAS_DOTENV = False
+
 PID_FILE = Path.home() / ".mq-agent" / "mq-mcp.pid"
 _DEFAULT_MQ_MCP_DIR = Path.home() / "mq-mcp" / "mq-mcp"
+
+
+def _child_env(server_dir: Path) -> dict:
+    base = os.environ.copy()
+    env_file = server_dir / ".env"
+    if _HAS_DOTENV and env_file.exists():
+        base.update({k: v for k, v in dotenv_values(env_file).items() if v is not None})
+    return base
 
 
 def mq_mcp_dir() -> Path:
@@ -57,6 +71,7 @@ def start() -> tuple[bool, int | None, str]:
     proc = subprocess.Popen(
         ["uv", "run", "mcp", "run", "server.py", "--transport", "sse"],
         cwd=server_dir,
+        env=_child_env(server_dir),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
