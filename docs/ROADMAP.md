@@ -13,8 +13,17 @@ surface.
 Latest stable release:
 
 ```text
-v0.8.0 — multi-agent workflows
+v0.8.0 — controlled specialist workflows
 ```
+
+Current recommended next step:
+
+```text
+v0.6.1 — orchestration stabilization before browser-assisted workflows
+```
+
+This repo is already an orchestration runtime. The next work is stabilization,
+documentation and behavior locks, not a rewrite.
 
 Completed foundation:
 
@@ -46,9 +55,9 @@ Completed foundation:
 | v0.5.1  | Semantic memory hardening                    | Done    |
 | v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops (task runner)         | Done    |
-| v0.6.1  | Orchestration stabilization checkpoint       | Done    |
-| v0.7.0  | Browser-assisted workflows                   | Done    |
-| v0.8.0  | Multi-agent workflows                        | Done    |
+| v0.6.1  | Orchestration stabilization                  | Next    |
+| v0.7.0  | Browser-assisted workflows                   | Planned |
+| v0.8.0  | Controlled specialist workflows              | Planned |
 | v1.0.0  | Stable local agent platform                  | Next    |
 
 ---
@@ -158,36 +167,38 @@ Completed foundation:
 
 ---
 
-### v0.6.1 — Orchestration Stabilization
+## Next: v0.6.1 — Orchestration stabilization
 
 Goal:
 
-Stabilize the existing orchestration runtime before adding more browser
-automation or multi-agent behavior.
+Stabilize the existing orchestration runtime before adding browser-assisted workflows.
 
-Rules:
+Scope:
 
-* [x] Do not rewrite existing Planner / Executor / Verifier.
-* [x] Do not rewrite TUI.
-* [x] Do not change mqlaunch layout.
-* [x] Do not duplicate task runner logic.
-* [x] Do not start new multi-agent workflows.
-* [x] Preserve all current commands.
-* [x] Add architecture docs around current orchestration flow.
-* [x] Identify coupling between CLI, TUI, tasks, tools, memory and MCP.
-* [x] Add tests that lock current no-API command behavior.
+- Document current Planner / Executor / Verifier flow
+- Document Task Runner lifecycle
+- Document Tool Registry and safety gate flow
+- Document Memory lifecycle
+- Document mq-mcp bridge flow
+- Document mqlaunch bridge boundaries
+- Identify CLI/TUI/orchestration coupling
+- Identify duplicated workflow logic
+- Add tests that lock current command behavior
 
-Artifacts:
+Non-goals:
 
-* [x] `docs/ARCHITECTURE.md` — current orchestration flow, boundaries and coupling risks
-* [x] `tests/test_orchestration_contract.py` — command and registry contract tests
+- No TUI rewrite
+- No mqlaunch layout changes
+- No new autonomous behavior
+- No multi-agent/swarm work
+- No browser automation yet
 
 Dependency note:
 
-v0.7.0 browser-assisted workflows and v0.8.0 multi-agent workflows are already
-implemented. Future expansion in those areas should depend on this stabilization
-checkpoint: preserve current commands, keep browser automation read-only unless
-explicitly re-scoped, and avoid adding new swarm behavior without contract tests.
+The repository already contains browser and swarm-era implementation history.
+Future work in those areas should still be gated by this stabilization phase:
+preserve current commands, document current boundaries and lock behavior with
+tests before adding new workflow scope.
 
 ---
 
@@ -210,9 +221,28 @@ explicitly re-scoped, and avoid adding new swarm behavior without contract tests
 * No checkout/payment flows
 * No unsafe automation
 
+### Architectural guardrails (v0.7.0)
+
+* Browser workflows must be read-only by default
+* No credential capture or storage
+* No hidden form submission
+* No purchase, booking or account actions
+* No autonomous browser control
+* All browser actions require explicit operator confirmation
+* Browser results must be inspectable and citeable
+* Browser workflow logic must use existing task/orchestration systems
+* Do not create a second workflow engine
+
 ---
 
-### v0.8.0 — Multi-agent workflows
+### v0.8.0 — Controlled specialist workflows
+
+Do not build swarms.
+
+This phase should coordinate existing specialized agents through the existing
+task runner and safety model.
+
+The goal is controlled specialization, not autonomous multi-agent behavior.
 
 * [x] `mq-agent swarm list` — list swarm configs with agents and safety classes
 * [x] `mq-agent swarm plan <config>` — dry plan; no API, no execution
@@ -323,8 +353,8 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v0.7.0 — browser-assisted workflows
+v0.6.1 — orchestration stabilization before browser-assisted workflows
 ```
 
-This adds controlled browser-adjacent workflows for research, documentation
-and release verification.
+This stabilizes the orchestration runtime before adding more browser-adjacent
+workflow scope.
