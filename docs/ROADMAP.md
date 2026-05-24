@@ -1,9 +1,9 @@
 # mq-agent Roadmap
 
-mq-agent is a terminal-native AI agent orchestrator for the mq ecosystem.
+mq-agent is a terminal-native workflow orchestration runtime for the mq ecosystem.
 
 It connects safe local execution, repo intelligence, MCP tools, mqlaunch workflows,
-semantic repository memory and future agent loops into one controlled command
+and semantic repository memory into one controlled, operator-driven orchestration
 surface.
 
 ---
@@ -13,13 +13,13 @@ surface.
 Latest stable release:
 
 ```text
-v0.8.0 — controlled specialist workflows
+v0.8.0 — controlled specialist orchestration
 ```
 
 Current recommended next step:
 
 ```text
-v1.0.0 — stable local agent platform
+v0.9.0 — orchestration kernel consolidation
 ```
 
 Completed foundation:
@@ -36,9 +36,9 @@ Completed foundation:
 * GitHub Pages documentation
 * Release hygiene and docs consistency checks
 * Protected `main` workflow
-* Browser-assisted workflows (read-only, GET only)
+* Browser-assisted verification workflows (read-only, operator-approved)
 * Declarative task runner with `{{step:name}}` templates
-* Controlled specialist workflows (swarm)
+* Controlled specialist orchestration
 * `run_task` tool — task chaining
 
 ---
@@ -57,9 +57,10 @@ Completed foundation:
 | v0.5.2  | mcp start/stop process management            | Done    |
 | v0.6.0  | Controlled agent loops (task runner)         | Done    |
 | v0.6.1  | Orchestration stabilization                  | Done    |
-| v0.7.0  | Browser-assisted workflows                   | Done    |
-| v0.8.0  | Controlled specialist workflows              | Done    |
-| v1.0.0  | Stable local agent platform                  | Next    |
+| v0.7.0  | Browser-assisted verification workflows      | Done    |
+| v0.8.0  | Controlled specialist orchestration          | Done    |
+| v0.9.0  | Orchestration kernel consolidation           | Next    |
+| v1.0.0  | Stable orchestration platform                | Planned |
 
 ---
 
@@ -212,14 +213,13 @@ Completed foundation:
 
 ---
 
-### v0.8.0 — Controlled specialist workflows
+### v0.8.0 — Controlled specialist orchestration
 
-Do not build swarms.
+This phase coordinates specialized agents through the existing task runner and
+safety model. Each agent declares its purpose, safety class, allowed tools, and
+failure behavior via `AgentManifest`.
 
-This phase should coordinate existing specialized agents through the existing
-task runner and safety model.
-
-The goal is controlled specialization, not autonomous multi-agent behavior.
+The goal is planner-driven specialization, not autonomous multi-agent behavior.
 
 * [x] `mq-agent swarm list` — list swarm configs with agents and safety classes
 * [x] `mq-agent swarm plan <config>` — dry plan; no API, no execution
@@ -236,12 +236,40 @@ The goal is controlled specialization, not autonomous multi-agent behavior.
 
 ---
 
-## v1.0.0 — Stable local agent platform
+## v0.9.0 — Orchestration kernel consolidation
 
 Goal:
 
-Make mq-agent stable enough to use as the default local agent surface for the mq
-ecosystem.
+Stabilize orchestration boundaries and normalize runtime coordination before the
+v1.0.0 stable release. No new features — only consolidation.
+
+### v0.9.0 focus
+
+* Normalize orchestration lifecycle — planner / executor / verifier contracts
+* Unify task execution model — consistent step contracts across task runner and specialist orchestration
+* Separate orchestration from presentation — CLI output must not bleed into core logic
+* Formalize runtime provider layer — tool registry, MCP bridge, signal integration
+* Reduce architectural drift — remove or document any divergent patterns
+* Strengthen state consistency — no silent state across step boundaries
+* Improve workflow composability — tasks and swarm configs are interchangeable primitives
+
+### Non-goals (v0.9.0)
+
+* No redesign of TUI or CLI surface
+* No new autonomous systems
+* No additional orchestration modes
+* No uncontrolled browser automation
+* No duplicate orchestration engines
+
+---
+
+## v1.0.0 — Stable orchestration platform
+
+Goal:
+
+Publish mq-agent as a stable, documented orchestration runtime for the mq
+ecosystem. The platform is stable when its contracts are locked and its
+orchestration boundaries are enforced.
 
 ### v1.0.0 requirements
 
@@ -252,6 +280,7 @@ ecosystem.
 * [x] Stable mqlaunch integration — bridge tested, menu + direct commands
 * [x] Stable mq-mcp integration — start/stop, tool listing, safety classes
 * [x] Stable repo-signal integration — version guard, suggest.v1, signal_json
+* [x] Stable orchestration contracts — planner / executor / verifier / task runner (v0.9.0)
 * [ ] Complete docs
 * [ ] Complete examples
 * [x] Complete release checklist — `release-check.sh` verified
@@ -269,7 +298,6 @@ These are intentionally not scheduled yet.
 
 * Local model fallback
 * Ollama integration
-* HAL-style conversational shell
 * Visual TUI dashboard
 * Repository health history
 * Agent-generated release notes
@@ -280,6 +308,19 @@ These are intentionally not scheduled yet.
 * Integration with mq-ums
 * Integration with mq-mcp tool safety map
 * Semantic memory comparison between releases
+
+---
+
+## Research / Experimental
+
+These ideas are architecturally interesting but conflict with the current
+orchestration philosophy. They are not on the roadmap mainline. Any
+implementation must be isolated, gated, and not merged into the core runtime.
+
+* HAL-style conversational shell — autonomous conversational loops break the explicit approval model
+* Autonomous looping agents — recursive agent execution without operator checkpoints
+* Self-modifying task graphs — tasks that generate and run new tasks at runtime
+* Uncontrolled browser automation — beyond operator-approved, read-only browser workflows
 
 ---
 
@@ -330,8 +371,9 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v1.0.0 — stable local agent platform
+v0.9.0 — orchestration kernel consolidation
 ```
 
-All foundation work is complete. The next step is locking stability,
-completing docs and publishing a versioned stable release.
+All foundation features are complete. The next step is consolidating orchestration
+boundaries, normalizing contracts, and separating presentation from core logic
+before the v1.0.0 stable release. No new features — only consolidation.
