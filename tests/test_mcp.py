@@ -1,4 +1,8 @@
-"""Tests for MCP registry, bridge, and safety classification — no mq-mcp server required."""
+"""Tests for MCP registry, bridge, safety classification, and process manager."""
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from mq_agent.tools.mcp_registry import MCPSafetyClass, MCPToolSpec, classify_tool_name
 
 # ── classify_tool_name ──────────────────────────────────────────────────────
@@ -173,6 +177,12 @@ def test_bridge_not_reachable_message():
     assert "not reachable" in msg
     assert "mq-mcp" in msg
 
+def test_bridge_not_reachable_message_suggests_start():
+    from mq_agent.tools.mcp_bridge import MCPBridge
+    bridge = MCPBridge(endpoint="http://localhost:19998")
+    msg = bridge.not_reachable_message()
+    assert "mq-agent mcp start" in msg
+
 
 # ── safety counts ───────────────────────────────────────────────────────────
 
@@ -193,3 +203,171 @@ def test_safety_class_counts():
     assert counts[MCPSafetyClass.DANGEROUS] == 1
     assert counts[MCPSafetyClass.SUBPROCESS] == 1
     assert counts[MCPSafetyClass.UNKNOWN] == 1
+
+
+# ── mq_agent.mcp.manager ───────────────────────────────────────────────────
+
+def test_manager_read_pid_no_file(tmp_path):
+    from mq_agent.mcp import manager
+    with patch.object(manager, "PID_FILE", tmp_path / "mq-mcp.pid"):
+        assert manager.read_pid() is None
+
+def test_manager_is_running_no_pid_file(tmp_path):
+    from mq_agent.mcp import manager
+    with patch.object(manager, "PID_FILE", tmp_path / "mq-mcp.pid"):
+        assert manager.is_running() is False
+
+def test_manager_stop_not_running(tmp_path):
+    from mq_agent.mcp import manager
+    with patch.object(manager, "PID_FILE", tmp_path / "mq-mcp.pid"):
+        was_running, pid, msg = manager.stop()
+    assert was_running is False
+    assert pid is None
+    assert "not running" in msg
+
+def test_manager_start_missing_dir(tmp_path):
+    from mq_agent.mcp import manager
+    pid_file = tmp_path / "mq-mcp.pid"
+    missing_dir = tmp_path / "nonexistent"
+    with patch.object(manager, "PID_FILE", pid_file):
+        with patch.object(manager, "mq_mcp_dir", return_value=missing_dir):
+            already, pid, msg = manager.start()
+    assert already is False
+    assert pid is None
+    assert "not found" in msg
+
+def test_manager_start_success(tmp_path):
+    from mq_agent.mcp import manager
+    pid_file = tmp_path / "mq-mcp.pid"
+    fake_dir = tmp_path / "mq-mcp"
+    fake_dir.mkdir()
+
+    mock_proc = MagicMock()
+    mock_proc.pid = 99999
+    mock_proc.poll.return_value = None
+
+    with patch.object(manager, "PID_FILE", pid_file):
+        with patch.object(manager, "mq_mcp_dir", return_value=fake_dir):
+            with patch("mq_agent.mcp.manager.subprocess.Popen", return_value=mock_proc):
+                with patch("mq_agent.mcp.manager.time.sleep"):
+                    already, pid, msg = manager.start()
+
+    assert already is False
+    assert pid == 99999
+    assert "started" in msg
+    assert pid_file.read_text().strip() == "99999"
+
+def test_manager_start_already_running(tmp_path):
+    from mq_agent.mcp import manager
+    pid_file = tmp_path / "mq-mcp.pid"
+    pid_file.write_text("12345")
+
+    with patch.object(manager, "PID_FILE", pid_file):
+        with patch("mq_agent.mcp.manager.os.kill", return_value=None):
+            already, pid, msg = manager.start()
+
+    assert already is True
+    assert pid == 12345
+    assert "already running" in msg
+
+def test_manager_stop_kills_process(tmp_path):
+    from mq_agent.mcp import manager
+    pid_file = tmp_path / "mq-mcp.pid"
+    pid_file.write_text("12345")
+
+    with patch.object(manager, "PID_FILE", pid_file):
+        with patch("mq_agent.mcp.manager.os.kill") as mock_kill:
+            was_running, pid, msg = manager.stop()
+
+    assert was_running is True
+    assert pid == 12345
+    assert "stopped" in msg
+    assert not pid_file.exists()
+
+
+# ── mcp start/stop CLI ──────────────────────────────────────────────────────
+
+def test_cli_mcp_start_json_success(tmp_path):
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+
+    runner = CliRunner()
+    with patch.object(manager, "start", return_value=(False, 42000, "started (PID 42000)")):
+        result = runner.invoke(app, ["mcp", "start", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["ok"] is True
+    assert data["pid"] == 42000
+    assert data["already_running"] is False
+
+def test_cli_mcp_start_json_already_running(tmp_path):
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+
+    runner = CliRunner()
+    with patch.object(manager, "start", return_value=(True, 42000, "already running (PID 42000)")):
+        result = runner.invoke(app, ["mcp", "start", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["already_running"] is True
+    assert data["ok"] is True
+
+def test_cli_mcp_start_json_failure(tmp_path):
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+
+    runner = CliRunner()
+    with patch.object(manager, "start", return_value=(False, None, "mq-mcp directory not found: /missing")):
+        result = runner.invoke(app, ["mcp", "start", "--json"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["ok"] is False
+    assert data["pid"] is None
+
+def test_cli_mcp_stop_json_was_running():
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+
+    runner = CliRunner()
+    with patch.object(manager, "stop", return_value=(True, 42000, "stopped (PID 42000)")):
+        result = runner.invoke(app, ["mcp", "stop", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["was_running"] is True
+    assert data["pid"] == 42000
+
+def test_cli_mcp_stop_json_not_running():
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+
+    runner = CliRunner()
+    with patch.object(manager, "stop", return_value=(False, None, "not running")):
+        result = runner.invoke(app, ["mcp", "stop", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["was_running"] is False
+
+def test_cli_mcp_status_json_process_running():
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+
+    runner = CliRunner()
+    with patch.object(manager, "is_running", return_value=True):
+        with patch.object(manager, "read_pid", return_value=42000):
+            result = runner.invoke(app, ["mcp", "status", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["process_running"] is True
+    assert data["pid"] == 42000
