@@ -529,13 +529,13 @@ def mcp_status(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Check whether mq-mcp is reachable and show tool counts by safety class."""
+    from mq_agent.mcp.manager import is_running as process_is_running
+    from mq_agent.mcp.manager import read_pid
     from mq_agent.tools.mcp_bridge import MCPBridge
     from mq_agent.tools.mcp_registry import MCPSafetyClass
 
     bridge = MCPBridge()
     available = bridge.is_available()
-
-    from mq_agent.mcp.manager import is_running as process_is_running, read_pid
 
     process_running = process_is_running()
     pid = read_pid()
@@ -583,18 +583,18 @@ def mcp_status(
         console.print(Panel(lines, title="[bold]mq-mcp Status[/bold]", border_style="green"))
     elif process_running:
         console.print(Panel(
-            f"[bold yellow]mq-mcp: process running, HTTP not reachable[/bold yellow]\n\n"
+            "[bold yellow]mq-mcp: process running, HTTP not reachable[/bold yellow]\n\n"
             f"{pid_line}\n"
             f"endpoint: {bridge.endpoint}\n\n"
-            f"mq-mcp runs in stdio mode — the HTTP bridge at :8765 is not available.",
+            "mq-mcp runs in stdio mode — the HTTP bridge at :8765 is not available.",
             title="[bold]mq-mcp Status[/bold]",
             border_style="yellow",
         ))
     else:
         console.print(
             Panel(
-                f"[bold red]mq-mcp: not running[/bold red]\n\n"
-                f"Start with:\n  mq-agent mcp start",
+                "[bold red]mq-mcp: not running[/bold red]\n\n"
+                "Start with:\n  mq-agent mcp start",
                 title="[bold]mq-mcp Status[/bold]",
                 border_style="red",
             )
