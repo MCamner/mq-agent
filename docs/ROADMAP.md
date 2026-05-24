@@ -175,23 +175,23 @@ Stabilize the existing orchestration runtime before adding browser-assisted work
 
 Scope:
 
-- Document current Planner / Executor / Verifier flow
-- Document Task Runner lifecycle
-- Document Tool Registry and safety gate flow
-- Document Memory lifecycle
-- Document mq-mcp bridge flow
-- Document mqlaunch bridge boundaries
-- Identify CLI/TUI/orchestration coupling
-- Identify duplicated workflow logic
-- Add tests that lock current command behavior
+* Document current Planner / Executor / Verifier flow
+* Document Task Runner lifecycle
+* Document Tool Registry and safety gate flow
+* Document Memory lifecycle
+* Document mq-mcp bridge flow
+* Document mqlaunch bridge boundaries
+* Identify CLI/TUI/orchestration coupling
+* Identify duplicated workflow logic
+* Add tests that lock current command behavior
 
 Non-goals:
 
-- No TUI rewrite
-- No mqlaunch layout changes
-- No new autonomous behavior
-- No multi-agent/swarm work
-- No browser automation yet
+* No TUI rewrite
+* No mqlaunch layout changes
+* No new autonomous behavior
+* No multi-agent/swarm work
+* No browser automation yet
 
 Dependency note:
 
