@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/check-docs-consistency.sh)",
+      "Bash(git -C /Users/mansys/repo-signal checkout -b feat/v0.7.0-suggest)",
+      "Bash(git -C /Users/mansys/repo-signal add repo_signal/suggest.py repo_signal/cli.py repo_signal/__init__.py tests/test_suggest.py VERSION pyproject.toml CHANGELOG.md ROADMAP.md README.md)",
+      "Bash(git -C /Users/mansys/repo-signal commit -m ' *)",
+      "Bash(git -C /Users/mansys/repo-signal push -u origin feat/v0.7.0-suggest)",
+      "Bash(git -C /Users/mansys/mq-agent add mq_agent/tools/__init__.py mq_agent/tools/signal_tools.py tasks/suggest.yaml)",
+      "Bash(git -C /Users/mansys/mq-agent commit -m ' *)",
+      "Bash(git -C /Users/mansys/mq-agent add mq_agent/core/task_runner.py mq_agent/tools/repo_tools.py mq_agent/tools/__init__.py mq_agent/tools/signal_tools.py tasks/suggest.yaml tests/test_task_runner.py tests/test_tools.py)"
+    ]
+  }
+}
