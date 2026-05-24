@@ -9,7 +9,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+_MIN_VERSION = (0, 7, 0)
 _AVAILABLE = False
+_VERSION_ERROR: str | None = None
 
 _scan: Callable[..., Any] | None = None
 _score_readme: Callable[..., dict] | None = None
@@ -18,19 +20,32 @@ _analyze_repo: Callable[..., str] | None = None
 _build_suggestions: Callable[..., dict] | None = None
 _format_suggestions: Callable[..., str] | None = None
 
-try:
-    from repo_signal.analyze import analyze_repo as _analyze_repo  # type: ignore[no-redef]
-    from repo_signal.core.scanner import scan_repository as _scan  # type: ignore[no-redef]
-    from repo_signal.publish_checklist import (  # type: ignore[no-redef]
-        build_publish_checklist as _checklist,
-    )
-    from repo_signal.readme_score import score_readme as _score_readme  # type: ignore[no-redef]
-    from repo_signal.suggest import (  # type: ignore[no-redef]
-        build_suggestions as _build_suggestions,
-        format_suggestions as _format_suggestions,
-    )
 
-    _AVAILABLE = True
+def _version_tuple(v: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(x) for x in v.split(".")[:3])
+    except (ValueError, AttributeError):
+        return (0,)
+
+
+try:
+    from repo_signal import __version__ as _rs_version  # type: ignore[no-redef]
+
+    if _version_tuple(_rs_version) < _MIN_VERSION:
+        _min_str = ".".join(str(x) for x in _MIN_VERSION)
+        _VERSION_ERROR = f"repo-signal {_rs_version} is too old (need >= {_min_str}). Run: uv pip install --upgrade repo-signal"
+    else:
+        from repo_signal.analyze import analyze_repo as _analyze_repo  # type: ignore[no-redef]
+        from repo_signal.core.scanner import scan_repository as _scan  # type: ignore[no-redef]
+        from repo_signal.publish_checklist import (  # type: ignore[no-redef]
+            build_publish_checklist as _checklist,
+        )
+        from repo_signal.readme_score import score_readme as _score_readme  # type: ignore[no-redef]
+        from repo_signal.suggest import (  # type: ignore[no-redef]
+            build_suggestions as _build_suggestions,
+            format_suggestions as _format_suggestions,
+        )
+        _AVAILABLE = True
 except ImportError:
     pass
 
@@ -40,6 +55,8 @@ def signal_available() -> bool:
 
 
 def _not_available_msg() -> str:
+    if _VERSION_ERROR:
+        return _VERSION_ERROR
     return (
         "repo-signal not installed. "
         "Run: uv pip install -e /path/to/repo-signal  "

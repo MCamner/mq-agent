@@ -1,12 +1,14 @@
 """Tests for mq_agent tools layer."""
 import inspect
+import textwrap
 
 import pytest
 
 from mq_agent.tools import TOOL_REGISTRY
 from mq_agent.tools.git_tools import git_log, git_status
-from mq_agent.tools.repo_tools import find_files, list_files, read_file, repo_summary, write_file
+from mq_agent.tools.repo_tools import find_files, list_files, read_file, repo_summary, run_task_tool, write_file
 from mq_agent.tools.shell_tools import run_command
+from mq_agent.tools.signal_tools import _version_tuple
 
 
 def test_git_status_in_current_repo():
@@ -89,3 +91,83 @@ def test_write_file_in_registry():
 
 def test_repo_signal_json_in_registry():
     assert "repo_signal_json" in TOOL_REGISTRY
+
+
+# ── run_task_tool ────────────────────────────────────────────────────────────
+
+def test_run_task_tool_in_registry():
+    assert "run_task" in TOOL_REGISTRY
+
+
+def test_run_task_tool_not_found(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = run_task_tool("nonexistent-task-xyz")
+    assert "not found" in result.lower()
+
+
+def test_run_task_tool_runs_task_by_stem(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "echo-task.yaml").write_text(textwrap.dedent("""\
+        name: echo-task
+        steps:
+          - name: greet
+            tool: echo_tool
+            args:
+              msg: hello
+    """))
+    from unittest.mock import patch
+    with patch("mq_agent.tools.TOOL_REGISTRY", {"echo_tool": lambda msg: f"got: {msg}"}):
+        result = run_task_tool("echo-task")
+    assert "echo-task" in result
+    assert "got: hello" in result
+
+
+def test_run_task_tool_dry_run(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "t.yaml").write_text(textwrap.dedent("""\
+        name: t
+        steps:
+          - name: s
+            tool: any_tool
+            args: {}
+    """))
+    result = run_task_tool("t", dry_run=True)
+    assert "t" in result
+
+
+# ── version guard ─────────────────────────────────────────────────────────────
+
+def test_version_tuple_parses_correctly():
+    assert _version_tuple("0.7.0") == (0, 7, 0)
+    assert _version_tuple("1.2.3") == (1, 2, 3)
+    assert _version_tuple("0.6.0") == (0, 6, 0)
+
+
+def test_version_tuple_handles_bad_input():
+    assert _version_tuple("not-a-version") == (0,)
+    assert _version_tuple("") == (0,)
+
+
+def test_version_guard_min_version_is_0_7_0():
+    from mq_agent.tools.signal_tools import _MIN_VERSION
+    assert _MIN_VERSION >= (0, 7, 0)
+
+
+def test_version_guard_old_version_triggers_error_message():
+    from mq_agent.tools import signal_tools
+    original_available = signal_tools._AVAILABLE
+    original_error = signal_tools._VERSION_ERROR
+
+    signal_tools._AVAILABLE = False
+    signal_tools._VERSION_ERROR = "repo-signal 0.6.0 is too old (need >= 0.7.0). Run: uv pip install --upgrade repo-signal"
+
+    msg = signal_tools._not_available_msg()
+    assert "too old" in msg
+    assert "0.7.0" in msg
+
+    signal_tools._AVAILABLE = original_available
+    signal_tools._VERSION_ERROR = original_error

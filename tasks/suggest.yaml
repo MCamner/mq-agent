@@ -48,14 +48,21 @@ steps:
       output_format: "text"
 
   - name: suggest-markdown
-    description: Safe patch suggestions in markdown — write to file for human review
+    description: Safe patch suggestions in markdown
     tool: repo_suggest
     args:
       path: "."
       output_format: "markdown"
 
+  - name: write-report
+    description: Write markdown suggestions to suggest-report.md for human review
+    tool: write_file
+    args:
+      path: "suggest-report.md"
+      content: "{{step:suggest-markdown}}"
+
 verify:
   - all steps complete
   - no tool errors
-  - no files created or modified in the repository
   - suggest steps produce suggest.v1 compatible output
+  - suggest-report.md written with markdown output from suggest-markdown step

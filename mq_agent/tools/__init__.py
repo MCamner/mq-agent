@@ -3,7 +3,7 @@ from collections.abc import Callable
 from .browser_tools import fetch_url, inspect_url, summarize_url, verify_release_url
 from .git_tools import git_branch, git_diff, git_log, git_remote, git_status
 from .mcp_bridge import mcp_call
-from .repo_tools import find_files, list_files, read_file, repo_summary, write_file
+from .repo_tools import find_files, list_files, read_file, repo_summary, run_task_tool, write_file
 from .shell_tools import run_command, which
 from .signal_tools import (
     repo_analyze,
@@ -30,6 +30,7 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "read_file": read_file,
     "write_file": write_file,
     "find_files": find_files,
+    "run_task": run_task_tool,
     # repo-signal (optional — degrades gracefully if not installed)
     "repo_scan": repo_scan,
     "repo_readme_score": repo_readme_score,

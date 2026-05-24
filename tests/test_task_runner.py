@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from mq_agent.core.task_runner import Task, TaskStep, find_task_files, load_task, run_task
+from mq_agent.core.task_runner import Task, TaskStep, _resolve_templates, find_task_files, load_task, run_task
 from mq_agent.main import app
 
 runner = CliRunner()
@@ -151,6 +151,70 @@ def test_find_task_files_skips_missing_dirs(tmp_path):
     (tmp_path / "t.yaml").write_text("steps: []\n")
     files = find_task_files(missing, tmp_path)
     assert len(files) == 1
+
+
+# ── _resolve_templates ──────────────────────────────────────────────────────
+
+def test_resolve_templates_substitutes_step_output():
+    args = {"content": "{{step:my-step}}"}
+    outputs = {"my-step": "hello world"}
+    result = _resolve_templates(args, outputs)
+    assert result["content"] == "hello world"
+
+
+def test_resolve_templates_keeps_placeholder_when_step_missing():
+    args = {"content": "{{step:missing}}"}
+    result = _resolve_templates(args, {})
+    assert result["content"] == "{{step:missing}}"
+
+
+def test_resolve_templates_ignores_non_string_values():
+    args = {"path": ".", "limit": 5}
+    result = _resolve_templates(args, {"limit": "10"})
+    assert result["limit"] == 5
+
+
+def test_resolve_templates_multiple_refs_in_one_string():
+    args = {"content": "{{step:a}} and {{step:b}}"}
+    result = _resolve_templates(args, {"a": "foo", "b": "bar"})
+    assert result["content"] == "foo and bar"
+
+
+def test_run_task_passes_step_output_to_next_step():
+    call_log: list[dict] = []
+
+    def first(**kwargs):
+        return "FIRST_OUTPUT"
+
+    def second(**kwargs):
+        call_log.append(kwargs)
+        return "done"
+
+    task = Task(
+        name="t",
+        steps=[
+            TaskStep(name="step-one", tool="first_tool", args={"path": "."}),
+            TaskStep(name="step-two", tool="second_tool", args={"content": "{{step:step-one}}"}),
+        ],
+    )
+    with patch("mq_agent.tools.TOOL_REGISTRY", {"first_tool": first, "second_tool": second}):
+        run_task(task)
+
+    assert call_log[0]["content"] == "FIRST_OUTPUT"
+
+
+def test_run_task_template_dry_run_does_not_resolve():
+    task = Task(
+        name="t",
+        steps=[
+            TaskStep(name="a", tool="tool_a", args={}),
+            TaskStep(name="b", tool="tool_b", args={"content": "{{step:a}}"}),
+        ],
+    )
+    results = run_task(task, dry_run=True)
+    assert all(r.status == "dry-run" for r in results)
+    # original args preserved in dry-run output
+    assert "{{step:a}}" in results[1].output
 
 
 # ── CLI: task list ───────────────────────────────────────────────────────────
