@@ -1,8 +1,11 @@
 # Skills
 
-mq-agent ships with built-in skills for structured AI agent workflows.
+mq-agent ships with built-in skills for structured AI agent workflows and mq
+ecosystem integrations.
 
-Skills live in `skills/` and map directly to CLI commands and agent classes.
+Skills live in `skills/`. Most map directly to CLI commands and agent classes;
+integration skills document how mq-agent should route work to neighboring mq
+tools.
 
 ## Built-in skills
 
@@ -45,6 +48,16 @@ skills/ci-diagnosis/SKILL.md
 ```
 
 Command: `mq-agent fix-ci`
+
+### visual-analysis
+
+Analyze images, screenshots and visual diffs through `mq-image-analyze`.
+
+```text
+skills/visual-analysis/SKILL.md
+```
+
+Command: `mq-image analyze`, `mq-image analyze-ui`, `mq-image compare`
 
 ## Safety modes
 
