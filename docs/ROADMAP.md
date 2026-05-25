@@ -261,6 +261,38 @@ v1.0.0 stable release. No new features — only consolidation.
 * No uncontrolled browser automation
 * No duplicate orchestration engines
 
+### v0.9.0 checklist
+
+#### Orchestration lifecycle
+
+* [ ] Document the boundary between `PlanStep` (executor loop) and `StepResult` (task runner) — two parallel step models with overlapping concepts
+* [ ] Document `SwarmRunner` as a separate runtime mode, not a competing implementation of `Executor`
+* [ ] Verify executor stop-on-failure behavior is consistent with task runner error propagation
+* [ ] Verify `AgentState.to_dict()` output matches JSON output format used by CLI commands
+
+#### Presentation separation
+
+* [ ] Extract orchestration logic out of `main.py` — CLI commands must delegate to core, not inline business logic
+* [ ] Centralize status/result rendering — core must not depend on CLI output formatting
+
+#### Runtime provider layer
+
+* [ ] Define `~/.mq-agent/config.json` schema — safety mode, model, dry-run defaults (closes v1.0.0 "Stable config format" item)
+* [ ] Document or normalize the model provider dependency in `Planner` — currently hardcoded to `gpt-4o`
+* [ ] Enforce tool registry signature contract — all registered tools must accept `**kwargs` only
+
+#### Contract tests
+
+* [ ] Extend `tests/test_orchestration_contract.py` — lock `PlanStep`, `StepResult`, and `AgentManifest` contract shapes
+* [ ] Test that `run_task` tool delegates correctly to `task_runner.run_task` and returns a string
+* [ ] Test that `AgentManifest.allowed_tools` entries are a subset of `TOOL_REGISTRY` keys
+
+#### Release
+
+* [ ] All tests pass (target: 230+ tests)
+* [ ] Green CI
+* [ ] GitHub release `v0.9.0`
+
 ---
 
 ## v1.0.0 — Stable orchestration platform
