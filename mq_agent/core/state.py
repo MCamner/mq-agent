@@ -25,6 +25,13 @@ class StepStatus(StrEnum):
 
 @dataclass
 class PlanStep:
+    """A single step in a planner-generated execution plan.
+
+    Used exclusively by the Executor loop (core/executor.py). Not the same as
+    StepResult in core/task_runner.py — that model serves declarative YAML
+    tasks and has a simpler shape (step name + output string only).
+    """
+
     index: int
     description: str
     tool: str | None = None

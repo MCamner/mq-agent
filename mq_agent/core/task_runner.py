@@ -19,6 +19,13 @@ class TaskStep:
 
 @dataclass
 class StepResult:
+    """Result from a single step in a declarative YAML task.
+
+    Used exclusively by run_task() in this module. Not the same as PlanStep
+    in core/state.py — that model serves the Executor loop (planner-driven
+    runs) and tracks richer lifecycle state (verified, error, StepStatus enum).
+    """
+
     step: str
     tool: str
     status: str  # "ok" | "error" | "unknown-tool" | "dry-run"

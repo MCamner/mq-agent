@@ -111,7 +111,14 @@ class SwarmResult:
 
 
 class SwarmRunner:
-    """Coordinates multiple agents: dispatches, collects, merges."""
+    """Coordinates multiple specialist agents in a swarm run.
+
+    SwarmRunner is a separate runtime mode from the Executor loop. Where
+    Executor drives a single planner-generated PlanStep sequence, SwarmRunner
+    dispatches to multiple independent agents defined in a SwarmConfig and
+    merges their AgentResults into a SwarmResult. The two runtimes do not
+    share step state or overlap in responsibility.
+    """
 
     def __init__(self, client: Any):
         self.client = client

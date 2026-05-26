@@ -7,6 +7,38 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.9.0] — 2026-05-26
+
+### Added
+
+- `mq_agent/config.py` — `MqAgentConfig` dataclass with `load_config()`
+  and `save_config()`. Schema: `safety_mode`, `model`, `dry_run`,
+  `working_dir`. Reads from `~/.mq-agent/config.json`; falls back to
+  built-in defaults. `effective_model()` prefers `MQ_AGENT_MODEL` env var.
+- 7 new contract tests in `tests/test_orchestration_contract.py`:
+  - `test_plan_step_fields_are_stable` — locks `PlanStep` field set
+  - `test_step_result_fields_are_stable` — locks `StepResult` field set
+  - `test_agent_manifest_fields_are_stable` — locks `AgentManifest` field set
+  - `test_agent_state_to_dict_shape_is_stable` — locks `to_dict()` keys
+  - `test_agent_manifest_allowed_tools_must_be_subset_of_registry`
+  - `test_run_task_tool_delegates_to_task_runner`
+  - `test_tool_registry_has_no_positional_only_params`
+
+### Changed
+
+- `PlanStep` (core/state.py) — added docstring clarifying it is the
+  Executor loop step model, distinct from `StepResult` in task_runner.
+- `StepResult` (core/task_runner.py) — added docstring clarifying it is
+  the declarative YAML task step model, distinct from `PlanStep`.
+- `SwarmRunner` (core/swarm.py) — expanded docstring: documents it as a
+  separate runtime mode from the Executor loop, not a competing impl.
+
+### Test count
+
+218 tests (was 211).
+
+---
+
 ## [v0.8.0] — 2026-05-24
 
 ### Added
