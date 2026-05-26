@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v0.8.0-green)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v0.9.0-green)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -215,6 +215,16 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v0.9.0 status
+
+- [x] 14-test orchestration contract suite locking PlanStep, StepResult,
+      AgentManifest, AgentState, tool registry, and run_task delegation
+- [x] `mq_agent/config.py` — MqAgentConfig dataclass with load/save
+      and MQ_AGENT_MODEL env override
+- [x] Docstrings clarifying PlanStep vs StepResult boundary and
+      SwarmRunner's role as a separate runtime
+- [x] 218 tests pass — `uv run pytest -v` — no OpenAI calls required
 
 ## v0.8.0 status
 
