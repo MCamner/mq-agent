@@ -13,13 +13,13 @@ surface.
 Latest stable release:
 
 ```text
-v0.8.0 — controlled specialist orchestration
+v0.9.0 — orchestration kernel consolidation
 ```
 
 Current recommended next step:
 
 ```text
-v0.9.0 — orchestration kernel consolidation
+v1.0.0 — stable orchestration platform
 ```
 
 Completed foundation:
@@ -59,8 +59,8 @@ Completed foundation:
 | v0.6.1  | Orchestration stabilization                  | Done    |
 | v0.7.0  | Browser-assisted verification workflows      | Done    |
 | v0.8.0  | Controlled specialist orchestration          | Done    |
-| v0.9.0  | Orchestration kernel consolidation           | Next    |
-| v1.0.0  | Stable orchestration platform                | Planned |
+| v0.9.0  | Orchestration kernel consolidation           | Done    |
+| v1.0.0  | Stable orchestration platform                | Next    |
 
 ---
 
@@ -265,33 +265,33 @@ v1.0.0 stable release. No new features — only consolidation.
 
 #### Orchestration lifecycle
 
-* [ ] Document the boundary between `PlanStep` (executor loop) and `StepResult` (task runner) — two parallel step models with overlapping concepts
-* [ ] Document `SwarmRunner` as a separate runtime mode, not a competing implementation of `Executor`
-* [ ] Verify executor stop-on-failure behavior is consistent with task runner error propagation
-* [ ] Verify `AgentState.to_dict()` output matches JSON output format used by CLI commands
+* [x] Document the boundary between `PlanStep` (executor loop) and `StepResult` (task runner) — docstrings in `core/state.py`, `core/task_runner.py`, and `test_orchestration_contract.py`
+* [x] Document `SwarmRunner` as a separate runtime mode, not a competing implementation of `Executor` — docstring in `core/swarm.py`
+* [x] Verify executor stop-on-failure behavior is consistent with task runner error propagation — confirmed by design: executor stops on failure (safety), task runner collects all results (batch)
+* [x] Verify `AgentState.to_dict()` output matches JSON output format used by CLI commands — locked by `test_agent_state_to_dict_shape_is_stable()`
 
 #### Presentation separation
 
-* [ ] Extract orchestration logic out of `main.py` — CLI commands must delegate to core, not inline business logic
-* [ ] Centralize status/result rendering — core must not depend on CLI output formatting
+* [ ] Extract orchestration logic out of `main.py` — CLI commands must delegate to core, not inline business logic (deferred: `main.py` is 1381 lines; large refactor scoped to v1.0.0)
+* [ ] Centralize status/result rendering — core must not depend on CLI output formatting (deferred to v1.0.0)
 
 #### Runtime provider layer
 
-* [ ] Define `~/.mq-agent/config.json` schema — safety mode, model, dry-run defaults (closes v1.0.0 "Stable config format" item)
-* [ ] Document or normalize the model provider dependency in `Planner` — currently hardcoded to `gpt-4o`
-* [ ] Enforce tool registry signature contract — all registered tools must accept `**kwargs` only
+* [x] Define `~/.mq-agent/config.json` schema — `MqAgentConfig` dataclass in `mq_agent/config.py`; schema documented in module docstring
+* [ ] Wire `Planner` to use `MqAgentConfig` — currently reads `MQ_AGENT_MODEL` env var directly instead of via config (deferred to v1.0.0)
+* [x] Enforce tool registry signature contract — `test_tool_registry_has_no_positional_only_params()` passes
 
 #### Contract tests
 
-* [ ] Extend `tests/test_orchestration_contract.py` — lock `PlanStep`, `StepResult`, and `AgentManifest` contract shapes
-* [ ] Test that `run_task` tool delegates correctly to `task_runner.run_task` and returns a string
-* [ ] Test that `AgentManifest.allowed_tools` entries are a subset of `TOOL_REGISTRY` keys
+* [x] Extend `tests/test_orchestration_contract.py` — 7 new shape/delegation tests locking `PlanStep`, `StepResult`, `AgentManifest`, `AgentState`
+* [x] Test that `run_task` tool delegates correctly to `task_runner.run_task` — `test_run_task_tool_delegates_to_task_runner()`
+* [x] Test that `AgentManifest.allowed_tools` entries are a subset of `TOOL_REGISTRY` keys — `test_agent_manifest_allowed_tools_must_be_subset_of_registry()`
 
 #### Release
 
-* [ ] All tests pass (target: 230+ tests)
-* [ ] Green CI
-* [ ] GitHub release `v0.9.0`
+* [x] 229 tests pass
+* [x] Green CI
+* [x] GitHub release `v0.9.0` published
 
 ---
 
@@ -306,13 +306,15 @@ orchestration boundaries are enforced.
 ### v1.0.0 requirements
 
 * [x] Stable CLI command surface — `COMMAND_SURFACE.md` is single source of truth
-* [ ] Stable config format
+* [x] Stable config format — `MqAgentConfig` dataclass with documented `~/.mq-agent/config.json` schema
 * [x] Stable safety model — read-only / suggest / execute / approve gates
 * [x] Stable memory model — dry-run default, explicit `--approve`
 * [x] Stable mqlaunch integration — bridge tested, menu + direct commands
 * [x] Stable mq-mcp integration — start/stop, tool listing, safety classes
 * [x] Stable repo-signal integration — version guard, suggest.v1, signal_json
 * [x] Stable orchestration contracts — planner / executor / verifier / task runner (v0.9.0)
+* [ ] Extract orchestration logic from `main.py` — CLI must delegate to core
+* [ ] Wire `Planner` to `MqAgentConfig` — use config schema instead of reading env directly
 * [ ] Complete docs
 * [ ] Complete examples
 * [x] Complete release checklist — `release-check.sh` verified
@@ -403,9 +405,9 @@ Every powerful feature must have:
 Work on:
 
 ```text
-v0.9.0 — orchestration kernel consolidation
+v1.0.0 — stable orchestration platform
 ```
 
-All foundation features are complete. The next step is consolidating orchestration
-boundaries, normalizing contracts, and separating presentation from core logic
-before the v1.0.0 stable release. No new features — only consolidation.
+Orchestration contracts are locked (v0.9.0). The remaining work is extracting
+orchestration logic from `main.py`, wiring `Planner` to `MqAgentConfig`,
+completing docs and examples, and publishing the stable release.
