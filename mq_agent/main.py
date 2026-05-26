@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -13,6 +12,14 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
+from mq_agent.cli.render import (
+    print_mcp_tool_table,
+    print_steps,
+    print_swarm_result,
+    print_tool_spec,
+)
+from mq_agent.core.diagnostics import required_checks_pass, run_checks
 
 load_dotenv(Path.home() / "mq-agent" / ".env", override=False)
 load_dotenv(Path(".env"), override=False)
@@ -71,7 +78,7 @@ def audit(
         return
 
     console.print(Panel(result["summary"], title=f"[bold]Repo: {path}[/bold]"))
-    _print_steps(result["steps"], title="Audit Steps")
+    print_steps(console, result["steps"], title="Audit Steps")
 
     if result["passed"]:
         console.print("\n[bold green]✓ Audit passed[/bold green]")
@@ -144,7 +151,7 @@ def release_check(
         typer.echo(json.dumps(result, indent=2, default=str))
         return
 
-    _print_steps(result["steps"], title="Release Checks")
+    print_steps(console, result["steps"], title="Release Checks")
     label = (
         "[bold green]✓ Ready to release[/bold green]"
         if result["ready"]
@@ -220,7 +227,7 @@ def fix_ci(
         if ctx and "(could not run" not in ctx:
             console.print(Panel(ctx[:800], title=f"[bold]{label}[/bold]", border_style="dim"))
 
-    _print_steps(result["steps"], title="CI Fix Plan")
+    print_steps(console, result["steps"], title="CI Fix Plan")
 
 
 # ── doctor ─────────────────────────────────────────────────────────────────
@@ -228,31 +235,7 @@ def fix_ci(
 @app.command()
 def doctor():
     """Check mq-agent environment and dependencies."""
-    import subprocess
-
-    checks: list[tuple[str, bool, str]] = []
-
-    has_key = bool(os.environ.get("OPENAI_API_KEY"))
-    checks.append(("OPENAI_API_KEY", has_key, "export OPENAI_API_KEY=sk-..."))
-
-    git_ok = subprocess.run(["git", "--version"], capture_output=True).returncode == 0
-    checks.append(("git", git_ok, "Install git"))
-
-    uv_ok = subprocess.run(["uv", "--version"], capture_output=True).returncode == 0
-    checks.append(("uv", uv_ok, "curl -LsSf https://astral.sh/uv/install.sh | sh"))
-
-    py_ok = sys.version_info >= (3, 11)
-    checks.append(("Python ≥ 3.11", py_ok, f"Upgrade Python (have {sys.version.split()[0]})"))
-
-    from mq_agent.tools.signal_tools import signal_available
-    checks.append(("repo-signal", signal_available(), "uv pip install repo-signal"))
-
-    try:
-        import httpx
-        mcp_ok = httpx.get("http://localhost:8765/health", timeout=1).status_code == 200
-    except Exception:
-        mcp_ok = False
-    checks.append(("mq-mcp (optional)", mcp_ok, "Start mq-mcp on :8765"))
+    checks = run_checks()
 
     table = Table(title="mq-agent Doctor", show_header=True, header_style="bold")
     table.add_column("Check", style="bold")
@@ -265,8 +248,7 @@ def doctor():
 
     console.print(table)
 
-    required_ok = all(ok for _, ok, _ in checks[:4])
-    if required_ok:
+    if required_checks_pass(checks):
         console.print("\n[bold green]All required checks passed.[/bold green]")
     else:
         console.print("\n[bold yellow]Fix the issues above before using mq-agent.[/bold yellow]")
@@ -331,7 +313,7 @@ def signal(
 
     # AI plan steps
     if result["steps"]:
-        _print_steps(result["steps"], title="AI Improvement Plan")
+        print_steps(console, result["steps"], title="AI Improvement Plan")
 
     # Verdict
     if overall >= 80:
@@ -395,7 +377,7 @@ def docs_audit(
         typer.echo(json.dumps(result, indent=2, default=str))
         return
 
-    _print_steps(result["steps"], title="Docs Audit")
+    print_steps(console, result["steps"], title="Docs Audit")
     if result["verification"]["all_passed"]:
         console.print("\n[bold green]✓ Docs audit passed[/bold green]")
     else:
@@ -432,7 +414,7 @@ def tools(
         if json_out:
             typer.echo(json.dumps(spec.to_dict(), indent=2))
             return
-        _print_tool_spec(spec)
+        print_tool_spec(console, spec)
         return
 
     built_in = tool_names()
@@ -451,7 +433,7 @@ def tools(
         for name in built_in:
             console.print(f"  [cyan]•[/cyan] {name}")
         console.print(f"\n[bold]MCP tools ({len(mcp_specs)} discovered):[/bold]")
-        _print_mcp_tool_table(mcp_specs)
+        print_mcp_tool_table(console, mcp_specs)
         return
 
     if json_out:
@@ -665,7 +647,7 @@ def mcp_tools_list(
         typer.echo(json.dumps([s.to_dict() for s in specs], indent=2))
         return
 
-    _print_mcp_tool_table(specs)
+    print_mcp_tool_table(console, specs)
 
 
 # ── run-tool ───────────────────────────────────────────────────────────────
@@ -1221,7 +1203,7 @@ def swarm_run(
             raise typer.Exit(1)
         return
 
-    _print_swarm_result(result)
+    print_swarm_result(console, result)
     if not result.passed:
         raise typer.Exit(1)
 
@@ -1248,7 +1230,7 @@ def swarm_audit(
             raise typer.Exit(1)
         return
 
-    _print_swarm_result(result)
+    print_swarm_result(console, result)
     if not result.passed:
         raise typer.Exit(1)
 
@@ -1278,103 +1260,9 @@ def swarm_release_check(
             raise typer.Exit(1)
         return
 
-    _print_swarm_result(result)
+    print_swarm_result(console, result)
     if not result.passed:
         raise typer.Exit(1)
-
-
-# ── helpers ────────────────────────────────────────────────────────────────
-
-def _print_tool_spec(spec) -> None:
-    """Print a single MCPToolSpec in human-readable form."""
-    lines = (
-        f"[bold]Tool:[/bold]        {spec.name}\n"
-        f"[bold]Source:[/bold]      {spec.source}\n"
-        f"[bold]Safety:[/bold]      {spec.safety_class}\n"
-    )
-    if spec.description:
-        lines += f"\n[bold]Description:[/bold]\n{spec.description}\n"
-    if spec.input_schema:
-        import pprint
-        lines += f"\n[bold]Input schema:[/bold]\n{pprint.pformat(spec.input_schema, width=60)}\n"
-    if spec.examples:
-        lines += "\n[bold]Examples:[/bold]\n" + "\n".join(f"  {e}" for e in spec.examples)
-    console.print(Panel(lines, title=f"[bold]{spec.name}[/bold]"))
-
-
-def _print_mcp_tool_table(specs: list) -> None:
-    """Print a table of MCPToolSpec objects."""
-    from rich.table import Table
-
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("Tool", style="cyan")
-    table.add_column("Safety", width=14)
-    table.add_column("Description", overflow="fold")
-
-    safety_colors = {
-        "read-only": "green",
-        "write-capable": "yellow",
-        "subprocess": "yellow",
-        "dangerous": "red",
-        "unknown": "dim",
-    }
-
-    for spec in sorted(specs, key=lambda s: (s.safety_class, s.name)):
-        color = safety_colors.get(spec.safety_class, "white")
-        table.add_row(spec.name, f"[{color}]{spec.safety_class}[/{color}]", spec.description)
-
-    console.print(table)
-
-
-def _print_swarm_result(result) -> None:
-    """Print a SwarmResult in human-readable form."""
-    status_icons = {
-        "ok": "[bold green]✓[/bold green]",
-        "dry-run": "[bold blue]~[/bold blue]",
-        "skipped": "[dim]–[/dim]",
-        "error": "[bold red]✗[/bold red]",
-    }
-
-    table = Table(show_header=True, header_style="bold", title=f"Swarm: {result.config}")
-    table.add_column("Agent", style="cyan")
-    table.add_column("Status", width=10)
-    table.add_column("Elapsed", width=9)
-    table.add_column("Note", overflow="fold")
-
-    for r in result.results:
-        icon = status_icons.get(r.status, r.status)
-        note = r.error if r.error else ""
-        if not note and r.status == "ok":
-            passed = r.output.get("passed", r.output.get("ready", ""))
-            if passed is not None:
-                note = "passed" if passed else "issues found"
-        table.add_row(r.agent, icon, f"{r.elapsed_s:.1f}s", note)
-
-    console.print(table)
-    console.print(f"[dim]Total: {result.elapsed_s:.1f}s · path: {result.path}[/dim]")
-
-    if result.passed:
-        console.print("\n[bold green]✓ Swarm passed[/bold green]")
-    else:
-        console.print(f"\n[bold red]✗ Swarm failed — {', '.join(result.failed_agents)}[/bold red]")
-
-
-def _print_steps(steps: list[dict], title: str = "Steps") -> None:
-    table = Table(title=title, show_header=True, header_style="bold")
-    table.add_column("#", width=3)
-    table.add_column("Step")
-    table.add_column("Status", width=10)
-    table.add_column("Note", overflow="fold")
-
-    colors = {"success": "green", "failed": "red", "skipped": "yellow", "running": "cyan"}
-
-    for i, s in enumerate(steps, 1):
-        status = s.get("status", "")
-        color = colors.get(status, "white")
-        note = s.get("error") or s.get("note") or str(s.get("result", ""))[:120]
-        table.add_row(str(i), s.get("description", ""), f"[{color}]{status}[/{color}]", note)
-
-    console.print(table)
 
 
 if __name__ == "__main__":
