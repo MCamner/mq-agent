@@ -78,6 +78,98 @@ Start mq-mcp with:
 
 `mq-agent tools --describe <name>` still works when mq-mcp is down — it infers the safety class from the tool name.
 
+## Safety classes
+
+mq-mcp serves real safety classes via `/tools` and `/tool-contracts`.
+mq-agent uses them to enforce its safety gate — no guessing from name
+prefixes when the server is up.
+
+| Class | Examples              | Gate behaviour             |
+|-------|-----------------------|----------------------------|
+| A/B   | `read_repo_file`      | No flags required          |
+| C     | `edit_image`          | Requires `--approve`       |
+| D     | `open_in_app`         | Requires `--approve`       |
+| —     | `remove_*`            | Requires `--dangerous`     |
+
+## Tool contracts endpoint
+
+mq-mcp exposes machine-readable contracts at `GET /tool-contracts`:
+
+```bash
+curl http://localhost:8765/tool-contracts | jq '.tool_count'
+curl http://localhost:8765/tool-contracts | jq '.tools[] | select(.class == "C")'
+```
+
+## Example local workflow
+
+```bash
+# 1. Start mq-mcp
+uv --directory ~/mq-mcp/mq-mcp run python server.py &
+
+# 2. Verify it is up and serving all 50 tools
+mq-agent mcp status --json | jq '.servers["mq-mcp"]'
+
+# 3. Inspect a tool's safety class
+mq-agent tools --describe read_repo_file
+
+# 4. Dry-run a read tool (no flags needed)
+mq-agent run-tool read_repo_file --arg path=README.md --dry-run
+
+# 5. Run a write tool with approval
+mq-agent run-tool edit_image --arg relative_path=img.jpg \
+    --arg action=resize --arg value=800 --approve
+
+# 6. Stop mq-mcp when done
+mq-agent mcp stop
+```
+
+## Troubleshooting
+
+**Port already in use**
+
+```text
+ERROR: [Errno 48] Address already in use
+```
+
+Find and kill the existing process:
+
+```bash
+lsof -ti :8765 | xargs kill -9
+```
+
+Or start on a different port:
+
+```bash
+MQ_MCP_PORT=8766 uv run python server.py
+MQ_MCP_ENDPOINT=http://localhost:8766 mq-agent mcp status
+```
+
+**mq-agent cannot reach mq-mcp**
+
+```bash
+mq-agent mcp status --json   # shows endpoint and reachability
+curl http://localhost:8765/health   # direct health check
+```
+
+**Wrong Python environment**
+
+Always use `uv run` inside the mq-mcp directory — system Python lacks
+the required packages:
+
+```bash
+uv --directory ~/mq-mcp/mq-mcp run python server.py
+```
+
+**Tool safety class shows `unknown`**
+
+mq-mcp serves safety classes from `docs/tool_contracts.json`. If that
+file is missing or stale, regenerate it:
+
+```bash
+cd ~/mq-mcp && python3 scripts/generate_tool_contracts.py
+```
+
 ## Safety
 
-See [TOOL_ROUTING.md](TOOL_ROUTING.md) for the full safety classification reference.
+See [TOOL_ROUTING.md](TOOL_ROUTING.md) for the full safety classification
+reference.
