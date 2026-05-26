@@ -7,6 +7,35 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v1.0.0] — 2026-05-26
+
+### Added
+
+- `mq_agent/cli/render.py` — Rich rendering helpers (`print_steps`, `print_tool_spec`,
+  `print_mcp_tool_table`, `print_swarm_result`) extracted from `main.py`; each takes
+  an explicit `console` arg for testability
+- `mq_agent/core/diagnostics.py` — `run_checks()` and `required_checks_pass()` for
+  `doctor` command; no CLI/Rich dependencies
+- `tests/test_diagnostics.py` — 8 tests for environment health checks
+
+### Changed
+
+- `Planner` now reads model via `load_config().effective_model()` instead of
+  `os.environ` directly; respects `~/.mq-agent/config.json` settings
+- `main.py` reduced from 1381 → 1270 lines; all rendering and doctor logic delegated
+- `ARCHITECTURE.md` rewritten: full module map, two parallel runtime modes, config
+  schema, safety model table, module boundaries
+- `EXAMPLES.md` extended to cover all commands: `task`, `browser`, `swarm`, `memory`,
+  `mcp`, `score`, `signal`
+- `pyproject.toml` description updated to "workflow orchestration runtime"
+
+### v1.0.0 platform summary
+
+237 tests · green CI · protected main · full docs · complete examples ·
+stable contracts locked in v0.9.0 · versioned releases v0.1.0–v1.0.0
+
+---
+
 ## [v0.9.0] — 2026-05-26
 
 ### Added
