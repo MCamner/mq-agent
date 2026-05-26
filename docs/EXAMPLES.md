@@ -154,6 +154,184 @@ Keyboard bindings:
 
 ---
 
+---
+
+## Score a repo (no API key required)
+
+Quick README score and publish checklist — no AI, instant result:
+
+```bash
+mq-agent score .
+```
+
+JSON output:
+
+```bash
+mq-agent score . --json
+```
+
+---
+
+## Full repo-signal assessment
+
+Scan + README score + publish checklist + AI improvement plan:
+
+```bash
+mq-agent signal .
+```
+
+Dry-run (no AI call):
+
+```bash
+mq-agent signal . --dry-run
+```
+
+---
+
+## Declarative task workflows
+
+List available YAML task workflows:
+
+```bash
+mq-agent task list
+mq-agent task list --json
+```
+
+Preview a task without executing:
+
+```bash
+mq-agent task run repo-audit --dry-run
+mq-agent task run suggest-patches --dry-run --json
+```
+
+Run a task (executes all steps via the tool registry):
+
+```bash
+mq-agent task run repo-audit
+mq-agent task run suggest-patches
+```
+
+---
+
+## Browser-assisted verification
+
+Inspect a URL (title, description, headings, links, word count):
+
+```bash
+mq-agent browser inspect https://github.com/MCamner/mq-agent
+```
+
+Plain-text summary:
+
+```bash
+mq-agent browser summarize https://github.com/MCamner/mq-agent
+```
+
+Verify a GitHub release page:
+
+```bash
+mq-agent browser verify-release https://github.com/MCamner/mq-agent/releases/tag/v0.9.0
+mq-agent browser verify-release https://github.com/MCamner/mq-agent/releases/tag/v0.9.0 --tag v0.9.0
+```
+
+---
+
+## Controlled specialist orchestration
+
+List available swarm configurations:
+
+```bash
+mq-agent swarm list
+```
+
+Dry-plan a swarm config (no API key, no execution):
+
+```bash
+mq-agent swarm plan audit
+mq-agent swarm plan audit --json
+```
+
+Run the audit swarm (read-only, no `--approve` needed):
+
+```bash
+mq-agent swarm run audit .
+```
+
+Run the release-check swarm (requires `--approve` for write agents):
+
+```bash
+mq-agent swarm release-check .
+mq-agent swarm release-check . --approve
+```
+
+---
+
+## Semantic repository memory
+
+Check memory status:
+
+```bash
+mq-agent memory status
+mq-agent memory status --json
+```
+
+Preview what would be uploaded (dry-run, default):
+
+```bash
+mq-agent memory build
+```
+
+Upload to vector store (requires explicit approval):
+
+```bash
+mq-agent memory refresh --approve
+```
+
+Diagnose the memory environment:
+
+```bash
+mq-agent memory doctor
+mq-agent memory doctor --json
+```
+
+---
+
+## MCP server management
+
+Start the local mq-mcp tool server:
+
+```bash
+mq-agent mcp start
+```
+
+Check status and tool counts:
+
+```bash
+mq-agent mcp status
+mq-agent mcp status --json
+```
+
+List available MCP tools with safety classes:
+
+```bash
+mq-agent mcp tools
+```
+
+Stop the server:
+
+```bash
+mq-agent mcp stop
+```
+
+Register an external MCP server:
+
+```bash
+mq-agent mcp connect MyServer http://localhost:9000
+mq-agent mcp disconnect MyServer
+```
+
+---
+
 ## See demo output
 
 Sample output files are in [`docs/demo/`](demo/).
