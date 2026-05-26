@@ -16,10 +16,10 @@ Latest stable release:
 v0.9.0 — orchestration kernel consolidation
 ```
 
-Current recommended next step:
+Current status:
 
 ```text
-v1.0.0 — stable orchestration platform
+v1.0.0 requirements complete — ready to tag and release
 ```
 
 Completed foundation:
@@ -60,7 +60,7 @@ Completed foundation:
 | v0.7.0  | Browser-assisted verification workflows      | Done    |
 | v0.8.0  | Controlled specialist orchestration          | Done    |
 | v0.9.0  | Orchestration kernel consolidation           | Done    |
-| v1.0.0  | Stable orchestration platform                | Next    |
+| v1.0.0  | Stable orchestration platform                | Ready   |
 
 ---
 
@@ -272,13 +272,13 @@ v1.0.0 stable release. No new features — only consolidation.
 
 #### Presentation separation
 
-* [ ] Extract orchestration logic out of `main.py` — CLI commands must delegate to core, not inline business logic (deferred: `main.py` is 1381 lines; large refactor scoped to v1.0.0)
-* [ ] Centralize status/result rendering — core must not depend on CLI output formatting (deferred to v1.0.0)
+* [x] Extract orchestration logic out of `main.py` — `doctor()` logic → `core/diagnostics.py`; rendering helpers → `cli/render.py`
+* [x] Centralize status/result rendering — `cli/render.py` owns all Rich output helpers; core has no CLI imports
 
 #### Runtime provider layer
 
 * [x] Define `~/.mq-agent/config.json` schema — `MqAgentConfig` dataclass in `mq_agent/config.py`; schema documented in module docstring
-* [ ] Wire `Planner` to use `MqAgentConfig` — currently reads `MQ_AGENT_MODEL` env var directly instead of via config (deferred to v1.0.0)
+* [x] Wire `Planner` to use `MqAgentConfig` — `load_config().effective_model()` replaces direct env var read
 * [x] Enforce tool registry signature contract — `test_tool_registry_has_no_positional_only_params()` passes
 
 #### Contract tests
@@ -313,10 +313,10 @@ orchestration boundaries are enforced.
 * [x] Stable mq-mcp integration — start/stop, tool listing, safety classes
 * [x] Stable repo-signal integration — version guard, suggest.v1, signal_json
 * [x] Stable orchestration contracts — planner / executor / verifier / task runner (v0.9.0)
-* [ ] Extract orchestration logic from `main.py` — CLI must delegate to core
-* [ ] Wire `Planner` to `MqAgentConfig` — use config schema instead of reading env directly
-* [ ] Complete docs
-* [ ] Complete examples
+* [x] Extract orchestration logic from `main.py` — `cli/render.py` + `core/diagnostics.py`
+* [x] Wire `Planner` to `MqAgentConfig` — `load_config().effective_model()`
+* [x] Complete docs — `ARCHITECTURE.md` updated with full module map, runtime modes, config schema, safety model
+* [x] Complete examples — `EXAMPLES.md` covers all commands: task, browser, swarm, memory, mcp, score, signal
 * [x] Complete release checklist — `release-check.sh` verified
 * [x] Green CI
 * [x] Protected main branch
@@ -402,12 +402,11 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Work on:
+Tag and release:
 
 ```text
 v1.0.0 — stable orchestration platform
 ```
 
-Orchestration contracts are locked (v0.9.0). The remaining work is extracting
-orchestration logic from `main.py`, wiring `Planner` to `MqAgentConfig`,
-completing docs and examples, and publishing the stable release.
+All v1.0.0 requirements are complete. Tag `v1.0.0`, create GitHub release, and
+update GitHub Pages.

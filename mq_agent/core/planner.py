@@ -1,14 +1,13 @@
 import json
-import os
 from pathlib import Path
 
 from openai import OpenAI
 
+from mq_agent.config import load_config
+
 from .state import AgentState, PlanStep
 
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "planner.md"
-
-_DEFAULT_MODEL = "gpt-4o"
 
 
 class Planner:
@@ -16,7 +15,7 @@ class Planner:
 
     def __init__(self, client: OpenAI):
         self.client = client
-        self._model = os.environ.get("MQ_AGENT_MODEL", _DEFAULT_MODEL)
+        self._model = load_config().effective_model()
         self._system_prompt = (
             PROMPT_PATH.read_text() if PROMPT_PATH.exists() else _FALLBACK_SYSTEM
         )

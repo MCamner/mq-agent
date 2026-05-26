@@ -1,220 +1,180 @@
 # mq-agent Architecture
 
-mq-agent is an existing orchestration runtime. Its current architecture should be
-stabilized before adding more browser automation, agent autonomy, or new
-multi-agent behavior.
+mq-agent is a terminal-native workflow orchestration runtime. It coordinates
+safe local execution, repo intelligence, MCP tools, and semantic memory into one
+operator-driven surface.
 
-## Current Flow
+## Module map
 
 ```text
-User
-  |
-  v
-mq-agent CLI / mqlaunch / TUI
-  |
-  +--> command handlers in mq_agent/main.py
-        |
-        +--> agents/* for AI-backed workflows
-        |     |
-        |     +--> Planner -> Executor -> Verifier
-        |
-        +--> core/task_runner.py for YAML task workflows
-        |
-        +--> tools/TOOL_REGISTRY for built-in tools
-        |
-        +--> tools/mcp_bridge.py for mq-mcp tools
-        |
-        +--> memory/semantic.py for repo memory commands
+mq_agent/
+  main.py              — CLI entry point (Typer); delegates to core, agents, tools
+  config.py            — MqAgentConfig: load/save ~/.mq-agent/config.json
+  cli/
+    render.py          — Rich rendering helpers (print_steps, print_swarm_result, …)
+  core/
+    state.py           — AgentState, PlanStep, StepStatus, SafetyMode
+    planner.py         — Planner: goal → PlanStep list (OpenAI)
+    executor.py        — Executor: runs PlanStep list through tool registry + SafetyGate
+    verification.py    — Verifier: assesses step output (OpenAI)
+    task_runner.py     — declarative YAML task execution (StepResult, no AI)
+    swarm.py           — SwarmRunner: coordinates specialist agents via AgentManifest
+    safety.py          — SafetyGate: enforces safety mode per step
+    config.py          — MCP server registry (add/remove/get servers)
+    diagnostics.py     — run_checks(): environment health checks for doctor command
+    memory.py          — Memory: conversation context store
+  agents/
+    audit_agent.py     — AuditAgent: read-only repo audit
+    ci_agent.py        — CIAgent: CI failure diagnosis
+    docs_agent.py      — DocsAgent: documentation audit
+    release_agent.py   — ReleaseAgent: release readiness checks
+    signal_agent.py    — SignalAgent: full repo-signal assessment
+    swarm_registry.py  — built-in swarm configs (audit, release-check, ci)
+  tools/
+    __init__.py        — TOOL_REGISTRY: all registered callable tools
+    repo_tools.py      — file I/O, repo summary, task chaining (run_task_tool)
+    git_tools.py       — git status, log, diff, branch, remote
+    shell_tools.py     — run_command, which
+    signal_tools.py    — repo-signal integration (optional, degrades gracefully)
+    browser_tools.py   — read-only URL fetch, inspect, summarize, verify-release
+    mcp_bridge.py      — MultiMCPBridge: routes calls to MCP servers
+    mcp_registry.py    — MCPToolSpec, safety class classification
+  mcp/
+    manager.py         — start/stop mq-mcp background process
+  memory/
+    semantic.py        — semantic memory build/refresh/status/doctor
+  tui/
+    app.py             — Textual TUI dashboard (command launcher)
 ```
 
-## Stabilization Rules
+## Orchestration runtime modes
 
-v0.6.1 is a stabilization checkpoint, not a rewrite.
+mq-agent has two parallel orchestration modes. They co-exist and do not replace each other.
 
-- Do not rewrite Planner, Executor, Verifier, or Task Runner.
-- Do not rewrite the TUI.
-- Do not change the mqlaunch layout.
-- Do not duplicate task runner logic.
-- Do not add new autonomous browser execution.
-- Do not add new multi-agent behavior until the current boundaries are locked.
-- Preserve current CLI commands and flags.
-- Add tests before changing command behavior.
+### AI-backed planner loop
+
+Used by `audit`, `plan`, `signal`, `fix-ci`, `release-check`, `docs-audit`:
+
+```text
+AgentState (goal, safety_mode, working_dir)
+  → Planner.create_plan()     [OpenAI]  → list[PlanStep]
+  → Executor.run_plan()       [tools]   → AgentState (steps with results)
+  → Verifier.verify_plan()    [OpenAI]  → verification summary
+```
+
+Step model: `PlanStep` (core/state.py) — holds index, tool, args, status, result, verified.
+
+### Declarative task runner
+
+Used by `mq-agent task run`, and via `run_task` tool from YAML workflows and swarm agents:
+
+```text
+tasks/*.yaml
+  → load_task()        → Task (name, steps, version)
+  → run_task()         → list[StepResult]
+```
+
+Step model: `StepResult` (core/task_runner.py) — holds step name, tool, status, output string.
+
+`{{step:name}}` templates in YAML args are resolved from prior step output at runtime.
+
+### Specialist orchestration
+
+Used by `mq-agent swarm *`. Coordinates multiple agents through `AgentManifest` declarations:
+
+```text
+swarm config (YAML or built-in)
+  → SwarmRunner.run()
+      → dispatches each AgentManifest in order
+      → each agent calls task_runner or built-in agent class
+      → collects AgentResult per agent
+  → SwarmResult (passed, failed_agents, elapsed_s)
+```
+
+`SwarmRunner` is a separate runtime from the Executor loop. It does not use `AgentState`
+or `PlanStep`. It coordinates agents, not steps within a single plan.
+
+## Configuration
+
+Runtime configuration is loaded from `~/.mq-agent/config.json`:
+
+```json
+{
+  "safety_mode": "suggest",
+  "model": "gpt-4o",
+  "dry_run": false,
+  "working_dir": "."
+}
+```
+
+Priority order: CLI flags > `MQ_AGENT_MODEL` env var > config.json > built-in defaults.
+
+`MqAgentConfig` (mq_agent/config.py) owns load/save. `Planner` reads `effective_model()`
+from config at init time.
+
+MCP server endpoints are stored separately in `~/.mq-agent/config.json` under
+`mcp_servers` and managed by `mq_agent/core/config.py`.
+
+## Safety model
+
+Four modes, applied per step by `SafetyGate`:
+
+| Mode | Behavior |
+|---|---|
+| `read-only` | Only tools in `SAFE_TOOLS`; continues past failures |
+| `suggest` | All tools allowed; stops on failure; write ops shown, not run |
+| `execute` | All tools allowed; stops on failure; write ops run |
+| `dangerous` | No safety checks; continues past failures |
+
+Write-capable operations always require `--approve` at the CLI level. Dry-run is
+the default for task workflows.
 
 ## Boundaries
 
-### CLI
+### CLI (main.py)
 
-`mq_agent/main.py` owns command parsing, user-facing output, and Typer app
-composition. It lazily imports agents, core helpers, and tools inside command
-handlers so import-time side effects stay low.
+Owns command parsing, output formatting, and Typer app composition. Delegates all
+business logic to core, agents, or tools. Rendering helpers live in `cli/render.py`.
 
-Current coupling:
-
-- CLI commands know which agent or helper implements each workflow.
-- CLI rendering and command orchestration live in the same file.
-- Several commands expose `--json`; tests should lock those schemas before
-  refactors.
+Must not contain orchestration logic. Must not be imported by core modules.
 
 ### Planner
 
-`mq_agent/core/planner.py` turns an `AgentState` and available tool names into
-`PlanStep` objects through an OpenAI chat completion.
-
-Boundary:
-
-- Planner should only create plans.
-- Planner should not execute tools, enforce safety, or mutate files.
-
-Current coupling:
-
-- Planner depends on the prompt file path and OpenAI response shape.
-- Tool availability is passed as names, not structured capability metadata.
+Creates plans from goals. Must not execute tools, enforce safety, or mutate files.
 
 ### Executor
 
-`mq_agent/core/executor.py` runs `PlanStep` objects through a provided tool
-registry and a `SafetyGate`.
-
-Boundary:
-
-- Executor owns step status transitions during execution.
-- Executor should not create plans or verify semantic correctness.
-
-Current coupling:
-
-- Executor assumes tool args map directly to callable keyword arguments.
-- Dry-run output is string-based and used by tests/docs.
-
-### Verifier
-
-`mq_agent/core/verification.py` verifies step output through an OpenAI chat
-completion, with direct handling for failed, skipped, and pending steps.
-
-Boundary:
-
-- Verifier should only assess results.
-- Verifier should not rerun tools or mutate state beyond verification fields.
-
-Current coupling:
-
-- Verification is model-backed for successful steps.
-- Failure and skip handling are deterministic and should remain testable
-  without API calls.
+Runs `PlanStep` objects through the tool registry. Must not create plans or verify output.
 
 ### Task Runner
 
-`mq_agent/core/task_runner.py` loads YAML tasks, resolves `{{step:name}}`
-templates, and executes steps via `TOOL_REGISTRY`.
+Executes YAML task files via `TOOL_REGISTRY`. Must not duplicate Executor logic.
+Template resolution (`{{step:name}}`) is intentional string substitution — not dynamic evaluation.
 
-Boundary:
+### SwarmRunner
 
-- Task runner owns declarative YAML workflow execution.
-- CLI and tools should call the task runner instead of duplicating YAML logic.
-
-Current coupling:
-
-- `run_task()` imports `mq_agent.tools.TOOL_REGISTRY` at execution time.
-- Task lookup by filename stem or internal `name:` is implemented in the CLI.
-- Template resolution is intentionally simple string substitution.
+Coordinates specialist agents declared via `AgentManifest`. Is not a replacement
+for Executor. Must not grow new autonomous behavior.
 
 ### Tool Registry
 
-`mq_agent/tools/__init__.py` is the built-in tool registry.
+Single source of truth for callable tools. All tools must accept `**kwargs` only —
+no positional-only parameters. Safety classification is explicit in `core/safety.py`
+and `tools/mcp_registry.py`.
 
-Boundary:
+### Browser tools
 
-- Built-in tools should be registered once.
-- Safety classification should stay explicit in `core/safety.py` and
-  `tools/mcp_registry.py`.
-
-Current coupling:
-
-- `SafetyGate` has a separate `SAFE_TOOLS` list for read-only execution.
-- Tool registry names are used by Planner, Executor, Task Runner, docs, and
-  task YAML files.
-
-### Memory
-
-`mq_agent/memory/semantic.py` owns semantic memory diagnostics and upload calls.
-
-Boundary:
-
-- Memory commands should stay explicit and approval-gated.
-- Memory build/refresh should not upload silently.
-
-Current coupling:
-
-- Semantic memory shells out to `repo-signal`.
-- Environment variables define vector store state.
-
-### MCP Bridge
-
-`mq_agent/tools/mcp_bridge.py` routes calls to configured MCP servers and
-returns tool specs through `mcp_registry`.
-
-Boundary:
-
-- MCP bridge owns reachability, listing, description, and tool calls.
-- CLI owns user-facing safety gates for `run-tool`.
-
-Current coupling:
-
-- `MultiMCPBridge` reads configured servers at construction time.
-- A module-level default bridge exists for `mcp_call`.
-- Unknown tool names fall back to name-based classification.
-
-### TUI
-
-`mq_agent/tui/app.py` is a Textual dashboard that shells out to the installed
-`mq-agent` command.
-
-Boundary:
-
-- TUI is a command launcher and output viewer.
-- TUI should not reimplement CLI command logic.
-
-Current coupling:
-
-- TUI command list must stay synchronized with the CLI command surface.
-- TUI depends on `mq-agent` being available on `PATH`.
-
-## Current Coupling Risks
-
-- Command behavior is spread across CLI handlers, docs, task YAML, and tests.
-- Read-only safety for built-in tools is separate from tool registration.
-- Browser tools are registered in `TOOL_REGISTRY`, but browser safety is mostly
-  enforced inside browser tool helpers rather than in `SafetyGate`.
-- Task lookup logic lives in the CLI while task execution lives in
-  `core/task_runner.py`.
-- TUI command options can drift from `docs/COMMAND_SURFACE.md`.
-- Swarm workflows call agent classes directly and should not grow new behavior
-  until current contracts are locked.
-
-## Stabilization Test Targets
-
-Tests should lock:
-
-- CLI commands that do not require API keys.
-- Dry-run output for task workflows.
-- Tool registry names used by YAML tasks.
-- Swarm plan behavior without API calls.
-- TUI command list entries.
-- Safety mode decisions for built-in tools.
+Read-only by design. No credential handling, no form submission, no autonomous
+browser control. Registered in `TOOL_REGISTRY` — usable in task YAML workflows.
 
 ## Validation
 
-Primary validation:
-
 ```bash
-uv run pytest -v
+uv run pytest -v                          # 237 tests
+uv run ruff check mq_agent/
+uv run mypy mq_agent/ --ignore-missing-imports
 mq-agent doctor
 mq-agent task list
-mq-agent release-check --dry-run
+mq-agent swarm plan audit --json
+mq-agent task run repo-audit --dry-run
 ```
-
-Notes:
-
-- `mq-agent release-check --dry-run` currently uses the AI-backed release agent
-  and requires `OPENAI_API_KEY`.
-- `mq-agent doctor` reports optional integrations separately from required
-  checks.
