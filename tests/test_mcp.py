@@ -58,7 +58,7 @@ def test_classify_subprocess_open():
 
 def test_classify_unknown():
     assert classify_tool_name("frobnicate_things") == MCPSafetyClass.UNKNOWN
-    assert classify_tool_name("hal_repo_report") == MCPSafetyClass.UNKNOWN
+    assert classify_tool_name("review_diff") == MCPSafetyClass.UNKNOWN
     assert classify_tool_name("repo_signal_analyze") == MCPSafetyClass.UNKNOWN
 
 
@@ -124,6 +124,12 @@ def test_spec_from_dict_explicit_class_wins_over_name():
     spec = MCPToolSpec.from_dict({"name": "update_config", "safety_class": "read-only"})
     assert spec.safety_class == MCPSafetyClass.READ_ONLY
     assert spec.read_only is True
+
+def test_spec_from_dict_contract_class_maps_to_safety_label():
+    assert MCPToolSpec.from_dict({"name": "review_diff", "class": "A"}).read_only is True
+    assert MCPToolSpec.from_dict({"name": "repo_signal_analyze", "class": "B"}).read_only is True
+    assert MCPToolSpec.from_dict({"name": "update_repo_file", "class": "C"}).write_capable is True
+    assert MCPToolSpec.from_dict({"name": "open_in_app", "class": "D"}).subprocess is True
 
 
 # ── MCPToolSpec.to_dict ─────────────────────────────────────────────────────

@@ -38,6 +38,22 @@ _PREFIX_MAP: list[tuple[str, str]] = [
 ]
 
 
+def normalize_safety_class(value: object) -> str:
+    """Normalize mq-mcp safety metadata into mq-agent's safety labels."""
+    normalized = str(value or "").strip().lower()
+    return {
+        "a": MCPSafetyClass.READ_ONLY,
+        "b": MCPSafetyClass.READ_ONLY,
+        "c": MCPSafetyClass.WRITE_CAPABLE,
+        "d": MCPSafetyClass.SUBPROCESS,
+        MCPSafetyClass.READ_ONLY: MCPSafetyClass.READ_ONLY,
+        MCPSafetyClass.WRITE_CAPABLE: MCPSafetyClass.WRITE_CAPABLE,
+        MCPSafetyClass.SUBPROCESS: MCPSafetyClass.SUBPROCESS,
+        MCPSafetyClass.DANGEROUS: MCPSafetyClass.DANGEROUS,
+        MCPSafetyClass.UNKNOWN: MCPSafetyClass.UNKNOWN,
+    }.get(normalized, "")
+
+
 def classify_tool_name(name: str) -> str:
     """Return safety class inferred from tool name prefix."""
     lower = name.lower()
@@ -76,7 +92,11 @@ class MCPToolSpec:
     @classmethod
     def from_dict(cls, data: dict) -> MCPToolSpec:
         name = data.get("name", "")
-        safety = data.get("safety_class") or classify_tool_name(name)
+        safety = (
+            normalize_safety_class(data.get("safety_class"))
+            or normalize_safety_class(data.get("class"))
+            or classify_tool_name(name)
+        )
         return cls(
             name=name,
             description=data.get("description", ""),

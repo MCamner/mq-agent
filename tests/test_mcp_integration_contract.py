@@ -53,6 +53,15 @@ def test_server_safety_class_unknown_falls_back_to_name():
     assert spec.safety_class == MCPSafetyClass.READ_ONLY
 
 
+def test_server_contract_class_maps_to_safety_label():
+    """Older mq-mcp responses may expose contract class instead of safety_class."""
+    spec = MCPToolSpec.from_dict({"name": "review_diff", "class": "A"})
+    assert spec.safety_class == MCPSafetyClass.READ_ONLY
+
+    spec = MCPToolSpec.from_dict({"name": "open_in_app", "class": "D"})
+    assert spec.safety_class == MCPSafetyClass.SUBPROCESS
+
+
 # ── MCPBridge with mocked /tools that includes safety_class ────────────────
 
 def _make_mock_response(data: dict) -> MagicMock:
@@ -92,6 +101,48 @@ def test_bridge_list_tool_specs_falls_back_when_no_safety_class():
         specs = bridge.list_tool_specs()
 
     assert specs[0].safety_class == MCPSafetyClass.READ_ONLY
+
+
+def test_bridge_list_tool_specs_uses_tool_contracts_when_tools_omit_safety():
+    """If /tools omits safety_class, /tool-contracts supplies the authoritative class."""
+    from mq_agent.tools.mcp_bridge import MCPBridge
+
+    def fake_get(url: str, timeout: int = 5):
+        if url.endswith("/tools"):
+            return _make_mock_response({"tools": [{"name": "repo_signal_analyze"}]})
+        if url.endswith("/tool-contracts"):
+            return _make_mock_response({
+                "tools": [{"name": "repo_signal_analyze", "class": "B"}]
+            })
+        return _make_mock_response({})
+
+    with patch("httpx.get", side_effect=fake_get):
+        bridge = MCPBridge(endpoint="http://localhost:8765")
+        specs = bridge.list_tool_specs()
+
+    assert specs[0].safety_class == MCPSafetyClass.READ_ONLY
+
+
+def test_bridge_describe_tool_uses_tool_contracts_when_tool_not_listed():
+    """Dry-run can classify contracted tools even before the live server exposes them."""
+    from mq_agent.tools.mcp_bridge import MCPBridge
+
+    def fake_get(url: str, timeout: int = 5):
+        if url.endswith("/tools/review_diff"):
+            mock = _make_mock_response({"error": "Unknown tool"})
+            mock.status_code = 404
+            return mock
+        if url.endswith("/tool-contracts"):
+            return _make_mock_response({"tools": [{"name": "review_diff", "class": "A"}]})
+        if url.endswith("/tools"):
+            return _make_mock_response({"tools": []})
+        return _make_mock_response({})
+
+    with patch("httpx.get", side_effect=fake_get):
+        bridge = MCPBridge(endpoint="http://localhost:8765")
+        spec = bridge.describe_tool("review_diff")
+
+    assert spec.safety_class == MCPSafetyClass.READ_ONLY
 
 
 # ── /tool-contracts endpoint contract shape ────────────────────────────────
