@@ -428,11 +428,11 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Tag and release:
+Open release PR, then tag after merge:
 
 ```text
 v1.0.0 — stable orchestration platform
 ```
 
 All v1.0.0 requirements are complete. Tag `v1.0.0`, create GitHub release, and
-update GitHub Pages.
+update GitHub Pages from the merged protected `main` commit.

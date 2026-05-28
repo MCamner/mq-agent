@@ -15,6 +15,20 @@ pytest tests/ -v
 mq-agent doctor
 ```
 
+## Branch and PR flow
+
+`main` is protected. Do not plan work around pushing directly to `main`.
+
+```bash
+git switch -c feat/my-change
+pytest tests/ -v
+git push -u origin feat/my-change
+gh pr create --base main --head feat/my-change
+```
+
+Keep release-prep changes on a branch too. Tag releases only after the release
+PR has merged and CI is green on `main`.
+
 ## Running tests
 
 ```bash

@@ -81,6 +81,21 @@ mq-agent signal .
 mq-agent audit .
 ```
 
+## Development flow
+
+`main` is protected. Use a branch and pull request for all development and
+release-prep changes:
+
+```bash
+git switch -c chore/release-vX.Y.Z
+mq-agent release-check --dry-run
+git push -u origin chore/release-vX.Y.Z
+gh pr create --base main --head chore/release-vX.Y.Z
+```
+
+Merge the PR only after CI is green. Create release tags from the merged
+`main` commit.
+
 ## Install
 
 ### Local development

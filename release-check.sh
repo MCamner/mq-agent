@@ -83,6 +83,7 @@ fi
 echo ""
 if [[ "$ERRORS" -eq 0 ]]; then
   echo "=== All checks passed — ready to release v${VERSION} ==="
+  echo "Next: push a release-prep branch, open a PR, wait for CI, then tag from merged main."
 else
   echo "=== $ERRORS check(s) failed — fix before releasing ===" >&2
   exit 1

@@ -4,12 +4,15 @@ Use this before tagging a release.
 
 ## Pre-release
 
+- [ ] Create a release-prep branch: `git switch -c chore/release-vX.Y.Z`
 - [ ] All tests pass: `pytest tests/ -v`
 - [ ] Ruff clean: `ruff check mq_agent/`
 - [ ] Type check passes: `mypy mq_agent/ --ignore-missing-imports`
 - [ ] `mq-agent doctor` passes (OPENAI_API_KEY, git, uv, Python)
 - [ ] `mq-agent release-check --json` returns `"ready": true`
-- [ ] GitHub Actions CI is green on `main`
+- [ ] Push branch: `git push -u origin chore/release-vX.Y.Z`
+- [ ] Open PR: `gh pr create --base main --head chore/release-vX.Y.Z`
+- [ ] GitHub Actions CI is green on the PR
 
 ## Documentation
 
@@ -28,7 +31,9 @@ Use this before tagging a release.
 
 - [ ] Commit: `git commit -m "chore: release vX.Y.Z"`
 - [ ] Tag: `git tag -a vX.Y.Z -m "vX.Y.Z"`
-- [ ] Push: `git push origin main --tags`
+- [ ] Merge the release PR into protected `main`
+- [ ] Pull the merged `main`: `git switch main && git pull --ff-only`
+- [ ] Push tag from merged `main`: `git push origin vX.Y.Z`
 - [ ] GitHub Release created with CHANGELOG excerpt as body
 
 ## Post-release
