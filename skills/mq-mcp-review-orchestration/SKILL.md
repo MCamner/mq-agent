@@ -1,0 +1,44 @@
+---
+name: mq-mcp-review-orchestration
+description: Use when adding or changing mq-agent workflows that route review, risk, security, architecture, or repo-aware cognition work through mq-mcp.
+---
+
+# mq-mcp Review Orchestration
+
+Use this skill when mq-agent coordinates review workflows backed by mq-mcp.
+
+## Boundary
+
+mq-agent owns orchestration, session state, CLI/TUI presentation, dry-run planning, model-selection policy and execution pipelines.
+
+mq-agent must not implement its own review engine, semantic retrieval runtime, architecture reasoner, severity engine, or review-memory store.
+
+## Files To Inspect
+
+- `mq_agent/core/`
+- `mq_agent/tools/`
+- `mq_agent/cli/`
+- `tasks/`
+- `docs/ARCHITECTURE.md`
+- `docs/COMMAND_SURFACE.md`
+- `docs/ROADMAP.md`
+- `tests/test_orchestration_contract.py`
+- tests covering MCP bridge or task runner behavior
+
+## Workflow Rules
+
+- Route `review`, `risk`, `security` and `architecture` modes to mq-mcp review tools.
+- Preserve mq-mcp severity labels and finding text; do not reinterpret findings in mq-agent.
+- Keep dry-run support for review pipelines before execution.
+- Keep JSON output stable when review results are intended for downstream tools.
+- Show missing mq-mcp or failed tool calls as clear orchestration failures.
+
+## Verification
+
+```bash
+python -m pytest tests/test_orchestration_contract.py -q
+python -m pytest -q
+./release-check.sh
+```
+
+For integration changes, add a smoke test that proves mq-agent can call the expected mq-mcp review tool or can fail safely when mq-mcp is unavailable.

@@ -326,6 +326,32 @@ orchestration boundaries are enforced.
 
 ---
 
+## Post-v1.0 roadmap — mq-mcp review runtime integration
+
+Goal:
+
+Keep mq-agent focused on orchestration while routing repo-aware cognition, review
+logic and architecture analysis through mq-mcp.
+
+### Planned scope
+
+* Add a first-class `mq-agent review` flow that calls mq-mcp review tools
+* Route `risk`, `security` and `architecture` review modes to mq-mcp contracts
+* Display mq-mcp severity summaries without reinterpreting review findings
+* Surface mq-mcp architecture-memory context in review workflows when available
+* Add dry-run planning for review pipelines before tool execution
+* Add model-selection policy for fast, deep and architecture review modes
+* Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
+* Add smoke tests for `mq-agent -> mq-mcp review_file/review_diff/review_repo`
+
+### Non-goals
+
+* No duplicate review engine in mq-agent
+* No architecture reasoning implementation in mq-agent
+* No separate semantic retrieval runtime in mq-agent
+
+---
+
 ## Long-term ideas
 
 These are intentionally not scheduled yet.
