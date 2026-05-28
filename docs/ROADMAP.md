@@ -10,16 +10,11 @@ surface.
 
 ## Current status
 
-Latest stable release:
+Current project phase:
 
 ```text
-v0.9.0 — orchestration kernel consolidation
-```
-
-Current status:
-
-```text
-v1.0.0 requirements complete — ready to tag and release
+v1.0.0 — Stable orchestration platform (done)
+Next:    v1.1.0 — mq-mcp review runtime integration
 ```
 
 Completed foundation:
@@ -29,7 +24,7 @@ Completed foundation:
 * Safety modes
 * Tool registry
 * repo-signal integration (v0.7.0+ with version guard)
-* mq-mcp bridge
+* mq-mcp bridge (mq-mcp v1.3.0, 66 tools, safety classes A–D)
 * mqlaunch integration
 * Command surface documentation
 * Semantic repository memory
@@ -60,7 +55,9 @@ Completed foundation:
 | v0.7.0  | Browser-assisted verification workflows      | Done    |
 | v0.8.0  | Controlled specialist orchestration          | Done    |
 | v0.9.0  | Orchestration kernel consolidation           | Done    |
-| v1.0.0  | Stable orchestration platform                | Ready   |
+| v1.0.0  | Stable orchestration platform                | Done    |
+| v1.1.0  | mq-mcp review runtime integration            | Planned |
+| v1.2.0  | mq-mcp semantic memory + risk review routing | Planned |
 
 ---
 
@@ -326,6 +323,60 @@ orchestration boundaries are enforced.
 
 ---
 
+## Post-v1.0 roadmap
+
+### v1.1.0 — mq-mcp review runtime integration
+
+Goal: route repo-aware cognition through mq-mcp; mq-agent surfaces findings
+without re-implementing review logic.
+
+The formal boundary is defined in
+[mq-mcp/docs/ORCHESTRATION_CONTRACT.md](https://github.com/MCamner/mq-mcp/blob/main/docs/ORCHESTRATION_CONTRACT.md):
+
+- mq-agent may auto-invoke Class A/B tools without user confirmation
+- Class C (write) and Class D (subprocess) tools require explicit user approval
+- mq-agent must never reimplement review logic locally
+- mq-agent must not assume mq-mcp maintains session state between calls
+
+Items:
+
+- [ ] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
+  via MCPBridge; displays severity summary in terminal
+- [ ] Route `--risk`, `--security`, `--architecture` flags to mq-mcp review contracts
+  (v1.5.0 risk layer in mq-mcp)
+- [ ] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
+  without reinterpreting — pass through as-is
+- [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
+  `get_architecture_decision`) in review workflows when available
+- [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key)
+- [ ] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
+- [ ] `validate_orchestration_contract` invocable from mq-agent doctor checks
+
+Non-goals:
+
+- No duplicate review engine in mq-agent
+- No architecture reasoning implementation in mq-agent
+- No separate semantic retrieval runtime in mq-agent
+
+---
+
+### v1.2.0 — mq-mcp semantic memory + risk review routing
+
+Goal: surface mq-mcp semantic memory (v1.4.0) and risk analysis (v1.5.0) in
+mq-agent workflows.
+
+Items:
+
+- [ ] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge
+- [ ] `mq-agent memory store <key>` — calls `store_semantic_memory` (requires approval —
+  Class C write tool)
+- [ ] Risk review routing: `mq-agent review --risk` invokes `risk_review_file` /
+  `risk_review_diff` when available in mq-mcp ≥ v1.5.0
+- [ ] `mq-agent mcp status` extended: shows mq-mcp version, tool count, semantic
+  memory item count, and contract freshness from `validate_orchestration_contract`
+
+---
+
 ## Long-term ideas
 
 These are intentionally not scheduled yet.
@@ -402,11 +453,11 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Tag and release:
+Open release PR, then tag after merge:
 
 ```text
 v1.0.0 — stable orchestration platform
 ```
 
 All v1.0.0 requirements are complete. Tag `v1.0.0`, create GitHub release, and
-update GitHub Pages.
+update GitHub Pages from the merged protected `main` commit.

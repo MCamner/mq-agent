@@ -5,38 +5,42 @@ mq-agent is one part of a broader set of local, terminal-native tools built arou
 ## Components
 
 ```
-mqlaunch      Terminal command surface and menu launcher
-mq-agent      AI agent orchestrator (this repo)
-mq-hal        Local reasoning and assistant layer (Ollama)
-mq-mcp        Local tool bridge (MCP protocol)
-repo-signal   Repository quality intelligence
+mqlaunch          Terminal command surface and menu launcher (human entrypoint)
+mq-agent          AI agent orchestrator (this repo)
+mq-mcp            Central AI cognition runtime (review, architecture, semantic memory)
+repo-signal       Repository intelligence and preprocessing layer
+mq-hal            Runtime observability and operator status layer
+mq-image-analyze  Visual cognition layer (diagram, screenshot, infra topology)
+atlas-one         Prompt and interaction layer
 ```
 
-## How they fit together
+## Layered architecture
 
+```text
+macos-scripts / mqlaunch   — human terminal entrypoint
+        │
+        ▼
+    mq-agent                — orchestration: plans, routes, gates, verifies
+        │
+        ▼
+    mq-mcp (v1.3.0)         — central cognition runtime
+        │
+        ├── review engine         (review_file, review_diff, review_repo)
+        ├── architecture memory   (list/get/record_architecture_decision)
+        ├── repo context builder  (build_repo_context, callgraph)
+        ├── orchestration contract (validate_orchestration_contract)
+        ├── 66 tools across safety classes A–D
+        │
+        ├── repo-signal     — repo intelligence packs (future: callgraph, symbols)
+        ├── mq-hal          — runtime health and observability summaries
+        └── mq-image-analyze — visual architecture observations (future)
 ```
-mqlaunch
-  └── launches any mq tool from a terminal menu
 
-mq-agent
-  ├── Planner    — GPT-4o structured plan generation
-  ├── Executor   — tool routing through safety gate
-  ├── Verifier   — GPT-4o-mini result verification
-  ├── Memory     — session + persistent state
-  └── Safety     — four-mode safety gate
+The boundary between mq-agent and mq-mcp is defined in
+[mq-mcp/docs/ORCHESTRATION_CONTRACT.md](https://github.com/MCamner/mq-mcp/blob/main/docs/ORCHESTRATION_CONTRACT.md).
 
-mq-mcp
-  └── HTTP bridge to local tools
-      mq-agent calls mq-mcp for low-level operations
-
-repo-signal
-  └── repo quality analysis
-      mq-agent calls repo-signal for scoring and assessment
-
-mq-hal
-  └── local model via Ollama
-      future: mq-agent delegates reasoning to mq-hal
-```
+Key rule: **mq-agent orchestrates. mq-mcp executes and reviews.**
+mq-agent must not reimplement review logic, architecture reasoning, or semantic retrieval.
 
 ## Integration status
 
@@ -44,8 +48,9 @@ mq-hal
 |-------------|--------|-----|
 | `repo-signal` | Active | `mq-agent signal .` / `mq-agent score .` |
 | `mqlaunch` | Active | 12-item agent menu + 6 prompt commands |
-| `mq-mcp` | Active | HTTP bridge at `:8765`; safety classification offline |
-| `mq-hal` | Planned | `mq-agent brief --hal` |
+| `mq-mcp` | Active | HTTP bridge at `:8765`; 66 tools, safety classes A–D |
+| `mq-hal` | Active | `hal_repo_report` via mq-mcp bridge |
+| `mq-image-analyze` | Planned | visual architecture observations as review context |
 
 ## mqlaunch integration
 

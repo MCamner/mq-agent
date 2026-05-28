@@ -120,7 +120,7 @@ MCP server endpoints are stored separately in `~/.mq-agent/config.json` under
 Four modes, applied per step by `SafetyGate`:
 
 | Mode | Behavior |
-|---|---|
+| --- | --- |
 | `read-only` | Only tools in `SAFE_TOOLS`; continues past failures |
 | `suggest` | All tools allowed; stops on failure; write ops shown, not run |
 | `execute` | All tools allowed; stops on failure; write ops run |
@@ -166,6 +166,33 @@ and `tools/mcp_registry.py`.
 
 Read-only by design. No credential handling, no form submission, no autonomous
 browser control. Registered in `TOOL_REGISTRY` — usable in task YAML workflows.
+
+### mq-mcp runtime boundary
+
+`tools/mcp_bridge.py` (`MultiMCPBridge`) is an **adapter** — it routes calls to
+mq-mcp over HTTP. It does not own tool behavior, review logic, or architecture
+reasoning. Those belong to mq-mcp.
+
+mq-mcp is the central AI cognition runtime:
+
+```text
+mq-mcp owns:
+  - review engine (review_file, review_diff, review_repo)
+  - architecture memory (ADRs, boundaries, philosophy)
+  - repo context builder (callgraph, symbol index)
+  - orchestration contract validation
+  - semantic memory (v1.4.0)
+  - risk analysis (v1.5.0)
+
+mq-agent must not:
+  - reimplement review logic locally
+  - duplicate architecture reasoning
+  - maintain its own semantic retrieval runtime
+  - assume mq-mcp keeps session state between calls
+```
+
+`mcp/manager.py` owns mq-mcp process start/stop — it is infrastructure,
+not orchestration. The manager does not interpret tool output.
 
 ## Validation
 

@@ -1,22 +1,26 @@
 # Command Surface
 
-This file is the canonical command-count reference for `mq-agent` v0.8.0.
+This file is the canonical command-count reference for `mq-agent` v1.0.0.
 README, release notes, GitHub Pages and integration docs should link here
 instead of redefining command counts in prose.
 
 ## System Layers
 
 ```text
-mqlaunch -> mq-agent -> mq-hal / mq-mcp / repo-signal
+mqlaunch -> mq-agent -> mq-mcp / mq-hal / repo-signal
 ```
 
 | Layer | Role |
 |---|---|
-| `mqlaunch` | Command surface and terminal entrypoint |
-| `mq-agent` | Planning, safety gates, tool routing and verification |
-| `repo-signal` | Repository quality and publish-readiness checks |
-| `mq-mcp` | Local MCP tool layer |
-| `mq-hal` | Reasoning, status and summaries |
+| `mqlaunch` | Human terminal entrypoint — menus and shortcuts only |
+| `mq-agent` | Orchestration: planning, safety gates, tool routing, verification |
+| `mq-mcp` | Execution runtime: review engine, architecture memory, 66 MCP tools |
+| `repo-signal` | Repository intelligence: quality, publish-readiness, symbol exports |
+| `mq-hal` | Observability: runtime health, model health, status summaries |
+
+`mq-agent mcp *` commands must respect mq-mcp safety classes (A/B/C/D) and
+profiles. Class C/D tools always require explicit `--approve`. mq-agent must
+not reimplement mq-mcp review logic or architecture reasoning locally.
 
 ## mq-agent Commands
 

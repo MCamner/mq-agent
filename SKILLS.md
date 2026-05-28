@@ -59,6 +59,17 @@ skills/visual-analysis/SKILL.md
 
 Command: `mq-image analyze`, `mq-image analyze-ui`, `mq-image compare`
 
+### mq-mcp-review-orchestration
+
+Route review, risk, security and architecture workflows through mq-mcp without
+duplicating cognition logic in mq-agent.
+
+```text
+skills/mq-mcp-review-orchestration/SKILL.md
+```
+
+Command: future `mq-agent review` / task-runner backed review workflows
+
 ## Safety modes
 
 All skills respect the safety gate:
@@ -77,6 +88,7 @@ mq-agent audit .              # repo-audit
 mq-agent signal .             # signal-assessment
 mq-agent release-check        # release-readiness
 mq-agent fix-ci               # ci-diagnosis
+# future: mq-agent review .   # mq-mcp-review-orchestration
 ```
 
 All commands support `--dry-run` and `--json`.

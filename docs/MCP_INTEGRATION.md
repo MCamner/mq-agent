@@ -78,18 +78,39 @@ Start mq-mcp with:
 
 `mq-agent tools --describe <name>` still works when mq-mcp is down — it infers the safety class from the tool name.
 
+## Orchestration contract
+
+The formal boundary between mq-agent and mq-mcp is defined in
+[mq-mcp/docs/ORCHESTRATION_CONTRACT.md](https://github.com/MCamner/mq-mcp/blob/main/docs/ORCHESTRATION_CONTRACT.md).
+
+Key rules for mq-agent:
+
+- Class A/B tools may be auto-invoked without user confirmation
+- Class C (write files) and Class D (subprocess/open apps) require explicit user approval
+- mq-agent must never reimplement review logic, architecture reasoning, or semantic retrieval
+- mq-agent must not assume mq-mcp maintains session state between calls
+- mq-agent must not construct filesystem paths outside of tool arguments
+- Tool chains that together produce a git commit or push are prohibited
+
+Verify contract compliance at any time:
+
+```bash
+mq-agent run-tool validate_orchestration_contract
+```
+
 ## Safety classes
 
 mq-mcp serves real safety classes via `/tools` and `/tool-contracts`.
 mq-agent uses them to enforce its safety gate — no guessing from name
 prefixes when the server is up.
 
-| Class | Examples              | Gate behaviour             |
-|-------|-----------------------|----------------------------|
-| A/B   | `read_repo_file`      | No flags required          |
-| C     | `edit_image`          | Requires `--approve`       |
-| D     | `open_in_app`         | Requires `--approve`       |
-| —     | `remove_*`            | Requires `--dangerous`     |
+| Class | Examples                          | Gate behaviour         |
+|-------|-----------------------------------|------------------------|
+| A     | `read_repo_file`, `git_status`    | No flags required      |
+| B     | `repo_signal_analyze`, `get_wifi_info` | No flags required |
+| C     | `update_repo_file`, `edit_image`  | Requires `--approve`   |
+| D     | `open_in_app`, `run_tests`        | Requires `--approve`   |
+| —     | `remove_*`                        | Requires `--dangerous` |
 
 ## Tool contracts endpoint
 
@@ -106,7 +127,7 @@ curl http://localhost:8765/tool-contracts | jq '.tools[] | select(.class == "C")
 # 1. Start mq-mcp
 uv --directory ~/mq-mcp/mq-mcp run python server.py &
 
-# 2. Verify it is up and serving all 50 tools
+# 2. Verify it is up and serving all 66 tools
 mq-agent mcp status --json | jq '.servers["mq-mcp"]'
 
 # 3. Inspect a tool's safety class

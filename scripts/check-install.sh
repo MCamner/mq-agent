@@ -4,19 +4,28 @@ set -euo pipefail
 
 echo "=== mq-agent install smoke test ==="
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/lib/mq-agent-bin.sh"
+
+if ! MQ_AGENT_BIN="$(resolve_mq_agent_bin "$ROOT")"; then
+  echo "FAIL: mq-agent not found"
+  echo "Install it or run: uv pip install -e '.[dev,signal]'"
+  exit 1
+fi
+
 echo "--- help ---"
-mq-agent --help > /dev/null
+"$MQ_AGENT_BIN" --help > /dev/null
 
 echo "--- doctor ---"
-mq-agent doctor || true   # passes even without OPENAI_API_KEY
+"$MQ_AGENT_BIN" doctor || true   # passes even without OPENAI_API_KEY
 
 echo "--- tools ---"
-mq-agent tools > /dev/null
+"$MQ_AGENT_BIN" tools > /dev/null
 
 echo "--- score ---"
-mq-agent score . > /dev/null
+"$MQ_AGENT_BIN" score . > /dev/null
 
 echo "--- repo-summary ---"
-mq-agent repo-summary . > /dev/null
+"$MQ_AGENT_BIN" repo-summary . > /dev/null
 
 echo "=== smoke test passed ==="

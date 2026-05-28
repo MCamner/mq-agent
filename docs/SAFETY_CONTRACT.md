@@ -10,7 +10,8 @@ These operations are allowed in all modes without approval:
 - Run `git status`, `git log`, `git diff`, `git branch`, `git remote`
 - Run `repo-signal` analysis tools
 - Run `repo_summary`, `list_files`, `find_files`
-- Call `mq-mcp` for tool routing (if available)
+- Call mq-mcp **Class A or B** tools without confirmation (read-only, no writes,
+  no subprocess — e.g. `read_repo_file`, `git_status`, `repo_signal_analyze`)
 
 ## What requires approval
 
@@ -20,6 +21,10 @@ These operations require either `--approve` or `execute` mode:
 - Writing files
 - Running `git commit`, `git push`, `git tag`
 - Any command that modifies state
+- Calling mq-mcp **Class C** tools (write files — e.g. `update_repo_file`,
+  `record_architecture_decision`, `extract_coding_conventions`)
+- Calling mq-mcp **Class D** tools (subprocess/open apps — e.g. `run_tests`,
+  `open_in_app`, `validate_project`) — must also show command intent to user
 
 ## What is always blocked
 
@@ -84,6 +89,28 @@ mq-agent run "pytest" --approve
 # Blocked at any mode
 mq-agent run "rm -rf ."           # blocked pattern
 mq-agent run "sudo apt install"   # blocked pattern
+```
+
+## mq-mcp tool class gate
+
+mq-mcp exposes 66 tools across four safety classes. mq-agent maps these to its
+own safety gates as follows:
+
+| mq-mcp class | Allowed without approval | Requires `--approve` |
+|---|---|---|
+| A — read-only repo | Yes | No |
+| B — read-only external | Yes | No |
+| C — write files | No | Yes |
+| D — subprocess / open apps | No | Yes + show intent |
+| Unknown | No | Blocked unless `--dangerous` |
+
+mq-agent must never bypass this mapping. The formal contract is defined in
+[mq-mcp/docs/ORCHESTRATION_CONTRACT.md](https://github.com/MCamner/mq-mcp/blob/main/docs/ORCHESTRATION_CONTRACT.md).
+
+Verify the current contract is satisfied:
+
+```bash
+mq-agent run-tool validate_orchestration_contract
 ```
 
 ## Audit trail
