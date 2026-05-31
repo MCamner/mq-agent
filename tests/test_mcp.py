@@ -382,3 +382,58 @@ def test_cli_mcp_status_json_process_running():
     data = json.loads(result.output)
     assert data["mq_mcp_process"]["running"] is True
     assert data["mq_mcp_process"]["pid"] == 42000
+
+
+def test_mcp_status_enrichment_shown_when_available():
+    """mcp status renders semantic memory count and contract status when present."""
+    from typer.testing import CliRunner
+
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    enriched_statuses = {
+        "mq-mcp": {
+            "available": True,
+            "endpoint": "http://localhost:8765",
+            "tools": 3,
+            "specs": [],
+            "semantic_memory_count": 7,
+            "contract": {"ok": True, "version": "1.4.0"},
+        }
+    }
+    runner = CliRunner()
+    with patch.object(manager, "is_running", return_value=False):
+        with patch.object(manager, "read_pid", return_value=None):
+            with patch.object(MultiMCPBridge, "get_server_statuses", return_value=enriched_statuses):
+                result = runner.invoke(app, ["mcp", "status"])
+
+    assert result.exit_code == 0
+    assert "7 item" in result.output
+    assert "valid" in result.output
+
+
+def test_get_server_statuses_enriches_when_tools_available():
+    """get_server_statuses adds contract and semantic_memory_count when tools present."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    fake_tools = ["validate_orchestration_contract", "list_semantic_memory"]
+    fake_contract = {"ok": True}
+    fake_memory = [{"key": "k1"}, {"key": "k2"}]
+
+    with patch.object(bridge, "bridges") as mock_bridges:
+        fake_bridge = MagicMock()
+        fake_bridge.is_available.return_value = True
+        fake_bridge.list_tool_specs.return_value = []
+        fake_bridge.list_tools.return_value = fake_tools
+        fake_bridge.call_tool.side_effect = lambda name, _: (
+            fake_contract if name == "validate_orchestration_contract" else fake_memory
+        )
+        fake_bridge.endpoint = "http://localhost:8765"
+        mock_bridges.items.return_value = [("mq-mcp", fake_bridge)]
+
+        statuses = bridge.get_server_statuses()
+
+    assert statuses["mq-mcp"]["contract"] == {"ok": True}
+    assert statuses["mq-mcp"]["semantic_memory_count"] == 2

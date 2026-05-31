@@ -71,12 +71,16 @@ local review heuristics.
 | `mq-agent memory build .` | no | Dry-run preview of semantic upload (safe default) |
 | `mq-agent memory build . --no-dry-run` | yes | Upload semantic memory |
 | `mq-agent memory refresh . --approve` | yes | Upload with explicit approval gate |
+| `mq-agent memory search <query>` | yes | Search mq-mcp semantic memory (requires mq-mcp v1.4.0+) |
+| `mq-agent memory search <query> --json` | yes | Raw mq-mcp JSON result |
+| `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
+| `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 
 ## MCP Commands
 
 | Command | Needs mq-mcp | Notes |
 |---|---:|---|
-| `mq-agent mcp status` | no | Reachability and tool counts by safety class |
+| `mq-agent mcp status` | no | Reachability, tool counts, contract freshness, semantic memory count |
 | `mq-agent mcp tools` | no | List MCP tools with safety classes |
 | `mq-agent run-tool <name>` | yes | Execute a local MCP tool through safety gates |
 | `mq-agent run-tool <name> --dry-run` | no | Preview without contacting mq-mcp |

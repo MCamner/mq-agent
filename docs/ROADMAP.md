@@ -56,8 +56,8 @@ Completed foundation:
 | v0.8.0  | Controlled specialist orchestration          | Done    |
 | v0.9.0  | Orchestration kernel consolidation           | Done    |
 | v1.0.0  | Stable orchestration platform                | Done    |
-| v1.1.0  | mq-mcp review runtime integration            | In Progress |
-| v1.2.0  | mq-mcp semantic memory + risk review routing | Planned |
+| v1.1.0  | mq-mcp review runtime integration            | Done    |
+| v1.2.0  | mq-mcp semantic memory + risk review routing | In Progress |
 
 ---
 
@@ -435,13 +435,14 @@ mq-agent workflows.
 
 Items:
 
-* [ ] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge
-* [ ] `mq-agent memory store <key>` — calls `store_semantic_memory` (requires approval —
-  Class C write tool)
-* [ ] Risk review routing: `mq-agent review --risk` invokes `risk_review_file` /
-  `risk_review_diff` when available in mq-mcp ≥ v1.5.0
-* [ ] `mq-agent mcp status` extended: shows mq-mcp version, tool count, semantic
-  memory item count, and contract freshness from `validate_orchestration_contract`
+* [x] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge;
+  renders key/excerpt table; degrades gracefully when mq-mcp v1.4.0 tool is absent
+* [x] `mq-agent memory store <key> <value> --approve` — calls `store_semantic_memory`
+  (Class C write tool); requires `--approve`; `--dry-run` supported
+* [x] Risk review routing: `mq-agent review --risk` invokes `risk_review_file` /
+  `risk_review_diff` when available in mq-mcp ≥ v1.5.0 — already implemented in bridge
+* [x] `mq-agent mcp status` extended: shows semantic memory item count and contract
+  freshness from `validate_orchestration_contract` when tools are available
 
 Possible future: learned review patterns
 

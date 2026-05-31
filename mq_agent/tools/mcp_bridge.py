@@ -247,18 +247,37 @@ class MultiMCPBridge:
             return selected
         return self._call_required_tool(selected, {"path": path, **flags})
 
+    def search_semantic_memory(self, query: str) -> Any:
+        """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""
+        return self._call_required_tool("search_semantic_memory", {"query": query})
+
+    def store_semantic_memory(self, key: str, value: str) -> Any:
+        """Store an item in mq-mcp semantic memory. Class C write tool — requires approval."""
+        return self._call_required_tool("store_semantic_memory", {"key": key, "value": value})
+
     def get_server_statuses(self) -> dict[str, dict[str, Any]]:
-        """Get reachability and tool counts for all servers."""
+        """Get reachability, tool counts, and optional enrichment for all servers."""
         status = {}
         for name, bridge in self.bridges.items():
             available = bridge.is_available()
             specs = bridge.list_tool_specs(source=name) if available else []
-            status[name] = {
+            entry: dict[str, Any] = {
                 "available": available,
                 "endpoint": bridge.endpoint,
                 "tools": len(specs),
                 "specs": specs,
             }
+            if available:
+                tools = bridge.list_tools()
+                if "validate_orchestration_contract" in tools:
+                    entry["contract"] = bridge.call_tool("validate_orchestration_contract", {})
+                if "list_semantic_memory" in tools:
+                    mem = bridge.call_tool("list_semantic_memory", {})
+                    if isinstance(mem, list):
+                        entry["semantic_memory_count"] = len(mem)
+                    elif isinstance(mem, dict) and "items" in mem:
+                        entry["semantic_memory_count"] = len(mem["items"])
+            status[name] = entry
         return status
 
 
