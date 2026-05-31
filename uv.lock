@@ -448,7 +448,7 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
-    { name = "repo-signal", marker = "extra == 'signal'", specifier = ">=0.2.0" },
+    { name = "repo-signal", marker = "extra == 'signal'", specifier = ">=0.7.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
     { name = "textual", specifier = ">=0.50.0" },
@@ -804,11 +804,11 @@ wheels = [
 
 [[package]]
 name = "repo-signal"
-version = "0.2.0"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/3c/29/a83e0c42b54b64d4090dd2ccbba5f4c374bfa42c922bba2a7d09f1554172/repo_signal-0.2.0.tar.gz", hash = "sha256:6bb9567a2bed0b92016d4ed1deb01ea646ed4831dfbb3e14a26ce9f85cacb10b", size = 63337, upload-time = "2026-05-22T15:42:03.477Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/0c/1d09c01c558649ae30c8bdc091bf8fd9940544f2c2c6405972609d797706/repo_signal-1.0.0.tar.gz", hash = "sha256:852ff51aa7e6a211e654df9b0068e25e0d8d964fd3df7b300fbed781b13cc373", size = 75339, upload-time = "2026-05-26T18:08:40.826Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/17/cb2f27c27b66f4369a58b8773c17c2685383f7a1eb960eb3398e554cfd3e/repo_signal-0.2.0-py3-none-any.whl", hash = "sha256:cfcee3c222f4a2bc4123d497ec7239182cb2fb3b800e195dc5becccff8dc5847", size = 67045, upload-time = "2026-05-22T15:42:01.988Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/fd/2b1cbe9a272a2ab431c03dcc8e776a2ab88fdb403b858b947e8cebdfffa6/repo_signal-1.0.0-py3-none-any.whl", hash = "sha256:cb45515b2110a534dfec286cd118b1daade18896c864d158c89b58c7a2c77a37", size = 75315, upload-time = "2026-05-26T18:08:39.718Z" },
 ]
 
 [[package]]

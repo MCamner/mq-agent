@@ -350,6 +350,8 @@ Items:
 - [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
   `get_architecture_decision`) in review workflows when available
 - [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key)
+- [ ] Dry-run planning for review pipelines before tool execution
+- [ ] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
 - [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
 - [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
 
