@@ -57,7 +57,8 @@ Completed foundation:
 | v0.9.0  | Orchestration kernel consolidation           | Done    |
 | v1.0.0  | Stable orchestration platform                | Done    |
 | v1.1.0  | mq-mcp review runtime integration            | Done    |
-| v1.2.0  | mq-mcp semantic memory + risk review routing | In Progress |
+| v1.2.0  | mq-mcp semantic memory + risk review routing | Done    |
+| v1.3.0  | Architecture memory, model-selection, learn  | In Progress |
 
 ---
 
@@ -351,9 +352,10 @@ Items:
 * [x] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
 * [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
 * [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
-* [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
-  `get_architecture_decision`) in review workflows — deferred to v1.2.0 (requires mq-mcp v1.4.0)
-* [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key) — deferred to v1.2.0
+* [x] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
+  `get_architecture_decision`) — shown automatically after review findings when available
+* [x] Model-selection policy: `--fast` flag on review commands passes `fast=True` to
+  mq-mcp; mq-mcp routes to Class A tools internally
 
 Implementation plan:
 
@@ -444,18 +446,31 @@ Items:
 * [x] `mq-agent mcp status` extended: shows semantic memory item count and contract
   freshness from `validate_orchestration_contract` when tools are available
 
-Possible future: learned review patterns
+Learned review patterns (implemented in v1.3.0):
 
-mq-agent may expose read-only commands for learned review patterns stored in mq-mcp:
-
-* `mq-agent learn status`
-* `mq-agent learn search <query>`
-* `mq-agent learn explain <pattern>`
+* [x] `mq-agent learn status` — check mq-mcp learn system availability
+* [x] `mq-agent learn search <query>` — search learned review patterns
+* [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation
 
 Non-goal:
 
 mq-agent must not train, infer, mutate or store learning data directly. All
 learning and memory behavior belongs in mq-mcp.
+
+---
+
+### v1.3.0 — Architecture memory, model-selection, learn commands
+
+* [x] Architecture-memory context in review — `list_architecture_decisions` surfaced
+  automatically after review findings when tool is available
+* [x] `get_architecture_decision` bridge method for fetching individual decisions
+* [x] `--fast` flag on `review file/diff/repo` — passes `fast=True` to mq-mcp for
+  Class A tool routing
+* [x] `mq-agent learn status` — check mq-mcp learn system
+* [x] `mq-agent learn search <query>` — search learned patterns (read-only)
+* [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation (read-only)
+* [x] `MultiMCPBridge._call_optional_tool()` — silent None when tool not available
+* [x] 24 new tests (292 total)
 
 ---
 

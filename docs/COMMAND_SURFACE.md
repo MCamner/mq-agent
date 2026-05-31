@@ -58,7 +58,11 @@ local review heuristics.
 | `mq-agent review * --security` | yes | Passes `security=true` to mq-mcp |
 | `mq-agent review * --architecture` | yes | Passes `architecture=true` to mq-mcp |
 | `mq-agent review * --risk` | yes | Requires installed mq-mcp `risk_review_*` tools |
+| `mq-agent review * --fast` | yes | Prefer Class A tools; mq-mcp handles routing |
 | `mq-agent review * --dry-run` | no | Show what would be called, no execution |
+| `mq-agent learn status` | yes | Check mq-mcp learn system availability |
+| `mq-agent learn search <query>` | yes | Search mq-mcp learned review patterns |
+| `mq-agent learn explain <pattern-id>` | yes | Fetch pattern explanation from mq-mcp |
 
 ## Memory Commands
 

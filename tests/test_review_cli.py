@@ -38,6 +38,9 @@ class FakeReviewBridge:
         self.calls.append(("review_repo", path, flags))
         return {"ok": True, "findings": []}
 
+    def list_architecture_decisions(self):
+        return None
+
 
 def test_review_file_json_invokes_mcp_bridge_with_flags():
     bridge = FakeReviewBridge()
@@ -53,7 +56,7 @@ def test_review_file_json_invokes_mcp_bridge_with_flags():
 
     assert result.exit_code == 0
     assert bridge.calls == [
-        ("review_file", "README.md", {"security": True, "architecture": True, "risk": False})
+        ("review_file", "README.md", {"security": True, "architecture": True, "risk": False, "fast": False})
     ]
     data = json.loads(result.output)
     assert data["findings"][0]["severity"] == "RISK"
@@ -75,7 +78,7 @@ def test_review_repo_json_invokes_mcp_bridge():
 
     assert result.exit_code == 0
     assert bridge.calls == [
-        ("review_repo", ".", {"security": False, "architecture": False, "risk": False})
+        ("review_repo", ".", {"security": False, "architecture": False, "risk": False, "fast": False})
     ]
 
 

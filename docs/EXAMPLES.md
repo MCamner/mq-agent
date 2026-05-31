@@ -168,6 +168,41 @@ mq-agent review diff --dry-run --security
 mq-agent review repo . --dry-run --architecture --risk
 ```
 
+Prefer fast Class A tools (mq-mcp routes internally):
+
+```bash
+mq-agent review file mq_agent/main.py --fast
+mq-agent review diff --fast --security
+```
+
+Architecture context is shown automatically after review findings when
+`list_architecture_decisions` is available in mq-mcp.
+
+---
+
+## Learned review patterns
+
+Check learn system availability:
+
+```bash
+mq-agent learn status
+mq-agent learn status --json
+```
+
+Search learned patterns:
+
+```bash
+mq-agent learn search "state mutation"
+mq-agent learn search "guard clauses" --json
+```
+
+Fetch a pattern explanation:
+
+```bash
+mq-agent learn explain p-42
+mq-agent learn explain p-42 --json
+```
+
 mq-agent does not implement severity scoring, architecture reasoning, risk
 classification, semantic retrieval, review heuristics or drift detection.
 
