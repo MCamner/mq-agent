@@ -41,6 +41,8 @@ The boundary between mq-agent and mq-mcp is defined in
 
 Key rule: **mq-agent orchestrates. mq-mcp executes and reviews.**
 mq-agent must not reimplement review logic, architecture reasoning, or semantic retrieval.
+Learn extraction follows the same boundary: mq-mcp owns extraction, validation
+and storage approval; mq-agent only exposes read-only learn status/search/explain.
 
 ## Integration status
 

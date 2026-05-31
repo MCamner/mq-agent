@@ -85,6 +85,21 @@ mq-agent review diff --risk
 If the required mq-mcp review tool is missing, mq-agent exits with a clear
 error and suggests upgrading or starting mq-mcp.
 
+## Learn through mq-mcp
+
+mq-agent learn commands are also pass-through and read-only:
+
+```bash
+mq-agent learn status
+mq-agent learn search "state mutation"
+mq-agent learn explain p-42
+```
+
+mq-mcp owns learned-pattern storage, extraction contracts, validation and any
+optional local model provider such as Ollama. mq-agent must not create learning
+records, store them silently, or treat model output as authoritative risk
+scoring. See [LEARN_OLLAMA.md](LEARN_OLLAMA.md) for the Ollama learn boundary.
+
 ## JSON output
 
 All MCP commands support `--json`:

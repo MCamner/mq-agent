@@ -469,6 +469,7 @@ learning and memory behavior belongs in mq-mcp.
 * [x] `mq-agent learn status` — check mq-mcp learn system
 * [x] `mq-agent learn search <query>` — search learned patterns (read-only)
 * [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation (read-only)
+* [x] Optional Ollama-backed learn extraction documented as an mq-mcp-owned policy
 * [x] `MultiMCPBridge._call_optional_tool()` — silent None when tool not available
 * [x] 24 new tests (292 total)
 
@@ -479,7 +480,7 @@ learning and memory behavior belongs in mq-mcp.
 These are intentionally not scheduled yet.
 
 * Local model fallback
-* Ollama integration
+* Ollama learn provider in mq-mcp
 * Visual TUI dashboard
 * Repository health history
 * Agent-generated release notes

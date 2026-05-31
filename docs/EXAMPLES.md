@@ -205,6 +205,9 @@ mq-agent learn explain p-42 --json
 
 mq-agent does not implement severity scoring, architecture reasoning, risk
 classification, semantic retrieval, review heuristics or drift detection.
+It also does not extract or store learned patterns locally. Optional Ollama-backed
+learn extraction belongs in mq-mcp; mq-agent only surfaces read-only learn
+status, search and explain results.
 
 ---
 
