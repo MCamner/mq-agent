@@ -40,6 +40,25 @@ def run_checks() -> list[tuple[str, bool, str]]:
         mcp_ok = False
     checks.append(("mq-mcp (optional)", mcp_ok, "Start mq-mcp on :8765"))
 
+    contract_ok = False
+    if mcp_ok:
+        try:
+            tools_response = httpx.get("http://localhost:8765/tools", timeout=2)
+            data = tools_response.json()
+            tools = data.get("tools", [])
+            tool_names = {
+                item.get("name") if isinstance(item, dict) else str(item)
+                for item in tools
+            }
+            contract_ok = "validate_orchestration_contract" in tool_names
+        except Exception:
+            contract_ok = False
+    checks.append((
+        "validate_orchestration_contract",
+        contract_ok,
+        "Upgrade/start mq-mcp with validate_orchestration_contract",
+    ))
+
     return checks
 
 

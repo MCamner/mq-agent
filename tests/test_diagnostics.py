@@ -1,14 +1,12 @@
 """Tests for mq_agent.core.diagnostics."""
 from __future__ import annotations
 
-from unittest.mock import patch
-
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
 
 
-def test_run_checks_returns_six_items():
+def test_run_checks_returns_seven_items():
     checks = run_checks()
-    assert len(checks) == 6
+    assert len(checks) == 7
 
 
 def test_run_checks_first_four_are_required():
@@ -26,6 +24,12 @@ def test_run_checks_sixth_is_optional_mcp():
     assert "optional" in name.lower() or "mcp" in name.lower()
 
 
+def test_run_checks_includes_orchestration_contract_check():
+    checks = run_checks()
+    names = [name for name, _, _ in checks]
+    assert "validate_orchestration_contract" in names
+
+
 def test_required_checks_pass_true_when_first_four_ok():
     checks = [
         ("OPENAI_API_KEY", True, ""),
@@ -34,6 +38,7 @@ def test_required_checks_pass_true_when_first_four_ok():
         ("Python ≥ 3.11", True, ""),
         ("repo-signal", False, "install"),
         ("mq-mcp (optional)", False, "start"),
+        ("validate_orchestration_contract", False, "upgrade"),
     ]
     assert required_checks_pass(checks) is True
 

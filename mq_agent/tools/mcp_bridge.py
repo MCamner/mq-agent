@@ -153,6 +153,17 @@ class MCPBridge:
         except Exception as exc:
             return f"MCP bridge error: {exc}"
 
+    # ── review orchestration helpers ───────────────────────────────────────
+
+    def review_file(self, path: str, flags: dict[str, Any]) -> Any:
+        return self.call_tool("review_file", {"path": path, **flags})
+
+    def review_diff(self, flags: dict[str, Any]) -> Any:
+        return self.call_tool("review_diff", flags)
+
+    def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
+        return self.call_tool("review_repo", {"path": path, **flags})
+
 
 class MultiMCPBridge:
     """Aggregates multiple MCP server bridges."""
@@ -191,6 +202,50 @@ class MultiMCPBridge:
             if tool_name in bridge.list_tools():
                 return bridge.call_tool(tool_name, args)
         return f"Tool '{tool_name}' not found on any connected MCP server."
+
+    def _call_required_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
+        """Call a named MCP tool, returning a clear error when it is missing."""
+        for name, bridge in self.bridges.items():
+            tools = bridge.list_tools()
+            if tool_name in tools:
+                return bridge.call_tool(tool_name, args)
+        return {
+            "ok": False,
+            "error": f"mq-mcp tool '{tool_name}' is not available.",
+            "tool": tool_name,
+            "hint": "Start or upgrade mq-mcp, then run mq-agent mcp tools.",
+        }
+
+    def _select_review_tool(self, base_tool: str, risk_tool: str, risk: bool) -> str | dict[str, Any]:
+        if not risk:
+            return base_tool
+        for bridge in self.bridges.values():
+            if risk_tool in bridge.list_tools():
+                return risk_tool
+        return {
+            "ok": False,
+            "error": f"--risk requires mq-mcp tool '{risk_tool}', but it is not available.",
+            "tool": risk_tool,
+            "hint": "Upgrade mq-mcp to a version that exposes risk review tools.",
+        }
+
+    def review_file(self, path: str, flags: dict[str, Any]) -> Any:
+        selected = self._select_review_tool("review_file", "risk_review_file", bool(flags.get("risk")))
+        if isinstance(selected, dict):
+            return selected
+        return self._call_required_tool(selected, {"path": path, **flags})
+
+    def review_diff(self, flags: dict[str, Any]) -> Any:
+        selected = self._select_review_tool("review_diff", "risk_review_diff", bool(flags.get("risk")))
+        if isinstance(selected, dict):
+            return selected
+        return self._call_required_tool(selected, flags)
+
+    def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
+        selected = self._select_review_tool("review_repo", "risk_review_repo", bool(flags.get("risk")))
+        if isinstance(selected, dict):
+            return selected
+        return self._call_required_tool(selected, {"path": path, **flags})
 
     def get_server_statuses(self) -> dict[str, dict[str, Any]]:
         """Get reachability and tool counts for all servers."""

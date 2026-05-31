@@ -55,6 +55,36 @@ mq-agent run-tool remove_device --arg Id=42 --dangerous
 mq-agent run-tool git_status --dry-run
 ```
 
+## Review through mq-mcp
+
+mq-agent review commands are pass-through orchestration. mq-agent does not
+score severity, classify risk, reason about architecture, retrieve semantic
+memory, or implement review heuristics locally.
+
+```bash
+mq-agent review file README.md
+mq-agent review diff
+mq-agent review repo .
+```
+
+Mode flags are forwarded to mq-mcp:
+
+```bash
+mq-agent review file mq_agent/main.py --security
+mq-agent review repo . --architecture
+mq-agent review diff --json
+```
+
+`--risk` is only available when the installed mq-mcp exposes the matching
+`risk_review_*` tool:
+
+```bash
+mq-agent review diff --risk
+```
+
+If the required mq-mcp review tool is missing, mq-agent exits with a clear
+error and suggests upgrading or starting mq-mcp.
+
 ## JSON output
 
 All MCP commands support `--json`:
@@ -63,6 +93,7 @@ All MCP commands support `--json`:
 mq-agent mcp status --json
 mq-agent mcp tools --json
 mq-agent run-tool git_status --json
+mq-agent review file README.md --json
 ```
 
 ## When mq-mcp is unavailable
@@ -96,6 +127,7 @@ Verify contract compliance at any time:
 
 ```bash
 mq-agent run-tool validate_orchestration_contract
+mq-agent doctor
 ```
 
 ## Safety classes

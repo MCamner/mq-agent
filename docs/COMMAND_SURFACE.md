@@ -43,6 +43,22 @@ not reimplement mq-mcp review logic or architecture reasoning locally.
 | `mq-agent run "cmd" --approve` | execute | no | Safe shell command execution |
 | `mq-agent tui` | read-only | no | Textual dashboard |
 
+## Review Commands
+
+Review commands are orchestration-only. mq-agent calls mq-mcp review tools and
+renders the returned findings without changing severity labels or implementing
+local review heuristics.
+
+| Command | Needs mq-mcp | Notes |
+|---|---:|---|
+| `mq-agent review file <path>` | yes | Calls mq-mcp `review_file` |
+| `mq-agent review file <path> --json` | yes | Raw mq-mcp JSON result |
+| `mq-agent review diff` | yes | Calls mq-mcp `review_diff` |
+| `mq-agent review repo [path]` | yes | Calls mq-mcp `review_repo` |
+| `mq-agent review * --security` | yes | Passes `security=true` to mq-mcp |
+| `mq-agent review * --architecture` | yes | Passes `architecture=true` to mq-mcp |
+| `mq-agent review * --risk` | yes | Requires installed mq-mcp `risk_review_*` tools |
+
 ## Memory Commands
 
 | Command | Needs vector store | Notes |

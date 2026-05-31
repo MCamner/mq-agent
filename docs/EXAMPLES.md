@@ -130,6 +130,38 @@ mq-agent doctor
 ```
 
 Checks: `OPENAI_API_KEY`, `git`, `uv`, Python version, and mq-mcp availability.
+When mq-mcp is running, doctor also checks whether
+`validate_orchestration_contract` is available.
+
+---
+
+## Review via mq-mcp
+
+Review commands route through mq-mcp and pass findings through unchanged:
+
+```bash
+mq-agent review file README.md
+mq-agent review diff
+mq-agent review repo .
+```
+
+Forward review modes to mq-mcp:
+
+```bash
+mq-agent review file mq_agent/main.py --security
+mq-agent review repo . --architecture
+mq-agent review diff --json
+```
+
+Risk review is used only when the installed mq-mcp exposes the matching
+`risk_review_*` tool:
+
+```bash
+mq-agent review diff --risk
+```
+
+mq-agent does not implement severity scoring, architecture reasoning, risk
+classification, semantic retrieval, review heuristics or drift detection.
 
 ---
 
