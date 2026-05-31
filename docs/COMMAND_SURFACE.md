@@ -58,6 +58,7 @@ local review heuristics.
 | `mq-agent review * --security` | yes | Passes `security=true` to mq-mcp |
 | `mq-agent review * --architecture` | yes | Passes `architecture=true` to mq-mcp |
 | `mq-agent review * --risk` | yes | Requires installed mq-mcp `risk_review_*` tools |
+| `mq-agent review * --dry-run` | no | Show what would be called, no execution |
 
 ## Memory Commands
 

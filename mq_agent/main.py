@@ -356,8 +356,14 @@ def review_file_cmd(
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review one file through mq-mcp. mq-agent does not implement review logic."""
+    if dry_run:
+        flags = [f for f, v in _review_flags(security, architecture, risk).items() if v]
+        flag_str = " ".join(f"--{f}" for f in flags)
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{' ' + flag_str if flag_str else ''}[/bold]")
+        return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     result = MultiMCPBridge().review_file(path, _review_flags(security, architecture, risk))
@@ -370,8 +376,14 @@ def review_diff_cmd(
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review the current diff through mq-mcp. Findings are passed through."""
+    if dry_run:
+        flags = [f for f, v in _review_flags(security, architecture, risk).items() if v]
+        flag_str = " ".join(f"--{f}" for f in flags)
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
+        return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     result = MultiMCPBridge().review_diff(_review_flags(security, architecture, risk))
@@ -385,8 +397,14 @@ def review_repo_cmd(
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
+    if dry_run:
+        flags = [f for f, v in _review_flags(security, architecture, risk).items() if v]
+        flag_str = " ".join(f"--{f}" for f in flags)
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
+        return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     result = MultiMCPBridge().review_repo(path, _review_flags(security, architecture, risk))

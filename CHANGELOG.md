@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v1.1.0] — 2026-05-31
+
+### Added
+
+- `mq-agent review file/diff/repo` — pass-through review orchestration via mq-mcp
+  (`review_file`, `review_diff`, `review_repo`); severity findings rendered without
+  local reinterpretation
+- `--security`, `--architecture`, `--risk` flags forwarded to mq-mcp review contracts
+- `--dry-run` on all review commands — shows what would be called without executing
+- `validate_orchestration_contract` check in `mq-agent doctor` — verifies mq-mcp
+  orchestration contract is available
+- 3 new dry-run tests in `tests/test_review_cli.py` (252 total)
+
+### Changed
+
+- `COMMAND_SURFACE.md` — review section updated with `--dry-run` entry
+- `EXAMPLES.md` — review section extended with dry-run examples
+- `ROADMAP.md` — v1.1.0 items ticked; arch-memory and model-selection deferred to
+  v1.2.0 (require mq-mcp v1.4.0+); release map updated to In Progress
+
+---
+
 ## [v1.0.0] — 2026-05-26
 
 ### Added
