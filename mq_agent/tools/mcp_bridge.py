@@ -255,6 +255,33 @@ class MultiMCPBridge:
         """Store an item in mq-mcp semantic memory. Class C write tool — requires approval."""
         return self._call_required_tool("store_semantic_memory", {"key": key, "value": value})
 
+    def list_architecture_decisions(self) -> Any:
+        """List architecture decisions from mq-mcp. Returns None when tool not available."""
+        return self._call_optional_tool("list_architecture_decisions", {})
+
+    def get_architecture_decision(self, decision_id: str) -> Any:
+        """Fetch a single architecture decision by ID."""
+        return self._call_required_tool("get_architecture_decision", {"id": decision_id})
+
+    def learn_status(self) -> Any:
+        """Check availability of the mq-mcp learn system."""
+        return self._call_required_tool("learn_status", {})
+
+    def search_learned_patterns(self, query: str) -> Any:
+        """Search learned review patterns stored in mq-mcp."""
+        return self._call_required_tool("search_learned_patterns", {"query": query})
+
+    def explain_learned_pattern(self, pattern_id: str) -> Any:
+        """Fetch a detailed explanation of a learned pattern by ID."""
+        return self._call_required_tool("explain_learned_pattern", {"id": pattern_id})
+
+    def _call_optional_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
+        """Call a named MCP tool, returning None (not an error) when not available."""
+        for bridge in self.bridges.values():
+            if tool_name in bridge.list_tools():
+                return bridge.call_tool(tool_name, args)
+        return None
+
     def get_server_statuses(self) -> dict[str, dict[str, Any]]:
         """Get reachability, tool counts, and optional enrichment for all servers."""
         status = {}

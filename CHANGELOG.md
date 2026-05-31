@@ -7,6 +7,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v1.3.0] — 2026-05-31
+
+### Added
+
+- Architecture-memory context in review workflows — `list_architecture_decisions` called
+  automatically after review findings; shown as compact panel when tool is available;
+  silent when not present in mq-mcp
+- `--fast` flag on `review file/diff/repo` — passes `fast=True` to mq-mcp; mq-mcp
+  routes to Class A tools internally (model-selection policy)
+- `mq-agent learn status` — check mq-mcp learn system availability
+- `mq-agent learn search <query>` — search mq-mcp learned review patterns (read-only)
+- `mq-agent learn explain <pattern-id>` — fetch pattern explanation (read-only)
+- `MultiMCPBridge._call_optional_tool()` — like `_call_required_tool` but returns None
+  when tool is absent, for use with optional enrichment
+- `MultiMCPBridge.get_architecture_decision(id)` — fetch single decision by ID
+- 24 new tests in `tests/test_v1_3_features.py` (292 total)
+
+### Changed
+
+- `_review_flags()` includes `fast` key; existing flag dicts updated in tests
+- `_run_review()` accepts optional `bridge` for arch-context rendering
+- `COMMAND_SURFACE.md` — review section extended with `--fast`; learn section added
+- `EXAMPLES.md` — `--fast` and arch-context examples; learned patterns section added
+- `ROADMAP.md` — v1.1.0 remaining items ticked; v1.3.0 section added; release map updated
+
+---
+
 ## [v1.2.0] — 2026-05-31
 
 ### Added

@@ -49,6 +49,9 @@ app.add_typer(swarm_app, name="swarm")
 review_app = typer.Typer(help="Pass-through mq-mcp review orchestration.")
 app.add_typer(review_app, name="review")
 
+learn_app = typer.Typer(help="Read-only access to mq-mcp learned review patterns.")
+app.add_typer(learn_app, name="learn")
+
 console = Console()
 
 
@@ -259,11 +262,12 @@ def doctor():
 
 # ── review ─────────────────────────────────────────────────────────────────
 
-def _review_flags(security: bool, architecture: bool, risk: bool) -> dict[str, bool]:
+def _review_flags(security: bool, architecture: bool, risk: bool, fast: bool = False) -> dict[str, bool]:
     return {
         "security": security,
         "architecture": architecture,
         "risk": risk,
+        "fast": fast,
     }
 
 
@@ -340,13 +344,30 @@ def _render_review_result(command: str, result: Any) -> None:
         console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]{command}[/bold]"))
 
 
-def _run_review(command: str, result: Any, json_out: bool) -> None:
+def _render_arch_context(bridge: Any) -> None:
+    """Show architecture decisions from mq-mcp when available. Silent when not."""
+    decisions = bridge.list_architecture_decisions()
+    if not decisions:
+        return
+    items: list[Any] = decisions if isinstance(decisions, list) else decisions.get("decisions") or []
+    if not items:
+        return
+    lines = "\n".join(
+        f"  {item.get('id', '?')}: {item.get('title') or item.get('summary') or str(item)[:80]}"
+        for item in items[:5]
+    )
+    console.print(Panel(lines, title="[dim]Architecture context (mq-mcp)[/dim]", border_style="dim"))
+
+
+def _run_review(command: str, result: Any, json_out: bool, bridge: Any = None) -> None:
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
         if _is_error_result(result):
             raise typer.Exit(1)
         return
     _render_review_result(command, result)
+    if bridge is not None:
+        _render_arch_context(bridge)
 
 
 @review_app.command("file")
@@ -355,19 +376,21 @@ def review_file_cmd(
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
+    fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review one file through mq-mcp. mq-agent does not implement review logic."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture, risk).items() if v]
+        flags = [f for f, v in _review_flags(security, architecture, risk, fast).items() if v]
         flag_str = " ".join(f"--{f}" for f in flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{' ' + flag_str if flag_str else ''}[/bold]")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    result = MultiMCPBridge().review_file(path, _review_flags(security, architecture, risk))
-    _run_review("review file", result, json_out)
+    bridge = MultiMCPBridge()
+    result = bridge.review_file(path, _review_flags(security, architecture, risk, fast))
+    _run_review("review file", result, json_out, bridge=bridge)
 
 
 @review_app.command("diff")
@@ -375,19 +398,21 @@ def review_diff_cmd(
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
+    fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review the current diff through mq-mcp. Findings are passed through."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture, risk).items() if v]
+        flags = [f for f, v in _review_flags(security, architecture, risk, fast).items() if v]
         flag_str = " ".join(f"--{f}" for f in flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    result = MultiMCPBridge().review_diff(_review_flags(security, architecture, risk))
-    _run_review("review diff", result, json_out)
+    bridge = MultiMCPBridge()
+    result = bridge.review_diff(_review_flags(security, architecture, risk, fast))
+    _run_review("review diff", result, json_out, bridge=bridge)
 
 
 @review_app.command("repo")
@@ -396,19 +421,118 @@ def review_repo_cmd(
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
+    fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture, risk).items() if v]
+        flags = [f for f, v in _review_flags(security, architecture, risk, fast).items() if v]
         flag_str = " ".join(f"--{f}" for f in flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    result = MultiMCPBridge().review_repo(path, _review_flags(security, architecture, risk))
-    _run_review("review repo", result, json_out)
+    bridge = MultiMCPBridge()
+    result = bridge.review_repo(path, _review_flags(security, architecture, risk, fast))
+    _run_review("review repo", result, json_out, bridge=bridge)
+
+
+# ── learn ───────────────────────────────────────────────────────────────────
+
+@learn_app.command("status")
+def learn_status_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Check availability of the mq-mcp learn system. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_status()
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]learn system unavailable[/bold red]",
+            border_style="red",
+        ))
+        hint = result.get("hint")
+        if hint:
+            console.print(f"[dim]{hint}[/dim]")
+        raise typer.Exit(1)
+
+    console.print(Panel(json.dumps(result, indent=2, default=str), title="[bold]Learn system status[/bold]"))
+
+
+@learn_app.command("search")
+def learn_search_cmd(
+    query: Annotated[str, typer.Argument(help="Search query for learned patterns")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Search mq-mcp learned review patterns. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().search_learned_patterns(query)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]learn system unavailable[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    items: list[Any] = result if isinstance(result, list) else result.get("patterns") or result.get("items") or []
+    if not items:
+        console.print(Panel(f"No patterns found for: [bold]{query}[/bold]", border_style="dim"))
+        return
+
+    table = Table(title=f"Learned patterns: {query}", show_header=True, header_style="bold")
+    table.add_column("ID")
+    table.add_column("Pattern")
+    for item in items:
+        pid = str(item.get("id") or item.get("pattern_id") or "")
+        summary = str(item.get("title") or item.get("summary") or item.get("pattern") or item)[:120]
+        table.add_row(pid, summary)
+    console.print(table)
+
+
+@learn_app.command("explain")
+def learn_explain_cmd(
+    pattern_id: Annotated[str, typer.Argument(help="Pattern ID to explain")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Fetch a detailed explanation of a learned pattern from mq-mcp. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().explain_learned_pattern(pattern_id)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]pattern not found[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Pattern: {pattern_id}[/bold]"))
 
 
 # ── signal ─────────────────────────────────────────────────────────────────
