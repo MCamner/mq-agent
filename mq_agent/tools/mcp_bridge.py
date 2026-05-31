@@ -117,15 +117,15 @@ class MCPBridge:
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, dict) and "name" in data:
-                    contract = self._fetch_contract_specs().get(name, {})
-                    data = {**contract, **data}
+                    contract_data = self._fetch_contract_specs().get(name, {})
+                    data = {**contract_data, **data}
                     return MCPToolSpec.from_dict(data)
             # 404 or unexpected shape — fall through to name classification
         except Exception:
             pass
-        contract = self._fetch_contract_specs().get(name)
-        if contract:
-            return MCPToolSpec.from_dict(contract)
+        maybe_contract_data = self._fetch_contract_specs().get(name)
+        if maybe_contract_data:
+            return MCPToolSpec.from_dict(maybe_contract_data)
         tools = self._available or self.list_tools()
         if name in tools:
             return MCPToolSpec.from_name(name)
