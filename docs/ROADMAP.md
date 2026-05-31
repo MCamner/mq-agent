@@ -333,27 +333,27 @@ without re-implementing review logic.
 The formal boundary is defined in
 [mq-mcp/docs/ORCHESTRATION_CONTRACT.md](https://github.com/MCamner/mq-mcp/blob/main/docs/ORCHESTRATION_CONTRACT.md):
 
-- mq-agent may auto-invoke Class A/B tools without user confirmation
-- Class C (write) and Class D (subprocess) tools require explicit user approval
-- mq-agent must never reimplement review logic locally
-- mq-agent must not assume mq-mcp maintains session state between calls
+* mq-agent may auto-invoke Class A/B tools without user confirmation
+* Class C (write) and Class D (subprocess) tools require explicit user approval
+* mq-agent must never reimplement review logic locally
+* mq-agent must not assume mq-mcp maintains session state between calls
 
 Items:
 
-- [x] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
+* [x] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
   via MCPBridge; displays severity summary in terminal
-- [x] Route `--security` and `--architecture` flags to mq-mcp review contracts
-- [x] Route `--risk` only when supported by the installed mq-mcp version
+* [x] Route `--security` and `--architecture` flags to mq-mcp review contracts
+* [x] Route `--risk` only when supported by the installed mq-mcp version
   (v1.5.0 risk layer in mq-mcp)
-- [x] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
+* [x] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
   without reinterpreting — pass through as-is
-- [x] `--dry-run` on all review commands — plan output without executing
-- [x] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
-- [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
-- [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
-- [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
+* [x] `--dry-run` on all review commands — plan output without executing
+* [x] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
+* [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
+* [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
+* [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
   `get_architecture_decision`) in review workflows — deferred to v1.2.0 (requires mq-mcp v1.4.0)
-- [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key) — deferred to v1.2.0
+* [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key) — deferred to v1.2.0
 
 Implementation plan:
 
@@ -387,34 +387,34 @@ Hard boundary:
 
 mq-agent must not implement:
 
-- severity scoring
-- architecture reasoning
-- risk classification
-- semantic retrieval
-- review heuristics
-- drift detection
+* severity scoring
+* architecture reasoning
+* risk classification
+* semantic retrieval
+* review heuristics
+* drift detection
 
 mq-agent may implement:
 
-- CLI command routing
-- MCPBridge calls
-- result rendering
-- JSON output
-- approval gates
-- doctor checks
-- orchestration contract validation
+* CLI command routing
+* MCPBridge calls
+* result rendering
+* JSON output
+* approval gates
+* doctor checks
+* orchestration contract validation
 
 v1.1.0 definition of done:
 
-- `mq-agent review file` works through mq-mcp
-- `mq-agent review diff` works through mq-mcp
-- `mq-agent review repo` works through mq-mcp
-- `--json` output is stable and tested
-- severity labels are passed through unchanged
-- no local review engine exists in mq-agent
-- doctor verifies mq-mcp orchestration contract
-- smoke tests pass against mq-mcp v1.3.0+
-- docs updated:
+* `mq-agent review file` works through mq-mcp
+* `mq-agent review diff` works through mq-mcp
+* `mq-agent review repo` works through mq-mcp
+* `--json` output is stable and tested
+* severity labels are passed through unchanged
+* no local review engine exists in mq-agent
+* doctor verifies mq-mcp orchestration contract
+* smoke tests pass against mq-mcp v1.3.0+
+* docs updated:
   - `COMMAND_SURFACE.md`
   - `MCP_INTEGRATION.md`
   - `EXAMPLES.md`
@@ -422,9 +422,9 @@ v1.1.0 definition of done:
 
 Non-goals:
 
-- No duplicate review engine in mq-agent
-- No architecture reasoning implementation in mq-agent
-- No separate semantic retrieval runtime in mq-agent
+* No duplicate review engine in mq-agent
+* No architecture reasoning implementation in mq-agent
+* No separate semantic retrieval runtime in mq-agent
 
 ---
 
@@ -435,21 +435,21 @@ mq-agent workflows.
 
 Items:
 
-- [ ] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge
-- [ ] `mq-agent memory store <key>` — calls `store_semantic_memory` (requires approval —
+* [ ] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge
+* [ ] `mq-agent memory store <key>` — calls `store_semantic_memory` (requires approval —
   Class C write tool)
-- [ ] Risk review routing: `mq-agent review --risk` invokes `risk_review_file` /
+* [ ] Risk review routing: `mq-agent review --risk` invokes `risk_review_file` /
   `risk_review_diff` when available in mq-mcp ≥ v1.5.0
-- [ ] `mq-agent mcp status` extended: shows mq-mcp version, tool count, semantic
+* [ ] `mq-agent mcp status` extended: shows mq-mcp version, tool count, semantic
   memory item count, and contract freshness from `validate_orchestration_contract`
 
 Possible future: learned review patterns
 
 mq-agent may expose read-only commands for learned review patterns stored in mq-mcp:
 
-- `mq-agent learn status`
-- `mq-agent learn search <query>`
-- `mq-agent learn explain <pattern>`
+* `mq-agent learn status`
+* `mq-agent learn search <query>`
+* `mq-agent learn explain <pattern>`
 
 Non-goal:
 
@@ -536,11 +536,11 @@ Every powerful feature must have:
 
 Start v1.1.0 implementation:
 
-- Add `mq-agent review` command group
-- Route `review_file`, `review_diff` and `review_repo` through MCPBridge
-- Display mq-mcp severity findings without reinterpretation
-- Route `--security` and `--architecture` flags to mq-mcp review contracts
-- Route `--risk` only when supported by the installed mq-mcp version
-- Add smoke tests for mq-agent -> mq-mcp review runtime calls
-- Add `validate_orchestration_contract` to mq-agent doctor checks
-- Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md`
+* Add `mq-agent review` command group
+* Route `review_file`, `review_diff` and `review_repo` through MCPBridge
+* Display mq-mcp severity findings without reinterpretation
+* Route `--security` and `--architecture` flags to mq-mcp review contracts
+* Route `--risk` only when supported by the installed mq-mcp version
+* Add smoke tests for mq-agent -> mq-mcp review runtime calls
+* Add `validate_orchestration_contract` to mq-agent doctor checks
+* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md`
