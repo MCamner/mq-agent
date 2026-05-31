@@ -1,0 +1,138 @@
+"""Tests for mq-agent review pass-through orchestration."""
+from __future__ import annotations
+
+import json
+from unittest.mock import patch
+
+from typer.testing import CliRunner
+
+from mq_agent.main import app
+from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+runner = CliRunner()
+
+
+class FakeReviewBridge:
+    def __init__(self):
+        self.calls: list[tuple[str, object, dict]] = []
+
+    def review_file(self, path: str, flags: dict):
+        self.calls.append(("review_file", path, flags))
+        return {
+            "ok": True,
+            "findings": [
+                {"severity": "RISK", "file": path, "line": 7, "message": "from mq-mcp"},
+            ],
+        }
+
+    def review_diff(self, flags: dict):
+        self.calls.append(("review_diff", None, flags))
+        return {
+            "ok": True,
+            "findings": [
+                {"severity": "ARCHITECTURE", "message": "from mq-mcp"},
+            ],
+        }
+
+    def review_repo(self, path: str, flags: dict):
+        self.calls.append(("review_repo", path, flags))
+        return {"ok": True, "findings": []}
+
+
+def test_review_file_json_invokes_mcp_bridge_with_flags():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, [
+            "review",
+            "file",
+            "README.md",
+            "--security",
+            "--architecture",
+            "--json",
+        ])
+
+    assert result.exit_code == 0
+    assert bridge.calls == [
+        ("review_file", "README.md", {"security": True, "architecture": True, "risk": False})
+    ]
+    data = json.loads(result.output)
+    assert data["findings"][0]["severity"] == "RISK"
+
+
+def test_review_diff_passes_severity_label_through_unchanged():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "diff"])
+
+    assert result.exit_code == 0
+    assert "ARCHITECTURE" in result.output
+
+
+def test_review_repo_json_invokes_mcp_bridge():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", ".", "--json"])
+
+    assert result.exit_code == 0
+    assert bridge.calls == [
+        ("review_repo", ".", {"security": False, "architecture": False, "risk": False})
+    ]
+
+
+def test_review_missing_mq_mcp_tool_returns_clear_error():
+    class MissingToolBridge:
+        def review_file(self, path: str, flags: dict):
+            return {
+                "ok": False,
+                "error": "mq-mcp tool 'review_file' is not available.",
+                "tool": "review_file",
+            }
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=MissingToolBridge()):
+        result = runner.invoke(app, ["review", "file", "README.md", "--json"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert "review_file" in data["error"]
+
+
+def test_review_mcp_error_string_exits_nonzero():
+    class ErrorBridge:
+        def review_diff(self, flags: dict):
+            return "mq-mcp error 500: Internal Server Error"
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=ErrorBridge()):
+        result = runner.invoke(app, ["review", "diff", "--json"])
+
+    assert result.exit_code == 1
+    assert "mq-mcp error 500" in result.output
+
+
+def test_mcp_bridge_review_helpers_call_expected_tools():
+    bridge = MultiMCPBridge()
+    with patch.object(bridge, "_call_required_tool", return_value={"ok": True}) as call:
+        bridge.review_file("README.md", {"security": False, "architecture": False, "risk": False})
+        bridge.review_diff({"security": True, "architecture": False, "risk": False})
+        bridge.review_repo(".", {"security": False, "architecture": True, "risk": False})
+
+    assert call.call_args_list[0].args == (
+        "review_file",
+        {"path": "README.md", "security": False, "architecture": False, "risk": False},
+    )
+    assert call.call_args_list[1].args == (
+        "review_diff",
+        {"security": True, "architecture": False, "risk": False},
+    )
+    assert call.call_args_list[2].args == (
+        "review_repo",
+        {"path": ".", "security": False, "architecture": True, "risk": False},
+    )
+
+
+def test_mcp_bridge_risk_requires_installed_risk_tool():
+    bridge = MultiMCPBridge()
+    with patch.object(bridge, "bridges", {}):
+        result = bridge.review_file("README.md", {"security": False, "architecture": False, "risk": True})
+
+    assert result["ok"] is False
+    assert "risk_review_file" in result["error"]

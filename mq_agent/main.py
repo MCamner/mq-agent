@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from dotenv import load_dotenv
@@ -45,6 +45,9 @@ app.add_typer(browser_app, name="browser")
 
 swarm_app = typer.Typer(help="Multi-agent swarm workflows.")
 app.add_typer(swarm_app, name="swarm")
+
+review_app = typer.Typer(help="Pass-through mq-mcp review orchestration.")
+app.add_typer(review_app, name="review")
 
 console = Console()
 
@@ -252,6 +255,142 @@ def doctor():
         console.print("\n[bold green]All required checks passed.[/bold green]")
     else:
         console.print("\n[bold yellow]Fix the issues above before using mq-agent.[/bold yellow]")
+
+
+# ── review ─────────────────────────────────────────────────────────────────
+
+def _review_flags(security: bool, architecture: bool, risk: bool) -> dict[str, bool]:
+    return {
+        "security": security,
+        "architecture": architecture,
+        "risk": risk,
+    }
+
+
+def _is_error_result(result: Any) -> bool:
+    if isinstance(result, dict):
+        return result.get("ok") is False and "error" in result
+    if isinstance(result, str):
+        return result.startswith((
+            "mq-mcp error",
+            "MCP bridge error",
+            "mq-mcp is not reachable",
+            "Tool ",
+            "httpx not installed",
+        ))
+    return False
+
+
+def _iter_review_findings(value: Any) -> list[dict[str, Any]]:
+    """Extract findings for display without changing their labels or meaning."""
+    if isinstance(value, dict):
+        findings = value.get("findings")
+        if isinstance(findings, list):
+            return [item for item in findings if isinstance(item, dict)]
+        result = value.get("result")
+        if result is not value:
+            return _iter_review_findings(result)
+    return []
+
+
+def _severity_value(item: dict[str, Any]) -> str:
+    for key in ("severity", "label", "type", "category"):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return "UNSPECIFIED"
+
+
+def _render_review_result(command: str, result: Any) -> None:
+    if _is_error_result(result):
+        message = str(result.get("error") if isinstance(result, dict) else result)
+        console.print(Panel(message, title="[bold red]mq-mcp review unavailable[/bold red]", border_style="red"))
+        if isinstance(result, dict):
+            hint = result.get("hint")
+            if hint:
+                console.print(f"[dim]{hint}[/dim]")
+        raise typer.Exit(1)
+
+    findings = _iter_review_findings(result)
+    table = Table(title=f"mq-mcp {command}", show_header=True, header_style="bold")
+    table.add_column("Severity")
+    table.add_column("Source")
+    table.add_column("Finding")
+
+    counts: dict[str, int] = {}
+    for item in findings:
+        severity = _severity_value(item)
+        counts[severity] = counts.get(severity, 0) + 1
+        source = str(item.get("file") or item.get("path") or item.get("source") or "")
+        line = item.get("line")
+        if line:
+            source = f"{source}:{line}" if source else str(line)
+        message = str(item.get("message") or item.get("title") or item.get("summary") or item)
+        table.add_row(severity, source or "-", message)
+
+    if findings:
+        console.print(table)
+        summary = ", ".join(f"{label}: {count}" for label, count in counts.items())
+        console.print(f"\n[bold]Severity summary:[/bold] {summary}")
+        return
+
+    if isinstance(result, str):
+        console.print(Panel(result, title=f"[bold]{command}[/bold]"))
+    else:
+        console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]{command}[/bold]"))
+
+
+def _run_review(command: str, result: Any, json_out: bool) -> None:
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if _is_error_result(result):
+            raise typer.Exit(1)
+        return
+    _render_review_result(command, result)
+
+
+@review_app.command("file")
+def review_file_cmd(
+    path: Annotated[str, typer.Argument(help="File path to review")],
+    security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
+    architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
+    risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review one file through mq-mcp. mq-agent does not implement review logic."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().review_file(path, _review_flags(security, architecture, risk))
+    _run_review("review file", result, json_out)
+
+
+@review_app.command("diff")
+def review_diff_cmd(
+    security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
+    architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
+    risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review the current diff through mq-mcp. Findings are passed through."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().review_diff(_review_flags(security, architecture, risk))
+    _run_review("review diff", result, json_out)
+
+
+@review_app.command("repo")
+def review_repo_cmd(
+    path: Annotated[str, typer.Argument(help="Repo path to review")] = ".",
+    security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
+    architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
+    risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().review_repo(path, _review_flags(security, architecture, risk))
+    _run_review("review repo", result, json_out)
 
 
 # ── signal ─────────────────────────────────────────────────────────────────

@@ -340,18 +340,18 @@ The formal boundary is defined in
 
 Items:
 
-- [ ] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
+- [x] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
   via MCPBridge; displays severity summary in terminal
-- [ ] Route `--security` and `--architecture` flags to mq-mcp review contracts
-- [ ] Route `--risk` only when supported by the installed mq-mcp version
+- [x] Route `--security` and `--architecture` flags to mq-mcp review contracts
+- [x] Route `--risk` only when supported by the installed mq-mcp version
   (v1.5.0 risk layer in mq-mcp)
-- [ ] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
+- [x] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
   without reinterpreting — pass through as-is
 - [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
   `get_architecture_decision`) in review workflows when available
 - [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key)
-- [ ] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
-- [ ] `validate_orchestration_contract` invocable from mq-agent doctor checks
+- [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
+- [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
 
 Implementation plan:
 
