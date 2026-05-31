@@ -342,7 +342,8 @@ Items:
 
 - [ ] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
   via MCPBridge; displays severity summary in terminal
-- [ ] Route `--risk`, `--security`, `--architecture` flags to mq-mcp review contracts
+- [ ] Route `--security` and `--architecture` flags to mq-mcp review contracts
+- [ ] Route `--risk` only when supported by the installed mq-mcp version
   (v1.5.0 risk layer in mq-mcp)
 - [ ] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
   without reinterpreting — pass through as-is
@@ -536,7 +537,8 @@ Start v1.1.0 implementation:
 - Add `mq-agent review` command group
 - Route `review_file`, `review_diff` and `review_repo` through MCPBridge
 - Display mq-mcp severity findings without reinterpretation
-- Route `--risk`, `--security` and `--architecture` flags to mq-mcp contracts
-- Add smoke tests for review runtime integration
+- Route `--security` and `--architecture` flags to mq-mcp review contracts
+- Route `--risk` only when supported by the installed mq-mcp version
+- Add smoke tests for mq-agent -> mq-mcp review runtime calls
 - Add `validate_orchestration_contract` to mq-agent doctor checks
 - Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md`
