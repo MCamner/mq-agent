@@ -155,6 +155,11 @@ mq-agent run-tool <tool>           # Run an MCP tool through safety gates
 mq-agent review file <path>        # Review one file through mq-mcp
 mq-agent review diff               # Review current diff through mq-mcp
 mq-agent review repo [path]        # Review repo through mq-mcp
+mq-agent review file <path> --fast # Prefer Class A tools (mq-mcp routes)
+mq-agent review diff --fast
+mq-agent learn status              # Check mq-mcp learn system
+mq-agent learn search <query>      # Search learned review patterns
+mq-agent learn explain <pattern>   # Fetch pattern explanation
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json
@@ -212,7 +217,7 @@ mq_agent/
 
 ## Proof
 
-- 249 tests pass — `uv run pytest -v` — no OpenAI calls required
+- 292 tests pass — `uv run pytest -v` — no OpenAI calls required
 - `mq-agent score .` — 100/100 README, 16/16 publish checklist [PASS]
 - `mq-agent doctor` — all required checks pass
 - `mq-agent audit . --dry-run` — safe, read-only plan generation
@@ -367,11 +372,14 @@ for bridge details.
 
 ## Roadmap
 
-- Autonomous looping agents
-- Browser control
-- Multi-agent swarms
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for details.
+Current direction:
+
+- harden v1.3.0 review + learn workflows
+- keep mq-agent orchestration-only
+- keep review logic, memory and risk reasoning in mq-mcp
+- improve mq ecosystem integrations without adding hidden autonomy
 
 ## Notes
 
