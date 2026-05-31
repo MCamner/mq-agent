@@ -34,19 +34,19 @@ fi
 # Tests
 echo ""
 echo "--- Tests ---"
-if (cd "$ROOT" && uv run pytest tests/ -q --tb=no > /dev/null 2>&1); then
+if (cd "$ROOT" && uv run --extra dev --extra signal pytest tests/ -q --tb=no > /dev/null 2>&1); then
   ok "pytest"
 else
-  fail "pytest — run: uv run pytest tests/ -v"
+  fail "pytest — run: uv run --extra dev --extra signal pytest tests/ -v"
 fi
 
 # Lint
 echo ""
 echo "--- Lint ---"
-if (cd "$ROOT" && uv run ruff check mq_agent/ > /dev/null 2>&1); then
+if (cd "$ROOT" && uv run --extra dev ruff check mq_agent/ > /dev/null 2>&1); then
   ok "ruff"
 else
-  fail "ruff — run: uv run ruff check mq_agent/"
+  fail "ruff — run: uv run --extra dev ruff check mq_agent/"
 fi
 
 # Docs consistency
