@@ -358,30 +358,30 @@ Items:
 Implementation plan:
 
 1. Add CLI command group:
-   - `mq-agent review file <path>`
-   - `mq-agent review diff`
-   - `mq-agent review repo [path]`
+   * `mq-agent review file <path>`
+   * `mq-agent review diff`
+   * `mq-agent review repo [path]`
 2. Add MCPBridge review helpers:
-   - `review_file(path, flags)`
-   - `review_diff(flags)`
-   - `review_repo(path, flags)`
+   * `review_file(path, flags)`
+   * `review_diff(flags)`
+   * `review_repo(path, flags)`
 3. Add pass-through renderer:
-   - severity summary
-   - grouped findings
-   - source file / line when available
-   - raw JSON with `--json`
+   * severity summary
+   * grouped findings
+   * source file / line when available
+   * raw JSON with `--json`
 4. Add flags:
-   - `--risk`
-   - `--security`
-   - `--architecture`
-   - `--json`
-   - `--approve` only if future write-capable review tools require it
+   * `--risk`
+   * `--security`
+   * `--architecture`
+   * `--json`
+   * `--approve` only if future write-capable review tools require it
 5. Add tests:
-   - command invokes correct mq-mcp tool
-   - no local review logic exists in mq-agent
-   - severity labels are passed through unchanged
-   - missing mq-mcp tool gives clear error
-   - `validate_orchestration_contract` appears in doctor output
+   * command invokes correct mq-mcp tool
+   * no local review logic exists in mq-agent
+   * severity labels are passed through unchanged
+   * missing mq-mcp tool gives clear error
+   * `validate_orchestration_contract` appears in doctor output
 
 Hard boundary:
 
@@ -415,10 +415,10 @@ v1.1.0 definition of done:
 * doctor verifies mq-mcp orchestration contract
 * smoke tests pass against mq-mcp v1.3.0+
 * docs updated:
-  - `COMMAND_SURFACE.md`
-  - `MCP_INTEGRATION.md`
-  - `EXAMPLES.md`
-  - `ROADMAP.md`
+  * `COMMAND_SURFACE.md`
+  * `MCP_INTEGRATION.md`
+  * `EXAMPLES.md`
+  * `ROADMAP.md`
 
 Non-goals:
 
