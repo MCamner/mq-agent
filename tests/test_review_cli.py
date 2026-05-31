@@ -129,6 +129,43 @@ def test_mcp_bridge_review_helpers_call_expected_tools():
     )
 
 
+def test_review_file_dry_run_prints_plan_and_does_not_call_bridge():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "file", "src/main.py", "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "Would call" in result.output
+    assert "review_file" in result.output
+    assert "src/main.py" in result.output
+    assert bridge.calls == []
+
+
+def test_review_diff_dry_run_with_flags():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "diff", "--dry-run", "--security"])
+
+    assert result.exit_code == 0
+    assert "Would call" in result.output
+    assert "review_diff" in result.output
+    assert "--security" in result.output
+    assert bridge.calls == []
+
+
+def test_review_repo_dry_run_with_flags():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", ".", "--dry-run", "--architecture", "--risk"])
+
+    assert result.exit_code == 0
+    assert "Would call" in result.output
+    assert "review_repo" in result.output
+    assert "--architecture" in result.output
+    assert "--risk" in result.output
+    assert bridge.calls == []
+
+
 def test_mcp_bridge_risk_requires_installed_risk_tool():
     bridge = MultiMCPBridge()
     with patch.object(bridge, "bridges", {}):

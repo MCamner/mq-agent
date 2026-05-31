@@ -56,7 +56,7 @@ Completed foundation:
 | v0.8.0  | Controlled specialist orchestration          | Done    |
 | v0.9.0  | Orchestration kernel consolidation           | Done    |
 | v1.0.0  | Stable orchestration platform                | Done    |
-| v1.1.0  | mq-mcp review runtime integration            | Planned |
+| v1.1.0  | mq-mcp review runtime integration            | In Progress |
 | v1.2.0  | mq-mcp semantic memory + risk review routing | Planned |
 
 ---
@@ -347,13 +347,13 @@ Items:
   (v1.5.0 risk layer in mq-mcp)
 - [x] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
   without reinterpreting — pass through as-is
-- [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
-  `get_architecture_decision`) in review workflows when available
-- [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key)
-- [ ] Dry-run planning for review pipelines before tool execution
-- [ ] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
+- [x] `--dry-run` on all review commands — plan output without executing
+- [x] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
 - [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
 - [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
+- [ ] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
+  `get_architecture_decision`) in review workflows — deferred to v1.2.0 (requires mq-mcp v1.4.0)
+- [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key) — deferred to v1.2.0
 
 Implementation plan:
 

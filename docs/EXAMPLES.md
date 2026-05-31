@@ -160,6 +160,14 @@ Risk review is used only when the installed mq-mcp exposes the matching
 mq-agent review diff --risk
 ```
 
+Preview what would be called without contacting mq-mcp:
+
+```bash
+mq-agent review file mq_agent/main.py --dry-run
+mq-agent review diff --dry-run --security
+mq-agent review repo . --dry-run --architecture --risk
+```
+
 mq-agent does not implement severity scoring, architecture reasoning, risk
 classification, semantic retrieval, review heuristics or drift detection.
 
