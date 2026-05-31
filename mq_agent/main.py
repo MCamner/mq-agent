@@ -780,7 +780,15 @@ def mcp_status(
                 ]
                 if counts.get(cls, 0) > 0
             )
-        
+            mem_count = s.get("semantic_memory_count")
+            if mem_count is not None:
+                lines += f"\nsemantic memory: {mem_count} item(s)"
+            contract = s.get("contract")
+            if contract is not None:
+                contract_ok = isinstance(contract, dict) and contract.get("ok") is not False
+                contract_status = "[green]valid[/green]" if contract_ok else "[red]invalid[/red]"
+                lines += f"\ncontract: {contract_status}"
+
         console.print(Panel(lines, title=f"[bold]{name} Status[/bold]", border_style=color))
 
 
@@ -987,6 +995,98 @@ def memory_refresh_cmd(
         console.print(f"[bold red]Refresh failed (exit {result.returncode})[/bold red]")
         raise typer.Exit(result.returncode)
     console.print("[bold green]✓ Semantic memory refreshed[/bold green]")
+
+
+# ── memory search ──────────────────────────────────────────────────────────
+
+@memory_app.command("search")
+def memory_search_cmd(
+    query: Annotated[str, typer.Argument(help="Search query")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Search mq-mcp semantic memory. Read-only. Requires mq-mcp v1.4.0+."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().search_semantic_memory(query)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]semantic memory unavailable[/bold red]",
+            border_style="red",
+        ))
+        hint = result.get("hint")
+        if hint:
+            console.print(f"[dim]{hint}[/dim]")
+        raise typer.Exit(1)
+
+    items: list[Any] = []
+    if isinstance(result, list):
+        items = result
+    elif isinstance(result, dict):
+        items = result.get("items") or result.get("results") or []
+
+    if not items:
+        console.print(Panel(f"No results for: [bold]{query}[/bold]", border_style="dim"))
+        return
+
+    table = Table(title=f"Semantic memory: {query}", show_header=True, header_style="bold")
+    table.add_column("Key")
+    table.add_column("Excerpt")
+    for item in items:
+        key = str(item.get("key") or item.get("id") or "")
+        excerpt = str(item.get("value") or item.get("content") or item.get("summary") or item)[:120]
+        table.add_row(key, excerpt)
+    console.print(table)
+
+
+# ── memory store ────────────────────────────────────────────────────────────
+
+@memory_app.command("store")
+def memory_store_cmd(
+    key: Annotated[str, typer.Argument(help="Memory key")],
+    value: Annotated[str, typer.Argument(help="Memory value")],
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to mq-mcp")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Store an item in mq-mcp semantic memory. Class C write tool — requires --approve."""
+    if dry_run:
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp store_semantic_memory key={key}[/bold]")
+        return
+
+    if not approve:
+        console.print(
+            "[yellow]store_semantic_memory is a Class C write tool.[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().store_semantic_memory(key, value)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]store failed[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    console.print(f"[bold green]✓[/bold green] Stored [bold]{key}[/bold] in mq-mcp semantic memory.")
 
 
 # ── memory doctor ───────────────────────────────────────────────────────────

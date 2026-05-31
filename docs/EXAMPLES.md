@@ -334,6 +334,20 @@ mq-agent memory doctor
 mq-agent memory doctor --json
 ```
 
+Search mq-mcp semantic memory (requires mq-mcp v1.4.0+):
+
+```bash
+mq-agent memory search "architecture decisions"
+mq-agent memory search "safety gates" --json
+```
+
+Store an item in mq-mcp semantic memory (Class C write — requires `--approve`):
+
+```bash
+mq-agent memory store "arch-key" "Use MCPBridge for all tool routing." --approve
+mq-agent memory store "arch-key" "value" --dry-run
+```
+
 ---
 
 ## MCP server management

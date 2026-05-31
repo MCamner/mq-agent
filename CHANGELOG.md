@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v1.2.0] — 2026-05-31
+
+### Added
+
+- `mq-agent memory search <query>` — searches mq-mcp semantic memory via
+  `search_semantic_memory`; renders key/excerpt table; degrades with a clear error
+  when mq-mcp v1.4.0 tool is absent; `--json` supported
+- `mq-agent memory store <key> <value> --approve` — writes to mq-mcp semantic memory
+  via `store_semantic_memory` (Class C write tool); requires `--approve`; `--dry-run`
+  shows planned call without executing; `--json` supported
+- `MultiMCPBridge.search_semantic_memory()` and `store_semantic_memory()` bridge methods
+- `mq-agent mcp status` — extended to show semantic memory item count and contract
+  freshness (`validate_orchestration_contract`) when those tools are available in mq-mcp
+- 16 new tests in `tests/test_semantic_memory_cli.py` and `tests/test_mcp.py` (268 total)
+
+### Changed
+
+- `COMMAND_SURFACE.md` — memory section updated with `search` and `store` entries;
+  `mcp status` notes updated with enrichment
+- `EXAMPLES.md` — semantic memory section extended with search/store examples
+- `ROADMAP.md` — v1.2.0 items ticked; v1.1.0 marked Done in release map
+
+---
+
 ## [v1.1.0] — 2026-05-31
 
 ### Added
