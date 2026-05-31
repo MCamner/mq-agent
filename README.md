@@ -152,12 +152,20 @@ mq-agent tools --describe <name>   # Show tool metadata and safety class
 mq-agent mcp status                # Check mq-mcp reachability and tool counts
 mq-agent mcp tools                 # List all MCP tools with safety classes
 mq-agent run-tool <tool>           # Run an MCP tool through safety gates
+mq-agent review file <path>        # Review one file through mq-mcp
+mq-agent review diff               # Review current diff through mq-mcp
+mq-agent review repo [path]        # Review repo through mq-mcp
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json
 mq-agent audit . --dry-run
 mq-agent run-tool read_repo_file --arg path=README.md --dry-run
 ```
+
+Review commands are pass-through orchestration for mq-mcp review tools. They
+route to `review_file`, `review_diff`, `review_repo`, or supported risk review
+tools through `MCPBridge`; mq-agent does not implement local review logic,
+severity scoring, architecture reasoning, or risk classification.
 
 ## Safety modes
 
@@ -204,7 +212,7 @@ mq_agent/
 
 ## Proof
 
-- 211 tests pass — `uv run pytest -v` — no OpenAI calls required
+- 249 tests pass — `uv run pytest -v` — no OpenAI calls required
 - `mq-agent score .` — 100/100 README, 16/16 publish checklist [PASS]
 - `mq-agent doctor` — all required checks pass
 - `mq-agent audit . --dry-run` — safe, read-only plan generation
