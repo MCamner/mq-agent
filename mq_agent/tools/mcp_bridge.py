@@ -19,6 +19,7 @@ class MCPBridge:
     def __init__(self, endpoint: str = "http://localhost:8765"):
         self.endpoint = endpoint.rstrip("/")
         self._available: list[str] | None = None
+        self._contract_specs: dict[str, dict] | None = None
 
     # ── connectivity ───────────────────────────────────────────────────────
 
@@ -69,20 +70,44 @@ class MCPBridge:
         """Return MCPToolSpec objects for all discovered tools."""
         from .mcp_registry import MCPToolSpec
         raw = self._fetch_tools_raw()
+        contracts = self._fetch_contract_specs()
         specs = []
         for item in raw:
             if isinstance(item, dict):
+                contract = contracts.get(str(item.get("name", "")), {})
+                item = {**contract, **item}
                 spec = MCPToolSpec.from_dict(item)
             else:
-                spec = MCPToolSpec.from_name(str(item))
+                name = str(item)
+                spec = MCPToolSpec.from_dict({"name": name, **contracts.get(name, {})})
             spec.source = source
             specs.append(spec)
         return specs
 
     # ── tool description ───────────────────────────────────────────────────
 
+    def _fetch_contract_specs(self) -> dict[str, dict]:
+        """Return tool contract entries keyed by name, if the server exposes them."""
+        if self._contract_specs is not None:
+            return self._contract_specs
+        self._contract_specs = {}
+        if not _HAS_HTTPX:
+            return self._contract_specs
+        import httpx
+        try:
+            response = httpx.get(f"{self.endpoint}/tool-contracts", timeout=5)
+            if response.status_code != 200:
+                return self._contract_specs
+            data = response.json()
+            for item in data.get("tools", []):
+                if isinstance(item, dict) and item.get("name"):
+                    self._contract_specs[str(item["name"])] = item
+        except Exception:
+            pass
+        return self._contract_specs
+
     def describe_tool(self, name: str) -> Any:
-        """Return an MCPToolSpec for a tool. Falls back to name-classification if server is down."""
+        """Return an MCPToolSpec for a tool using server metadata before name heuristics."""
         from .mcp_registry import MCPToolSpec
         if not _HAS_HTTPX:
             return MCPToolSpec.from_name(name)
@@ -92,11 +117,15 @@ class MCPBridge:
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, dict) and "name" in data:
+                    contract_data = self._fetch_contract_specs().get(name, {})
+                    data = {**contract_data, **data}
                     return MCPToolSpec.from_dict(data)
             # 404 or unexpected shape — fall through to name classification
         except Exception:
             pass
-        # Confirm the tool exists in the listing before classifying by name
+        maybe_contract_data = self._fetch_contract_specs().get(name)
+        if maybe_contract_data:
+            return MCPToolSpec.from_dict(maybe_contract_data)
         tools = self._available or self.list_tools()
         if name in tools:
             return MCPToolSpec.from_name(name)
@@ -146,10 +175,12 @@ class MultiMCPBridge:
 
     def describe_tool(self, name: str) -> Any:
         """Find and describe a tool from any bridge."""
-        # Try to find which bridge has this tool
+        from .mcp_registry import MCPSafetyClass
+
         for bridge in self.bridges.values():
-            if name in bridge.list_tools():
-                return bridge.describe_tool(name)
+            spec = bridge.describe_tool(name)
+            if spec.safety_class != MCPSafetyClass.UNKNOWN or name in bridge.list_tools():
+                return spec
         # Fallback to default classification
         from .mcp_registry import MCPToolSpec
         return MCPToolSpec.from_name(name)

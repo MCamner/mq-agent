@@ -342,7 +342,8 @@ Items:
 
 - [ ] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
   via MCPBridge; displays severity summary in terminal
-- [ ] Route `--risk`, `--security`, `--architecture` flags to mq-mcp review contracts
+- [ ] Route `--security` and `--architecture` flags to mq-mcp review contracts
+- [ ] Route `--risk` only when supported by the installed mq-mcp version
   (v1.5.0 risk layer in mq-mcp)
 - [ ] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
   without reinterpreting — pass through as-is
@@ -351,6 +352,71 @@ Items:
 - [ ] Model-selection policy: fast (Class A tools) vs deep (review tools with API key)
 - [ ] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
 - [ ] `validate_orchestration_contract` invocable from mq-agent doctor checks
+
+Implementation plan:
+
+1. Add CLI command group:
+   - `mq-agent review file <path>`
+   - `mq-agent review diff`
+   - `mq-agent review repo [path]`
+2. Add MCPBridge review helpers:
+   - `review_file(path, flags)`
+   - `review_diff(flags)`
+   - `review_repo(path, flags)`
+3. Add pass-through renderer:
+   - severity summary
+   - grouped findings
+   - source file / line when available
+   - raw JSON with `--json`
+4. Add flags:
+   - `--risk`
+   - `--security`
+   - `--architecture`
+   - `--json`
+   - `--approve` only if future write-capable review tools require it
+5. Add tests:
+   - command invokes correct mq-mcp tool
+   - no local review logic exists in mq-agent
+   - severity labels are passed through unchanged
+   - missing mq-mcp tool gives clear error
+   - `validate_orchestration_contract` appears in doctor output
+
+Hard boundary:
+
+mq-agent must not implement:
+
+- severity scoring
+- architecture reasoning
+- risk classification
+- semantic retrieval
+- review heuristics
+- drift detection
+
+mq-agent may implement:
+
+- CLI command routing
+- MCPBridge calls
+- result rendering
+- JSON output
+- approval gates
+- doctor checks
+- orchestration contract validation
+
+v1.1.0 definition of done:
+
+- `mq-agent review file` works through mq-mcp
+- `mq-agent review diff` works through mq-mcp
+- `mq-agent review repo` works through mq-mcp
+- `--json` output is stable and tested
+- severity labels are passed through unchanged
+- no local review engine exists in mq-agent
+- doctor verifies mq-mcp orchestration contract
+- smoke tests pass against mq-mcp v1.3.0+
+- docs updated:
+  - `COMMAND_SURFACE.md`
+  - `MCP_INTEGRATION.md`
+  - `EXAMPLES.md`
+  - `ROADMAP.md`
 
 Non-goals:
 
@@ -374,6 +440,19 @@ Items:
   `risk_review_diff` when available in mq-mcp ≥ v1.5.0
 - [ ] `mq-agent mcp status` extended: shows mq-mcp version, tool count, semantic
   memory item count, and contract freshness from `validate_orchestration_contract`
+
+Possible future: learned review patterns
+
+mq-agent may expose read-only commands for learned review patterns stored in mq-mcp:
+
+- `mq-agent learn status`
+- `mq-agent learn search <query>`
+- `mq-agent learn explain <pattern>`
+
+Non-goal:
+
+mq-agent must not train, infer, mutate or store learning data directly. All
+learning and memory behavior belongs in mq-mcp.
 
 ---
 
@@ -453,11 +532,13 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Open release PR, then tag after merge:
+Start v1.1.0 implementation:
 
-```text
-v1.0.0 — stable orchestration platform
-```
-
-All v1.0.0 requirements are complete. Tag `v1.0.0`, create GitHub release, and
-update GitHub Pages from the merged protected `main` commit.
+- Add `mq-agent review` command group
+- Route `review_file`, `review_diff` and `review_repo` through MCPBridge
+- Display mq-mcp severity findings without reinterpretation
+- Route `--security` and `--architecture` flags to mq-mcp review contracts
+- Route `--risk` only when supported by the installed mq-mcp version
+- Add smoke tests for mq-agent -> mq-mcp review runtime calls
+- Add `validate_orchestration_contract` to mq-agent doctor checks
+- Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md`
