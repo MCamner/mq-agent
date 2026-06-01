@@ -5,9 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(cat "$ROOT/VERSION")"
 ERRORS=0
 
-# Handles fail.
 fail() { echo "FAIL: $1" >&2; ERRORS=$((ERRORS + 1)); }
-# Handles ok.
 ok()   { echo "OK:   $1"; }
 
 echo "=== docs consistency check v${VERSION} ==="
