@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.0.0 — Stable orchestration platform (done)
-Next:    v1.1.0 — mq-mcp review runtime integration
+v1.3.0 — Architecture memory, model-selection, learn commands (done)
+Next:    v1.4.0 — mq-image-analyze perception tool integration
 ```
 
 Completed foundation:
@@ -58,7 +58,27 @@ Completed foundation:
 | v1.0.0  | Stable orchestration platform                | Done    |
 | v1.1.0  | mq-mcp review runtime integration            | Done    |
 | v1.2.0  | mq-mcp semantic memory + risk review routing | Done    |
-| v1.3.0  | Architecture memory, model-selection, learn  | In Progress |
+| v1.3.0  | Architecture memory, model-selection, learn  | Done    |
+| v1.4.0  | mq-image-analyze perception tool integration | Planned |
+
+---
+
+## v1.4.0 — mq-image-analyze perception tool integration
+
+Goal: route mq-image-analyze visual perception tools through mq-agent.
+mq-agent delegates image inspection to mq-image-analyze and passes
+structured visual context onward to mq-mcp or the user.
+
+Items:
+
+* [ ] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze `observe_architecture` tool
+* [ ] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze `image_ocr` tool
+* [ ] Route `mq-agent review --architecture` to include `visual_architecture_observation.v1` context
+* [ ] Document mq-image-analyze tool registration in `docs/MQ_ECOSYSTEM.md`
+* [ ] Smoke tests: mq-agent → mq-image-analyze → structured visual context → mq-mcp
+
+Hard boundary (unchanged): mq-agent must never implement image analysis locally.
+Delegation and rendering only.
 
 ---
 
@@ -469,6 +489,7 @@ learning and memory behavior belongs in mq-mcp.
 * [x] `mq-agent learn status` — check mq-mcp learn system
 * [x] `mq-agent learn search <query>` — search learned patterns (read-only)
 * [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation (read-only)
+* [x] Optional Ollama-backed learn extraction documented as an mq-mcp-owned policy
 * [x] `MultiMCPBridge._call_optional_tool()` — silent None when tool not available
 * [x] 24 new tests (292 total)
 
@@ -479,7 +500,7 @@ learning and memory behavior belongs in mq-mcp.
 These are intentionally not scheduled yet.
 
 * Local model fallback
-* Ollama integration
+* Ollama learn provider in mq-mcp
 * Visual TUI dashboard
 * Repository health history
 * Agent-generated release notes

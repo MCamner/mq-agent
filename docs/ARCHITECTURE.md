@@ -178,6 +178,7 @@ mq-mcp is the central AI cognition runtime:
 ```text
 mq-mcp owns:
   - review engine (review_file, review_diff, review_repo)
+  - learn extraction contracts and validated learning records
   - architecture memory (ADRs, boundaries, philosophy)
   - repo context builder (callgraph, symbol index)
   - orchestration contract validation
@@ -186,10 +187,16 @@ mq-mcp owns:
 
 mq-agent must not:
   - reimplement review logic locally
+  - implement local learn extraction or memory writes
   - duplicate architecture reasoning
   - maintain its own semantic retrieval runtime
   - assume mq-mcp keeps session state between calls
 ```
+
+Optional Ollama-backed learn extraction is documented in
+[LEARN_OLLAMA.md](LEARN_OLLAMA.md). The key rule is unchanged: mq-mcp owns the
+learn contract, validation, safety classes and storage approval; mq-agent only
+surfaces read-only learn status/search/explain commands.
 
 `mcp/manager.py` owns mq-mcp process start/stop — it is infrastructure,
 not orchestration. The manager does not interpret tool output.
