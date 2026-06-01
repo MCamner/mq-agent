@@ -7,9 +7,7 @@ ERRORS=0
 
 export UV_CACHE_DIR="${UV_CACHE_DIR:-${TMPDIR:-/tmp}/mq-agent-uv-cache}"
 
-# Handles fail.
 fail() { echo "FAIL: $1" >&2; ERRORS=$((ERRORS + 1)); }
-# Handles ok.
 ok()   { echo "OK:   $1"; }
 
 echo "=== mq-agent release-check v${VERSION} ==="

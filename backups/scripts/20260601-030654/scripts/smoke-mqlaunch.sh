@@ -5,7 +5,6 @@ set -euo pipefail
 
 TMPDIR="${TMPDIR:-/tmp}"
 
-# Runs check.
 run_check() {
   local label="$1"
   shift
