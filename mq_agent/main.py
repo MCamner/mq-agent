@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -436,6 +437,35 @@ def review_repo_cmd(
     bridge = MultiMCPBridge()
     result = bridge.review_repo(path, _review_flags(security, architecture, risk, fast))
     _run_review("review repo", result, json_out, bridge=bridge)
+
+
+def _contract_status_text(value: Any) -> str:
+    """Flatten MCP content wrappers into text for status rendering."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        parts = []
+        for key in ("text", "result", "content"):
+            if key in value:
+                parts.append(_contract_status_text(value[key]))
+        return " ".join(part for part in parts if part)
+    if isinstance(value, list):
+        return " ".join(_contract_status_text(item) for item in value)
+    return ""
+
+
+def _contract_status_ok(contract: Any) -> bool:
+    """Return whether a validate_orchestration_contract result is passing."""
+    if isinstance(contract, dict) and "ok" in contract:
+        return contract.get("ok") is not False
+
+    text = _contract_status_text(contract).lower()
+    if not text:
+        return False
+    failed_count = re.search(r"(\d+)\s+failed", text)
+    if failed_count is not None and int(failed_count.group(1)) > 0:
+        return False
+    return "[fail]" not in text and "pass" in text
 
 
 # ── learn ───────────────────────────────────────────────────────────────────
@@ -909,7 +939,7 @@ def mcp_status(
                 lines += f"\nsemantic memory: {mem_count} item(s)"
             contract = s.get("contract")
             if contract is not None:
-                contract_ok = isinstance(contract, dict) and contract.get("ok") is not False
+                contract_ok = _contract_status_ok(contract)
                 contract_status = "[green]valid[/green]" if contract_ok else "[red]invalid[/red]"
                 lines += f"\ncontract: {contract_status}"
 

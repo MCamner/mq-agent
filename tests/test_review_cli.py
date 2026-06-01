@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from mq_agent.main import app
+from mq_agent.main import _contract_status_ok, app
 from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
 runner = CliRunner()
@@ -177,3 +177,16 @@ def test_mcp_bridge_risk_requires_installed_risk_tool():
 
     assert result["ok"] is False
     assert "risk_review_file" in result["error"]
+
+
+def test_contract_status_accepts_mcp_text_wrappers():
+    passing = {
+        "result": "## Orchestration contract validation — PASS\n\nChecks: 13 passed, 0 failed, 0 warnings"
+    }
+    failing = {
+        "result": "## Orchestration contract validation — FAIL\n\nChecks: 11 passed, 1 failed, 0 warnings"
+    }
+
+    assert _contract_status_ok(passing) is True
+    assert _contract_status_ok([[{"type": "text", "text": passing["result"]}]]) is True
+    assert _contract_status_ok(failing) is False
