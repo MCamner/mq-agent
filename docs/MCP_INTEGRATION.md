@@ -193,7 +193,7 @@ mq-agent mcp stop
 
 ## Troubleshooting
 
-**Port already in use**
+### Port already in use
 
 ```text
 ERROR: [Errno 48] Address already in use
@@ -212,14 +212,14 @@ MQ_MCP_PORT=8766 uv run python server.py
 MQ_MCP_ENDPOINT=http://localhost:8766 mq-agent mcp status
 ```
 
-**mq-agent cannot reach mq-mcp**
+### mq-agent cannot reach mq-mcp
 
 ```bash
 mq-agent mcp status --json   # shows endpoint and reachability
 curl http://localhost:8765/health   # direct health check
 ```
 
-**Wrong Python environment**
+### Wrong Python environment
 
 Always use `uv run` inside the mq-mcp directory — system Python lacks
 the required packages:
@@ -228,7 +228,7 @@ the required packages:
 uv --directory ~/mq-mcp/mq-mcp run python server.py
 ```
 
-**Tool safety class shows `unknown`**
+### Tool safety class shows `unknown`
 
 mq-mcp serves safety classes from `docs/tool_contracts.json`. If that
 file is missing or stale, regenerate it:

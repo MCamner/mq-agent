@@ -4,7 +4,7 @@ mq-agent is one part of a broader set of local, terminal-native tools built arou
 
 ## Components
 
-```
+```text
 mqlaunch          Terminal command surface and menu launcher (human entrypoint)
 mq-agent          AI agent orchestrator (this repo)
 mq-mcp            Central AI cognition runtime (review, architecture, semantic memory)
@@ -61,7 +61,7 @@ See [COMMAND_SURFACE.md](COMMAND_SURFACE.md) for the canonical command-count ref
 
 **Menu** — press `g` or type `agent` at the mqlaunch prompt, then choose 1–12:
 
-```
+```text
 mqlaunch → g → Agent menu
   1  score .          2  signal .
   3  repo-summary .   4  tools
@@ -73,7 +73,7 @@ mqlaunch → g → Agent menu
 
 **Direct prompt commands:**
 
-```
+```text
 mqlaunch → agent score          # mq-agent score .
 mqlaunch → agent audit          # mq-agent audit .
 mqlaunch → agent doctor         # mq-agent doctor
