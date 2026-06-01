@@ -1306,13 +1306,14 @@ def task_run(
     from mq_agent.core.task_runner import find_task_files, load_task, run_task
 
     # Resolve task file — direct path, stem match, or internal name match
-    task_path = Path(name)
-    if not task_path.exists():
+    direct_path = Path(name)
+    task_path: Path | None = direct_path if direct_path.exists() else None
+    if task_path is None:
         package_tasks = Path(__file__).parent.parent / "tasks"
         local_tasks = Path(".") / "tasks"
         all_files = find_task_files(package_tasks, local_tasks)
         # stem match first (fast)
-        task_path = next((f for f in all_files if f.stem == name), None)  # type: ignore[assignment]
+        task_path = next((f for f in all_files if f.stem == name), None)  # type: ignore[arg-type]
         # fall back to internal name match
         if task_path is None:
             for f in all_files:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -13,10 +14,10 @@ runner = CliRunner()
 
 
 class FakeReviewBridge:
-    def __init__(self):
-        self.calls: list[tuple[str, object, dict]] = []
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, object | None, dict[str, bool]]] = []
 
-    def review_file(self, path: str, flags: dict):
+    def review_file(self, path: str, flags: dict[str, bool]) -> dict[str, Any]:
         self.calls.append(("review_file", path, flags))
         return {
             "ok": True,
@@ -25,7 +26,7 @@ class FakeReviewBridge:
             ],
         }
 
-    def review_diff(self, flags: dict):
+    def review_diff(self, flags: dict[str, bool]) -> dict[str, Any]:
         self.calls.append(("review_diff", None, flags))
         return {
             "ok": True,
@@ -34,11 +35,11 @@ class FakeReviewBridge:
             ],
         }
 
-    def review_repo(self, path: str, flags: dict):
+    def review_repo(self, path: str, flags: dict[str, bool]) -> dict[str, Any]:
         self.calls.append(("review_repo", path, flags))
         return {"ok": True, "findings": []}
 
-    def list_architecture_decisions(self):
+    def list_architecture_decisions(self) -> None:
         return None
 
 
@@ -84,7 +85,7 @@ def test_review_repo_json_invokes_mcp_bridge():
 
 def test_review_missing_mq_mcp_tool_returns_clear_error():
     class MissingToolBridge:
-        def review_file(self, path: str, flags: dict):
+        def review_file(self, path: str, flags: dict[str, bool]) -> dict[str, object]:
             return {
                 "ok": False,
                 "error": "mq-mcp tool 'review_file' is not available.",
@@ -101,7 +102,7 @@ def test_review_missing_mq_mcp_tool_returns_clear_error():
 
 def test_review_mcp_error_string_exits_nonzero():
     class ErrorBridge:
-        def review_diff(self, flags: dict):
+        def review_diff(self, flags: dict[str, bool]) -> str:
             return "mq-mcp error 500: Internal Server Error"
 
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=ErrorBridge()):
