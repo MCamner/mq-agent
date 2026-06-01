@@ -38,7 +38,7 @@ mq-agent plan "release repo-signal"
 
 Output:
 
-```
+```text
 PLAN: release repo-signal
 1. Run the test suite to confirm no regressions
 2. Check git status for uncommitted changes
@@ -226,6 +226,7 @@ mq-agent tui
 ```
 
 Keyboard bindings:
+
 - `enter` — run selected command
 - `c` — clear log
 - `q` — quit
