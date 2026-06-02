@@ -13,6 +13,14 @@ except ImportError:
 MCP_START_HINT = "Start mq-mcp with:\n  mq-agent mcp start"
 
 
+def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
+    """Return the default MCP server for known MQ ecosystem tool families."""
+    lower = tool_name.lower()
+    if lower == "image_ocr" or lower.startswith(("observe_", "analyze_", "extract_", "reverse_", "compare_")):
+        return "mq-image-analyze"
+    return fallback
+
+
 class MCPBridge:
     """Routes tool calls to a running mq-mcp server over HTTP."""
 
@@ -188,13 +196,23 @@ class MultiMCPBridge:
         """Find and describe a tool from any bridge."""
         from .mcp_registry import MCPSafetyClass
 
-        for bridge in self.bridges.values():
+        for server_name, bridge in self.bridges.items():
+            tools = bridge.list_tools()
+            if name in tools:
+                spec = bridge.describe_tool(name)
+                spec.source = server_name
+                return spec
+
+        for server_name, bridge in self.bridges.items():
             spec = bridge.describe_tool(name)
-            if spec.safety_class != MCPSafetyClass.UNKNOWN or name in bridge.list_tools():
+            if spec.safety_class != MCPSafetyClass.UNKNOWN:
+                spec.source = _infer_default_tool_source(name, server_name)
                 return spec
         # Fallback to default classification
         from .mcp_registry import MCPToolSpec
-        return MCPToolSpec.from_name(name)
+        spec = MCPToolSpec.from_name(name)
+        spec.source = _infer_default_tool_source(name, spec.source)
+        return spec
 
     def call_tool(self, tool_name: str, args: dict) -> Any:
         """Route tool call to the first bridge that has the tool."""

@@ -59,7 +59,7 @@ Completed foundation:
 | v1.1.0  | mq-mcp review runtime integration            | Done    |
 | v1.2.0  | mq-mcp semantic memory + risk review routing | Done    |
 | v1.3.0  | Architecture memory, model-selection, learn  | Done    |
-| v1.4.0  | mq-image-analyze perception tool integration | Planned |
+| v1.4.0  | mq-image-analyze perception tool integration | In Progress |
 
 ---
 
@@ -71,11 +71,11 @@ structured visual context onward to mq-mcp or the user.
 
 Items:
 
-* [ ] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze `observe_architecture` tool
-* [ ] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze `image_ocr` tool
+* [x] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze `observe_architecture` tool
+* [x] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze `image_ocr` tool
 * [ ] Route `mq-agent review --architecture` to include `visual_architecture_observation.v1` context
-* [ ] Document mq-image-analyze tool registration in `docs/MQ_ECOSYSTEM.md`
-* [ ] Smoke tests: mq-agent → mq-image-analyze → structured visual context → mq-mcp
+* [x] Document mq-image-analyze tool registration in `docs/MQ_ECOSYSTEM.md`
+* [x] Smoke tests: mq-agent → mq-image-analyze routing and structured visual tool source selection
 
 Hard boundary (unchanged): mq-agent must never implement image analysis locally.
 Delegation and rendering only.

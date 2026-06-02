@@ -45,10 +45,13 @@ def remove_mcp_server(name: str) -> bool:
 
 
 def get_mcp_servers() -> dict[str, str]:
-    """Get all registered MCP server endpoints. Always includes mq-mcp default."""
+    """Get all registered MCP server endpoints with MQ ecosystem defaults."""
     config = load_config()
     servers = config.get("mcp_servers", {})
     if "mq-mcp" not in servers:
         # Ensure default is always there unless explicitly overridden
         servers["mq-mcp"] = "http://localhost:8765"
+    if "mq-image-analyze" not in servers:
+        # Visual perception tools. mq-agent delegates; it does not analyze images locally.
+        servers["mq-image-analyze"] = "http://localhost:8766"
     return servers

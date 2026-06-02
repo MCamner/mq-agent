@@ -82,7 +82,7 @@ local review heuristics.
 
 ## MCP Commands
 
-| Command | Needs mq-mcp | Notes |
+| Command | Needs MCP server | Notes |
 |---|---:|---|
 | `mq-agent mcp status` | no | Reachability, tool counts, contract freshness, semantic memory count |
 | `mq-agent mcp tools` | no | List MCP tools with safety classes |
@@ -91,6 +91,8 @@ local review heuristics.
 | `mq-agent run-tool <name> --arg k=v` | yes | Pass tool arguments |
 | `mq-agent run-tool <name> --approve` | yes | Allow write-capable or subprocess tools |
 | `mq-agent run-tool <name> --dangerous` | yes | Allow dangerous delete/remove class tools |
+| `mq-agent run-tool observe_architecture --arg image_path=...` | mq-image-analyze | Visual architecture observation context |
+| `mq-agent run-tool image_ocr --arg image_path=...` | mq-image-analyze | OCR context from image-derived text |
 
 ## Browser Commands
 

@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- `mq-image-analyze` default MCP endpoint (`:8766`) for visual perception tools.
+- Read-only safety classification for `observe_architecture`, `image_ocr`,
+  `analyze_*`, `extract_*`, `reverse_*` and `compare_*` MCP tool families.
+- Tests and docs for routing `mq-agent run-tool observe_architecture` and
+  `mq-agent run-tool image_ocr` to mq-image-analyze.
+
 ## [v1.3.0] — 2026-05-31
 
 ### Added
