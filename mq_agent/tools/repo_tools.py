@@ -36,12 +36,15 @@ def list_files(path: str = ".", pattern: str = "*") -> str:
     return "\n".join(str(f.relative_to(p)) for f in files[:100])
 
 
-def read_file(path: str) -> str:
-    p = Path(path)
+def read_file(path: str = "", file_path: str = "") -> str:
+    resolved = path or file_path
+    if not resolved:
+        return "Error: provide path or file_path argument"
+    p = Path(resolved)
     if not p.exists():
-        return f"File not found: {path}"
+        return f"File not found: {resolved}"
     if p.stat().st_size > 200_000:
-        return f"File too large to read: {path} ({p.stat().st_size} bytes)"
+        return f"File too large to read: {resolved} ({p.stat().st_size} bytes)"
     return p.read_text(errors="replace")
 
 
