@@ -9,12 +9,11 @@ from typer.testing import CliRunner
 
 from mq_agent.agents.swarm_registry import (
     SWARM_AUDIT,
-    SWARM_CI,
     SWARM_RELEASE_CHECK,
     get_swarm,
     list_swarms,
 )
-from mq_agent.core.swarm import AgentManifest, AgentResult, SwarmConfig, SwarmResult, SwarmRunner
+from mq_agent.core.swarm import AgentManifest, AgentResult, SwarmResult, SwarmRunner
 from mq_agent.main import app
 
 runner = CliRunner()

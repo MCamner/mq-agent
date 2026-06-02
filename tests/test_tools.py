@@ -6,7 +6,14 @@ import pytest
 
 from mq_agent.tools import TOOL_REGISTRY
 from mq_agent.tools.git_tools import git_log, git_status
-from mq_agent.tools.repo_tools import find_files, list_files, read_file, repo_summary, run_task_tool, write_file
+from mq_agent.tools.repo_tools import (
+    find_files,
+    list_files,
+    read_file,
+    repo_summary,
+    run_task_tool,
+    write_file,
+)
 from mq_agent.tools.shell_tools import run_command
 from mq_agent.tools.signal_tools import _version_tuple
 

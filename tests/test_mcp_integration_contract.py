@@ -6,13 +6,9 @@ and verify the /tool-contracts endpoint contract shape.
 """
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from mq_agent.tools.mcp_registry import MCPSafetyClass, MCPToolSpec
-
 
 # ── safety_class from server wins over name heuristic ──────────────────────
 
@@ -149,7 +145,6 @@ def test_bridge_describe_tool_uses_tool_contracts_when_tool_not_listed():
 
 def test_tool_contracts_response_shape():
     """/tool-contracts response must have schema_version, tool_count, and tools list."""
-    from mq_agent.tools.mcp_bridge import MCPBridge
 
     contracts = {
         "schema_version": "tool-contracts.v1",
@@ -185,7 +180,6 @@ def test_tool_contracts_class_field_maps_to_safety():
     """Class A→read-only, C→write-capable, D→subprocess mapping is consistent."""
     class_map = {"A": "read-only", "B": "read-only", "C": "write-capable", "D": "subprocess"}
     for cls, expected in class_map.items():
-        tool_dict = {"name": f"some_tool_{cls}", "class": cls}
         # Class field is mq-mcp's internal grouping; safety_class is what the
         # server injects into the /tools response. The mapping is defined in
         # generate_tool_contracts.py and TOOL_META. This test locks the naming.

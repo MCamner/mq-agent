@@ -7,7 +7,14 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from mq_agent.core.task_runner import Task, TaskStep, _resolve_templates, find_task_files, load_task, run_task
+from mq_agent.core.task_runner import (
+    Task,
+    TaskStep,
+    _resolve_templates,
+    find_task_files,
+    load_task,
+    run_task,
+)
 from mq_agent.main import app
 
 runner = CliRunner()
