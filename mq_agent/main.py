@@ -356,6 +356,7 @@ def _render_arch_context(bridge: Any) -> None:
     lines = "\n".join(
         f"  {item.get('id', '?')}: {item.get('title') or item.get('summary') or str(item)[:80]}"
         for item in items[:5]
+        if isinstance(item, dict)
     )
     console.print(Panel(lines, title="[dim]Architecture context (mq-mcp)[/dim]", border_style="dim"))
 
