@@ -446,8 +446,8 @@ def review_file_cmd(
 ):
     """Review one file through mq-mcp. mq-agent does not implement review logic."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
-        flag_str = " ".join(f"--{f}" for f in flags)
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
             console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
@@ -475,8 +475,8 @@ def review_diff_cmd(
 ):
     """Review the current diff through mq-mcp. Findings are passed through."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
-        flag_str = " ".join(f"--{f}" for f in flags)
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
             console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
@@ -505,8 +505,8 @@ def review_repo_cmd(
 ):
     """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
-        flag_str = " ".join(f"--{f}" for f in flags)
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
             console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
