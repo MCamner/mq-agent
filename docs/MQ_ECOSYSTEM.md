@@ -33,7 +33,7 @@ macos-scripts / mqlaunch   — human terminal entrypoint
         │
         ├── repo-signal     — repo intelligence packs (future: callgraph, symbols)
         ├── mq-hal          — runtime health and observability summaries
-        └── mq-image-analyze — visual architecture observations (future)
+        └── mq-image-analyze — visual architecture observations and OCR
 ```
 
 The boundary between mq-agent and mq-mcp is defined in
@@ -52,7 +52,7 @@ and storage approval; mq-agent only exposes read-only learn status/search/explai
 | `mqlaunch` | Active | 12-item agent menu + 6 prompt commands |
 | `mq-mcp` | Active | HTTP bridge at `:8765`; 66 tools, safety classes A–D |
 | `mq-hal` | Active | `hal_repo_report` via mq-mcp bridge |
-| `mq-image-analyze` | Planned | visual architecture observations as review context |
+| `mq-image-analyze` | Active | HTTP bridge at `:8766`; `observe_architecture`, `image_ocr` visual context |
 
 ## mqlaunch integration
 
@@ -95,6 +95,22 @@ mq-mcp serve
 # mq-agent detects it automatically
 mq-agent doctor   # shows mq-mcp: ✓ OK
 ```
+
+## mq-image-analyze bridge
+
+When `mq-image-analyze` is running as an MCP server on `:8766`, `mq-agent`
+routes visual perception tools through `run-tool`:
+
+```bash
+mq-image mcp --transport sse
+
+mq-agent run-tool observe_architecture --arg image_path=docs/arch.png --json
+mq-agent run-tool image_ocr --arg image_path=docs/diagram.png --json
+```
+
+`mq-agent` only delegates and safety-gates the call. The returned
+`visual_architecture_observation.v1` or `image_ocr.v1` payload can then be
+passed to mq-mcp review workflows as structured context.
 
 ## Design principles
 

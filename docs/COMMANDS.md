@@ -25,9 +25,12 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 
 ## MCP commands
 
-These commands inspect and invoke the local `mq-mcp` tool server. The server is not required for `--describe`, `--dry-run`, or safety classification.
+These commands inspect and invoke registered MCP tool servers. `mq-mcp` defaults
+to `:8765`; `mq-image-analyze` defaults to `:8766` for visual perception tools.
+The servers are not required for `--describe`, `--dry-run`, or safety
+classification.
 
-| Command | Needs mq-mcp | Description |
+| Command | Needs MCP server | Description |
 |---------|-------------|-------------|
 | `mq-agent mcp status` | no | Check mq-mcp reachability and tool counts by safety class |
 | `mq-agent mcp tools` | no | List all MCP tools with safety class and description |
@@ -118,7 +121,11 @@ mq-agent mcp status --json
 mq-agent mcp tools
 mq-agent tools --describe read_repo_file --json
 mq-agent run-tool read_repo_file --arg path=README.md
+mq-agent run-tool observe_architecture --arg image_path=docs/arch.png --json
+mq-agent run-tool image_ocr --arg image_path=docs/diagram.png --json
 mq-agent run-tool update_repo_file --arg path=f.py --arg old=x --arg new=y --approve
+mq-agent review file README.md --architecture-image docs/arch.png
+mq-agent review diff --visual docs/diagram.png
 
 # JSON output for scripting
 mq-agent audit . --json | jq '.steps[] | select(.status == "failed")'

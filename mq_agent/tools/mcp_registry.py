@@ -14,6 +14,12 @@ class MCPSafetyClass:
 
 # Longest/most-specific prefixes first so "remove_" wins over a hypothetical "re_"
 _PREFIX_MAP: list[tuple[str, str]] = [
+    ("observe_", MCPSafetyClass.READ_ONLY),
+    ("analyze_", MCPSafetyClass.READ_ONLY),
+    ("extract_", MCPSafetyClass.READ_ONLY),
+    ("reverse_", MCPSafetyClass.READ_ONLY),
+    ("compare_", MCPSafetyClass.READ_ONLY),
+    ("image_ocr", MCPSafetyClass.READ_ONLY),
     ("read_", MCPSafetyClass.READ_ONLY),
     ("list_", MCPSafetyClass.READ_ONLY),
     ("get_", MCPSafetyClass.READ_ONLY),

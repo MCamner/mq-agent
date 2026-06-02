@@ -157,6 +157,7 @@ mq-agent review diff               # Review current diff through mq-mcp
 mq-agent review repo [path]        # Review repo through mq-mcp
 mq-agent review file <path> --fast # Prefer Class A tools (mq-mcp routes)
 mq-agent review diff --fast
+mq-agent review file <path> --architecture-image docs/arch.png
 mq-agent learn status              # Check mq-mcp learn system
 mq-agent learn search <query>      # Search learned review patterns
 mq-agent learn explain <pattern>   # Fetch pattern explanation

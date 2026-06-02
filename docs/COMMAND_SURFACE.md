@@ -57,6 +57,8 @@ local review heuristics.
 | `mq-agent review repo [path]` | yes | Calls mq-mcp `review_repo` |
 | `mq-agent review * --security` | yes | Passes `security=true` to mq-mcp |
 | `mq-agent review * --architecture` | yes | Passes `architecture=true` to mq-mcp |
+| `mq-agent review * --architecture-image <path>` | mq-image-analyze + mq-mcp | Observes image, then passes visual context to architecture review |
+| `mq-agent review * --visual <path>` | mq-image-analyze + mq-mcp | Alias for `--architecture-image` |
 | `mq-agent review * --risk` | yes | Requires installed mq-mcp `risk_review_*` tools |
 | `mq-agent review * --fast` | yes | Prefer Class A tools; mq-mcp handles routing |
 | `mq-agent review * --dry-run` | no | Show what would be called, no execution |
@@ -82,7 +84,7 @@ local review heuristics.
 
 ## MCP Commands
 
-| Command | Needs mq-mcp | Notes |
+| Command | Needs MCP server | Notes |
 |---|---:|---|
 | `mq-agent mcp status` | no | Reachability, tool counts, contract freshness, semantic memory count |
 | `mq-agent mcp tools` | no | List MCP tools with safety classes |
@@ -91,6 +93,8 @@ local review heuristics.
 | `mq-agent run-tool <name> --arg k=v` | yes | Pass tool arguments |
 | `mq-agent run-tool <name> --approve` | yes | Allow write-capable or subprocess tools |
 | `mq-agent run-tool <name> --dangerous` | yes | Allow dangerous delete/remove class tools |
+| `mq-agent run-tool observe_architecture --arg image_path=...` | mq-image-analyze | Visual architecture observation context |
+| `mq-agent run-tool image_ocr --arg image_path=...` | mq-image-analyze | OCR context from image-derived text |
 
 ## Browser Commands
 

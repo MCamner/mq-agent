@@ -26,6 +26,12 @@ def test_classify_read_only_git_prefix():
     assert classify_tool_name("git_diff") == MCPSafetyClass.READ_ONLY
     assert classify_tool_name("git_log") == MCPSafetyClass.READ_ONLY
 
+def test_classify_visual_perception_tools_read_only():
+    assert classify_tool_name("observe_architecture") == MCPSafetyClass.READ_ONLY
+    assert classify_tool_name("image_ocr") == MCPSafetyClass.READ_ONLY
+    assert classify_tool_name("analyze_ui") == MCPSafetyClass.READ_ONLY
+    assert classify_tool_name("compare_images") == MCPSafetyClass.READ_ONLY
+
 def test_classify_write_capable_update():
     assert classify_tool_name("update_repo_file") == MCPSafetyClass.WRITE_CAPABLE
 
@@ -187,6 +193,62 @@ def test_bridge_not_reachable_message_suggests_start():
     bridge = MCPBridge(endpoint="http://localhost:19998")
     msg = bridge.not_reachable_message()
     assert "mq-agent mcp start" in msg
+
+def test_default_mcp_servers_include_visual_perception_server():
+    from mq_agent.core import config
+
+    with patch.object(config, "load_config", return_value={"mcp_servers": {}}):
+        servers = config.get_mcp_servers()
+
+    assert servers["mq-mcp"] == "http://localhost:8765"
+    assert servers["mq-image-analyze"] == "http://localhost:8766"
+
+def test_default_mcp_servers_preserve_configured_visual_endpoint():
+    from mq_agent.core import config
+
+    configured = {
+        "mcp_servers": {
+            "mq-image-analyze": "http://localhost:9999",
+        }
+    }
+    with patch.object(config, "load_config", return_value=configured):
+        servers = config.get_mcp_servers()
+
+    assert servers["mq-image-analyze"] == "http://localhost:9999"
+
+def test_multi_bridge_routes_visual_tool_to_mq_image_analyze():
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    image_bridge = MagicMock()
+    image_bridge.list_tools.return_value = ["observe_architecture", "image_ocr"]
+    image_bridge.call_tool.return_value = {"schema": "visual_architecture_observation.v1"}
+    mcp_bridge = MagicMock()
+    mcp_bridge.list_tools.return_value = ["review_file"]
+    bridge.bridges = {"mq-mcp": mcp_bridge, "mq-image-analyze": image_bridge}
+
+    result = bridge.call_tool("observe_architecture", {"image_path": "docs/arch.png"})
+
+    assert result == {"schema": "visual_architecture_observation.v1"}
+    image_bridge.call_tool.assert_called_once_with("observe_architecture", {"image_path": "docs/arch.png"})
+    mcp_bridge.call_tool.assert_not_called()
+
+def test_multi_bridge_describe_visual_tool_uses_image_source_hint():
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    mcp_bridge = MagicMock()
+    mcp_bridge.list_tools.return_value = []
+    mcp_bridge.describe_tool.return_value = MCPToolSpec.from_name("observe_architecture")
+    image_bridge = MagicMock()
+    image_bridge.list_tools.return_value = []
+    image_bridge.describe_tool.return_value = MCPToolSpec.from_name("observe_architecture")
+    bridge.bridges = {"mq-mcp": mcp_bridge, "mq-image-analyze": image_bridge}
+
+    spec = bridge.describe_tool("observe_architecture")
+
+    assert spec.safety_class == MCPSafetyClass.READ_ONLY
+    assert spec.source == "mq-image-analyze"
 
 
 # ── safety counts ───────────────────────────────────────────────────────────

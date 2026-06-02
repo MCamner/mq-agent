@@ -263,12 +263,73 @@ def doctor():
 
 # ── review ─────────────────────────────────────────────────────────────────
 
-def _review_flags(security: bool, architecture: bool, risk: bool, fast: bool = False) -> dict[str, bool]:
-    return {
+def _review_flags(
+    security: bool,
+    architecture: bool,
+    risk: bool,
+    fast: bool = False,
+    visual_architecture_observation: Any = None,
+) -> dict[str, Any]:
+    flags: dict[str, Any] = {
         "security": security,
         "architecture": architecture,
         "risk": risk,
         "fast": fast,
+    }
+    if visual_architecture_observation is not None:
+        flags["visual_architecture_observation"] = visual_architecture_observation
+    return flags
+
+
+def _coerce_mcp_json_payload(value: Any) -> Any:
+    """Unwrap common MCP JSON string payloads without interpreting their meaning."""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
+    if isinstance(value, dict):
+        for key in ("result", "text"):
+            nested = value.get(key)
+            if isinstance(nested, str):
+                coerced = _coerce_mcp_json_payload(nested)
+                if coerced is not nested:
+                    return coerced
+        content = value.get("content")
+        if isinstance(content, list) and len(content) == 1:
+            return _coerce_mcp_json_payload(content[0])
+    return value
+
+
+def _visual_architecture_observation(bridge: Any, image_path: str | None) -> Any:
+    """Delegate visual architecture observation to mq-image-analyze."""
+    if not image_path:
+        return None
+    observation = bridge.call_tool("observe_architecture", {"image_path": image_path})
+    if _is_error_result(observation):
+        return observation
+    return _coerce_mcp_json_payload(observation)
+
+
+def _review_flags_with_visual_context(
+    bridge: Any,
+    security: bool,
+    architecture: bool,
+    risk: bool,
+    fast: bool,
+    architecture_image: str | None,
+) -> dict[str, Any]:
+    observation = _visual_architecture_observation(bridge, architecture_image)
+    if _is_error_result(observation):
+        return {"ok": False, "visual_context_error": observation}
+    return {
+        **_review_flags(
+            security,
+            architecture or bool(architecture_image),
+            risk,
+            fast,
+            visual_architecture_observation=observation,
+        )
     }
 
 
@@ -377,6 +438,7 @@ def review_file_cmd(
     path: Annotated[str, typer.Argument(help="File path to review")],
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
+    architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
@@ -384,14 +446,20 @@ def review_file_cmd(
 ):
     """Review one file through mq-mcp. mq-agent does not implement review logic."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture, risk, fast).items() if v]
-        flag_str = " ".join(f"--{f}" for f in flags)
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{' ' + flag_str if flag_str else ''}[/bold]")
+        if architecture_image:
+            console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    result = bridge.review_file(path, _review_flags(security, architecture, risk, fast))
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    if _is_error_result(flags):
+        _run_review("review file", flags, json_out)
+        return
+    result = bridge.review_file(path, flags)
     _run_review("review file", result, json_out, bridge=bridge)
 
 
@@ -399,6 +467,7 @@ def review_file_cmd(
 def review_diff_cmd(
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
+    architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
@@ -406,14 +475,20 @@ def review_diff_cmd(
 ):
     """Review the current diff through mq-mcp. Findings are passed through."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture, risk, fast).items() if v]
-        flag_str = " ".join(f"--{f}" for f in flags)
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
+        if architecture_image:
+            console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    result = bridge.review_diff(_review_flags(security, architecture, risk, fast))
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    if _is_error_result(flags):
+        _run_review("review diff", flags, json_out)
+        return
+    result = bridge.review_diff(flags)
     _run_review("review diff", result, json_out, bridge=bridge)
 
 
@@ -422,6 +497,7 @@ def review_repo_cmd(
     path: Annotated[str, typer.Argument(help="Repo path to review")] = ".",
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
+    architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
@@ -429,14 +505,20 @@ def review_repo_cmd(
 ):
     """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
     if dry_run:
-        flags = [f for f, v in _review_flags(security, architecture, risk, fast).items() if v]
-        flag_str = " ".join(f"--{f}" for f in flags)
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
+        if architecture_image:
+            console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    result = bridge.review_repo(path, _review_flags(security, architecture, risk, fast))
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    if _is_error_result(flags):
+        _run_review("review repo", flags, json_out)
+        return
+    result = bridge.review_repo(path, flags)
     _run_review("review repo", result, json_out, bridge=bridge)
 
 
