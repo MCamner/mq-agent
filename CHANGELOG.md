@@ -16,6 +16,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `analyze_*`, `extract_*`, `reverse_*` and `compare_*` MCP tool families.
 - Tests and docs for routing `mq-agent run-tool observe_architecture` and
   `mq-agent run-tool image_ocr` to mq-image-analyze.
+- `mq-agent review file|diff|repo --architecture-image <path>` / `--visual <path>`
+  to pass `visual_architecture_observation.v1` context from mq-image-analyze
+  into mq-mcp architecture reviews.
 
 ## [v1.3.0] — 2026-05-31
 

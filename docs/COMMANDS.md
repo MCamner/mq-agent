@@ -124,6 +124,8 @@ mq-agent run-tool read_repo_file --arg path=README.md
 mq-agent run-tool observe_architecture --arg image_path=docs/arch.png --json
 mq-agent run-tool image_ocr --arg image_path=docs/diagram.png --json
 mq-agent run-tool update_repo_file --arg path=f.py --arg old=x --arg new=y --approve
+mq-agent review file README.md --architecture-image docs/arch.png
+mq-agent review diff --visual docs/diagram.png
 
 # JSON output for scripting
 mq-agent audit . --json | jq '.steps[] | select(.status == "failed")'

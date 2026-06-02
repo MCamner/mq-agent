@@ -57,6 +57,8 @@ local review heuristics.
 | `mq-agent review repo [path]` | yes | Calls mq-mcp `review_repo` |
 | `mq-agent review * --security` | yes | Passes `security=true` to mq-mcp |
 | `mq-agent review * --architecture` | yes | Passes `architecture=true` to mq-mcp |
+| `mq-agent review * --architecture-image <path>` | mq-image-analyze + mq-mcp | Observes image, then passes visual context to architecture review |
+| `mq-agent review * --visual <path>` | mq-image-analyze + mq-mcp | Alias for `--architecture-image` |
 | `mq-agent review * --risk` | yes | Requires installed mq-mcp `risk_review_*` tools |
 | `mq-agent review * --fast` | yes | Prefer Class A tools; mq-mcp handles routing |
 | `mq-agent review * --dry-run` | no | Show what would be called, no execution |

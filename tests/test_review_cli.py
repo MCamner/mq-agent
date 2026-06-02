@@ -16,8 +16,18 @@ runner = CliRunner()
 class FakeReviewBridge:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object | None, dict[str, bool]]] = []
+        self.tool_calls: list[tuple[str, dict[str, str]]] = []
 
-    def review_file(self, path: str, flags: dict[str, bool]) -> dict[str, Any]:
+    def call_tool(self, tool: str, args: dict[str, str]) -> dict[str, Any]:
+        self.tool_calls.append((tool, args))
+        return {
+            "schema": "visual_architecture_observation.v1",
+            "image_path": args["image_path"],
+            "nodes": [],
+            "connections": [],
+        }
+
+    def review_file(self, path: str, flags: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("review_file", path, flags))
         return {
             "ok": True,
@@ -26,7 +36,7 @@ class FakeReviewBridge:
             ],
         }
 
-    def review_diff(self, flags: dict[str, bool]) -> dict[str, Any]:
+    def review_diff(self, flags: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("review_diff", None, flags))
         return {
             "ok": True,
@@ -35,7 +45,7 @@ class FakeReviewBridge:
             ],
         }
 
-    def review_repo(self, path: str, flags: dict[str, bool]) -> dict[str, Any]:
+    def review_repo(self, path: str, flags: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("review_repo", path, flags))
         return {"ok": True, "findings": []}
 
@@ -61,6 +71,72 @@ def test_review_file_json_invokes_mcp_bridge_with_flags():
     ]
     data = json.loads(result.output)
     assert data["findings"][0]["severity"] == "RISK"
+
+
+def test_review_file_architecture_image_passes_visual_context_to_mcp():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, [
+            "review",
+            "file",
+            "README.md",
+            "--architecture-image",
+            "docs/arch.png",
+            "--json",
+        ])
+
+    assert result.exit_code == 0
+    assert bridge.tool_calls == [
+        ("observe_architecture", {"image_path": "docs/arch.png"})
+    ]
+    flags = bridge.calls[0][2]
+    assert flags["architecture"] is True
+    assert flags["visual_architecture_observation"]["schema"] == "visual_architecture_observation.v1"
+    assert flags["visual_architecture_observation"]["image_path"] == "docs/arch.png"
+
+
+def test_review_diff_architecture_image_unwraps_json_string_payload():
+    class JsonStringBridge(FakeReviewBridge):
+        def call_tool(self, tool: str, args: dict[str, str]) -> str:
+            self.tool_calls.append((tool, args))
+            return json.dumps({
+                "schema": "visual_architecture_observation.v1",
+                "image_path": args["image_path"],
+            })
+
+    bridge = JsonStringBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, [
+            "review",
+            "diff",
+            "--visual",
+            "docs/diagram.png",
+            "--json",
+        ])
+
+    assert result.exit_code == 0
+    flags = bridge.calls[0][2]
+    assert flags["architecture"] is True
+    assert flags["visual_architecture_observation"]["schema"] == "visual_architecture_observation.v1"
+
+
+def test_review_repo_architecture_image_dry_run_prints_visual_step():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, [
+            "review",
+            "repo",
+            ".",
+            "--architecture-image",
+            "docs/arch.png",
+            "--dry-run",
+        ])
+
+    assert result.exit_code == 0
+    assert "observe_architecture" in result.output
+    assert "docs/arch.png" in result.output
+    assert bridge.calls == []
+    assert bridge.tool_calls == []
 
 
 def test_review_diff_passes_severity_label_through_unchanged():
