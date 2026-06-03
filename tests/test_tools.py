@@ -58,9 +58,17 @@ def test_run_command_default_timeout_is_120():
     sig = inspect.signature(run_command)
     assert sig.parameters["timeout"].default == 120
 
-def test_read_file_single_path_param():
+def test_read_file_accepts_path_and_file_path():
     sig = inspect.signature(read_file)
-    assert list(sig.parameters.keys()) == ["path"]
+    params = list(sig.parameters.keys())
+    assert "path" in params
+    assert "file_path" in params
+
+def test_read_file_file_path_kwarg(tmp_path):
+    f = tmp_path / "test.txt"
+    f.write_text("hello")
+    from mq_agent.tools.repo_tools import read_file as rf
+    assert rf(file_path=str(f)) == "hello"
 
 def test_find_files_excludes_venv(tmp_path):
     venv = tmp_path / ".venv" / "lib"
