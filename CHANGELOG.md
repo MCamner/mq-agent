@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.4.0] — 2026-06-04
+
 ### Added
 
 * `mq-agent learn review-flow <path>` — orchestrates `review file` + `learn extract-review` in one read-only pass, with step-by-step output and a next-safe-action hint.
