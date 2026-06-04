@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.3.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.4.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -246,6 +246,14 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
+## v1.4.0 status
+
+- [x] `mq-image-analyze` MCP endpoint registered for visual perception tools
+- [x] `mq-agent run-tool observe_architecture` routes through mq-image-analyze
+- [x] `mq-agent run-tool image_ocr` routes through mq-image-analyze
+- [x] `mq-agent review file|diff|repo --architecture-image <path>` adds `visual_architecture_observation.v1` context
+- [x] Image-analysis tools remain delegated; mq-agent does not implement perception locally
+
 ## v1.3.0 status
 
 - [x] Architecture-memory context surfaced automatically after review findings (`list_architecture_decisions`)
@@ -379,7 +387,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-- harden v1.3.0 review + learn workflows
+- harden v1.4.0 perception workflows
 - keep mq-agent orchestration-only
 - keep review logic, learn extraction, memory and risk reasoning in mq-mcp
 - improve mq ecosystem integrations without adding hidden autonomy
