@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.4.0] — 2026-06-04
+
 ### Added
 
 - `mq-image-analyze` default MCP endpoint (`:8766`) for visual perception tools.
