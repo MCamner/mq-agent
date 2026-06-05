@@ -8,6 +8,19 @@ description: Use when scoring a repository's README quality, publish readiness, 
 Goal:
 Run a full repo-signal assessment and generate an actionable AI improvement plan.
 
+## When to use
+
+- Scoring a repository's README quality and publish readiness via repo-signal
+- Generating an AI-backed improvement plan for README, docs, or publish checklist
+- Checking repo-signal focus areas before a release or product launch
+
+## When not to use
+
+- General code review or architecture audit — use `repo-audit`
+- Diagnosing CI failures — use `ci-diagnosis`
+- Security or risk analysis
+- Repos without repo-signal installed
+
 Always inspect:
 
 - repo-signal scan (project type, languages, tooling, entry points)

@@ -115,7 +115,7 @@ Skill-layer readiness gates:
 
 * [x] Inventory cleanup: every active MQ repo has `SKILLS.md`, every listed
   skill path exists, and stale references are removed
-* [ ] Trigger optimization: stable skills have trigger-strong descriptions with
+* [x] Trigger optimization: stable skills have trigger-strong descriptions with
   should-use and should-not-use cases
 * [ ] Evals: priority skills have realistic should-trigger and
   should-not-trigger prompts
@@ -140,6 +140,302 @@ Candidate scope:
 * [ ] Stronger ecosystem status and health summaries across configured repos
 * [ ] Better operator UX for dry-run, approval, execution, rollback notes and audit
 * [ ] Clear migration notes from v1.x command behavior to v2.0.0 behavior
+
+### 8-week prioritized ecosystem track
+
+This track connects the completed `mq-agent` v1.4.0 perception integration with
+the next cross-repo work: `mq-mcp` Release Gate v2 and operator-visible review,
+validation and release decisions.
+
+North star:
+
+```text
+repo / endpoint / screenshot
+        ↓
+structured signal
+        ↓
+mq-agent orchestration
+        ↓
+mq-mcp deterministic review + release gate
+        ↓
+operator-visible decision
+```
+
+The priority is trusted decision flow, not more tools.
+
+#### Week 1 — boundaries and Release Gate v2 contract
+
+Goal: lock architecture before adding features.
+
+* [ ] Define the post-v1.4.0 boundary between perception input, review routing
+  and operator-facing summaries
+* [ ] Add or refresh `docs/V1_4_0_SCOPE.md`
+* [ ] Add or refresh `docs/PERCEPTION_INTEGRATION.md`
+* [ ] Coordinate with `mq-mcp` on `docs/RELEASE_GATE_V2.md`
+* [ ] Coordinate with `mq-mcp` on `contracts/release_gate_v2.schema.json`
+
+Release Gate v2 should answer:
+
+```text
+Can this repo be released safely right now?
+Why / why not?
+What blocks release?
+What should be fixed first?
+```
+
+#### Week 2 — perception input contract
+
+Goal: make screenshots, OCR, UI images and diagrams usable as structured review
+input.
+
+Normalized perception object:
+
+```json
+{
+  "source_type": "screenshot | diagram | ui | terminal | browser",
+  "source_path": "path/to/image.png",
+  "ocr_text": "...",
+  "visual_summary": "...",
+  "detected_regions": [],
+  "risk_signals": [],
+  "confidence": "low | medium | high"
+}
+```
+
+* [ ] Keep `mq-image-analyze` as owner of OCR, screenshot analysis and visual
+  summaries
+* [ ] Keep `mq-agent` as owner of perception routing and review orchestration
+* [ ] Add or stabilize perception adapter surfaces such as
+  `mq_agent/integrations/mq_image_analyze.py`,
+  `mq_agent/perception/context.py` and `mq_agent/perception/normalizer.py`
+* [ ] Coordinate read-only `mq-mcp` support for perception review and perception
+  contract checks
+
+#### Week 3 — unified review orchestration
+
+Goal: make `mq-agent` the clear orchestrator for file, diff, repo, perception
+and release readiness reviews.
+
+Candidate command surface:
+
+```bash
+mq-agent review file <path>
+mq-agent review diff
+mq-agent review repo
+mq-agent review perception <image>
+mq-agent review release
+```
+
+Boundary:
+
+```text
+mq-agent decides workflow.
+mq-mcp performs deterministic review.
+mq-image-analyze performs visual extraction.
+repo-signal performs repo intelligence.
+```
+
+#### Week 4 — Release Gate v2 engine
+
+Goal: turn Release Gate v2 into executable checks owned by `mq-mcp`.
+
+Required check areas:
+
+| Area          | Check                                     |
+| ------------- | ----------------------------------------- |
+| Tests         | unit tests pass                           |
+| Lint/type     | lint and type checks pass                 |
+| Docs          | README, ROADMAP, CHANGELOG updated        |
+| Contracts     | tool contracts valid                      |
+| Safety        | no unsafe command drift                   |
+| Versioning    | version bump consistent                   |
+| Perception    | visual/review artifacts valid if included |
+| Repo quality  | repo-signal export clean                  |
+| Release notes | release summary generated                 |
+
+Example command:
+
+```bash
+mq-mcp release-gate run --repo . --profile v2
+```
+
+The output should be both machine-readable and human-readable, with status,
+score, blockers, warnings and next actions.
+
+#### Week 5 — operator UI first pass
+
+Goal: make the system useful without reading raw JSON.
+
+Start with terminal output before a browser UI.
+
+Candidate commands:
+
+```bash
+mq-agent status
+mq-agent review dashboard
+mq-agent release status
+mq-agent stack health
+```
+
+Operator sections:
+
+```text
+MQ Stack Health
+Release Gate Status
+Current Blockers
+Perception Findings
+Repo Readiness
+Suggested Next Action
+```
+
+The strongest first outcome is:
+
+```bash
+mq-agent release status
+```
+
+returning clear operational truth about the target release, Release Gate v2
+status, blockers and the recommended next step.
+
+#### Week 6 — cross-repo integration pass
+
+Goal: make the MQ stack work as one system.
+
+| Repo               | Required update                                   |
+| ------------------ | ------------------------------------------------- |
+| `mq-agent`         | orchestration, perception routing, release status |
+| `mq-mcp`           | Release Gate v2 engine                            |
+| `mq-image-analyze` | perception output contract                        |
+| `repo-signal`      | release/readiness export compatibility            |
+| `mq-hal`           | stack status and operator command routing         |
+| `macos-scripts`    | mqlaunch entrypoints for review/release workflows |
+| `mq-ums`           | later consumer of operator UI patterns            |
+
+Integration pattern:
+
+```text
+mqlaunch
+   ↓
+mq-agent
+   ↓
+mq-mcp + repo-signal + mq-image-analyze
+   ↓
+operator decision
+```
+
+Document one end-to-end workflow:
+
+```text
+mqlaunch → review repo → perception check → release gate → status summary
+```
+
+#### Week 7 — hardening and regression safety
+
+Goal: keep the stack from becoming fragile.
+
+Add fixtures where useful:
+
+```text
+tests/fixtures/sample_repo_clean/
+tests/fixtures/sample_repo_blocked/
+tests/fixtures/sample_diff_security_risk.patch
+tests/fixtures/sample_ui_screenshot.png
+tests/fixtures/sample_perception_output.json
+```
+
+Coverage targets:
+
+* [ ] `mq-agent`: review routing, perception adapter, MCPBridge compatibility
+  and operator summary rendering tests
+* [ ] `mq-mcp`: Release Gate v2 schema, blocker/warning classification,
+  contract drift and unsafe command detection tests
+* [ ] `mq-image-analyze`: output schema compatibility, OCR fallback and
+  confidence handling tests
+
+#### Week 8 — release candidate and documentation polish
+
+Goal: ship the release path in a way that looks serious.
+
+`mq-agent` checklist:
+
+```text
+README updated
+ROADMAP updated
+CHANGELOG updated
+examples added
+commands documented
+perception workflow documented
+release gate workflow documented
+tests green
+release notes generated
+```
+
+`mq-mcp` Release Gate v2 checklist:
+
+```text
+RELEASE_GATE_V2.md complete
+schema documented
+CLI examples added
+sample outputs added
+contract table updated
+safety classes reviewed
+tests green
+```
+
+Final demo workflow:
+
+```bash
+mq-agent review perception docs/screenshot.png
+mq-agent review repo
+mq-agent release status
+mq-mcp release-gate run --repo . --profile v2
+```
+
+### Priority order
+
+P0:
+
+* [ ] Define Release Gate v2 contract
+* [ ] Define perception input/output contract
+* [ ] Route perception through `mq-agent` without duplicating
+  `mq-image-analyze`
+* [ ] Make `mq-mcp` the deterministic release validator
+* [ ] Add human-readable release status output
+
+P1:
+
+* [ ] Add operator dashboard/status command
+* [ ] Add cross-repo fixture tests
+* [ ] Add repo-signal readiness integration
+* [ ] Add mqlaunch entrypoint
+* [ ] Add visual/perception review examples
+
+P2:
+
+* [ ] Browser UI
+* [ ] Rich HTML reports
+* [ ] Historical release score tracking
+* [ ] Automatic fix branches
+* [ ] GitHub PR comment bot
+
+Recommended repo split:
+
+* `mq-agent` owns workflow orchestration, operator commands, review routing,
+  perception routing and release status summaries
+* `mq-mcp` owns tool contracts, safety classes, release gate rules, review
+  engine, deterministic validation and contract drift detection
+* `mq-image-analyze` owns OCR, screenshot analysis, diagram interpretation,
+  visual summaries and the perception output contract
+* `repo-signal` owns repo readiness, README quality, documentation checks,
+  publish readiness and AI context exports
+* `mq-hal` owns stack health, natural-language operator routing, safe command
+  dispatch and the local status layer
+
+Recommended sequencing:
+
+```text
+contracts → routing → release gate → terminal operator UI → browser UI later
+```
 
 Non-goals:
 

@@ -14,6 +14,8 @@ The roadmap is complete through `v1.4.0` - mq-image-analyze perception tool
 integration. The next roadmap track is `v2.0.0`, focused on ecosystem-scale
 orchestration maturity, including the MQ Skill System v2.0 work that should be
 owned centrally by mq-agent rather than by individual repos such as coolThing.
+The active planning track also connects mq-agent's perception routing with
+`mq-mcp` Release Gate v2 and a terminal-first operator status flow.
 
 ## Done
 
@@ -25,7 +27,11 @@ owned centrally by mq-agent rather than by individual repos such as coolThing.
 ## Maintenance notes
 
 - Use [docs/MQ_SKILL_SYSTEM.md](docs/MQ_SKILL_SYSTEM.md) as the v2.0.0 contract baseline.
+- Use the 8-week ecosystem track in [docs/ROADMAP.md](docs/ROADMAP.md) to plan
+  perception contracts, Release Gate v2, review routing, operator status and
+  cross-repo hardening.
 - Plan `v2.0.0` around MQ Skill System ownership, ecosystem contracts and operator UX maturity.
 - Keep repo-local `SKILLS.md` files as inputs; define cross-repo MQ Skill System v2.0 behavior in mq-agent.
 - Keep root README, command docs and `docs/ROADMAP.md` aligned.
-- Leave new roadmap ideas unscheduled until they have a clear release target.
+- Start with contracts, routing, release gate and terminal operator UI before
+  browser UI or richer reports.

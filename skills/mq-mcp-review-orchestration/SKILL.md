@@ -7,6 +7,19 @@ description: Use when adding or changing mq-agent workflows that route review, r
 
 Use this skill when mq-agent coordinates review workflows backed by mq-mcp.
 
+## When to use
+
+- Adding or changing mq-agent workflows that route review, risk, security, or architecture requests to mq-mcp
+- Maintaining the orchestration boundary between mq-agent and mq-mcp review tools
+- Debugging why a review pipeline is not calling the right mq-mcp tool
+- Adding dry-run, JSON output, or model-selection behavior to review commands
+
+## When not to use
+
+- Implementing review logic, severity scoring, or architecture reasoning — those belong in mq-mcp
+- General mq-agent CLI changes unrelated to review orchestration
+- Debugging mq-mcp tool behavior — use the mq-mcp `review-runtime-maintainer` skill
+
 ## Boundary
 
 mq-agent owns orchestration, session state, CLI/TUI presentation, dry-run planning, model-selection policy and execution pipelines.

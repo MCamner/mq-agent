@@ -8,6 +8,19 @@ description: Use when preparing a release. Validates git state, version alignmen
 Goal:
 Validate whether the repository is safe and complete for a release.
 
+## When to use
+
+- Before tagging, publishing, or announcing a release
+- Verifying version alignment, changelog, and git state before pushing a release branch
+- After finishing a milestone to confirm the repo is release-complete
+
+## When not to use
+
+- Regular development or feature work not bound for immediate release
+- Exploratory or in-progress changes
+- General code quality audit — use `repo-audit`
+- Diagnosing CI failures — use `ci-diagnosis`
+
 Always inspect:
 
 - git status and uncommitted changes

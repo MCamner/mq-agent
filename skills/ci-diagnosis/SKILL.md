@@ -8,6 +8,18 @@ description: Use when CI is failing. Diagnoses test, lint, and type check failur
 Goal:
 Identify the root cause of CI failures and generate concrete, safe fix steps.
 
+## When to use
+
+- CI is actively failing or a recent push broke tests, lint, or type checks
+- Identifying the root cause of pytest, ruff, mypy, or workflow failures
+- Generating concrete fix steps for CI regressions
+
+## When not to use
+
+- Pre-emptive quality checks when CI is passing — use `repo-audit`
+- Release validation — use `release-readiness`
+- Local test failures unrelated to CI configuration
+
 Always inspect:
 
 - pytest output and failing tests

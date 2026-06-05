@@ -8,6 +8,19 @@ description: Use when analyzing images, screenshots, or comparing visual assets.
 Goal:
 Run structured visual reasoning on one or more images using mq-image-analyze.
 
+## When to use
+
+- Analyzing image content, palette, composition, or semantic meaning
+- Reviewing UI screenshots for layout, contrast, and accessibility
+- Comparing two images for visual drift or style changes
+- Routing image work through mq-image-analyze in an mq-agent workflow
+
+## When not to use
+
+- Text-only analysis or code review with no image component
+- Architecture review or repo auditing without visual artifacts
+- When mq-image-analyze is not installed or unavailable
+
 Always inspect:
 
 - image path exists and is a supported format (.jpg, .jpeg, .png, .webp, .bmp, .tiff)
