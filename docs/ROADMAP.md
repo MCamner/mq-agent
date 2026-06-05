@@ -13,8 +13,9 @@ surface.
 Current project phase:
 
 ```text
-v1.4.0 — mq-image-analyze perception tool integration (done)
+v1.4.0 - mq-image-analyze perception tool integration (done)
 Next:    define v1.5.0
+Future:  v2.0.0 - MQ Skill System + ecosystem orchestration maturity
 ```
 
 Completed foundation:
@@ -61,6 +62,8 @@ Completed foundation:
 | v1.2.0  | mq-mcp semantic memory + risk review routing | Done    |
 | v1.3.0  | Architecture memory, model-selection, learn  | Done    |
 | v1.4.0  | mq-image-analyze perception tool integration | Done    |
+| v1.5.0  | Next focused maintenance or integration slice | Open    |
+| v2.0.0  | MQ Skill System + ecosystem orchestration maturity | Future  |
 
 ---
 
@@ -80,6 +83,38 @@ Items:
 
 Hard boundary (unchanged): mq-agent must never implement image analysis locally.
 Delegation and rendering only.
+
+---
+
+## Future: v2.0.0 - MQ Skill System + ecosystem orchestration maturity
+
+Goal: make mq-agent the central owner for MQ Skill System v2.0 and the stable
+operator-facing orchestration layer for the mq ecosystem without weakening its
+approval-gated execution model.
+
+v2.0.0 should only start when the v1.x command surface and integration
+boundaries are stable enough that a major version is justified.
+
+Candidate scope:
+
+* MQ Skill System v2.0: cross-repo skill discovery, trigger quality, eval
+  standards, output contracts and ownership boundaries
+* Repo-local `SKILLS.md` files remain local skill indexes; mq-agent owns the
+  central routing, validation and ecosystem summary behavior
+* Stable cross-repo orchestration contracts for mq-mcp, repo-signal, mq-hal,
+  mqlaunch, mq-image-analyze and future mq tools
+* Versioned task/workflow manifest format with compatibility checks
+* Stronger ecosystem status and health summaries across configured repos
+* Better operator UX for dry-run, approval, execution, rollback notes and audit
+* Clear migration notes from v1.x command behavior to v2.0.0 behavior
+
+Non-goals:
+
+* No autonomous execution without operator approval
+* No direct implementation of repo-local skills inside mq-agent
+* No direct implementation of mq-mcp cognition or mq-image-analyze perception
+* No hidden memory upload or repository mutation
+* No breaking command changes without migration notes and release checks
 
 ---
 
@@ -572,13 +607,9 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Start v1.1.0 implementation:
+Decide the next v1.x slice before starting v2.0.0:
 
-* Add `mq-agent review` command group
-* Route `review_file`, `review_diff` and `review_repo` through MCPBridge
-* Display mq-mcp severity findings without reinterpretation
-* Route `--security` and `--architecture` flags to mq-mcp review contracts
-* Route `--risk` only when supported by the installed mq-mcp version
-* Add smoke tests for mq-agent -> mq-mcp review runtime calls
-* Add `validate_orchestration_contract` to mq-agent doctor checks
-* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md`
+* Define whether `v1.5.0` is maintenance, integration polish or command-surface cleanup
+* Keep v2.0.0 reserved for MQ Skill System v2.0 and ecosystem-scale orchestration maturity
+* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` when a concrete scope is chosen
+* Keep all new orchestration behavior dry-run friendly, approval gated and documented

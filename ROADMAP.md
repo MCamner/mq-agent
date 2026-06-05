@@ -12,7 +12,9 @@ active / stable maintenance
 
 The roadmap is complete through `v1.4.0` - mq-image-analyze perception tool
 integration. The next decision is whether to define `v1.5.0` or keep the repo
-in maintenance mode.
+in maintenance mode. A future `v2.0.0` is reserved for ecosystem-scale
+orchestration maturity, including the MQ Skill System v2.0 work that should be
+owned centrally by mq-agent rather than by individual repos such as coolThing.
 
 ## Done
 
@@ -24,5 +26,7 @@ in maintenance mode.
 ## Maintenance notes
 
 - Define `v1.5.0` only when there is a concrete scope.
+- Reserve `v2.0.0` for a major orchestration boundary, UX, skill-system or ecosystem-contract shift.
+- Keep repo-local `SKILLS.md` files as inputs; define cross-repo MQ Skill System v2.0 behavior in mq-agent.
 - Keep root README, command docs and `docs/ROADMAP.md` aligned.
 - Leave new roadmap ideas unscheduled until they have a clear release target.
