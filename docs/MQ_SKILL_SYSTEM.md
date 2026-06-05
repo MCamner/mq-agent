@@ -134,6 +134,20 @@ reimplement review scoring locally.
 6. [ ] Add approval-gated execution only for existing command surfaces.
 7. [ ] Update examples and command docs after command behavior exists.
 
+## v2.0 Readiness Gates
+
+Before MQ Skill System v2.0 is considered stable:
+
+* Every active MQ repo should expose `SKILLS.md`.
+* Every listed skill path should point to a real `skills/<name>/SKILL.md`.
+* Stable skills should have trigger-strong descriptions and near-miss cases.
+* Priority skills should have eval prompts for should-trigger and
+  should-not-trigger behavior.
+* Operational skills should define predictable output contracts.
+* Cross-repo routing should have a documented ownership matrix.
+* Release validation should catch broken skill docs and stale skill references.
+* Stable skills should have a quality review score and concrete fixes for gaps.
+
 ## Commands
 
 Read-only discovery and normalization:

@@ -111,6 +111,23 @@ Implementation order:
 6. [ ] Add approval-gated execution only for existing command surfaces
 7. [ ] Add migration notes and command docs for implemented behavior
 
+Skill-layer readiness gates:
+
+* [ ] Inventory cleanup: every active MQ repo has `SKILLS.md`, every listed
+  skill path exists, and stale references are removed
+* [ ] Trigger optimization: stable skills have trigger-strong descriptions with
+  should-use and should-not-use cases
+* [ ] Evals: priority skills have realistic should-trigger and
+  should-not-trigger prompts
+* [ ] Output contracts: operational skills define predictable human-readable
+  and JSON-friendly output shapes
+* [ ] Cross-repo routing matrix: common user intents map to the owning repo and
+  skill, with overlap and escalation rules
+* [ ] Validation tooling: release checks can detect broken skill paths, missing
+  metadata, missing evals and stale repo references
+* [ ] Skill quality review: stable skills are scored for trigger clarity,
+  responsibility boundary, output format, verification and overlap risk
+
 Candidate scope:
 
 * [ ] MQ Skill System v2.0: cross-repo skill discovery, trigger quality, eval
