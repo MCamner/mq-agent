@@ -113,7 +113,7 @@ Implementation order:
 
 Skill-layer readiness gates:
 
-* [ ] Inventory cleanup: every active MQ repo has `SKILLS.md`, every listed
+* [x] Inventory cleanup: every active MQ repo has `SKILLS.md`, every listed
   skill path exists, and stale references are removed
 * [ ] Trigger optimization: stable skills have trigger-strong descriptions with
   should-use and should-not-use cases
