@@ -124,8 +124,8 @@ All browser commands are read-only (GET requests only). No credentials, no form 
 
 | Command | Needs API key | Notes |
 |---|---:|---|
-| `mq-agent skill list [path]` | no | Discover repo-local `SKILLS.md` metadata; read-only |
-| `mq-agent skill list [path] --json` | no | Machine-readable `mq.skill_index.v1` discovery output |
+| `mq-agent skill list [path]` | no | Discover and normalize repo-local `SKILLS.md` metadata; read-only |
+| `mq-agent skill list [path] --json` | no | Machine-readable `mq.skill_index.v1` output with `mq.skill.v1` records |
 
 ## Swarm Commands
 

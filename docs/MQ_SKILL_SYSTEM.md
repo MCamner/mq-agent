@@ -128,7 +128,7 @@ reimplement review scoring locally.
 
 1. [x] Document the contracts and ownership boundaries.
 2. [x] Add read-only discovery of repo-local `SKILLS.md` files.
-3. [ ] Normalize discovered skills into `mq.skill.v1` records.
+3. [x] Normalize discovered skills into `mq.skill.v1` records.
 4. [ ] Add a dry-run skill routing preview with JSON output.
 5. [ ] Add ecosystem skill summaries across configured repos.
 6. [ ] Add approval-gated execution only for existing command surfaces.
@@ -136,15 +136,15 @@ reimplement review scoring locally.
 
 ## Commands
 
-Read-only discovery:
+Read-only discovery and normalization:
 
 ```bash
 mq-agent skill list .
 mq-agent skill list . --json
 ```
 
-`--json` returns the `mq.skill_index.v1` discovery contract. It does not parse
-or execute repo-local skill behavior.
+`--json` returns the `mq.skill_index.v1` discovery contract with normalized
+`mq.skill.v1` records. It does not execute repo-local skill behavior.
 
 ## Non-Goals
 

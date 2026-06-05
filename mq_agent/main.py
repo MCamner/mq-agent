@@ -672,14 +672,32 @@ def skill_list_cmd(
     table.add_column("Status")
     table.add_column("Source")
     table.add_column("Lines", justify="right")
+    table.add_column("Skills", justify="right")
     status = "[green]found[/green]" if index.exists else "[yellow]missing[/yellow]"
     source = index.source_type or "-"
     lines = str(index.line_count) if index.exists else "-"
-    table.add_row(index.repo, status, source, lines)
+    skill_count = str(len(index.skills or [])) if index.exists else "-"
+    table.add_row(index.repo, status, source, lines, skill_count)
     console.print(table)
 
     if not index.exists:
         console.print(f"[yellow]No SKILLS.md found at {index.path}[/yellow]")
+        return
+
+    if index.skills:
+        skills_table = Table(title="Normalized skills", show_header=True, header_style="bold")
+        skills_table.add_column("ID")
+        skills_table.add_column("Safety")
+        skills_table.add_column("Command")
+        skills_table.add_column("Summary")
+        for skill in index.skills:
+            skills_table.add_row(
+                skill.id,
+                skill.safety_class,
+                skill.command or "-",
+                skill.summary or "-",
+            )
+        console.print(skills_table)
 
 
 # ── signal ─────────────────────────────────────────────────────────────────
