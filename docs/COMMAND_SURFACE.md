@@ -120,6 +120,13 @@ All browser commands are read-only (GET requests only). No credentials, no form 
 | `mq-agent task run <name> --dry-run` | Preview steps without execution |
 | `mq-agent task run <name> --json` | Machine-readable step results |
 
+## Skill Commands
+
+| Command | Needs API key | Notes |
+|---|---:|---|
+| `mq-agent skill list [path]` | no | Discover repo-local `SKILLS.md` metadata; read-only |
+| `mq-agent skill list [path] --json` | no | Machine-readable `mq.skill_index.v1` discovery output |
+
 ## Swarm Commands
 
 Each swarm runs multiple agents in sequence with declared safety contracts.

@@ -13,6 +13,8 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent tools` | read-only | no | List registered tools |
 | `mq-agent tools --describe <name>` | read-only | no | Show tool metadata and safety class |
 | `mq-agent tools --mcp` | read-only | no | Include discovered MCP tools |
+| `mq-agent skill list .` | read-only | no | Discover repo-local `SKILLS.md` metadata |
+| `mq-agent skill list . --json` | read-only | no | Machine-readable `mq.skill_index.v1` discovery output |
 | `mq-agent audit .` | read-only | yes | Full repo audit with AI verification |
 | `mq-agent signal .` | read-only | yes | repo-signal assessment + AI improvement plan |
 | `mq-agent plan "goal"` | suggest | yes | Generate a plan for a goal |

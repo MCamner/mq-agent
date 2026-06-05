@@ -238,6 +238,7 @@ uv run pytest tests/ -v
 - [Safety contract](docs/SAFETY_CONTRACT.md)
 - [Ollama-backed learn extraction](docs/LEARN_OLLAMA.md)
 - [mq ecosystem](docs/MQ_ECOSYSTEM.md)
+- [MQ Skill System v2.0](docs/MQ_SKILL_SYSTEM.md)
 - [Skills](SKILLS.md)
 - [Examples](docs/EXAMPLES.md)
 - [Safety](docs/SAFETY.md)
@@ -387,7 +388,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-- harden v1.4.0 perception workflows
+- plan v2.0.0 around MQ Skill System ownership and ecosystem orchestration maturity
 - keep mq-agent orchestration-only
 - keep review logic, learn extraction, memory and risk reasoning in mq-mcp
 - improve mq ecosystem integrations without adding hidden autonomy

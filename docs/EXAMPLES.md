@@ -389,6 +389,19 @@ mq-agent memory store "arch-key" "value" --dry-run
 
 ---
 
+## Skill discovery
+
+Discover the repo-local `SKILLS.md` index without parsing or executing skills:
+
+```bash
+mq-agent skill list .
+mq-agent skill list . --json
+```
+
+The JSON output uses the `mq.skill_index.v1` discovery contract.
+
+---
+
 ## MCP server management
 
 Start the local mq-mcp tool server:

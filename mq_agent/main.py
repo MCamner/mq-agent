@@ -53,6 +53,9 @@ app.add_typer(review_app, name="review")
 learn_app = typer.Typer(help="Read-only access to mq-mcp learned review patterns.")
 app.add_typer(learn_app, name="learn")
 
+skill_app = typer.Typer(help="Read-only MQ Skill System discovery.")
+app.add_typer(skill_app, name="skill")
+
 console = Console()
 
 
@@ -646,6 +649,37 @@ def learn_explain_cmd(
         raise typer.Exit(1)
 
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Pattern: {pattern_id}[/bold]"))
+
+
+# ── skill discovery ────────────────────────────────────────────────────────
+
+@skill_app.command("list")
+def skill_list_cmd(
+    path: Annotated[str, typer.Argument(help="Repo path")] = ".",
+    json_out: Annotated[bool, typer.Option("--json", help="JSON output")] = False,
+):
+    """Discover the repo-local SKILLS.md index. Read-only."""
+    from mq_agent.core.skills import discover_skill_index
+
+    index = discover_skill_index(path)
+
+    if json_out:
+        typer.echo(json.dumps(index.to_dict(), indent=2))
+        return
+
+    table = Table(title="MQ Skill System discovery", show_header=True, header_style="bold")
+    table.add_column("Repo")
+    table.add_column("Status")
+    table.add_column("Source")
+    table.add_column("Lines", justify="right")
+    status = "[green]found[/green]" if index.exists else "[yellow]missing[/yellow]"
+    source = index.source_type or "-"
+    lines = str(index.line_count) if index.exists else "-"
+    table.add_row(index.repo, status, source, lines)
+    console.print(table)
+
+    if not index.exists:
+        console.print(f"[yellow]No SKILLS.md found at {index.path}[/yellow]")
 
 
 # ── signal ─────────────────────────────────────────────────────────────────

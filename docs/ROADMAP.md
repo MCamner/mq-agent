@@ -14,8 +14,7 @@ Current project phase:
 
 ```text
 v1.4.0 - mq-image-analyze perception tool integration (done)
-Next:    define v1.5.0
-Future:  v2.0.0 - MQ Skill System + ecosystem orchestration maturity
+Next:    v2.0.0 - MQ Skill System + ecosystem orchestration maturity
 ```
 
 Completed foundation:
@@ -62,8 +61,7 @@ Completed foundation:
 | v1.2.0  | mq-mcp semantic memory + risk review routing | Done    |
 | v1.3.0  | Architecture memory, model-selection, learn  | Done    |
 | v1.4.0  | mq-image-analyze perception tool integration | Done    |
-| v1.5.0  | Next focused maintenance or integration slice | Open    |
-| v2.0.0  | MQ Skill System + ecosystem orchestration maturity | Future  |
+| v2.0.0  | MQ Skill System + ecosystem orchestration maturity | Active planning |
 
 ---
 
@@ -86,30 +84,32 @@ Delegation and rendering only.
 
 ---
 
-## v1.5.0 — Next focused v1.x slice
-
-Goal: choose one small, high-confidence v1.x slice before starting v2.0.0.
-This release should keep mq-agent stable while improving the command surface,
-integration quality or maintenance posture.
-
-Constraints:
-
-* Keep the scope smaller than v2.0.0
-* Preserve existing safety gates and dry-run behavior
-* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` only
-  when concrete command behavior changes
-* Do not start MQ Skill System v2.0 work in this release
-
----
-
-## Future: v2.0.0 - MQ Skill System + ecosystem orchestration maturity
+## v2.0.0 - MQ Skill System + ecosystem orchestration maturity
 
 Goal: make mq-agent the central owner for MQ Skill System v2.0 and the stable
 operator-facing orchestration layer for the mq ecosystem without weakening its
 approval-gated execution model.
 
-v2.0.0 should only start when the v1.x command surface and integration
-boundaries are stable enough that a major version is justified.
+v2.0.0 starts from the stable v1.4.0 command surface and should focus on
+ecosystem-scale orchestration contracts, MQ Skill System ownership and operator
+UX maturity.
+
+Contract baseline:
+
+* MQ Skill System v2.0 contracts are defined in
+  [MQ_SKILL_SYSTEM.md](MQ_SKILL_SYSTEM.md)
+* Implement command behavior only after contract-shape tests and dry-run
+  behavior are defined
+
+Implementation order:
+
+1. [x] Define MQ Skill System v2.0 contracts and ownership boundaries
+2. [x] Add read-only discovery of repo-local `SKILLS.md` files
+3. [ ] Normalize discovered skills into `mq.skill.v1` records
+4. [ ] Add dry-run skill routing preview with JSON output
+5. [ ] Add ecosystem skill summaries across configured repos
+6. [ ] Add approval-gated execution only for existing command surfaces
+7. [ ] Add migration notes and command docs for implemented behavior
 
 Candidate scope:
 
@@ -623,9 +623,9 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Decide the next v1.x slice before starting v2.0.0:
+Start v2.0.0 planning:
 
-* Define whether `v1.5.0` is maintenance, integration polish or command-surface cleanup
-* Keep v2.0.0 reserved for MQ Skill System v2.0 and ecosystem-scale orchestration maturity
-* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` when a concrete scope is chosen
+* Normalize discovered `SKILLS.md` entries into `mq.skill.v1` records
+* Add contract-shape tests before adding routing preview behavior
+* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` when concrete command behavior changes
 * Keep all new orchestration behavior dry-run friendly, approval gated and documented

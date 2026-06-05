@@ -44,6 +44,11 @@ mq-agent must not reimplement review logic, architecture reasoning, or semantic 
 Learn extraction follows the same boundary: mq-mcp owns extraction, validation
 and storage approval; mq-agent only exposes read-only learn status/search/explain.
 
+MQ Skill System v2.0 ownership and contract shapes are defined in
+[MQ_SKILL_SYSTEM.md](MQ_SKILL_SYSTEM.md). Repo-local `SKILLS.md` files remain
+local skill indexes; mq-agent owns cross-repo discovery, routing validation and
+ecosystem summaries.
+
 ## Integration status
 
 | Integration | Status | How |
