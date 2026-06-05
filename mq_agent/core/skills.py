@@ -9,6 +9,7 @@ SKILL_INDEX_SCHEMA_VERSION = "mq.skill_index.v1"
 SKILL_RECORD_SCHEMA_VERSION = "mq.skill.v1"
 SKILL_ROUTE_SCHEMA_VERSION = "mq.skill_route.v1"
 ECOSYSTEM_SKILLS_SCHEMA_VERSION = "mq.ecosystem_skills.v1"
+SKILL_EXECUTION_SCHEMA_VERSION = "mq.skill_execution.v1"
 
 MQ_ECOSYSTEM_REPOS = (
     "macos-scripts",
@@ -145,6 +146,32 @@ class EcosystemSkillSummary:
             "total_skills": self.total_skills,
             "missing_repos": self.missing_repos,
             "indexes": [index.to_dict() for index in self.indexes],
+        }
+
+
+@dataclass(frozen=True)
+class SkillExecutionPlan:
+    """Approval-gated execution plan for a routed skill command."""
+
+    schema_version: str
+    request: str
+    selected_skill: str | None
+    command: str | None
+    approved: bool
+    executable: bool
+    status: str
+    reason: str
+
+    def to_dict(self) -> dict:
+        return {
+            "schema_version": self.schema_version,
+            "request": self.request,
+            "selected_skill": self.selected_skill,
+            "command": self.command,
+            "approved": self.approved,
+            "executable": self.executable,
+            "status": self.status,
+            "reason": self.reason,
         }
 
 
@@ -424,4 +451,44 @@ def route_skill_request(request: str, repo_path: str | Path = ".") -> SkillRoute
         reason=f"Matched request terms against normalized skill `{skill.id}`.",
         next_action=next_action,
         command=skill.command,
+    )
+
+
+def is_existing_mq_agent_command(command: str | None) -> bool:
+    """Return whether a command belongs to mq-agent's existing command surface."""
+    if not command:
+        return False
+    stripped = command.strip()
+    if not stripped.startswith("mq-agent "):
+        return False
+    blocked_chars = {";", "|", "&", ">", "<", "$", "\n"}
+    return not any(char in stripped for char in blocked_chars)
+
+
+def plan_skill_execution(request: str, repo_path: str | Path = ".", approve: bool = False) -> SkillExecutionPlan:
+    """Plan approval-gated execution for a routed skill command."""
+    route = route_skill_request(request, repo_path)
+    executable = is_existing_mq_agent_command(route.command)
+    if route.selected_skill is None:
+        status = "no-route"
+        reason = route.reason
+    elif not executable:
+        status = "not-executable"
+        reason = "Selected skill has no supported mq-agent command surface."
+    elif not approve:
+        status = "needs-approval"
+        reason = "Execution requires --approve."
+    else:
+        status = "approved"
+        reason = "Approved for execution through existing mq-agent command surface."
+
+    return SkillExecutionPlan(
+        schema_version=SKILL_EXECUTION_SCHEMA_VERSION,
+        request=route.request,
+        selected_skill=route.selected_skill,
+        command=route.command,
+        approved=approve,
+        executable=executable,
+        status=status,
+        reason=reason,
     )

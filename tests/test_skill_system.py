@@ -8,17 +8,21 @@ from typer.testing import CliRunner
 
 from mq_agent.core.skills import (
     ECOSYSTEM_SKILLS_SCHEMA_VERSION,
+    SKILL_EXECUTION_SCHEMA_VERSION,
     SKILL_INDEX_SCHEMA_VERSION,
     SKILL_RECORD_SCHEMA_VERSION,
     SKILL_ROUTE_SCHEMA_VERSION,
     EcosystemSkillSummary,
+    SkillExecutionPlan,
     SkillIndex,
     SkillRecord,
     SkillRoute,
     default_mq_repo_paths,
     discover_skill_index,
     discover_skill_indexes,
+    is_existing_mq_agent_command,
     normalize_skill_records,
+    plan_skill_execution,
     route_skill_request,
     summarize_ecosystem_skills,
 )
@@ -85,6 +89,20 @@ def test_ecosystem_skill_summary_fields_are_stable():
         "total_skills",
         "missing_repos",
         "indexes",
+    }
+
+
+def test_skill_execution_plan_fields_are_stable():
+    field_names = {f.name for f in fields(SkillExecutionPlan)}
+    assert field_names == {
+        "schema_version",
+        "request",
+        "selected_skill",
+        "command",
+        "approved",
+        "executable",
+        "status",
+        "reason",
     }
 
 
@@ -264,6 +282,58 @@ Read-only repository audit.
     assert summary.missing_repos == ["mq-mcp"]
 
 
+def test_existing_mq_agent_command_allows_only_simple_mq_agent_surface():
+    assert is_existing_mq_agent_command("mq-agent skill list . --json") is True
+    assert is_existing_mq_agent_command("mq-image analyze") is False
+    assert is_existing_mq_agent_command("mq-agent skill list .; rm -rf /") is False
+
+
+def test_plan_skill_execution_requires_approval(tmp_path):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### skill-list
+
+List skills.
+
+Command: `mq-agent skill list . --json`
+""",
+        encoding="utf-8",
+    )
+
+    plan = plan_skill_execution("skill list", tmp_path)
+
+    assert plan.schema_version == SKILL_EXECUTION_SCHEMA_VERSION
+    assert plan.selected_skill == "skill-list"
+    assert plan.command == "mq-agent skill list . --json"
+    assert plan.executable is True
+    assert plan.status == "needs-approval"
+
+
+def test_plan_skill_execution_blocks_non_mq_agent_command(tmp_path):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### visual-analysis
+
+Analyze images.
+
+Command: `mq-image analyze`
+""",
+        encoding="utf-8",
+    )
+
+    plan = plan_skill_execution("visual analysis", tmp_path, approve=True)
+
+    assert plan.command == "mq-image analyze"
+    assert plan.executable is False
+    assert plan.status == "not-executable"
+
+
 def test_skill_list_json_outputs_skill_index_contract(tmp_path):
     (tmp_path / "SKILLS.md").write_text("# Skills\n", encoding="utf-8")
 
@@ -327,6 +397,64 @@ Read-only repository audit.
     assert data["repos_with_skills"] == 1
     assert data["total_skills"] == 1
     assert data["indexes"][0]["repo"] == "mq-agent"
+
+
+def test_skill_run_json_without_approve_does_not_execute(tmp_path, monkeypatch):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### skill-list
+
+List skills.
+
+Command: `mq-agent skill list . --json`
+""",
+        encoding="utf-8",
+    )
+    calls: list[str] = []
+    monkeypatch.setattr("mq_agent.tools.shell_tools.run_command", lambda command, cwd=".": calls.append(command))
+
+    result = runner.invoke(app, ["skill", "run", "skill list", "--path", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["schema_version"] == "mq.skill_execution.v1"
+    assert data["status"] == "needs-approval"
+    assert calls == []
+
+
+def test_skill_run_with_approve_executes_supported_command(tmp_path, monkeypatch):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### skill-list
+
+List skills.
+
+Command: `mq-agent skill list . --json`
+""",
+        encoding="utf-8",
+    )
+
+    def fake_run(command: str, cwd: str = ".") -> str:
+        assert command == "mq-agent skill list . --json"
+        assert cwd == str(tmp_path)
+        return "ok"
+
+    monkeypatch.setattr("mq_agent.tools.shell_tools.run_command", fake_run)
+
+    result = runner.invoke(app, [
+        "skill", "run", "skill list", "--path", str(tmp_path), "--approve", "--json",
+    ])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "approved"
+    assert data["output"] == "ok"
 
 
 def test_skill_list_missing_file_is_successful_read_only(tmp_path):

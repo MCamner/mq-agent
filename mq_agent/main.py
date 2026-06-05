@@ -762,6 +762,43 @@ def skill_ecosystem_cmd(
     )
 
 
+@skill_app.command("run")
+def skill_run_cmd(
+    request: Annotated[str, typer.Argument(help="Request to route and run")],
+    path: Annotated[str, typer.Option("--path", help="Repo path")] = ".",
+    approve: Annotated[bool, typer.Option("--approve", help="Execute the routed command")] = False,
+    json_out: Annotated[bool, typer.Option("--json", help="JSON output")] = False,
+):
+    """Run a routed skill command only after explicit approval."""
+    from mq_agent.core.skills import plan_skill_execution
+    from mq_agent.tools.shell_tools import run_command
+
+    plan = plan_skill_execution(request, path, approve=approve)
+
+    if json_out and plan.status != "approved":
+        typer.echo(json.dumps(plan.to_dict(), indent=2))
+        return
+
+    if plan.status != "approved":
+        if json_out:
+            typer.echo(json.dumps(plan.to_dict(), indent=2))
+        else:
+            console.print(Panel(plan.reason, title="[bold yellow]Skill execution blocked[/bold yellow]"))
+            if plan.command:
+                console.print(f"Would run: [bold]{plan.command}[/bold]")
+            console.print("Add [bold]--approve[/bold] to execute supported mq-agent commands.")
+        return
+
+    assert plan.command is not None
+    output = run_command(plan.command, cwd=path)
+    if json_out:
+        payload = plan.to_dict() | {"output": output}
+        typer.echo(json.dumps(payload, indent=2, default=str))
+        return
+
+    console.print(Panel(output, title=f"[bold]Executed: {plan.command}[/bold]"))
+
+
 # ── signal ─────────────────────────────────────────────────────────────────
 
 @app.command()

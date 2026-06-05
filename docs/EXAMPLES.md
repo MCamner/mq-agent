@@ -421,6 +421,16 @@ mq-agent skill ecosystem ../mq-agent ../mq-mcp --json
 The ecosystem summary uses `mq.ecosystem_skills.v1` and reports missing
 `SKILLS.md` files without failing.
 
+Preview approval-gated execution for a routed skill:
+
+```bash
+mq-agent skill run "list skills" --json
+mq-agent skill run "list skills" --approve
+```
+
+`skill run` only executes supported existing `mq-agent` command surfaces and
+refuses unsupported commands or missing approvals.
+
 ---
 
 ## MCP server management

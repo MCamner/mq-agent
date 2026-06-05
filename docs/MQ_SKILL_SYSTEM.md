@@ -41,6 +41,7 @@ MQ Skill System v2.0 should use explicit versioned contracts:
 | Skill record | `mq.skill.v1` | One skill entry normalized by mq-agent |
 | Routing decision | `mq.skill_route.v1` | Selected owner, confidence and required approvals |
 | Ecosystem summary | `mq.ecosystem_skills.v1` | Cross-repo inventory and health summary |
+| Skill execution | `mq.skill_execution.v1` | Approval-gated execution plan/result |
 
 Contract version strings should appear in JSON output and docs examples when
 the runtime behavior is implemented.
@@ -131,7 +132,7 @@ reimplement review scoring locally.
 3. [x] Normalize discovered skills into `mq.skill.v1` records.
 4. [x] Add a dry-run skill routing preview with JSON output.
 5. [x] Add ecosystem skill summaries across configured repos.
-6. [ ] Add approval-gated execution only for existing command surfaces.
+6. [x] Add approval-gated execution only for existing command surfaces.
 7. [ ] Update examples and command docs after command behavior exists.
 
 ## v2.0 Readiness Gates
@@ -159,13 +160,16 @@ mq-agent skill route "check release readiness"
 mq-agent skill route "audit this repo" --json
 mq-agent skill ecosystem
 mq-agent skill ecosystem ../mq-agent ../mq-mcp --json
+mq-agent skill run "list skills"
+mq-agent skill run "list skills" --approve
 ```
 
 `--json` returns the `mq.skill_index.v1` discovery contract with normalized
 `mq.skill.v1` records for `skill list`, and the `mq.skill_route.v1` routing
 decision for `skill route`. `skill ecosystem --json` returns
-`mq.ecosystem_skills.v1`. These commands do not execute repo-local skill
-behavior.
+`mq.ecosystem_skills.v1`. `skill run --json` returns `mq.skill_execution.v1`.
+Only `skill run --approve` executes, and only for supported existing `mq-agent`
+command surfaces.
 
 ## Non-Goals
 

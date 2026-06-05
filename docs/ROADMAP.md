@@ -108,7 +108,7 @@ Implementation order:
 3. [x] Normalize discovered skills into `mq.skill.v1` records
 4. [x] Add dry-run skill routing preview with JSON output
 5. [x] Add ecosystem skill summaries across configured repos
-6. [ ] Add approval-gated execution only for existing command surfaces
+6. [x] Add approval-gated execution only for existing command surfaces
 7. [ ] Add migration notes and command docs for implemented behavior
 
 Skill-layer readiness gates:
@@ -642,7 +642,7 @@ Every powerful feature must have:
 
 Start v2.0.0 planning:
 
-* Add approval-gated execution only for existing command surfaces
-* Keep routing preview inspectable before adding execution behavior
+* Add migration notes and command docs for implemented behavior
+* Keep routed execution limited to explicit approval and existing command surfaces
 * Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` when concrete command behavior changes
 * Keep all new orchestration behavior dry-run friendly, approval gated and documented

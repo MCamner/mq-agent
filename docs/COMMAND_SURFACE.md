@@ -130,6 +130,8 @@ All browser commands are read-only (GET requests only). No credentials, no form 
 | `mq-agent skill route <request> --json` | no | Machine-readable `mq.skill_route.v1` routing decision |
 | `mq-agent skill ecosystem [paths...]` | no | Summarize MQ ecosystem skill indexes; read-only |
 | `mq-agent skill ecosystem [paths...] --json` | no | Machine-readable `mq.ecosystem_skills.v1` summary |
+| `mq-agent skill run <request>` | no | Preview approval-gated execution for a routed skill |
+| `mq-agent skill run <request> --approve` | no | Execute only supported existing `mq-agent` command surfaces |
 
 ## Swarm Commands
 

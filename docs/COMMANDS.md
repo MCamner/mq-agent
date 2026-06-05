@@ -19,6 +19,8 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent skill route "request" --json` | read-only | no | Machine-readable `mq.skill_route.v1` routing decision |
 | `mq-agent skill ecosystem` | read-only | no | Summarize MQ ecosystem skill indexes |
 | `mq-agent skill ecosystem --json` | read-only | no | Machine-readable `mq.ecosystem_skills.v1` summary |
+| `mq-agent skill run "request"` | suggest | no | Preview approval-gated execution for a routed skill |
+| `mq-agent skill run "request" --approve` | execute | no | Execute only supported existing `mq-agent` command surfaces |
 | `mq-agent audit .` | read-only | yes | Full repo audit with AI verification |
 | `mq-agent signal .` | read-only | yes | repo-signal assessment + AI improvement plan |
 | `mq-agent plan "goal"` | suggest | yes | Generate a plan for a goal |
