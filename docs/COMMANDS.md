@@ -31,6 +31,9 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent run "cmd" --approve` | execute | no | Run a shell command safely |
 | `mq-agent tui` | read-only | no | Launch Textual dashboard |
 
+For MQ Skill System v2.0 migration notes, see
+[MQ_SKILL_SYSTEM.md](MQ_SKILL_SYSTEM.md#migration-notes).
+
 ## MCP commands
 
 These commands inspect and invoke registered MCP tool servers. `mq-mcp` defaults

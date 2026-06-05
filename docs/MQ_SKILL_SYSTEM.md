@@ -133,7 +133,7 @@ reimplement review scoring locally.
 4. [x] Add a dry-run skill routing preview with JSON output.
 5. [x] Add ecosystem skill summaries across configured repos.
 6. [x] Add approval-gated execution only for existing command surfaces.
-7. [ ] Update examples and command docs after command behavior exists.
+7. [x] Update examples, command docs and migration notes after command behavior exists.
 
 ## v2.0 Readiness Gates
 
@@ -170,6 +170,43 @@ decision for `skill route`. `skill ecosystem --json` returns
 `mq.ecosystem_skills.v1`. `skill run --json` returns `mq.skill_execution.v1`.
 Only `skill run --approve` executes, and only for supported existing `mq-agent`
 command surfaces.
+
+## Migration Notes
+
+Existing v1.x command behavior remains valid. MQ Skill System v2.0 adds a skill
+metadata layer around existing commands; it does not replace the commands
+operators already use.
+
+What changes:
+
+* `SKILLS.md` is now treated as a repo-local skill index.
+* `mq-agent skill list` discovers and normalizes `SKILLS.md` into
+  `mq.skill_index.v1` and `mq.skill.v1`.
+* `mq-agent skill route` previews routing decisions using `mq.skill_route.v1`.
+* `mq-agent skill ecosystem` summarizes MQ skill inventory across repos using
+  `mq.ecosystem_skills.v1`.
+* `mq-agent skill run` requires `--approve` and only executes supported
+  existing `mq-agent` command surfaces.
+
+What does not change:
+
+* `mq-agent audit`, `release-check`, `signal`, `review`, `memory`, `task`,
+  `swarm`, `mcp` and `browser` commands remain direct entrypoints.
+* mq-agent still does not implement repo-local skill behavior directly.
+* mq-mcp still owns review cognition, risk, architecture reasoning and semantic
+  retrieval.
+* mq-image-analyze still owns visual perception behavior.
+* No skill routing command performs hidden execution or memory mutation.
+
+Recommended migration path:
+
+1. Keep existing direct commands working.
+2. Add or clean up repo-local `SKILLS.md` indexes.
+3. Use `mq-agent skill list --json` to validate normalized records.
+4. Use `mq-agent skill route "<request>" --json` before adding execution paths.
+5. Use `mq-agent skill ecosystem --json` to find missing or stale skill indexes.
+6. Add `--approve` only when intentionally running a supported existing
+   `mq-agent` command through `skill run`.
 
 ## Non-Goals
 
