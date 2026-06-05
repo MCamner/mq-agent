@@ -700,6 +700,68 @@ def skill_list_cmd(
         console.print(skills_table)
 
 
+@skill_app.command("route")
+def skill_route_cmd(
+    request: Annotated[str, typer.Argument(help="Request to route")],
+    path: Annotated[str, typer.Option("--path", help="Repo path")] = ".",
+    json_out: Annotated[bool, typer.Option("--json", help="JSON output")] = False,
+):
+    """Preview skill routing for a request. Dry-run only."""
+    from mq_agent.core.skills import route_skill_request
+
+    route = route_skill_request(request, path)
+
+    if json_out:
+        typer.echo(json.dumps(route.to_dict(), indent=2))
+        return
+
+    if route.selected_skill is None:
+        console.print(Panel(route.reason, title="[bold yellow]No skill route[/bold yellow]"))
+        console.print(route.next_action)
+        return
+
+    lines = [
+        f"[bold]selected:[/bold] {route.selected_skill}",
+        f"[bold]owner:[/bold] {route.owner}",
+        f"[bold]confidence:[/bold] {route.confidence}",
+        f"[bold]safety:[/bold] {route.safety_class}",
+        f"[bold]requires approval:[/bold] {route.requires_approval}",
+        f"[bold]reason:[/bold] {route.reason}",
+        f"[bold]next:[/bold] {route.next_action}",
+    ]
+    console.print(Panel("\n".join(lines), title="[bold]Skill route preview[/bold]"))
+
+
+@skill_app.command("ecosystem")
+def skill_ecosystem_cmd(
+    paths: Annotated[list[str] | None, typer.Argument(help="Repo paths to summarize")] = None,
+    json_out: Annotated[bool, typer.Option("--json", help="JSON output")] = False,
+):
+    """Summarize skill indexes across MQ ecosystem repos. Read-only."""
+    from mq_agent.core.skills import summarize_ecosystem_skills
+
+    summary = summarize_ecosystem_skills(*(paths or []))
+
+    if json_out:
+        typer.echo(json.dumps(summary.to_dict(), indent=2))
+        return
+
+    table = Table(title="MQ ecosystem skills", show_header=True, header_style="bold")
+    table.add_column("Repo")
+    table.add_column("SKILLS.md")
+    table.add_column("Skills", justify="right")
+    table.add_column("Path")
+    for index in summary.indexes:
+        status = "[green]found[/green]" if index.exists else "[yellow]missing[/yellow]"
+        table.add_row(index.repo, status, str(len(index.skills or [])), index.path)
+    console.print(table)
+    console.print(
+        f"[bold]repos:[/bold] {summary.repo_count}  "
+        f"[bold]with skills:[/bold] {summary.repos_with_skills}  "
+        f"[bold]skills:[/bold] {summary.total_skills}"
+    )
+
+
 # ── signal ─────────────────────────────────────────────────────────────────
 
 @app.command()

@@ -126,6 +126,10 @@ All browser commands are read-only (GET requests only). No credentials, no form 
 |---|---:|---|
 | `mq-agent skill list [path]` | no | Discover and normalize repo-local `SKILLS.md` metadata; read-only |
 | `mq-agent skill list [path] --json` | no | Machine-readable `mq.skill_index.v1` output with `mq.skill.v1` records |
+| `mq-agent skill route <request>` | no | Dry-run routing preview; no execution |
+| `mq-agent skill route <request> --json` | no | Machine-readable `mq.skill_route.v1` routing decision |
+| `mq-agent skill ecosystem [paths...]` | no | Summarize MQ ecosystem skill indexes; read-only |
+| `mq-agent skill ecosystem [paths...] --json` | no | Machine-readable `mq.ecosystem_skills.v1` summary |
 
 ## Swarm Commands
 

@@ -15,6 +15,10 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent tools --mcp` | read-only | no | Include discovered MCP tools |
 | `mq-agent skill list .` | read-only | no | Discover and normalize repo-local `SKILLS.md` metadata |
 | `mq-agent skill list . --json` | read-only | no | Machine-readable `mq.skill_index.v1` output with `mq.skill.v1` records |
+| `mq-agent skill route "request"` | read-only | no | Dry-run skill routing preview |
+| `mq-agent skill route "request" --json` | read-only | no | Machine-readable `mq.skill_route.v1` routing decision |
+| `mq-agent skill ecosystem` | read-only | no | Summarize MQ ecosystem skill indexes |
+| `mq-agent skill ecosystem --json` | read-only | no | Machine-readable `mq.ecosystem_skills.v1` summary |
 | `mq-agent audit .` | read-only | yes | Full repo audit with AI verification |
 | `mq-agent signal .` | read-only | yes | repo-signal assessment + AI improvement plan |
 | `mq-agent plan "goal"` | suggest | yes | Generate a plan for a goal |

@@ -7,13 +7,20 @@ from dataclasses import fields
 from typer.testing import CliRunner
 
 from mq_agent.core.skills import (
+    ECOSYSTEM_SKILLS_SCHEMA_VERSION,
     SKILL_INDEX_SCHEMA_VERSION,
     SKILL_RECORD_SCHEMA_VERSION,
+    SKILL_ROUTE_SCHEMA_VERSION,
+    EcosystemSkillSummary,
     SkillIndex,
     SkillRecord,
+    SkillRoute,
+    default_mq_repo_paths,
     discover_skill_index,
     discover_skill_indexes,
     normalize_skill_records,
+    route_skill_request,
+    summarize_ecosystem_skills,
 )
 from mq_agent.main import app
 
@@ -49,6 +56,35 @@ def test_skill_record_fields_are_stable():
         "outputs",
         "command",
         "source_path",
+    }
+
+
+def test_skill_route_fields_are_stable():
+    field_names = {f.name for f in fields(SkillRoute)}
+    assert field_names == {
+        "schema_version",
+        "request",
+        "selected_skill",
+        "owner",
+        "confidence",
+        "safety_class",
+        "requires_approval",
+        "reason",
+        "next_action",
+        "command",
+    }
+
+
+def test_ecosystem_skill_summary_fields_are_stable():
+    field_names = {f.name for f in fields(EcosystemSkillSummary)}
+    assert field_names == {
+        "schema_version",
+        "root",
+        "repo_count",
+        "repos_with_skills",
+        "total_skills",
+        "missing_repos",
+        "indexes",
     }
 
 
@@ -129,6 +165,105 @@ This is not a skill.
     assert records[1].safety_class == "read-only"
 
 
+def test_normalize_skill_records_from_skill_table(tmp_path):
+    skills = tmp_path / "SKILLS.md"
+    skills.write_text(
+        """# Skills
+
+## Built-in skills
+
+| Skill | Description | Status |
+| ----- | ----------- | ------ |
+| [docs-maintainer](skills/docs-maintainer/SKILL.md) | Keep docs aligned | stable |
+| [release-readiness](skills/release-readiness/SKILL.md) | Prepare releases | stable |
+
+## Boundaries
+
+This is not a skill.
+""",
+        encoding="utf-8",
+    )
+
+    records = normalize_skill_records(skills, repo="demo-repo")
+
+    assert [record.id for record in records] == ["docs-maintainer", "release-readiness"]
+    assert records[0].summary == "Keep docs aligned"
+    assert records[0].source_path == str(tmp_path / "skills/docs-maintainer/SKILL.md")
+
+
+def test_route_skill_request_matches_normalized_skill(tmp_path):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### release-readiness
+
+Full release validation.
+
+Command: `mq-agent release-check`
+""",
+        encoding="utf-8",
+    )
+
+    route = route_skill_request("check release readiness", tmp_path)
+
+    assert route.schema_version == SKILL_ROUTE_SCHEMA_VERSION
+    assert route.selected_skill == "release-readiness"
+    assert route.owner == tmp_path.name
+    assert route.confidence in {"medium", "high"}
+    assert route.command == "mq-agent release-check"
+    assert "Dry-run only" in route.next_action
+
+
+def test_route_skill_request_no_match_is_graceful(tmp_path):
+    (tmp_path / "SKILLS.md").write_text("# Skills\n", encoding="utf-8")
+
+    route = route_skill_request("something unrelated", tmp_path)
+
+    assert route.schema_version == SKILL_ROUTE_SCHEMA_VERSION
+    assert route.selected_skill is None
+    assert route.confidence == "none"
+    assert route.requires_approval is False
+
+
+def test_default_mq_repo_paths_discovers_existing_siblings(tmp_path):
+    root = tmp_path / "mq-agent"
+    sibling = tmp_path / "mq-mcp"
+    root.mkdir()
+    sibling.mkdir()
+
+    paths = default_mq_repo_paths(root)
+
+    assert sibling in paths
+
+
+def test_summarize_ecosystem_skills_with_explicit_repos(tmp_path):
+    repo_a = tmp_path / "mq-agent"
+    repo_b = tmp_path / "mq-mcp"
+    repo_a.mkdir()
+    repo_b.mkdir()
+    (repo_a / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### repo-audit
+
+Read-only repository audit.
+""",
+        encoding="utf-8",
+    )
+
+    summary = summarize_ecosystem_skills(repo_a, repo_b, base_path=repo_a)
+
+    assert summary.schema_version == ECOSYSTEM_SKILLS_SCHEMA_VERSION
+    assert summary.repo_count == 2
+    assert summary.repos_with_skills == 1
+    assert summary.total_skills == 1
+    assert summary.missing_repos == ["mq-mcp"]
+
+
 def test_skill_list_json_outputs_skill_index_contract(tmp_path):
     (tmp_path / "SKILLS.md").write_text("# Skills\n", encoding="utf-8")
 
@@ -141,6 +276,57 @@ def test_skill_list_json_outputs_skill_index_contract(tmp_path):
     assert data["exists"] is True
     assert data["source_type"] == "markdown"
     assert data["skills"] == []
+
+
+def test_skill_route_json_outputs_route_contract(tmp_path):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### repo-audit
+
+Read-only repository audit.
+
+Command: `mq-agent audit .`
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["skill", "route", "audit this repo", "--path", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["schema_version"] == "mq.skill_route.v1"
+    assert data["selected_skill"] == "repo-audit"
+    assert data["command"] == "mq-agent audit ."
+    assert data["requires_approval"] is False
+
+
+def test_skill_ecosystem_json_outputs_summary_contract(tmp_path):
+    repo = tmp_path / "mq-agent"
+    repo.mkdir()
+    (repo / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### repo-audit
+
+Read-only repository audit.
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["skill", "ecosystem", str(repo), "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["schema_version"] == "mq.ecosystem_skills.v1"
+    assert data["repo_count"] == 1
+    assert data["repos_with_skills"] == 1
+    assert data["total_skills"] == 1
+    assert data["indexes"][0]["repo"] == "mq-agent"
 
 
 def test_skill_list_missing_file_is_successful_read_only(tmp_path):

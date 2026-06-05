@@ -401,6 +401,26 @@ mq-agent skill list . --json
 The JSON output uses the `mq.skill_index.v1` contract with normalized
 `mq.skill.v1` records.
 
+Preview which skill would handle a request:
+
+```bash
+mq-agent skill route "check release readiness"
+mq-agent skill route "audit this repo" --json
+```
+
+The route preview uses `mq.skill_route.v1` and never executes the selected
+command.
+
+Summarize skill indexes across MQ ecosystem repos:
+
+```bash
+mq-agent skill ecosystem
+mq-agent skill ecosystem ../mq-agent ../mq-mcp --json
+```
+
+The ecosystem summary uses `mq.ecosystem_skills.v1` and reports missing
+`SKILLS.md` files without failing.
+
 ---
 
 ## MCP server management

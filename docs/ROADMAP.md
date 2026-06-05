@@ -106,8 +106,8 @@ Implementation order:
 1. [x] Define MQ Skill System v2.0 contracts and ownership boundaries
 2. [x] Add read-only discovery of repo-local `SKILLS.md` files
 3. [x] Normalize discovered skills into `mq.skill.v1` records
-4. [ ] Add dry-run skill routing preview with JSON output
-5. [ ] Add ecosystem skill summaries across configured repos
+4. [x] Add dry-run skill routing preview with JSON output
+5. [x] Add ecosystem skill summaries across configured repos
 6. [ ] Add approval-gated execution only for existing command surfaces
 7. [ ] Add migration notes and command docs for implemented behavior
 
@@ -625,7 +625,7 @@ Every powerful feature must have:
 
 Start v2.0.0 planning:
 
-* Add dry-run skill routing preview with JSON output
+* Add approval-gated execution only for existing command surfaces
 * Keep routing preview inspectable before adding execution behavior
 * Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` when concrete command behavior changes
 * Keep all new orchestration behavior dry-run friendly, approval gated and documented

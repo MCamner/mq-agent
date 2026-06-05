@@ -7,6 +7,18 @@ from pathlib import Path
 
 SKILL_INDEX_SCHEMA_VERSION = "mq.skill_index.v1"
 SKILL_RECORD_SCHEMA_VERSION = "mq.skill.v1"
+SKILL_ROUTE_SCHEMA_VERSION = "mq.skill_route.v1"
+ECOSYSTEM_SKILLS_SCHEMA_VERSION = "mq.ecosystem_skills.v1"
+
+MQ_ECOSYSTEM_REPOS = (
+    "macos-scripts",
+    "mq-agent",
+    "mq-mcp",
+    "mq-hal",
+    "mq-ums",
+    "mq-image-analyze",
+    "repo-signal",
+)
 
 _SKIP_HEADINGS = {
     "skills",
@@ -15,6 +27,7 @@ _SKIP_HEADINGS = {
     "run-a-skill",
 }
 _HEADING_RE = re.compile(r"^(#{2,4})\s+(.+?)\s*$")
+_SKILL_TABLE_LINK_RE = re.compile(r"\|\s*\[([^\]]+)\]\((skills/[^)]+/SKILL\.md)\)\s*\|([^|]+)\|")
 
 
 @dataclass(frozen=True)
@@ -81,9 +94,67 @@ class SkillRecord:
         }
 
 
+@dataclass(frozen=True)
+class SkillRoute:
+    """Dry-run routing preview for a request and normalized skill index."""
+
+    schema_version: str
+    request: str
+    selected_skill: str | None
+    owner: str | None
+    confidence: str
+    safety_class: str | None
+    requires_approval: bool
+    reason: str
+    next_action: str
+    command: str | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "schema_version": self.schema_version,
+            "request": self.request,
+            "selected_skill": self.selected_skill,
+            "owner": self.owner,
+            "confidence": self.confidence,
+            "safety_class": self.safety_class,
+            "requires_approval": self.requires_approval,
+            "reason": self.reason,
+            "next_action": self.next_action,
+            "command": self.command,
+        }
+
+
+@dataclass(frozen=True)
+class EcosystemSkillSummary:
+    """Cross-repo MQ skill inventory summary."""
+
+    schema_version: str
+    root: str
+    repo_count: int
+    repos_with_skills: int
+    total_skills: int
+    missing_repos: list[str]
+    indexes: list[SkillIndex]
+
+    def to_dict(self) -> dict:
+        return {
+            "schema_version": self.schema_version,
+            "root": self.root,
+            "repo_count": self.repo_count,
+            "repos_with_skills": self.repos_with_skills,
+            "total_skills": self.total_skills,
+            "missing_repos": self.missing_repos,
+            "indexes": [index.to_dict() for index in self.indexes],
+        }
+
+
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "skill"
+
+
+def _tokens(value: str) -> set[str]:
+    return {token for token in re.split(r"[^a-z0-9]+", value.lower()) if token}
 
 
 def _display_name(value: str) -> str:
@@ -153,12 +224,43 @@ def _record_from_section(repo: str, source_path: Path, title: str, lines: list[s
     )
 
 
+def _records_from_skill_table(repo: str, skill_path: Path, text: str) -> list[SkillRecord]:
+    records: list[SkillRecord] = []
+    for line in text.splitlines():
+        match = _SKILL_TABLE_LINK_RE.search(line)
+        if not match:
+            continue
+        title = match.group(1).strip()
+        linked_path = match.group(2).strip()
+        summary = match.group(3).strip()
+        skill_id = _slugify(title)
+        records.append(SkillRecord(
+            schema_version=SKILL_RECORD_SCHEMA_VERSION,
+            id=skill_id,
+            name=_display_name(title),
+            summary=summary,
+            owner=repo,
+            triggers=[skill_id],
+            safety_class="unknown",
+            requires_approval=False,
+            inputs=[],
+            outputs=[],
+            source_path=str(skill_path.parent / linked_path),
+        ))
+    return records
+
+
 def normalize_skill_records(skill_path: str | Path, repo: str | None = None) -> list[SkillRecord]:
     """Normalize markdown skill sections into mq.skill.v1 records."""
     path = Path(skill_path)
     repo_name = repo or path.parent.resolve().name
     if not path.exists():
         return []
+
+    text = path.read_text(encoding="utf-8")
+    table_records = _records_from_skill_table(repo_name, path, text)
+    if table_records:
+        return table_records
 
     records: list[SkillRecord] = []
     current_title: str | None = None
@@ -174,7 +276,7 @@ def normalize_skill_records(skill_path: str | Path, repo: str | None = None) -> 
         current_title = None
         current_lines = []
 
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         match = _HEADING_RE.match(line)
         if match:
             level = len(match.group(1))
@@ -230,3 +332,96 @@ def discover_skill_indexes(*repo_paths: str | Path) -> list[SkillIndex]:
     """Discover skill indexes for one or more repositories."""
     paths = repo_paths or (".",)
     return [discover_skill_index(path) for path in paths]
+
+
+def default_mq_repo_paths(base_path: str | Path = ".") -> list[Path]:
+    """Return existing sibling repo paths for the known MQ ecosystem repos."""
+    root = Path(base_path).expanduser().resolve()
+    parent = root.parent
+    return [parent / name for name in MQ_ECOSYSTEM_REPOS if (parent / name).exists()]
+
+
+def summarize_ecosystem_skills(
+    *repo_paths: str | Path,
+    base_path: str | Path = ".",
+) -> EcosystemSkillSummary:
+    """Summarize skill indexes across MQ ecosystem repositories."""
+    paths = [Path(path).expanduser().resolve() for path in repo_paths]
+    if not paths:
+        paths = default_mq_repo_paths(base_path)
+    indexes = discover_skill_indexes(*paths)
+    missing = [index.repo for index in indexes if not index.exists]
+    return EcosystemSkillSummary(
+        schema_version=ECOSYSTEM_SKILLS_SCHEMA_VERSION,
+        root=str(Path(base_path).expanduser().resolve().parent),
+        repo_count=len(indexes),
+        repos_with_skills=sum(1 for index in indexes if index.exists),
+        total_skills=sum(len(index.skills or []) for index in indexes),
+        missing_repos=missing,
+        indexes=indexes,
+    )
+
+
+def route_skill_request(request: str, repo_path: str | Path = ".") -> SkillRoute:
+    """Preview which normalized skill should handle a request.
+
+    This function is read-only. It inspects normalized skill metadata and returns
+    an explainable routing decision without running any command.
+    """
+    index = discover_skill_index(repo_path)
+    skills = index.skills or []
+    normalized_request = request.strip()
+    request_slug = _slugify(normalized_request)
+    request_tokens = _tokens(normalized_request)
+
+    best: tuple[int, SkillRecord] | None = None
+    for skill in skills:
+        search_parts = [
+            skill.id,
+            skill.name,
+            skill.summary,
+            skill.command or "",
+            " ".join(skill.triggers),
+        ]
+        search_text = " ".join(search_parts).lower()
+        skill_tokens = set().union(*(_tokens(part) for part in search_parts))
+        score = len(request_tokens & skill_tokens)
+        if skill.id in request_slug or any(trigger in request_slug for trigger in skill.triggers):
+            score += 5
+        if normalized_request.lower() in search_text:
+            score += 3
+        if best is None or score > best[0]:
+            best = (score, skill)
+
+    if best is None or best[0] == 0:
+        return SkillRoute(
+            schema_version=SKILL_ROUTE_SCHEMA_VERSION,
+            request=normalized_request,
+            selected_skill=None,
+            owner=None,
+            confidence="none",
+            safety_class=None,
+            requires_approval=False,
+            reason="No normalized skill matched the request.",
+            next_action="Inspect available skills with `mq-agent skill list --json`.",
+        )
+
+    score, skill = best
+    confidence = "high" if score >= 5 else "medium" if score >= 2 else "low"
+    next_action = (
+        f"Dry-run only. Candidate command: {skill.command}"
+        if skill.command
+        else "Dry-run only. Inspect this skill before execution behavior is added."
+    )
+    return SkillRoute(
+        schema_version=SKILL_ROUTE_SCHEMA_VERSION,
+        request=normalized_request,
+        selected_skill=skill.id,
+        owner=skill.owner,
+        confidence=confidence,
+        safety_class=skill.safety_class,
+        requires_approval=skill.requires_approval,
+        reason=f"Matched request terms against normalized skill `{skill.id}`.",
+        next_action=next_action,
+        command=skill.command,
+    )
