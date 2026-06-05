@@ -86,6 +86,22 @@ Delegation and rendering only.
 
 ---
 
+## v1.5.0 — Next focused v1.x slice
+
+Goal: choose one small, high-confidence v1.x slice before starting v2.0.0.
+This release should keep mq-agent stable while improving the command surface,
+integration quality or maintenance posture.
+
+Constraints:
+
+* Keep the scope smaller than v2.0.0
+* Preserve existing safety gates and dry-run behavior
+* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md` only
+  when concrete command behavior changes
+* Do not start MQ Skill System v2.0 work in this release
+
+---
+
 ## Future: v2.0.0 - MQ Skill System + ecosystem orchestration maturity
 
 Goal: make mq-agent the central owner for MQ Skill System v2.0 and the stable
@@ -97,16 +113,16 @@ boundaries are stable enough that a major version is justified.
 
 Candidate scope:
 
-* MQ Skill System v2.0: cross-repo skill discovery, trigger quality, eval
+* [ ] MQ Skill System v2.0: cross-repo skill discovery, trigger quality, eval
   standards, output contracts and ownership boundaries
-* Repo-local `SKILLS.md` files remain local skill indexes; mq-agent owns the
+* [ ] Repo-local `SKILLS.md` files remain local skill indexes; mq-agent owns the
   central routing, validation and ecosystem summary behavior
-* Stable cross-repo orchestration contracts for mq-mcp, repo-signal, mq-hal,
+* [ ] Stable cross-repo orchestration contracts for mq-mcp, repo-signal, mq-hal,
   mqlaunch, mq-image-analyze and future mq tools
-* Versioned task/workflow manifest format with compatibility checks
-* Stronger ecosystem status and health summaries across configured repos
-* Better operator UX for dry-run, approval, execution, rollback notes and audit
-* Clear migration notes from v1.x command behavior to v2.0.0 behavior
+* [ ] Versioned task/workflow manifest format with compatibility checks
+* [ ] Stronger ecosystem status and health summaries across configured repos
+* [ ] Better operator UX for dry-run, approval, execution, rollback notes and audit
+* [ ] Clear migration notes from v1.x command behavior to v2.0.0 behavior
 
 Non-goals:
 
