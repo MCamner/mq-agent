@@ -22,6 +22,22 @@ Produce a structured read-only audit of a repository using the Planner→Executo
 - Diagnosing CI failures — use `ci-diagnosis`
 - Scoring README quality or publish readiness — use `signal-assessment`
 
+## Evals
+
+### Should trigger
+
+* "audit this repo and give me a health report"
+* "what's the overall code quality and safety risk here?"
+* "run a full read-only audit of mq-mcp"
+* "check this repo for drift, dead code, and missing tests"
+
+### Should not trigger
+
+* "is this repo ready to release?" → use `release-readiness`
+* "review this diff for security issues" → use `mq-mcp-review-orchestration`
+* "what's the repo signal score?" → use `signal-assessment`
+* "diagnose a failing CI pipeline" → use `ci-diagnosis`
+
 Always inspect:
 
 - git status and recent log

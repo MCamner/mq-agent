@@ -117,7 +117,7 @@ Skill-layer readiness gates:
   skill path exists, and stale references are removed
 * [x] Trigger optimization: stable skills have trigger-strong descriptions with
   should-use and should-not-use cases
-* [ ] Evals: priority skills have realistic should-trigger and
+* [x] Evals: priority skills have realistic should-trigger and
   should-not-trigger prompts
 * [ ] Output contracts: operational skills define predictable human-readable
   and JSON-friendly output shapes

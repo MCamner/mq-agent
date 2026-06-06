@@ -20,6 +20,22 @@ Use this skill when mq-agent coordinates review workflows backed by mq-mcp.
 - General mq-agent CLI changes unrelated to review orchestration
 - Debugging mq-mcp tool behavior — use the mq-mcp `review-runtime-maintainer` skill
 
+## Evals
+
+### Should trigger
+
+* "review this file for security issues"
+* "what's the risk in this diff?"
+* "run an architecture review on this PR"
+* "route this review through mq-mcp and show me the findings"
+
+### Should not trigger
+
+* "audit the whole repo for health" → use `repo-audit`
+* "is this release-ready?" → use `release-readiness`
+* "analyze this screenshot" → use `visual-analysis`
+* "diagnose a CI failure" → use `ci-diagnosis`
+
 ## Boundary
 
 mq-agent owns orchestration, session state, CLI/TUI presentation, dry-run planning, model-selection policy and execution pipelines.

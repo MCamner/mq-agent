@@ -21,6 +21,22 @@ Run a full repo-signal assessment and generate an actionable AI improvement plan
 - Security or risk analysis
 - Repos without repo-signal installed
 
+## Evals
+
+### Should trigger
+
+* "run a repo-signal assessment"
+* "what's the signal score for this repo?"
+* "export the repo signal pack"
+* "score the README quality and generate an improvement plan"
+
+### Should not trigger
+
+* "is this repo ready to release?" → use `release-readiness`
+* "audit this repo for code quality" → use `repo-audit`
+* "review this diff for security issues" → use `mq-mcp-review-orchestration`
+* "why is CI failing?" → use `ci-diagnosis`
+
 Always inspect:
 
 - repo-signal scan (project type, languages, tooling, entry points)

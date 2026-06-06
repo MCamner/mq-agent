@@ -21,6 +21,22 @@ Run structured visual reasoning on one or more images using mq-image-analyze.
 - Architecture review or repo auditing without visual artifacts
 - When mq-image-analyze is not installed or unavailable
 
+## Evals
+
+### Should trigger
+
+* "analyze this screenshot"
+* "what does this architecture diagram show?"
+* "compare these two UI screenshots for visual drift"
+* "run OCR on this terminal screenshot"
+
+### Should not trigger
+
+* "audit the repo structure" → use `repo-audit`
+* "review this diff for security" → use `mq-mcp-review-orchestration`
+* "check release readiness" → use `release-readiness`
+* "there is no image involved" → text-only tasks do not use this skill
+
 Always inspect:
 
 - image path exists and is a supported format (.jpg, .jpeg, .png, .webp, .bmp, .tiff)

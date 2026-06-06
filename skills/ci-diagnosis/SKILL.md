@@ -20,6 +20,22 @@ Identify the root cause of CI failures and generate concrete, safe fix steps.
 - Release validation — use `release-readiness`
 - Local test failures unrelated to CI configuration
 
+## Evals
+
+### Should trigger
+
+* "why is CI failing?"
+* "diagnose the failing GitHub Actions run"
+* "which test is blocking the pipeline?"
+* "pytest is failing on main — find the root cause"
+
+### Should not trigger
+
+* "run the tests locally to see if they pass" → local test run, not CI diagnosis
+* "check if the repo is ready to release" → use `release-readiness`
+* "review this code for security" → use `mq-mcp-review-orchestration`
+* "audit the repo for quality issues" → use `repo-audit`
+
 Always inspect:
 
 - pytest output and failing tests
