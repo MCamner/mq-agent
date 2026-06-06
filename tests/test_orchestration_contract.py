@@ -138,6 +138,21 @@ def test_perception_scope_docs_lock_owner_boundaries():
     assert "tests/fixtures/*perception*.json" in perception
 
 
+def test_release_operator_docs_record_mqlaunch_gate_gap():
+    release_operator = (ROOT / "docs" / "RELEASE_OPERATOR.md").read_text(encoding="utf-8")
+
+    for command in (
+        "mqlaunch agent mcp-status",
+        "mqlaunch agent mcp-tools",
+        "mqlaunch agent release-check",
+        "mqlaunch agent review release",
+        "mqlaunch agent release-workflow",
+    ):
+        assert command in release_operator
+    assert "release/tool contract schema" in release_operator
+    assert "not a perception-routing failure" in release_operator
+
+
 # --- Shape contracts (locked before v0.9.0 consolidation) ---
 
 def test_plan_step_fields_are_stable():

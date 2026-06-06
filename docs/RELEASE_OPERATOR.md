@@ -44,6 +44,32 @@ mq-agent review perception screenshot.png
 `mq-agent dashboard` shows lightweight stack health across mq-agent, mq-mcp,
 repo-signal, mq-image-analyze and mq-hal.
 
+## mqlaunch Review Tools
+
+The mqlaunch entrypoints used for release-operator verification are:
+
+```bash
+mqlaunch agent mcp-status
+mqlaunch agent mcp-tools
+mqlaunch agent release-check
+mqlaunch agent review release
+mqlaunch agent release-workflow
+```
+
+Current known gate gap:
+
+```text
+mqlaunch agent review release
+  -> mq-agent review release
+  -> mq-agent release status
+  -> mq-mcp release_gate_run
+  -> BLOCKED when mq-agent lacks release/tool contract schema inputs
+```
+
+This is expected until `mq-agent` has the release/tool contract schema expected
+by Release Gate v2. It means the mqlaunch route works and the gate is reporting
+a real missing contract input; it is not a perception-routing failure.
+
 ## Release Flow
 
 ```text
