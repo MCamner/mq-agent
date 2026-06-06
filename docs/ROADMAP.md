@@ -858,6 +858,10 @@ Learned review patterns (implemented in v1.3.0):
 * [x] `mq-agent learn status` — check mq-mcp learn system availability
 * [x] `mq-agent learn search <query>` — search learned review patterns
 * [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation
+* [x] mq-mcp compatibility aliases locked for mq-agent:
+  `learn_status`, `search_learned_patterns`, `explain_learned_pattern`
+* [x] Release Gate v2 learn visibility — mq-agent unwraps MCP text payloads and
+  renders `learn_hygiene_pass` in operator output when mq-mcp reports it
 
 Non-goal:
 

@@ -34,6 +34,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - `mq-agent learn status` — check mq-mcp learn system availability
 - `mq-agent learn search <query>` — search mq-mcp learned review patterns (read-only)
 - `mq-agent learn explain <pattern-id>` — fetch pattern explanation (read-only)
+- Learn compatibility follow-up: mq-mcp now exposes the mq-agent aliases
+  `learn_status`, `search_learned_patterns`, and `explain_learned_pattern`;
+  mq-agent unwraps MCP text responses and renders Release Gate learn checks such
+  as `learn_hygiene_pass`.
 - `MultiMCPBridge._call_optional_tool()` — like `_call_required_tool` but returns None
   when tool is absent, for use with optional enrichment
 - `MultiMCPBridge.get_architecture_decision(id)` — fetch single decision by ID

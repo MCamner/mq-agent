@@ -261,6 +261,9 @@ uv run pytest tests/ -v
 - [x] Architecture-memory context surfaced automatically after review findings (`list_architecture_decisions`)
 - [x] `--fast` flag on all review commands — mq-mcp routes to Class A tools
 - [x] `mq-agent learn status/search/explain` — read-only access to mq-mcp learned patterns
+- [x] mq-mcp learn compatibility aliases locked and visible through Release Gate v2
+  (`learn_status`, `search_learned_patterns`, `explain_learned_pattern`,
+  `learn_hygiene_pass`)
 - [x] Optional Ollama-backed learn extraction documented as an mq-mcp-owned policy
 - [x] `MultiMCPBridge._call_optional_tool()` — silent None when tool not available
 - [x] 292 tests pass — `uv run pytest -v` — no OpenAI calls required
