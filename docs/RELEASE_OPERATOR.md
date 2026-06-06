@@ -25,7 +25,7 @@ mq-agent owns commands, orchestration, routing and operator output.
 mq-mcp owns Release Gate v2 rules, blocker/warning logic and JSON output.
 repo-signal owns repo readiness and metadata exports.
 mq-image-analyze owns OCR, screenshot analysis, diagram analysis and perception output.
-mq-hal can later show stack health and route safe operator commands.
+mq-hal owns runtime health and safe operator command routing.
 ```
 
 mq-agent must not duplicate Release Gate v2 rules. It asks mq-mcp for release
@@ -37,9 +37,12 @@ status and renders the response.
 mq-agent release status
 mq-agent release gate
 mq-agent release explain
-mq-agent dashboard
+mq-agent dashboard --json
 mq-agent review perception screenshot.png
 ```
+
+`mq-agent dashboard` shows lightweight stack health across mq-agent, mq-mcp,
+repo-signal, mq-image-analyze and mq-hal.
 
 ## Release Flow
 

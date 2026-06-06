@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from mq_agent.main import app
 from mq_agent.operator.render_release_status import render_release_status
+from mq_agent.operator.stack_health import get_stack_health, render_stack_health
 from mq_agent.perception.contract import validate_perception_payload
 from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
@@ -120,3 +121,43 @@ def test_review_perception_json_normalizes_image_ocr_output():
     assert payload["source_type"] == "screenshot"
     assert payload["ocr_text"] == "Release notes"
     assert payload["contract"]["ok"] is True
+
+
+def test_stack_health_reports_core_components(monkeypatch):
+    monkeypatch.setattr(
+        MultiMCPBridge,
+        "get_server_statuses",
+        lambda self: {
+            "mq-mcp": {"available": True, "endpoint": "http://localhost:8765", "tools": 100},
+            "mq-image-analyze": {"available": False, "endpoint": "http://localhost:8766", "tools": 0},
+        },
+    )
+    monkeypatch.setattr("mq_agent.mcp.manager.read_pid", lambda: 123)
+    monkeypatch.setattr("mq_agent.mcp.manager.is_running", lambda: True)
+    monkeypatch.setattr("mq_agent.tools.signal_tools.signal_available", lambda: True)
+    monkeypatch.setattr("shutil.which", lambda name: "/bin/mq-hal" if name == "mq-hal" else None)
+
+    report = get_stack_health()
+
+    assert report["status"] == "warning"
+    names = {item["name"]: item for item in report["components"]}
+    assert names["mq-agent"]["status"] == "pass"
+    assert names["mq-mcp"]["status"] == "pass"
+    assert names["repo-signal"]["status"] == "pass"
+    assert names["mq-image-analyze"]["status"] == "warning"
+    assert names["mq-hal"]["status"] == "pass"
+    assert "mq-image-analyze" in render_stack_health(report)
+
+
+def test_dashboard_json_outputs_stack_health(monkeypatch):
+    monkeypatch.setattr(
+        "mq_agent.operator.stack_health.get_stack_health",
+        lambda: {"status": "pass", "components": [{"name": "mq-agent", "status": "pass", "detail": "CLI available"}]},
+    )
+
+    result = runner.invoke(app, ["dashboard", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "pass"
+    assert payload["components"][0]["name"] == "mq-agent"

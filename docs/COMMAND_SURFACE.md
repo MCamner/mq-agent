@@ -42,7 +42,7 @@ not reimplement mq-mcp review logic or architecture reasoning locally.
 | `mq-agent release status` | read-only | no | Ask mq-mcp Release Gate v2 for operator status |
 | `mq-agent release gate` | read-only | no | Alias for `release status` |
 | `mq-agent release explain` | read-only | no | Explain release operator ownership boundaries |
-| `mq-agent dashboard` | read-only | no | Terminal-first MQ operator status |
+| `mq-agent dashboard` | read-only | no | Stack-health status for mq-agent, mq-mcp, repo-signal, mq-image-analyze and mq-hal |
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
 | `mq-agent run "cmd" --approve` | execute | no | Safe shell command execution |
 | `mq-agent tui` | read-only | no | Textual dashboard |

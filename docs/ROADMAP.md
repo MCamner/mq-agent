@@ -233,7 +233,7 @@ Implemented so far:
 * [x] `mq-agent release explain`
 * [x] `mq-agent dashboard`
 * [ ] `mq-agent review release`
-* [ ] Full stack-health dashboard
+* [x] Full stack-health dashboard
 
 Boundary:
 
@@ -293,6 +293,7 @@ Candidate commands:
 ```bash
 mq-agent status
 mq-agent review dashboard
+mq-agent dashboard
 mq-agent release status
 mq-agent stack health
 ```

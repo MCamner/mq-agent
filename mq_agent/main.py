@@ -275,7 +275,13 @@ def dashboard_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Show terminal-first MQ operator status."""
-    release_status_cmd(repo=repo, target=target, json_out=json_out)
+    from mq_agent.operator.stack_health import get_stack_health, render_stack_health
+
+    report = get_stack_health()
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        return
+    console.print(Panel(render_stack_health(report), title="[bold]MQ Operator Dashboard[/bold]"))
 
 
 # ── repo-summary ───────────────────────────────────────────────────────────
