@@ -23,7 +23,13 @@ def sample_gate(status: str = "blocked") -> dict[str, object]:
         "blockers": ["CHANGELOG missing v1.4.0 entry"] if status == "blocked" else [],
         "warnings": ["README mentions old roadmap"] if status == "warning" else [],
         "next_actions": ["Update CHANGELOG"],
-        "checks": [],
+        "checks": [
+            {
+                "name": "learn_hygiene_pass",
+                "status": "pass",
+                "message": "Learn hygiene pass: records=5, duplicates=0.",
+            }
+        ],
     }
 
 
@@ -35,6 +41,25 @@ def test_release_status_json_asks_mq_mcp_gate():
     mock.assert_called_once_with(repo=str(Path(".").expanduser().resolve()), target="v1.4.0")
     payload = json.loads(result.output)
     assert payload["status"] == "warning"
+
+
+def test_release_status_json_unwraps_mcp_text_payload():
+    wrapped = [
+        [
+            {
+                "type": "text",
+                "text": json.dumps(sample_gate("warning")),
+            }
+        ],
+        sample_gate("warning"),
+    ]
+    with patch.object(MultiMCPBridge, "release_gate_run", return_value=wrapped):
+        result = runner.invoke(app, ["release", "status", "--repo", ".", "--target", "v1.4.0", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "warning"
+    assert payload["repo"] == "mq-agent"
 
 
 def test_release_status_blocked_exits_nonzero_and_renders_operator_output():
@@ -67,6 +92,7 @@ def test_release_renderer_does_not_need_gate_rules():
 
     assert "MQ OPERATOR STATUS" in output
     assert "PASS" in output
+    assert "learn_hygiene_pass" in output
     assert "No action required." not in output
 
 
