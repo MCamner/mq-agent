@@ -300,6 +300,10 @@ class MultiMCPBridge:
             {"relative_path": relative_path},
         )
 
+    def learn_record(self, relative_path: str) -> Any:
+        """Store the extracted learn candidate for a file as a learned pattern (Class C write)."""
+        return self._call_required_tool("record_learning", {"relative_path": relative_path})
+
     def _call_optional_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
         """Call a named MCP tool, returning None (not an error) when not available."""
         for bridge in self.bridges.values():

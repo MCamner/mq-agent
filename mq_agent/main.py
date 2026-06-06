@@ -736,8 +736,55 @@ def learn_review_flow_cmd(
     console.rule("[dim]Next safe action[/dim]")
     console.print(
         "  [bold]mq-agent learn search <query>[/bold]   ← check if pattern already exists\n"
-        "  [dim]If the candidate is new and correct: trigger record_learning via mq-mcp.[/dim]"
+        "  [dim]If the candidate is new and correct:[/dim] [bold]mq-agent learn store {path} --approve[/bold]"
     )
+
+
+@learn_app.command("store")
+def learn_store_cmd(
+    path: Annotated[str, typer.Argument(help="Repo-relative file path")],
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to mq-mcp")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Store the last extracted learn candidate for a file. Class C write tool — requires --approve."""
+    if dry_run:
+        console.print(
+            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp record_learning relative_path={path}[/bold]"
+        )
+        return
+
+    if not approve:
+        console.print(
+            "[yellow]record_learning is a Class C write tool.[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_record(path)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]learn store failed[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    text_result = _extract_mcp_text_result(result)
+    if text_result:
+        console.print(Panel(Text(text_result), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
+        return
+
+    console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
 
 
 # ── signal ─────────────────────────────────────────────────────────────────

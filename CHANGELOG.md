@@ -14,6 +14,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 * `mq-agent learn review-flow <path>` — orchestrates `review file` + `learn extract-review` in one read-only pass, with step-by-step output and a next-safe-action hint.
+* `mq-agent learn store <path> --approve` — stores the last extracted learn candidate as a learned pattern via `record_learning` (Class C write tool); `--dry-run` previews without executing.
+* `MultiMCPBridge.learn_record()` bridge method for `record_learning`
 
 ## [v1.4.0] — 2026-06-04
 
