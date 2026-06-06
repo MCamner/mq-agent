@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from mq_agent.main import app
 from mq_agent.operator.render_release_status import render_release_status
 from mq_agent.operator.stack_health import get_stack_health, render_stack_health
+from mq_agent.perception.adapter import normalize_perception_output
 from mq_agent.perception.contract import validate_perception_payload
 from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
@@ -140,6 +141,24 @@ def test_review_perception_json_normalizes_image_ocr_output():
     payload = json.loads(result.output)
     assert payload["source_type"] == "screenshot"
     assert payload["ocr_text"] == "Release notes"
+    assert payload["contract"]["ok"] is True
+
+
+def test_review_perception_accepts_fixture_shape_through_mcp_bridge():
+    raw = json.loads(Path("tests/fixtures/sample_perception_output.json").read_text(encoding="utf-8"))
+
+    normalized = normalize_perception_output("docs/screenshot.png", raw)
+    assert normalized["contract"]["ok"] is True
+
+    with patch.object(MultiMCPBridge, "call_tool", return_value=raw) as mock:
+        result = runner.invoke(app, ["review", "perception", "docs/screenshot.png", "--json"])
+
+    assert result.exit_code == 0
+    mock.assert_called_once_with("image_ocr", {"image_path": "docs/screenshot.png"})
+    payload = json.loads(result.output)
+    assert payload["visual_summary"] == raw["visual_summary"]
+    assert payload["detected_regions"] == raw["detected_regions"]
+    assert payload["risk_signals"] == raw["risk_signals"]
     assert payload["contract"]["ok"] is True
 
 

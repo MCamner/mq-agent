@@ -366,7 +366,7 @@ tests/fixtures/sample_perception_output.json
 
 Coverage targets:
 
-* [ ] `mq-agent`: review routing, perception adapter, MCPBridge compatibility
+* [x] `mq-agent`: review routing, perception adapter, MCPBridge compatibility
   and operator summary rendering tests
 * [x] `mq-mcp`: initial Release Gate v2 schema and blocker/warning
   classification tests
