@@ -133,6 +133,9 @@ def test_perception_scope_docs_lock_owner_boundaries():
     assert "mq-agent review perception" in perception
     assert "source_type" in perception
     assert "confidence" in perception
+    assert "perception_artifacts_valid" in perception
+    assert "read-only" in perception
+    assert "tests/fixtures/*perception*.json" in perception
 
 
 # --- Shape contracts (locked before v0.9.0 consolidation) ---

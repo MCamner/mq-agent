@@ -7,6 +7,10 @@ visual summaries, detected regions and perception confidence. `mq-agent` owns
 the command surface, dry-run behavior, MCP routing and normalization into the
 review context used by downstream workflows.
 
+`mq-mcp` owns read-only validation of saved perception artifacts through
+Release Gate v2. Its `perception_artifacts_valid` check validates the normalized
+payload shape without performing image analysis.
+
 ## Command Surface
 
 ```bash
@@ -81,11 +85,48 @@ mq-mcp evaluates review and release contracts.
 `mq-agent` must not implement OCR, diagram interpretation or screenshot
 analysis locally.
 
+## mq-mcp Read-only Checks
+
+When perception output is saved as JSON, `mq-mcp` Release Gate v2 can validate
+it as a read-only release input.
+
+Artifact paths currently coordinated with `mq-mcp`:
+
+```text
+perception/**/*.json
+reports/perception/**/*.json
+reports/perception*.json
+docs/perception/**/*.json
+docs/perception*.json
+tests/fixtures/*perception*.json
+```
+
+The gate checks for the same core fields that `mq-agent` normalizes:
+
+```text
+source_type
+source_path
+ocr_text
+visual_summary
+risk_signals
+confidence
+```
+
+`detected_regions` is optional, but must be a list when present.
+
+This preserves the owner split:
+
+```text
+mq-image-analyze creates perception output.
+mq-agent routes and normalizes perception output.
+mq-mcp validates perception artifacts read-only during release checks.
+```
+
 ## Verification
 
 Perception routing is covered by:
 
 ```bash
 uv run pytest tests/test_mcp.py tests/test_release_operator.py -q
+uv run pytest tests/test_orchestration_contract.py -q
 ```
-

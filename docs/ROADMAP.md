@@ -202,12 +202,12 @@ Normalized perception object:
 }
 ```
 
-* [ ] Keep `mq-image-analyze` as owner of OCR, screenshot analysis and visual
+* [x] Keep `mq-image-analyze` as owner of OCR, screenshot analysis and visual
   summaries
 * [x] Keep `mq-agent` as owner of perception routing and review orchestration
 * [x] Add or stabilize perception adapter surfaces:
   `mq_agent/perception/adapter.py` and `mq_agent/perception/contract.py`
-* [ ] Coordinate read-only `mq-mcp` support for perception review and perception
+* [x] Coordinate read-only `mq-mcp` support for perception review and perception
   contract checks
 
 #### Week 3 — unified review orchestration
