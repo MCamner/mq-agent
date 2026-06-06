@@ -107,3 +107,5 @@ mq-image mcp
 - `semantic_caption` — bakllava description (if present)
 - `issues` (analyze-ui) — WCAG/accessibility problems
 - `palette_drift`, `style_drift` (compare) — visual change magnitude
+
+Safety Class: read-only (image inspection only — no mutations)

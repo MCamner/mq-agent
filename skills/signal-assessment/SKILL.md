@@ -64,3 +64,5 @@ Never:
 
 - modify README without showing the diff first
 - report a passing score without running the actual check
+
+Safety Class: read-only (analysis and scoring only — no repo mutations)

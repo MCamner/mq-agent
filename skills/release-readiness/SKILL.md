@@ -67,3 +67,5 @@ Never:
 - tag a release with failing tests
 - assume CI is green without checking
 - publish with a version mismatch
+
+Safety Class: read-only (checks only — no repo mutations)

@@ -71,3 +71,5 @@ python -m pytest -q
 ```
 
 For integration changes, add a smoke test that proves mq-agent can call the expected mq-mcp review tool or can fail safely when mq-mcp is unavailable.
+
+Safety Class: read-only (review routing and orchestration only — no repo mutations)

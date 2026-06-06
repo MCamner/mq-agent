@@ -63,3 +63,5 @@ Never:
 - skip hooks or bypass type checking to force a pass
 - suppress errors without understanding them
 - push without running the full gate locally
+
+Safety Class: suggest (generates fix steps — operator approves before executing)
