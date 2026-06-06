@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -200,6 +201,14 @@ def _print_release_status(result: dict[str, Any], json_out: bool) -> None:
     console.print(Panel(render_release_status(result), title="[bold]MQ Release Operator[/bold]"))
 
 
+def _release_test_command(test_cmd: str, run_tests: bool) -> str:
+    if test_cmd:
+        return test_cmd
+    if run_tests:
+        return "uv run pytest -q"
+    return ""
+
+
 def _release_workflow(repo: str, target: str) -> dict[str, Any]:
     return {
         "repo": repo,
@@ -217,18 +226,18 @@ def _release_workflow(repo: str, target: str) -> dict[str, Any]:
             },
             {
                 "name": "release_gate",
-                "command": f"mq-agent release status --repo {repo} --target {target}",
+                "command": f"mq-agent release status --repo {repo} --target {target} --run-tests",
                 "purpose": "Ask mq-mcp Release Gate v2 for deterministic release readiness.",
             },
             {
                 "name": "review_release",
-                "command": f"mq-agent review release --repo {repo} --target {target}",
+                "command": f"mq-agent review release --repo {repo} --target {target} --run-tests",
                 "purpose": "Render the same gate result from the review command surface.",
             },
         ],
         "mqlaunch": [
             f"mqlaunch agent release-workflow --repo {repo} --target {target}",
-            f"mqlaunch agent review release --repo {repo} --target {target}",
+            f"mqlaunch agent review release --repo {repo} --target {target} --run-tests",
         ],
     }
 
@@ -237,12 +246,14 @@ def _release_workflow(repo: str, target: str) -> dict[str, Any]:
 def release_status_cmd(
     repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
     target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    test_cmd: Annotated[str, typer.Option("--test-cmd", help="Optional test command for Release Gate v2, e.g. 'uv run pytest -q'")] = "",
+    run_tests: Annotated[bool, typer.Option("--run-tests", help="Run the default pytest command through Release Gate v2")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Ask mq-mcp Release Gate v2 for operator release status."""
     from mq_agent.integrations.release_gate import get_release_status
 
-    result = get_release_status(repo=repo, target=target)
+    result = get_release_status(repo=repo, target=target, test_command=_release_test_command(test_cmd, run_tests))
     if isinstance(result, dict):
         if result.get("ok") is False:
             result = {
@@ -275,10 +286,12 @@ def release_status_cmd(
 def release_gate_cmd(
     repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
     target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    test_cmd: Annotated[str, typer.Option("--test-cmd", help="Optional test command for Release Gate v2, e.g. 'uv run pytest -q'")] = "",
+    run_tests: Annotated[bool, typer.Option("--run-tests", help="Run the default pytest command through Release Gate v2")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Alias for `release status`; mq-mcp owns gate logic."""
-    release_status_cmd(repo=repo, target=target, json_out=json_out)
+    release_status_cmd(repo=repo, target=target, test_cmd=test_cmd, run_tests=run_tests, json_out=json_out)
 
 
 @release_app.command("workflow")
@@ -302,6 +315,40 @@ def release_workflow_cmd(
     lines.append("mqlaunch entrypoints:")
     lines.extend(f"- {item}" for item in workflow["mqlaunch"])
     console.print(Panel("\n".join(lines), title="[bold]Release Workflow[/bold]"))
+
+
+@release_app.command("prepare")
+def release_prepare_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo path to prepare")] = ".",
+    approve: Annotated[bool, typer.Option("--approve", help="Run repo-signal export . --all")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Prepare release inputs such as repo-signal export packs."""
+    repo_path = Path(repo).expanduser().resolve()
+    command = ["repo-signal", "export", ".", "--all"]
+    payload: dict[str, Any] = {
+        "repo": str(repo_path),
+        "approved": approve,
+        "command": " ".join(command),
+        "status": "dry-run",
+        "message": "Would generate .repo-signal/exports readiness packs.",
+    }
+    if approve:
+        result = subprocess.run(command, cwd=repo_path, text=True, capture_output=True, check=False)
+        payload.update(
+            {
+                "status": "pass" if result.returncode == 0 else "blocked",
+                "returncode": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            }
+        )
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, default=str))
+        return
+    console.print(Panel(json.dumps(payload, indent=2, default=str), title="[bold]Release Prepare[/bold]"))
+    if payload["status"] == "blocked":
+        raise typer.Exit(1)
 
 
 @release_app.command("explain")
@@ -728,10 +775,12 @@ def review_perception_cmd(
 def review_release_cmd(
     repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
     target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    test_cmd: Annotated[str, typer.Option("--test-cmd", help="Optional test command for Release Gate v2, e.g. 'uv run pytest -q'")] = "",
+    run_tests: Annotated[bool, typer.Option("--run-tests", help="Run the default pytest command through Release Gate v2")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Review release readiness through mq-mcp Release Gate v2."""
-    release_status_cmd(repo=repo, target=target, json_out=json_out)
+    release_status_cmd(repo=repo, target=target, test_cmd=test_cmd, run_tests=run_tests, json_out=json_out)
 
 
 def _contract_status_text(value: Any) -> str:

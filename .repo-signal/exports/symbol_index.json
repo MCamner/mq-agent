@@ -1,0 +1,6498 @@
+{
+  "schema": "symbol_index.v1",
+  "repo_name": "mq-agent",
+  "generated_at": "2026-06-06T17:55:48.558472+00:00",
+  "file_count": 146,
+  "symbol_count": 703,
+  "files": [
+    {
+      "path": ".DS_Store",
+      "extension": "",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "LICENSE",
+      "extension": "",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "uv.lock",
+      "extension": ".lock",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "CHANGELOG.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "release-check.sh",
+      "extension": ".sh",
+      "symbol_count": 2,
+      "public_symbols": [
+        "fail",
+        "ok"
+      ]
+    },
+    {
+      "path": "pyproject.toml",
+      "extension": ".toml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "README.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "ROADMAP.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".gitignore",
+      "extension": "",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "SKILLS.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "VERSION",
+      "extension": "",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".env.example",
+      "extension": ".example",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".markdownlint.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tasks/audit.yaml",
+      "extension": ".yaml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tasks/fix_ci.yaml",
+      "extension": ".yaml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tasks/suggest.yaml",
+      "extension": ".yaml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tasks/browser_verify.yaml",
+      "extension": ".yaml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tasks/swarm_audit.yaml",
+      "extension": ".yaml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tasks/release.yaml",
+      "extension": ".yaml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "contracts/release_gate_v2.schema.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tests/test_diagnostics.py",
+      "extension": ".py",
+      "symbol_count": 9,
+      "public_symbols": [
+        "test_run_checks_returns_seven_items",
+        "test_run_checks_first_four_are_required",
+        "test_run_checks_sixth_is_optional_mcp",
+        "test_run_checks_includes_orchestration_contract_check",
+        "test_required_checks_pass_true_when_first_four_ok",
+        "test_required_checks_pass_false_when_one_required_fails",
+        "test_run_checks_python_check_passes_on_current_interpreter",
+        "test_run_checks_git_available",
+        "test_run_checks_with_no_api_key"
+      ]
+    },
+    {
+      "path": "tests/test_task_runner.py",
+      "extension": ".py",
+      "symbol_count": 28,
+      "public_symbols": [
+        "test_load_task_parses_steps",
+        "test_load_task_defaults_name_to_stem",
+        "test_load_task_defaults_version",
+        "test_load_task_requires_pyyaml",
+        "block_yaml",
+        "test_run_task_dry_run_returns_dry_run_status",
+        "test_run_task_calls_registered_tool",
+        "test_run_task_unknown_tool",
+        "test_run_task_captures_exception",
+        "boom",
+        "test_run_task_multiple_steps_all_dry_run",
+        "test_find_task_files_returns_yaml_files",
+        "test_find_task_files_deduplicates",
+        "test_find_task_files_skips_missing_dirs",
+        "test_resolve_templates_substitutes_step_output",
+        "test_resolve_templates_keeps_placeholder_when_step_missing",
+        "test_resolve_templates_ignores_non_string_values",
+        "test_resolve_templates_multiple_refs_in_one_string",
+        "test_run_task_passes_step_output_to_next_step",
+        "first",
+        "second",
+        "test_run_task_template_dry_run_does_not_resolve",
+        "test_task_list_shows_tasks",
+        "test_task_list_json",
+        "test_task_run_dry_run_by_stem",
+        "test_task_run_dry_run_by_internal_name",
+        "test_task_run_not_found",
+        "test_task_run_json_dry_run"
+      ]
+    },
+    {
+      "path": "tests/test_orchestration_contract.py",
+      "extension": ".py",
+      "symbol_count": 19,
+      "public_symbols": [
+        "test_tool_registry_keeps_core_orchestration_tools",
+        "test_tool_names_are_sorted_for_planner_stability",
+        "test_task_list_includes_suggest_workflow_json",
+        "test_task_run_suggest_dry_run_json_does_not_execute",
+        "test_swarm_plan_is_available_without_api_key",
+        "test_run_command_without_approve_stays_suggest_only",
+        "test_tui_command_list_keeps_core_commands",
+        "test_cross_repo_routing_matrix_covers_core_owners",
+        "test_skill_quality_review_is_release_checked",
+        "test_perception_scope_docs_lock_owner_boundaries",
+        "test_release_operator_docs_record_mqlaunch_gate_gap",
+        "test_mqlaunch_tool_audit_records_known_gaps",
+        "test_plan_step_fields_are_stable",
+        "test_step_result_fields_are_stable",
+        "test_agent_manifest_fields_are_stable",
+        "test_agent_state_to_dict_shape_is_stable",
+        "test_agent_manifest_allowed_tools_must_be_subset_of_registry",
+        "test_run_task_tool_delegates_to_task_runner",
+        "test_tool_registry_has_no_positional_only_params"
+      ]
+    },
+    {
+      "path": "tests/test_v1_3_features.py",
+      "extension": ".py",
+      "symbol_count": 27,
+      "public_symbols": [
+        "test_review_file_fast_flag_passed_to_bridge",
+        "test_review_diff_fast_flag_passed_to_bridge",
+        "test_review_repo_fast_flag_passed_to_bridge",
+        "test_review_fast_dry_run_shows_flag",
+        "test_review_shows_arch_context_when_available",
+        "test_review_silent_when_arch_context_unavailable",
+        "test_review_json_does_not_include_arch_context",
+        "test_list_architecture_decisions_uses_optional_tool",
+        "test_list_architecture_decisions_returns_none_when_tool_missing",
+        "test_get_architecture_decision_uses_required_tool",
+        "test_call_optional_tool_returns_none_when_not_available",
+        "test_learn_status_renders_result",
+        "test_learn_status_json",
+        "test_learn_status_renders_mcp_text_result",
+        "test_learn_status_unavailable_exits_nonzero",
+        "test_learn_search_renders_patterns",
+        "test_learn_search_renders_mcp_text_result",
+        "test_learn_search_empty_results",
+        "test_learn_search_json",
+        "test_learn_search_unavailable_exits_nonzero",
+        "test_learn_explain_renders_pattern",
+        "test_learn_explain_renders_mcp_text_result",
+        "test_learn_explain_json",
+        "test_learn_explain_not_found_exits_nonzero",
+        "test_bridge_learn_status_calls_required_tool",
+        "test_bridge_search_learned_patterns_calls_required_tool",
+        "test_bridge_explain_learned_pattern_calls_required_tool"
+      ]
+    },
+    {
+      "path": "tests/test_core.py",
+      "extension": ".py",
+      "symbol_count": 19,
+      "public_symbols": [
+        "test_state_is_complete_when_all_steps_done",
+        "test_state_not_complete_with_pending_step",
+        "test_state_has_failures",
+        "test_state_to_dict",
+        "test_read_only_blocks_run_command",
+        "test_read_only_allows_git_status",
+        "test_suggest_blocks_all",
+        "test_execute_blocks_destructive",
+        "test_execute_allows_safe",
+        "test_dangerous_allows_everything",
+        "test_executor_dry_run_skips_actual_call",
+        "test_executor_runs_tool",
+        "test_executor_captures_tool_failure",
+        "test_executor_unknown_tool",
+        "test_executor_skips_when_safety_blocks",
+        "test_memory_session_roundtrip",
+        "test_memory_persistent_survives_reload",
+        "test_memory_session_overrides_persistent"
+      ]
+    },
+    {
+      "path": "tests/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tests/test_memory_cli.py",
+      "extension": ".py",
+      "symbol_count": 15,
+      "public_symbols": [
+        "test_memory_status_runs",
+        "test_memory_status_json",
+        "test_memory_status_json_missing_store",
+        "test_memory_build_dry_run_is_default",
+        "test_memory_build_dry_run_explicit",
+        "test_memory_build_no_dry_run_calls_build",
+        "test_memory_build_no_dry_run_failure",
+        "test_memory_refresh_requires_approve",
+        "test_memory_refresh_with_approve",
+        "test_memory_refresh_approve_propagates_failure",
+        "test_memory_doctor_unhealthy_without_vector_store",
+        "test_memory_doctor_healthy",
+        "test_memory_doctor_shows_fix_for_missing_repo_signal",
+        "test_memory_doctor_json_healthy",
+        "test_memory_doctor_json_unhealthy"
+      ]
+    },
+    {
+      "path": "tests/test_swarm.py",
+      "extension": ".py",
+      "symbol_count": 31,
+      "public_symbols": [
+        "test_agent_manifest_to_dict",
+        "test_agent_manifest_defaults",
+        "test_swarm_config_agent_names",
+        "test_swarm_config_requires_approve_false_for_audit",
+        "test_swarm_config_requires_approve_true_for_release",
+        "test_swarm_config_to_dict",
+        "test_swarm_config_safety_classes_audit",
+        "test_get_swarm_returns_correct_config",
+        "test_get_swarm_raises_for_unknown",
+        "test_list_swarms_returns_all",
+        "test_list_swarms_includes_agents",
+        "test_swarm_runner_plan_no_api_needed",
+        "test_swarm_runner_plan_includes_tools",
+        "test_swarm_runner_dry_run_skips_execution",
+        "test_swarm_runner_skips_approve_agents_without_flag",
+        "test_swarm_runner_runs_agents_with_approve",
+        "test_swarm_runner_handles_agent_error_warn",
+        "fail_audit",
+        "test_swarm_result_passed_when_all_ok",
+        "test_swarm_result_fails_on_error",
+        "test_swarm_result_to_dict",
+        "test_cli_swarm_list",
+        "test_cli_swarm_list_json",
+        "test_cli_swarm_plan_audit",
+        "test_cli_swarm_plan_json",
+        "test_cli_swarm_plan_unknown_config",
+        "test_cli_swarm_run_dry_run_json",
+        "test_cli_swarm_run_unknown_config_exits_1",
+        "test_cli_swarm_audit_dry_run",
+        "test_cli_swarm_release_check_dry_run_json"
+      ]
+    },
+    {
+      "path": "tests/test_skill_system.py",
+      "extension": ".py",
+      "symbol_count": 26,
+      "public_symbols": [
+        "test_skill_index_fields_are_stable",
+        "test_skill_record_fields_are_stable",
+        "test_skill_route_fields_are_stable",
+        "test_ecosystem_skill_summary_fields_are_stable",
+        "test_skill_execution_plan_fields_are_stable",
+        "test_discover_skill_index_finds_repo_local_skills_file",
+        "test_discover_skill_index_missing_file_is_graceful",
+        "test_discover_skill_indexes_accepts_multiple_repos",
+        "test_normalize_skill_records_from_markdown_sections",
+        "test_normalize_skill_records_prefers_explicit_safety_metadata",
+        "test_normalize_skill_records_from_skill_table",
+        "test_route_skill_request_matches_normalized_skill",
+        "test_route_skill_request_no_match_is_graceful",
+        "test_default_mq_repo_paths_discovers_existing_siblings",
+        "test_summarize_ecosystem_skills_with_explicit_repos",
+        "test_existing_mq_agent_command_allows_only_simple_mq_agent_surface",
+        "test_plan_skill_execution_requires_approval",
+        "test_plan_skill_execution_blocks_non_mq_agent_command",
+        "test_skill_list_json_outputs_skill_index_contract",
+        "test_skill_route_json_outputs_route_contract",
+        "test_skill_ecosystem_json_outputs_summary_contract",
+        "test_skill_run_json_without_approve_does_not_execute",
+        "test_skill_run_with_approve_executes_supported_command",
+        "fake_run",
+        "test_skill_list_missing_file_is_successful_read_only",
+        "test_skill_list_json_includes_output_contracts"
+      ]
+    },
+    {
+      "path": "tests/test_semantic_memory_cli.py",
+      "extension": ".py",
+      "symbol_count": 14,
+      "public_symbols": [
+        "test_memory_search_renders_results",
+        "test_memory_search_list_result",
+        "test_memory_search_empty_results",
+        "test_memory_search_json_output",
+        "test_memory_search_unavailable_tool_exits_nonzero",
+        "test_memory_search_unavailable_tool_json_exits_nonzero",
+        "test_memory_store_requires_approve",
+        "test_memory_store_dry_run_does_not_call_bridge",
+        "test_memory_store_with_approve",
+        "test_memory_store_unavailable_tool_exits_nonzero",
+        "test_memory_store_json_output",
+        "test_mcp_bridge_search_calls_required_tool",
+        "test_mcp_bridge_store_calls_required_tool",
+        "test_mcp_bridge_search_returns_error_when_tool_missing"
+      ]
+    },
+    {
+      "path": "tests/test_review_cli.py",
+      "extension": ".py",
+      "symbol_count": 27,
+      "public_symbols": [
+        "FakeReviewBridge",
+        "JsonStringBridge",
+        "MissingToolBridge",
+        "ErrorBridge",
+        "call_tool",
+        "review_file",
+        "review_diff",
+        "review_repo",
+        "list_architecture_decisions",
+        "test_review_file_json_invokes_mcp_bridge_with_flags",
+        "test_review_file_architecture_image_passes_visual_context_to_mcp",
+        "test_review_diff_architecture_image_unwraps_json_string_payload",
+        "call_tool",
+        "test_review_repo_architecture_image_dry_run_prints_visual_step",
+        "test_review_diff_passes_severity_label_through_unchanged",
+        "test_review_repo_json_invokes_mcp_bridge",
+        "test_review_missing_mq_mcp_tool_returns_clear_error",
+        "review_file",
+        "test_review_mcp_error_string_exits_nonzero",
+        "review_diff",
+        "test_mcp_bridge_review_helpers_call_expected_tools",
+        "test_review_file_dry_run_prints_plan_and_does_not_call_bridge",
+        "test_review_diff_dry_run_with_flags",
+        "test_review_repo_dry_run_with_flags",
+        "test_mcp_bridge_risk_requires_installed_risk_tool",
+        "test_contract_status_accepts_mcp_text_wrappers"
+      ]
+    },
+    {
+      "path": "tests/test_browser.py",
+      "extension": ".py",
+      "symbol_count": 28,
+      "public_symbols": [
+        "test_assert_safe_url_accepts_https",
+        "test_assert_safe_url_accepts_http",
+        "test_assert_safe_url_blocks_file",
+        "test_assert_safe_url_blocks_javascript",
+        "test_assert_safe_url_blocks_missing_scheme",
+        "test_html_extractor_parses_title",
+        "test_html_extractor_parses_description_meta",
+        "test_html_extractor_parses_headings",
+        "test_html_extractor_parses_links",
+        "test_html_extractor_ignores_anchor_and_js_links",
+        "test_html_extractor_text_content",
+        "test_inspect_url_returns_structured_metadata",
+        "test_inspect_url_handles_http_error",
+        "test_inspect_url_handles_connection_error",
+        "test_inspect_url_blocks_file_scheme",
+        "test_summarize_url_includes_title_and_description",
+        "test_summarize_url_returns_error_string_on_failure",
+        "test_verify_release_url_passes_for_valid_page",
+        "test_verify_release_url_checks_expected_tag",
+        "test_verify_release_url_fails_for_missing_tag",
+        "test_verify_release_url_fails_on_unreachable",
+        "test_cli_browser_inspect_json",
+        "test_cli_browser_inspect_exits_1_on_error",
+        "test_cli_browser_summarize_json",
+        "test_cli_browser_verify_release_passes",
+        "test_cli_browser_verify_release_fails_exits_1",
+        "test_cli_browser_verify_release_with_tag"
+      ]
+    },
+    {
+      "path": "tests/test_tools.py",
+      "extension": ".py",
+      "symbol_count": 25,
+      "public_symbols": [
+        "test_git_status_in_current_repo",
+        "test_git_log_returns_commits",
+        "test_repo_summary_contains_fields",
+        "test_list_files_returns_string",
+        "test_read_file_existing",
+        "test_read_file_missing",
+        "test_run_command_echo",
+        "test_run_command_blocks_dangerous",
+        "test_run_command_default_timeout_is_120",
+        "test_read_file_accepts_path_and_file_path",
+        "test_read_file_file_path_kwarg",
+        "test_find_files_excludes_venv",
+        "test_repo_summary_excludes_venv",
+        "test_write_file_creates_file",
+        "test_write_file_creates_parent_dirs",
+        "test_write_file_in_registry",
+        "test_repo_signal_json_in_registry",
+        "test_run_task_tool_in_registry",
+        "test_run_task_tool_not_found",
+        "test_run_task_tool_runs_task_by_stem",
+        "test_run_task_tool_dry_run",
+        "test_version_tuple_parses_correctly",
+        "test_version_tuple_handles_bad_input",
+        "test_version_guard_min_version_is_0_7_0",
+        "test_version_guard_old_version_triggers_error_message"
+      ]
+    },
+    {
+      "path": "tests/test_semantic_memory.py",
+      "extension": ".py",
+      "symbol_count": 9,
+      "public_symbols": [
+        "test_get_vector_store_id_missing",
+        "test_get_vector_store_id_present",
+        "test_get_vector_store_id_strips_whitespace",
+        "test_get_vector_store_id_empty_string",
+        "test_get_vector_store_id_whitespace_only",
+        "test_memory_status_missing_vector_store",
+        "test_memory_status_returns_semantic_memory_status",
+        "test_memory_status_with_vector_store_no_repo_signal",
+        "test_memory_status_ready"
+      ]
+    },
+    {
+      "path": "tests/test_mcp.py",
+      "extension": ".py",
+      "symbol_count": 55,
+      "public_symbols": [
+        "test_classify_read_only_read_prefix",
+        "test_classify_read_only_list_prefix",
+        "test_classify_read_only_get_prefix",
+        "test_classify_read_only_search_prefix",
+        "test_classify_read_only_find_prefix",
+        "test_classify_read_only_git_prefix",
+        "test_classify_visual_perception_tools_read_only",
+        "test_classify_write_capable_update",
+        "test_classify_write_capable_write",
+        "test_classify_write_capable_edit",
+        "test_classify_write_capable_create",
+        "test_classify_dangerous_delete",
+        "test_classify_dangerous_remove",
+        "test_classify_subprocess_run",
+        "test_classify_subprocess_validate",
+        "test_classify_subprocess_execute",
+        "test_classify_subprocess_open",
+        "test_classify_unknown",
+        "test_spec_from_name_read_only",
+        "test_spec_from_name_write_capable",
+        "test_spec_from_name_dangerous",
+        "test_spec_from_name_subprocess",
+        "test_spec_from_name_unknown",
+        "test_spec_from_dict_with_safety_class",
+        "test_spec_from_dict_falls_back_to_name_classification",
+        "test_spec_from_dict_explicit_class_wins_over_name",
+        "test_spec_from_dict_contract_class_maps_to_safety_label",
+        "test_spec_to_dict_round_trip",
+        "test_bridge_unavailable_is_available_false",
+        "test_bridge_unavailable_list_tools_empty",
+        "test_bridge_unavailable_list_tool_specs_empty",
+        "test_bridge_call_tool_returns_error_string_when_unavailable",
+        "test_bridge_describe_tool_falls_back_to_classification_when_unavailable",
+        "test_bridge_not_reachable_message",
+        "test_bridge_not_reachable_message_suggests_start",
+        "test_default_mcp_servers_include_visual_perception_server",
+        "test_default_mcp_servers_preserve_configured_visual_endpoint",
+        "test_multi_bridge_routes_visual_tool_to_mq_image_analyze",
+        "test_multi_bridge_describe_visual_tool_uses_image_source_hint",
+        "test_safety_class_counts",
+        "test_manager_read_pid_no_file",
+        "test_manager_is_running_no_pid_file",
+        "test_manager_stop_not_running",
+        "test_manager_start_missing_dir",
+        "test_manager_start_success",
+        "test_manager_start_already_running",
+        "test_manager_stop_kills_process",
+        "test_cli_mcp_start_json_success",
+        "test_cli_mcp_start_json_already_running",
+        "test_cli_mcp_start_json_failure",
+        "test_cli_mcp_stop_json_was_running",
+        "test_cli_mcp_stop_json_not_running",
+        "test_cli_mcp_status_json_process_running",
+        "test_mcp_status_enrichment_shown_when_available",
+        "test_get_server_statuses_enriches_when_tools_available"
+      ]
+    },
+    {
+      "path": "tests/test_mcp_integration_contract.py",
+      "extension": ".py",
+      "symbol_count": 17,
+      "public_symbols": [
+        "test_server_safety_class_overrides_name_heuristic",
+        "test_server_safety_class_class_d_subprocess",
+        "test_server_safety_class_write_capable",
+        "test_server_safety_class_unknown_falls_back_to_name",
+        "test_server_contract_class_maps_to_safety_label",
+        "test_bridge_list_tool_specs_uses_server_safety_class",
+        "test_bridge_list_tool_specs_falls_back_when_no_safety_class",
+        "test_bridge_list_tool_specs_uses_tool_contracts_when_tools_omit_safety",
+        "fake_get",
+        "test_bridge_describe_tool_uses_tool_contracts_when_tool_not_listed",
+        "fake_get",
+        "test_tool_contracts_response_shape",
+        "test_tool_contracts_class_field_maps_to_safety",
+        "test_dangerous_spec_requires_approve_flag",
+        "test_read_only_spec_needs_no_approval",
+        "test_bridge_dry_run_does_not_call_tool"
+      ]
+    },
+    {
+      "path": "tests/test_signal_tools.py",
+      "extension": ".py",
+      "symbol_count": 11,
+      "public_symbols": [
+        "test_signal_available",
+        "test_repo_scan_returns_string",
+        "test_repo_scan_contains_project_type",
+        "test_repo_readme_score_returns_string",
+        "test_repo_readme_score_contains_bar",
+        "test_repo_publish_checklist_returns_string",
+        "test_repo_analyze_returns_string",
+        "test_repo_signal_json_structure",
+        "test_repo_signal_json_readme_score_range",
+        "test_repo_signal_json_focus_areas_is_list",
+        "test_repo_scan_missing_path"
+      ]
+    },
+    {
+      "path": "tests/test_release_operator.py",
+      "extension": ".py",
+      "symbol_count": 14,
+      "public_symbols": [
+        "sample_gate",
+        "test_release_status_json_asks_mq_mcp_gate",
+        "test_release_status_passes_test_command_to_release_gate",
+        "test_release_status_json_unwraps_mcp_text_payload",
+        "test_release_status_blocked_exits_nonzero_and_renders_operator_output",
+        "test_release_status_missing_gate_tool_is_blocked",
+        "test_release_renderer_does_not_need_gate_rules",
+        "test_release_workflow_json_lists_mqlaunch_entrypoints",
+        "test_review_release_delegates_to_release_gate",
+        "test_perception_contract_validates_minimal_payload",
+        "test_review_perception_json_normalizes_image_ocr_output",
+        "test_review_perception_accepts_fixture_shape_through_mcp_bridge",
+        "test_stack_health_reports_core_components",
+        "test_dashboard_json_outputs_stack_health"
+      ]
+    },
+    {
+      "path": "tests/fixtures/sample_release_gate_blocked.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tests/fixtures/sample_release_gate_pass.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "tests/fixtures/sample_perception_output.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".claude/settings.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".claude/settings.local.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".claude/agents/mq-project-context.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".claude/agents/mq-task-auditor.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/PERCEPTION_INTEGRATION.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/EXAMPLES.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/index.html",
+      "extension": ".html",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/COMMANDS.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/INTEGRATIONS.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/COMMAND_SURFACE.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/MCP_INTEGRATION.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/CROSS_REPO_ROUTING_MATRIX.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/SAFETY.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/RELEASE_CHECKLIST.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/MQLAUNCH_INTEGRATION.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/DEMO.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/SAFETY_CONTRACT.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/SKILL_QUALITY_REVIEW.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/RELEASE_OPERATOR.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/MQ_ECOSYSTEM.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/V1_4_0_SCOPE.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/MQLAUNCH_TOOL_AUDIT.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/SEMANTIC_MEMORY.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/MQ_SKILL_SYSTEM.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/LEARN_OLLAMA.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/TOOL_ROUTING.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/favicon.svg",
+      "extension": ".svg",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/demo/repo-summary.txt",
+      "extension": ".txt",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/demo/fix-ci.txt",
+      "extension": ".txt",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/demo/audit-output.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/demo/release-check.json",
+      "extension": ".json",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "docs/screenshots/.gitkeep",
+      "extension": "",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "examples/README.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "scripts/check-skill-quality.sh",
+      "extension": ".sh",
+      "symbol_count": 3,
+      "public_symbols": [
+        "fail",
+        "ok",
+        "END"
+      ]
+    },
+    {
+      "path": "scripts/check-docs-consistency.sh",
+      "extension": ".sh",
+      "symbol_count": 2,
+      "public_symbols": [
+        "fail",
+        "ok"
+      ]
+    },
+    {
+      "path": "scripts/install.sh",
+      "extension": ".sh",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "scripts/smoke-mqlaunch.sh",
+      "extension": ".sh",
+      "symbol_count": 1,
+      "public_symbols": [
+        "run_check"
+      ]
+    },
+    {
+      "path": "scripts/smoke-memory.sh",
+      "extension": ".sh",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "scripts/check-skill-contracts.sh",
+      "extension": ".sh",
+      "symbol_count": 3,
+      "public_symbols": [
+        "fail",
+        "ok",
+        "END"
+      ]
+    },
+    {
+      "path": "scripts/check-install.sh",
+      "extension": ".sh",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "scripts/lib/mq-agent-bin.sh",
+      "extension": ".sh",
+      "symbol_count": 1,
+      "public_symbols": [
+        "resolve_mq_agent_bin"
+      ]
+    },
+    {
+      "path": ".github/workflows/tests.yml",
+      "extension": ".yml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".github/workflows/install-smoke.yml",
+      "extension": ".yml",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "prompts/verifier.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "prompts/planner.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "skills/ci-diagnosis/SKILL.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "skills/repo-audit/SKILL.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "skills/mq-mcp-review-orchestration/SKILL.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "skills/visual-analysis/SKILL.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "skills/release-readiness/SKILL.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "skills/signal-assessment/SKILL.md",
+      "extension": ".md",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "backups/scripts/20260601-030654/release-check.sh",
+      "extension": ".sh",
+      "symbol_count": 2,
+      "public_symbols": [
+        "fail",
+        "ok"
+      ]
+    },
+    {
+      "path": "backups/scripts/20260601-030654/scripts/check-docs-consistency.sh",
+      "extension": ".sh",
+      "symbol_count": 2,
+      "public_symbols": [
+        "fail",
+        "ok"
+      ]
+    },
+    {
+      "path": "backups/scripts/20260601-030654/scripts/smoke-mqlaunch.sh",
+      "extension": ".sh",
+      "symbol_count": 1,
+      "public_symbols": [
+        "run_check"
+      ]
+    },
+    {
+      "path": "mq_agent/config.py",
+      "extension": ".py",
+      "symbol_count": 6,
+      "public_symbols": [
+        "MqAgentConfig",
+        "effective_model",
+        "to_dict",
+        "load_config",
+        "save_config"
+      ]
+    },
+    {
+      "path": "mq_agent/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/main.py",
+      "extension": ".py",
+      "symbol_count": 69,
+      "public_symbols": [
+        "audit",
+        "plan",
+        "release_plan",
+        "release_check",
+        "release_status_cmd",
+        "release_gate_cmd",
+        "release_workflow_cmd",
+        "release_explain_cmd",
+        "dashboard_cmd",
+        "repo_summary_cmd",
+        "run",
+        "fix_ci",
+        "doctor",
+        "review_file_cmd",
+        "review_diff_cmd",
+        "review_repo_cmd",
+        "review_perception_cmd",
+        "review_release_cmd",
+        "learn_status_cmd",
+        "learn_search_cmd",
+        "learn_explain_cmd",
+        "skill_list_cmd",
+        "skill_route_cmd",
+        "skill_ecosystem_cmd",
+        "skill_run_cmd",
+        "signal",
+        "score",
+        "docs_audit",
+        "tui",
+        "tools",
+        "mcp_connect",
+        "mcp_disconnect",
+        "mcp_start",
+        "mcp_stop",
+        "mcp_status",
+        "mcp_tools_list",
+        "run_tool",
+        "memory_status_cmd",
+        "memory_build_cmd",
+        "memory_refresh_cmd",
+        "memory_search_cmd",
+        "memory_store_cmd",
+        "memory_doctor_cmd",
+        "task_list",
+        "task_run",
+        "browser_inspect",
+        "browser_summarize",
+        "browser_verify_release",
+        "swarm_list",
+        "swarm_plan",
+        "swarm_run",
+        "swarm_audit",
+        "swarm_release_check"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/mcp_registry.py",
+      "extension": ".py",
+      "symbol_count": 7,
+      "public_symbols": [
+        "MCPSafetyClass",
+        "MCPToolSpec",
+        "normalize_safety_class",
+        "classify_tool_name",
+        "from_name",
+        "from_dict",
+        "to_dict"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/shell_tools.py",
+      "extension": ".py",
+      "symbol_count": 2,
+      "public_symbols": [
+        "run_command",
+        "which"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/git_tools.py",
+      "extension": ".py",
+      "symbol_count": 6,
+      "public_symbols": [
+        "git_status",
+        "git_log",
+        "git_diff",
+        "git_branch",
+        "git_remote"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/signal_tools.py",
+      "extension": ".py",
+      "symbol_count": 9,
+      "public_symbols": [
+        "signal_available",
+        "repo_scan",
+        "repo_readme_score",
+        "repo_publish_checklist",
+        "repo_analyze",
+        "repo_suggest",
+        "repo_signal_json"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/__init__.py",
+      "extension": ".py",
+      "symbol_count": 2,
+      "public_symbols": [
+        "register_tool",
+        "tool_names"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/mcp_bridge.py",
+      "extension": ".py",
+      "symbol_count": 36,
+      "public_symbols": [
+        "MCPBridge",
+        "MultiMCPBridge",
+        "is_available",
+        "not_reachable_message",
+        "list_tools",
+        "list_tool_specs",
+        "describe_tool",
+        "call_tool",
+        "review_file",
+        "review_diff",
+        "review_repo",
+        "is_available",
+        "list_tool_specs",
+        "describe_tool",
+        "call_tool",
+        "review_file",
+        "review_diff",
+        "review_repo",
+        "release_gate_run",
+        "search_semantic_memory",
+        "store_semantic_memory",
+        "list_architecture_decisions",
+        "get_architecture_decision",
+        "learn_status",
+        "search_learned_patterns",
+        "explain_learned_pattern",
+        "get_server_statuses",
+        "mcp_call"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/repo_tools.py",
+      "extension": ".py",
+      "symbol_count": 8,
+      "public_symbols": [
+        "repo_summary",
+        "list_files",
+        "read_file",
+        "write_file",
+        "find_files",
+        "run_task_tool"
+      ]
+    },
+    {
+      "path": "mq_agent/tools/browser_tools.py",
+      "extension": ".py",
+      "symbol_count": 11,
+      "public_symbols": [
+        "handle_starttag",
+        "handle_endtag",
+        "handle_data",
+        "text_content",
+        "fetch_url",
+        "inspect_url",
+        "summarize_url",
+        "verify_release_url"
+      ]
+    },
+    {
+      "path": "mq_agent/core/swarm.py",
+      "extension": ".py",
+      "symbol_count": 18,
+      "public_symbols": [
+        "AgentManifest",
+        "AgentResult",
+        "SwarmConfig",
+        "SwarmResult",
+        "SwarmRunner",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "agent_names",
+        "requires_approve",
+        "safety_classes",
+        "passed",
+        "failed_agents",
+        "to_dict",
+        "run",
+        "plan"
+      ]
+    },
+    {
+      "path": "mq_agent/core/planner.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "Planner",
+        "create_plan"
+      ]
+    },
+    {
+      "path": "mq_agent/core/verification.py",
+      "extension": ".py",
+      "symbol_count": 4,
+      "public_symbols": [
+        "Verifier",
+        "verify",
+        "verify_plan"
+      ]
+    },
+    {
+      "path": "mq_agent/core/config.py",
+      "extension": ".py",
+      "symbol_count": 5,
+      "public_symbols": [
+        "load_config",
+        "save_config",
+        "add_mcp_server",
+        "remove_mcp_server",
+        "get_mcp_servers"
+      ]
+    },
+    {
+      "path": "mq_agent/core/skills.py",
+      "extension": ".py",
+      "symbol_count": 29,
+      "public_symbols": [
+        "SkillIndex",
+        "SkillRecord",
+        "SkillRoute",
+        "EcosystemSkillSummary",
+        "SkillExecutionPlan",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "normalize_skill_records",
+        "flush",
+        "discover_skill_index",
+        "discover_skill_indexes",
+        "default_mq_repo_paths",
+        "summarize_ecosystem_skills",
+        "route_skill_request",
+        "is_existing_mq_agent_command",
+        "plan_skill_execution"
+      ]
+    },
+    {
+      "path": "mq_agent/core/memory.py",
+      "extension": ".py",
+      "symbol_count": 10,
+      "public_symbols": [
+        "Memory",
+        "set",
+        "get",
+        "delete",
+        "session_dump",
+        "persistent_dump",
+        "context"
+      ]
+    },
+    {
+      "path": "mq_agent/core/diagnostics.py",
+      "extension": ".py",
+      "symbol_count": 2,
+      "public_symbols": [
+        "run_checks",
+        "required_checks_pass"
+      ]
+    },
+    {
+      "path": "mq_agent/core/task_runner.py",
+      "extension": ".py",
+      "symbol_count": 7,
+      "public_symbols": [
+        "TaskStep",
+        "StepResult",
+        "Task",
+        "load_task",
+        "run_task",
+        "find_task_files"
+      ]
+    },
+    {
+      "path": "mq_agent/core/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/core/safety.py",
+      "extension": ".py",
+      "symbol_count": 6,
+      "public_symbols": [
+        "SafetyGate",
+        "check",
+        "requires_approval",
+        "can_execute"
+      ]
+    },
+    {
+      "path": "mq_agent/core/executor.py",
+      "extension": ".py",
+      "symbol_count": 4,
+      "public_symbols": [
+        "Executor",
+        "run_step",
+        "run_plan"
+      ]
+    },
+    {
+      "path": "mq_agent/core/state.py",
+      "extension": ".py",
+      "symbol_count": 9,
+      "public_symbols": [
+        "SafetyMode",
+        "StepStatus",
+        "PlanStep",
+        "AgentState",
+        "is_complete",
+        "has_failures",
+        "success_count",
+        "to_dict"
+      ]
+    },
+    {
+      "path": "mq_agent/memory/semantic.py",
+      "extension": ".py",
+      "symbol_count": 9,
+      "public_symbols": [
+        "SemanticMemoryStatus",
+        "DiagnosticItem",
+        "DoctorReport",
+        "healthy",
+        "get_vector_store_id",
+        "repo_signal_available",
+        "status",
+        "build",
+        "doctor"
+      ]
+    },
+    {
+      "path": "mq_agent/memory/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/tui/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/tui/app.py",
+      "extension": ".py",
+      "symbol_count": 9,
+      "public_symbols": [
+        "MQAgentApp",
+        "compose",
+        "on_mount",
+        "on_list_view_selected",
+        "action_run_selected",
+        "action_clear_log"
+      ]
+    },
+    {
+      "path": "mq_agent/agents/swarm_registry.py",
+      "extension": ".py",
+      "symbol_count": 2,
+      "public_symbols": [
+        "get_swarm",
+        "list_swarms"
+      ]
+    },
+    {
+      "path": "mq_agent/agents/audit_agent.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "AuditAgent",
+        "run"
+      ]
+    },
+    {
+      "path": "mq_agent/agents/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/agents/docs_agent.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "DocsAgent",
+        "audit"
+      ]
+    },
+    {
+      "path": "mq_agent/agents/ci_agent.py",
+      "extension": ".py",
+      "symbol_count": 4,
+      "public_symbols": [
+        "CIAgent",
+        "diagnose"
+      ]
+    },
+    {
+      "path": "mq_agent/agents/release_agent.py",
+      "extension": ".py",
+      "symbol_count": 4,
+      "public_symbols": [
+        "ReleaseAgent",
+        "create_plan",
+        "run_check"
+      ]
+    },
+    {
+      "path": "mq_agent/agents/signal_agent.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "SignalAgent",
+        "run"
+      ]
+    },
+    {
+      "path": "mq_agent/mcp/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/mcp/manager.py",
+      "extension": ".py",
+      "symbol_count": 6,
+      "public_symbols": [
+        "mq_mcp_dir",
+        "read_pid",
+        "is_running",
+        "start",
+        "stop"
+      ]
+    },
+    {
+      "path": "mq_agent/cli/render.py",
+      "extension": ".py",
+      "symbol_count": 4,
+      "public_symbols": [
+        "print_steps",
+        "print_tool_spec",
+        "print_mcp_tool_table",
+        "print_swarm_result"
+      ]
+    },
+    {
+      "path": "mq_agent/cli/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/integrations/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/integrations/release_gate.py",
+      "extension": ".py",
+      "symbol_count": 2,
+      "public_symbols": [
+        "get_release_status"
+      ]
+    },
+    {
+      "path": "mq_agent/perception/adapter.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "normalize_perception_output",
+        "build_fallback_perception"
+      ]
+    },
+    {
+      "path": "mq_agent/perception/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/perception/contract.py",
+      "extension": ".py",
+      "symbol_count": 1,
+      "public_symbols": [
+        "validate_perception_payload"
+      ]
+    },
+    {
+      "path": "mq_agent/operator/render_release_status.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "render_release_status"
+      ]
+    },
+    {
+      "path": "mq_agent/operator/__init__.py",
+      "extension": ".py",
+      "symbol_count": 0,
+      "public_symbols": []
+    },
+    {
+      "path": "mq_agent/operator/stack_health.py",
+      "extension": ".py",
+      "symbol_count": 3,
+      "public_symbols": [
+        "get_stack_health",
+        "render_stack_health"
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "name": "fail",
+      "kind": "shell_function",
+      "file_path": "release-check.sh",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "ok",
+      "kind": "shell_function",
+      "file_path": "release-check.sh",
+      "line": 13,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_returns_seven_items",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 5,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_first_four_are_required",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 10,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_sixth_is_optional_mcp",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_includes_orchestration_contract_check",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 25,
+      "is_public": true
+    },
+    {
+      "name": "test_required_checks_pass_true_when_first_four_ok",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 31,
+      "is_public": true
+    },
+    {
+      "name": "test_required_checks_pass_false_when_one_required_fails",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 44,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_python_check_passes_on_current_interpreter",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 56,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_git_available",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 64,
+      "is_public": true
+    },
+    {
+      "name": "test_run_checks_with_no_api_key",
+      "kind": "function",
+      "file_path": "tests/test_diagnostics.py",
+      "line": 72,
+      "is_public": true
+    },
+    {
+      "name": "test_load_task_parses_steps",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 24,
+      "is_public": true
+    },
+    {
+      "name": "test_load_task_defaults_name_to_stem",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 44,
+      "is_public": true
+    },
+    {
+      "name": "test_load_task_defaults_version",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 51,
+      "is_public": true
+    },
+    {
+      "name": "test_load_task_requires_pyyaml",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 58,
+      "is_public": true
+    },
+    {
+      "name": "block_yaml",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 63,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_dry_run_returns_dry_run_status",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 77,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_calls_registered_tool",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 87,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_unknown_tool",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 98,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_captures_exception",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 108,
+      "is_public": true
+    },
+    {
+      "name": "boom",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 111,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_multiple_steps_all_dry_run",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 122,
+      "is_public": true
+    },
+    {
+      "name": "test_find_task_files_returns_yaml_files",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 138,
+      "is_public": true
+    },
+    {
+      "name": "test_find_task_files_deduplicates",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 148,
+      "is_public": true
+    },
+    {
+      "name": "test_find_task_files_skips_missing_dirs",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 154,
+      "is_public": true
+    },
+    {
+      "name": "test_resolve_templates_substitutes_step_output",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 164,
+      "is_public": true
+    },
+    {
+      "name": "test_resolve_templates_keeps_placeholder_when_step_missing",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 170,
+      "is_public": true
+    },
+    {
+      "name": "test_resolve_templates_ignores_non_string_values",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 176,
+      "is_public": true
+    },
+    {
+      "name": "test_resolve_templates_multiple_refs_in_one_string",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 182,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_passes_step_output_to_next_step",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 188,
+      "is_public": true
+    },
+    {
+      "name": "first",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 192,
+      "is_public": true
+    },
+    {
+      "name": "second",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 195,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_template_dry_run_does_not_resolve",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 211,
+      "is_public": true
+    },
+    {
+      "name": "test_task_list_shows_tasks",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 228,
+      "is_public": true
+    },
+    {
+      "name": "test_task_list_json",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 233,
+      "is_public": true
+    },
+    {
+      "name": "test_task_run_dry_run_by_stem",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 246,
+      "is_public": true
+    },
+    {
+      "name": "test_task_run_dry_run_by_internal_name",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 251,
+      "is_public": true
+    },
+    {
+      "name": "test_task_run_not_found",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 257,
+      "is_public": true
+    },
+    {
+      "name": "test_task_run_json_dry_run",
+      "kind": "function",
+      "file_path": "tests/test_task_runner.py",
+      "line": 263,
+      "is_public": true
+    },
+    {
+      "name": "test_tool_registry_keeps_core_orchestration_tools",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "test_tool_names_are_sorted_for_planner_stability",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 48,
+      "is_public": true
+    },
+    {
+      "name": "test_task_list_includes_suggest_workflow_json",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "test_task_run_suggest_dry_run_json_does_not_execute",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 62,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_plan_is_available_without_api_key",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 73,
+      "is_public": true
+    },
+    {
+      "name": "test_run_command_without_approve_stays_suggest_only",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 81,
+      "is_public": true
+    },
+    {
+      "name": "test_tui_command_list_keeps_core_commands",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 88,
+      "is_public": true
+    },
+    {
+      "name": "test_cross_repo_routing_matrix_covers_core_owners",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 102,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_quality_review_is_release_checked",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 111,
+      "is_public": true
+    },
+    {
+      "name": "test_perception_scope_docs_lock_owner_boundaries",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 121,
+      "is_public": true
+    },
+    {
+      "name": "test_release_operator_docs_record_mqlaunch_gate_gap",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 139,
+      "is_public": true
+    },
+    {
+      "name": "test_mqlaunch_tool_audit_records_known_gaps",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 154,
+      "is_public": true
+    },
+    {
+      "name": "test_plan_step_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 182,
+      "is_public": true
+    },
+    {
+      "name": "test_step_result_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 190,
+      "is_public": true
+    },
+    {
+      "name": "test_agent_manifest_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 196,
+      "is_public": true
+    },
+    {
+      "name": "test_agent_state_to_dict_shape_is_stable",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 205,
+      "is_public": true
+    },
+    {
+      "name": "test_agent_manifest_allowed_tools_must_be_subset_of_registry",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 224,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_tool_delegates_to_task_runner",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 236,
+      "is_public": true
+    },
+    {
+      "name": "test_tool_registry_has_no_positional_only_params",
+      "kind": "function",
+      "file_path": "tests/test_orchestration_contract.py",
+      "line": 263,
+      "is_public": true
+    },
+    {
+      "name": "test_review_file_fast_flag_passed_to_bridge",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 15,
+      "is_public": true
+    },
+    {
+      "name": "test_review_diff_fast_flag_passed_to_bridge",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 26,
+      "is_public": true
+    },
+    {
+      "name": "test_review_repo_fast_flag_passed_to_bridge",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 38,
+      "is_public": true
+    },
+    {
+      "name": "test_review_fast_dry_run_shows_flag",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 50,
+      "is_public": true
+    },
+    {
+      "name": "test_review_shows_arch_context_when_available",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 59,
+      "is_public": true
+    },
+    {
+      "name": "test_review_silent_when_arch_context_unavailable",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "test_review_json_does_not_include_arch_context",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 85,
+      "is_public": true
+    },
+    {
+      "name": "test_list_architecture_decisions_uses_optional_tool",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 102,
+      "is_public": true
+    },
+    {
+      "name": "test_list_architecture_decisions_returns_none_when_tool_missing",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 112,
+      "is_public": true
+    },
+    {
+      "name": "test_get_architecture_decision_uses_required_tool",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 122,
+      "is_public": true
+    },
+    {
+      "name": "test_call_optional_tool_returns_none_when_not_available",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 133,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_status_renders_result",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 146,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_status_json",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 154,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_status_renders_mcp_text_result",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 164,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_status_unavailable_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 177,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_search_renders_patterns",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 190,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_search_renders_mcp_text_result",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 203,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_search_empty_results",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 222,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_search_json",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 231,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_search_unavailable_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 241,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_explain_renders_pattern",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 253,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_explain_renders_mcp_text_result",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 264,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_explain_json",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 278,
+      "is_public": true
+    },
+    {
+      "name": "test_learn_explain_not_found_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 288,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_learn_status_calls_required_tool",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 300,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_search_learned_patterns_calls_required_tool",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 309,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_explain_learned_pattern_calls_required_tool",
+      "kind": "function",
+      "file_path": "tests/test_v1_3_features.py",
+      "line": 319,
+      "is_public": true
+    },
+    {
+      "name": "test_state_is_complete_when_all_steps_done",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "test_state_not_complete_with_pending_step",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 17,
+      "is_public": true
+    },
+    {
+      "name": "test_state_has_failures",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 25,
+      "is_public": true
+    },
+    {
+      "name": "test_state_to_dict",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "test_read_only_blocks_run_command",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 39,
+      "is_public": true
+    },
+    {
+      "name": "test_read_only_allows_git_status",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 46,
+      "is_public": true
+    },
+    {
+      "name": "test_suggest_blocks_all",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 52,
+      "is_public": true
+    },
+    {
+      "name": "test_execute_blocks_destructive",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 59,
+      "is_public": true
+    },
+    {
+      "name": "test_execute_allows_safe",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 71,
+      "is_public": true
+    },
+    {
+      "name": "test_dangerous_allows_everything",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 82,
+      "is_public": true
+    },
+    {
+      "name": "_mock_registry",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 91,
+      "is_public": false
+    },
+    {
+      "name": "test_executor_dry_run_skips_actual_call",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 97,
+      "is_public": true
+    },
+    {
+      "name": "test_executor_runs_tool",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 106,
+      "is_public": true
+    },
+    {
+      "name": "test_executor_captures_tool_failure",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 115,
+      "is_public": true
+    },
+    {
+      "name": "test_executor_unknown_tool",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 124,
+      "is_public": true
+    },
+    {
+      "name": "test_executor_skips_when_safety_blocks",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 133,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_session_roundtrip",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 144,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_persistent_survives_reload",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 151,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_session_overrides_persistent",
+      "kind": "function",
+      "file_path": "tests/test_core.py",
+      "line": 159,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_runs",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 12,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_json",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 18,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_json_missing_store",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_build_dry_run_is_default",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 42,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_build_dry_run_explicit",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 48,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_build_no_dry_run_calls_build",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_build_no_dry_run_failure",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 63,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_refresh_requires_approve",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_refresh_with_approve",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 79,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_refresh_approve_propagates_failure",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 88,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_doctor_unhealthy_without_vector_store",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 99,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_doctor_healthy",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 105,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_doctor_shows_fix_for_missing_repo_signal",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 114,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_doctor_json_healthy",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 124,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_doctor_json_unhealthy",
+      "kind": "function",
+      "file_path": "tests/test_memory_cli.py",
+      "line": 135,
+      "is_public": true
+    },
+    {
+      "name": "test_agent_manifest_to_dict",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 23,
+      "is_public": true
+    },
+    {
+      "name": "test_agent_manifest_defaults",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 39,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_config_agent_names",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_config_requires_approve_false_for_audit",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 52,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_config_requires_approve_true_for_release",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 56,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_config_to_dict",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 60,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_config_safety_classes_audit",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 67,
+      "is_public": true
+    },
+    {
+      "name": "test_get_swarm_returns_correct_config",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "test_get_swarm_raises_for_unknown",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 78,
+      "is_public": true
+    },
+    {
+      "name": "test_list_swarms_returns_all",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 83,
+      "is_public": true
+    },
+    {
+      "name": "test_list_swarms_includes_agents",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 91,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_runner_plan_no_api_needed",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 101,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_runner_plan_includes_tools",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 108,
+      "is_public": true
+    },
+    {
+      "name": "_make_runner",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 116,
+      "is_public": false
+    },
+    {
+      "name": "test_swarm_runner_dry_run_skips_execution",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 120,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_runner_skips_approve_agents_without_flag",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 129,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_runner_runs_agents_with_approve",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 138,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_runner_handles_agent_error_warn",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 145,
+      "is_public": true
+    },
+    {
+      "name": "fail_audit",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 149,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_result_passed_when_all_ok",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 163,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_result_fails_on_error",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 174,
+      "is_public": true
+    },
+    {
+      "name": "test_swarm_result_to_dict",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 186,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_list",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 202,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_list_json",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 208,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_plan_audit",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 220,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_plan_json",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 227,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_plan_unknown_config",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 235,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_run_dry_run_json",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 243,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_run_unknown_config_exits_1",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 250,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_audit_dry_run",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 258,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_swarm_release_check_dry_run_json",
+      "kind": "function",
+      "file_path": "tests/test_swarm.py",
+      "line": 266,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_index_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 32,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_record_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 46,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_route_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 64,
+      "is_public": true
+    },
+    {
+      "name": "test_ecosystem_skill_summary_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 80,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_execution_plan_fields_are_stable",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 93,
+      "is_public": true
+    },
+    {
+      "name": "test_discover_skill_index_finds_repo_local_skills_file",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 107,
+      "is_public": true
+    },
+    {
+      "name": "test_discover_skill_index_missing_file_is_graceful",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 123,
+      "is_public": true
+    },
+    {
+      "name": "test_discover_skill_indexes_accepts_multiple_repos",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 134,
+      "is_public": true
+    },
+    {
+      "name": "test_normalize_skill_records_from_markdown_sections",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 147,
+      "is_public": true
+    },
+    {
+      "name": "test_normalize_skill_records_prefers_explicit_safety_metadata",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 188,
+      "is_public": true
+    },
+    {
+      "name": "test_normalize_skill_records_from_skill_table",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 220,
+      "is_public": true
+    },
+    {
+      "name": "test_route_skill_request_matches_normalized_skill",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 246,
+      "is_public": true
+    },
+    {
+      "name": "test_route_skill_request_no_match_is_graceful",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 271,
+      "is_public": true
+    },
+    {
+      "name": "test_default_mq_repo_paths_discovers_existing_siblings",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 282,
+      "is_public": true
+    },
+    {
+      "name": "test_summarize_ecosystem_skills_with_explicit_repos",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 293,
+      "is_public": true
+    },
+    {
+      "name": "test_existing_mq_agent_command_allows_only_simple_mq_agent_surface",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 319,
+      "is_public": true
+    },
+    {
+      "name": "test_plan_skill_execution_requires_approval",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 325,
+      "is_public": true
+    },
+    {
+      "name": "test_plan_skill_execution_blocks_non_mq_agent_command",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 349,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_list_json_outputs_skill_index_contract",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 371,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_route_json_outputs_route_contract",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 385,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_ecosystem_json_outputs_summary_contract",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 410,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_run_json_without_approve_does_not_execute",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 436,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_run_with_approve_executes_supported_command",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 462,
+      "is_public": true
+    },
+    {
+      "name": "fake_run",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 478,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_list_missing_file_is_successful_read_only",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 494,
+      "is_public": true
+    },
+    {
+      "name": "test_skill_list_json_includes_output_contracts",
+      "kind": "function",
+      "file_path": "tests/test_skill_system.py",
+      "line": 504,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_search_renders_results",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 15,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_search_list_result",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_search_empty_results",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 40,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_search_json_output",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_search_unavailable_tool_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 60,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_search_unavailable_tool_json_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 70,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_store_requires_approve",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 84,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_store_dry_run_does_not_call_bridge",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 92,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_store_with_approve",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 102,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_store_unavailable_tool_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 112,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_store_json_output",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 122,
+      "is_public": true
+    },
+    {
+      "name": "test_mcp_bridge_search_calls_required_tool",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 135,
+      "is_public": true
+    },
+    {
+      "name": "test_mcp_bridge_store_calls_required_tool",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 144,
+      "is_public": true
+    },
+    {
+      "name": "test_mcp_bridge_search_returns_error_when_tool_missing",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory_cli.py",
+      "line": 154,
+      "is_public": true
+    },
+    {
+      "name": "FakeReviewBridge",
+      "kind": "class",
+      "file_path": "tests/test_review_cli.py",
+      "line": 14,
+      "is_public": true
+    },
+    {
+      "name": "JsonStringBridge",
+      "kind": "class",
+      "file_path": "tests/test_review_cli.py",
+      "line": 99,
+      "is_public": true
+    },
+    {
+      "name": "MissingToolBridge",
+      "kind": "class",
+      "file_path": "tests/test_review_cli.py",
+      "line": 163,
+      "is_public": true
+    },
+    {
+      "name": "ErrorBridge",
+      "kind": "class",
+      "file_path": "tests/test_review_cli.py",
+      "line": 180,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 17,
+      "is_public": false
+    },
+    {
+      "name": "call_tool",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 20,
+      "is_public": true
+    },
+    {
+      "name": "review_file",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 29,
+      "is_public": true
+    },
+    {
+      "name": "review_diff",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 38,
+      "is_public": true
+    },
+    {
+      "name": "review_repo",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 47,
+      "is_public": true
+    },
+    {
+      "name": "list_architecture_decisions",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 51,
+      "is_public": true
+    },
+    {
+      "name": "test_review_file_json_invokes_mcp_bridge_with_flags",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "test_review_file_architecture_image_passes_visual_context_to_mcp",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "test_review_diff_architecture_image_unwraps_json_string_payload",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 96,
+      "is_public": true
+    },
+    {
+      "name": "call_tool",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 100,
+      "is_public": true
+    },
+    {
+      "name": "test_review_repo_architecture_image_dry_run_prints_visual_step",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 121,
+      "is_public": true
+    },
+    {
+      "name": "test_review_diff_passes_severity_label_through_unchanged",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 140,
+      "is_public": true
+    },
+    {
+      "name": "test_review_repo_json_invokes_mcp_bridge",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 149,
+      "is_public": true
+    },
+    {
+      "name": "test_review_missing_mq_mcp_tool_returns_clear_error",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 160,
+      "is_public": true
+    },
+    {
+      "name": "review_file",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 164,
+      "is_public": true
+    },
+    {
+      "name": "test_review_mcp_error_string_exits_nonzero",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 177,
+      "is_public": true
+    },
+    {
+      "name": "review_diff",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 181,
+      "is_public": true
+    },
+    {
+      "name": "test_mcp_bridge_review_helpers_call_expected_tools",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 189,
+      "is_public": true
+    },
+    {
+      "name": "test_review_file_dry_run_prints_plan_and_does_not_call_bridge",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 210,
+      "is_public": true
+    },
+    {
+      "name": "test_review_diff_dry_run_with_flags",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 222,
+      "is_public": true
+    },
+    {
+      "name": "test_review_repo_dry_run_with_flags",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 234,
+      "is_public": true
+    },
+    {
+      "name": "test_mcp_bridge_risk_requires_installed_risk_tool",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 247,
+      "is_public": true
+    },
+    {
+      "name": "test_contract_status_accepts_mcp_text_wrappers",
+      "kind": "function",
+      "file_path": "tests/test_review_cli.py",
+      "line": 256,
+      "is_public": true
+    },
+    {
+      "name": "test_assert_safe_url_accepts_https",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 38,
+      "is_public": true
+    },
+    {
+      "name": "test_assert_safe_url_accepts_http",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 41,
+      "is_public": true
+    },
+    {
+      "name": "test_assert_safe_url_blocks_file",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 45,
+      "is_public": true
+    },
+    {
+      "name": "test_assert_safe_url_blocks_javascript",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 50,
+      "is_public": true
+    },
+    {
+      "name": "test_assert_safe_url_blocks_missing_scheme",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 55,
+      "is_public": true
+    },
+    {
+      "name": "test_html_extractor_parses_title",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 63,
+      "is_public": true
+    },
+    {
+      "name": "test_html_extractor_parses_description_meta",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 68,
+      "is_public": true
+    },
+    {
+      "name": "test_html_extractor_parses_headings",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "test_html_extractor_parses_links",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 82,
+      "is_public": true
+    },
+    {
+      "name": "test_html_extractor_ignores_anchor_and_js_links",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 89,
+      "is_public": true
+    },
+    {
+      "name": "test_html_extractor_text_content",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 96,
+      "is_public": true
+    },
+    {
+      "name": "_mock_response",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 107,
+      "is_public": false
+    },
+    {
+      "name": "test_inspect_url_returns_structured_metadata",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 115,
+      "is_public": true
+    },
+    {
+      "name": "test_inspect_url_handles_http_error",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 126,
+      "is_public": true
+    },
+    {
+      "name": "test_inspect_url_handles_connection_error",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 138,
+      "is_public": true
+    },
+    {
+      "name": "test_inspect_url_blocks_file_scheme",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 145,
+      "is_public": true
+    },
+    {
+      "name": "test_summarize_url_includes_title_and_description",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 153,
+      "is_public": true
+    },
+    {
+      "name": "test_summarize_url_returns_error_string_on_failure",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 159,
+      "is_public": true
+    },
+    {
+      "name": "test_verify_release_url_passes_for_valid_page",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 168,
+      "is_public": true
+    },
+    {
+      "name": "test_verify_release_url_checks_expected_tag",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 174,
+      "is_public": true
+    },
+    {
+      "name": "test_verify_release_url_fails_for_missing_tag",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 184,
+      "is_public": true
+    },
+    {
+      "name": "test_verify_release_url_fails_on_unreachable",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 194,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_browser_inspect_json",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 203,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_browser_inspect_exits_1_on_error",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 214,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_browser_summarize_json",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 224,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_browser_verify_release_passes",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 236,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_browser_verify_release_fails_exits_1",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 244,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_browser_verify_release_with_tag",
+      "kind": "function",
+      "file_path": "tests/test_browser.py",
+      "line": 253,
+      "is_public": true
+    },
+    {
+      "name": "test_git_status_in_current_repo",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "test_git_log_returns_commits",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 26,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_summary_contains_fields",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "test_list_files_returns_string",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 36,
+      "is_public": true
+    },
+    {
+      "name": "test_read_file_existing",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 40,
+      "is_public": true
+    },
+    {
+      "name": "test_read_file_missing",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 44,
+      "is_public": true
+    },
+    {
+      "name": "test_run_command_echo",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 48,
+      "is_public": true
+    },
+    {
+      "name": "test_run_command_blocks_dangerous",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 52,
+      "is_public": true
+    },
+    {
+      "name": "test_run_command_default_timeout_is_120",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 56,
+      "is_public": true
+    },
+    {
+      "name": "test_read_file_accepts_path_and_file_path",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 60,
+      "is_public": true
+    },
+    {
+      "name": "test_read_file_file_path_kwarg",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 66,
+      "is_public": true
+    },
+    {
+      "name": "test_find_files_excludes_venv",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 72,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_summary_excludes_venv",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 81,
+      "is_public": true
+    },
+    {
+      "name": "test_write_file_creates_file",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 92,
+      "is_public": true
+    },
+    {
+      "name": "test_write_file_creates_parent_dirs",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 98,
+      "is_public": true
+    },
+    {
+      "name": "test_write_file_in_registry",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 103,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_signal_json_in_registry",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 106,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_tool_in_registry",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 112,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_tool_not_found",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 115,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_tool_runs_task_by_stem",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 121,
+      "is_public": true
+    },
+    {
+      "name": "test_run_task_tool_dry_run",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 140,
+      "is_public": true
+    },
+    {
+      "name": "test_version_tuple_parses_correctly",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 158,
+      "is_public": true
+    },
+    {
+      "name": "test_version_tuple_handles_bad_input",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 163,
+      "is_public": true
+    },
+    {
+      "name": "test_version_guard_min_version_is_0_7_0",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 168,
+      "is_public": true
+    },
+    {
+      "name": "test_version_guard_old_version_triggers_error_message",
+      "kind": "function",
+      "file_path": "tests/test_tools.py",
+      "line": 173,
+      "is_public": true
+    },
+    {
+      "name": "test_get_vector_store_id_missing",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 4,
+      "is_public": true
+    },
+    {
+      "name": "test_get_vector_store_id_present",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "test_get_vector_store_id_strips_whitespace",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 14,
+      "is_public": true
+    },
+    {
+      "name": "test_get_vector_store_id_empty_string",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "test_get_vector_store_id_whitespace_only",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 24,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_missing_vector_store",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 29,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_returns_semantic_memory_status",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 38,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_with_vector_store_no_repo_signal",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 44,
+      "is_public": true
+    },
+    {
+      "name": "test_memory_status_ready",
+      "kind": "function",
+      "file_path": "tests/test_semantic_memory.py",
+      "line": 55,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_read_only_read_prefix",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 8,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_read_only_list_prefix",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_read_only_get_prefix",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 14,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_read_only_search_prefix",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 17,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_read_only_find_prefix",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 20,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_read_only_git_prefix",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 23,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_visual_perception_tools_read_only",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 28,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_write_capable_update",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 34,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_write_capable_write",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 37,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_write_capable_edit",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 40,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_write_capable_create",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 43,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_dangerous_delete",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 46,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_dangerous_remove",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_subprocess_run",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 52,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_subprocess_validate",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 55,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_subprocess_execute",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 58,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_subprocess_open",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 61,
+      "is_public": true
+    },
+    {
+      "name": "test_classify_unknown",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 64,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_name_read_only",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 72,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_name_write_capable",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 82,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_name_dangerous",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 88,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_name_subprocess",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 93,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_name_unknown",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 98,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_dict_with_safety_class",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 109,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_dict_falls_back_to_name_classification",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 123,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_dict_explicit_class_wins_over_name",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 128,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_from_dict_contract_class_maps_to_safety_label",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 133,
+      "is_public": true
+    },
+    {
+      "name": "test_spec_to_dict_round_trip",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 142,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_unavailable_is_available_false",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 153,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_unavailable_list_tools_empty",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 158,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_unavailable_list_tool_specs_empty",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 163,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_call_tool_returns_error_string_when_unavailable",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 168,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_describe_tool_falls_back_to_classification_when_unavailable",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 175,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_not_reachable_message",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 183,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_not_reachable_message_suggests_start",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 190,
+      "is_public": true
+    },
+    {
+      "name": "test_default_mcp_servers_include_visual_perception_server",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 196,
+      "is_public": true
+    },
+    {
+      "name": "test_default_mcp_servers_preserve_configured_visual_endpoint",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 205,
+      "is_public": true
+    },
+    {
+      "name": "test_multi_bridge_routes_visual_tool_to_mq_image_analyze",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 218,
+      "is_public": true
+    },
+    {
+      "name": "test_multi_bridge_describe_visual_tool_uses_image_source_hint",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 235,
+      "is_public": true
+    },
+    {
+      "name": "test_safety_class_counts",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 255,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_read_pid_no_file",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 276,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_is_running_no_pid_file",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 281,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_stop_not_running",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 286,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_start_missing_dir",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 294,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_start_success",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 305,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_start_already_running",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 326,
+      "is_public": true
+    },
+    {
+      "name": "test_manager_stop_kills_process",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 339,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_mcp_start_json_success",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 356,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_mcp_start_json_already_running",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 372,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_mcp_start_json_failure",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 387,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_mcp_stop_json_was_running",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 402,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_mcp_stop_json_not_running",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 417,
+      "is_public": true
+    },
+    {
+      "name": "test_cli_mcp_status_json_process_running",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 431,
+      "is_public": true
+    },
+    {
+      "name": "test_mcp_status_enrichment_shown_when_available",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 447,
+      "is_public": true
+    },
+    {
+      "name": "test_get_server_statuses_enriches_when_tools_available",
+      "kind": "function",
+      "file_path": "tests/test_mcp.py",
+      "line": 476,
+      "is_public": true
+    },
+    {
+      "name": "test_server_safety_class_overrides_name_heuristic",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 14,
+      "is_public": true
+    },
+    {
+      "name": "test_server_safety_class_class_d_subprocess",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 24,
+      "is_public": true
+    },
+    {
+      "name": "test_server_safety_class_write_capable",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 35,
+      "is_public": true
+    },
+    {
+      "name": "test_server_safety_class_unknown_falls_back_to_name",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 44,
+      "is_public": true
+    },
+    {
+      "name": "test_server_contract_class_maps_to_safety_label",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 50,
+      "is_public": true
+    },
+    {
+      "name": "_make_mock_response",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 62,
+      "is_public": false
+    },
+    {
+      "name": "test_bridge_list_tool_specs_uses_server_safety_class",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 68,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_list_tool_specs_falls_back_when_no_safety_class",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 88,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_list_tool_specs_uses_tool_contracts_when_tools_omit_safety",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 100,
+      "is_public": true
+    },
+    {
+      "name": "fake_get",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 105,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_describe_tool_uses_tool_contracts_when_tool_not_listed",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 120,
+      "is_public": true
+    },
+    {
+      "name": "fake_get",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 125,
+      "is_public": true
+    },
+    {
+      "name": "test_tool_contracts_response_shape",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 145,
+      "is_public": true
+    },
+    {
+      "name": "test_tool_contracts_class_field_maps_to_safety",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 177,
+      "is_public": true
+    },
+    {
+      "name": "test_dangerous_spec_requires_approve_flag",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 190,
+      "is_public": true
+    },
+    {
+      "name": "test_read_only_spec_needs_no_approval",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 198,
+      "is_public": true
+    },
+    {
+      "name": "test_bridge_dry_run_does_not_call_tool",
+      "kind": "function",
+      "file_path": "tests/test_mcp_integration_contract.py",
+      "line": 209,
+      "is_public": true
+    },
+    {
+      "name": "test_signal_available",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_scan_returns_string",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 16,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_scan_contains_project_type",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 23,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_readme_score_returns_string",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 28,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_readme_score_contains_bar",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 34,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_publish_checklist_returns_string",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 40,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_analyze_returns_string",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 46,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_signal_json_structure",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 52,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_signal_json_readme_score_range",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 63,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_signal_json_focus_areas_is_list",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 69,
+      "is_public": true
+    },
+    {
+      "name": "test_repo_scan_missing_path",
+      "kind": "function",
+      "file_path": "tests/test_signal_tools.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "sample_gate",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 17,
+      "is_public": true
+    },
+    {
+      "name": "test_release_status_json_asks_mq_mcp_gate",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 36,
+      "is_public": true
+    },
+    {
+      "name": "test_release_status_passes_test_command_to_release_gate",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 46,
+      "is_public": true
+    },
+    {
+      "name": "test_release_status_json_unwraps_mcp_text_payload",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 71,
+      "is_public": true
+    },
+    {
+      "name": "test_release_status_blocked_exits_nonzero_and_renders_operator_output",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 90,
+      "is_public": true
+    },
+    {
+      "name": "test_release_status_missing_gate_tool_is_blocked",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 100,
+      "is_public": true
+    },
+    {
+      "name": "test_release_renderer_does_not_need_gate_rules",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 115,
+      "is_public": true
+    },
+    {
+      "name": "test_release_workflow_json_lists_mqlaunch_entrypoints",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 124,
+      "is_public": true
+    },
+    {
+      "name": "test_review_release_delegates_to_release_gate",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 134,
+      "is_public": true
+    },
+    {
+      "name": "test_perception_contract_validates_minimal_payload",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 144,
+      "is_public": true
+    },
+    {
+      "name": "test_review_perception_json_normalizes_image_ocr_output",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 157,
+      "is_public": true
+    },
+    {
+      "name": "test_review_perception_accepts_fixture_shape_through_mcp_bridge",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 170,
+      "is_public": true
+    },
+    {
+      "name": "test_stack_health_reports_core_components",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 188,
+      "is_public": true
+    },
+    {
+      "name": "test_dashboard_json_outputs_stack_health",
+      "kind": "function",
+      "file_path": "tests/test_release_operator.py",
+      "line": 214,
+      "is_public": true
+    },
+    {
+      "name": "fail",
+      "kind": "shell_function",
+      "file_path": "scripts/check-skill-quality.sh",
+      "line": 6,
+      "is_public": true
+    },
+    {
+      "name": "ok",
+      "kind": "shell_function",
+      "file_path": "scripts/check-skill-quality.sh",
+      "line": 8,
+      "is_public": true
+    },
+    {
+      "name": "END",
+      "kind": "shell_function",
+      "file_path": "scripts/check-skill-quality.sh",
+      "line": 31,
+      "is_public": true
+    },
+    {
+      "name": "fail",
+      "kind": "shell_function",
+      "file_path": "scripts/check-docs-consistency.sh",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "ok",
+      "kind": "shell_function",
+      "file_path": "scripts/check-docs-consistency.sh",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "run_check",
+      "kind": "shell_function",
+      "file_path": "scripts/smoke-mqlaunch.sh",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "fail",
+      "kind": "shell_function",
+      "file_path": "scripts/check-skill-contracts.sh",
+      "line": 6,
+      "is_public": true
+    },
+    {
+      "name": "ok",
+      "kind": "shell_function",
+      "file_path": "scripts/check-skill-contracts.sh",
+      "line": 8,
+      "is_public": true
+    },
+    {
+      "name": "END",
+      "kind": "shell_function",
+      "file_path": "scripts/check-skill-contracts.sh",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "resolve_mq_agent_bin",
+      "kind": "shell_function",
+      "file_path": "scripts/lib/mq-agent-bin.sh",
+      "line": 4,
+      "is_public": true
+    },
+    {
+      "name": "fail",
+      "kind": "shell_function",
+      "file_path": "backups/scripts/20260601-030654/release-check.sh",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "ok",
+      "kind": "shell_function",
+      "file_path": "backups/scripts/20260601-030654/release-check.sh",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "fail",
+      "kind": "shell_function",
+      "file_path": "backups/scripts/20260601-030654/scripts/check-docs-consistency.sh",
+      "line": 7,
+      "is_public": true
+    },
+    {
+      "name": "ok",
+      "kind": "shell_function",
+      "file_path": "backups/scripts/20260601-030654/scripts/check-docs-consistency.sh",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "run_check",
+      "kind": "shell_function",
+      "file_path": "backups/scripts/20260601-030654/scripts/smoke-mqlaunch.sh",
+      "line": 7,
+      "is_public": true
+    },
+    {
+      "name": "MqAgentConfig",
+      "kind": "class",
+      "file_path": "mq_agent/config.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "__post_init__",
+      "kind": "function",
+      "file_path": "mq_agent/config.py",
+      "line": 35,
+      "is_public": false
+    },
+    {
+      "name": "effective_model",
+      "kind": "function",
+      "file_path": "mq_agent/config.py",
+      "line": 42,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/config.py",
+      "line": 46,
+      "is_public": true
+    },
+    {
+      "name": "load_config",
+      "kind": "function",
+      "file_path": "mq_agent/config.py",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "save_config",
+      "kind": "function",
+      "file_path": "mq_agent/config.py",
+      "line": 65,
+      "is_public": true
+    },
+    {
+      "name": "_extract_mcp_text_result",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 63,
+      "is_public": false
+    },
+    {
+      "name": "_client",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 79,
+      "is_public": false
+    },
+    {
+      "name": "audit",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 94,
+      "is_public": true
+    },
+    {
+      "name": "plan",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 123,
+      "is_public": true
+    },
+    {
+      "name": "release_plan",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 148,
+      "is_public": true
+    },
+    {
+      "name": "release_check",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 167,
+      "is_public": true
+    },
+    {
+      "name": "_print_release_status",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 193,
+      "is_public": false
+    },
+    {
+      "name": "_release_workflow",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 201,
+      "is_public": false
+    },
+    {
+      "name": "release_status_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 237,
+      "is_public": true
+    },
+    {
+      "name": "release_gate_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 276,
+      "is_public": true
+    },
+    {
+      "name": "release_workflow_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 287,
+      "is_public": true
+    },
+    {
+      "name": "release_explain_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 310,
+      "is_public": true
+    },
+    {
+      "name": "dashboard_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 330,
+      "is_public": true
+    },
+    {
+      "name": "repo_summary_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 348,
+      "is_public": true
+    },
+    {
+      "name": "run",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 365,
+      "is_public": true
+    },
+    {
+      "name": "fix_ci",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 391,
+      "is_public": true
+    },
+    {
+      "name": "doctor",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 418,
+      "is_public": true
+    },
+    {
+      "name": "_review_flags",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 440,
+      "is_public": false
+    },
+    {
+      "name": "_coerce_mcp_json_payload",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 457,
+      "is_public": false
+    },
+    {
+      "name": "_visual_architecture_observation",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 477,
+      "is_public": false
+    },
+    {
+      "name": "_review_flags_with_visual_context",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 487,
+      "is_public": false
+    },
+    {
+      "name": "_is_error_result",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 509,
+      "is_public": false
+    },
+    {
+      "name": "_iter_review_findings",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 523,
+      "is_public": false
+    },
+    {
+      "name": "_severity_value",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 535,
+      "is_public": false
+    },
+    {
+      "name": "_render_review_result",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 543,
+      "is_public": false
+    },
+    {
+      "name": "_render_arch_context",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 582,
+      "is_public": false
+    },
+    {
+      "name": "_run_review",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 598,
+      "is_public": false
+    },
+    {
+      "name": "review_file_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 612,
+      "is_public": true
+    },
+    {
+      "name": "review_diff_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 642,
+      "is_public": true
+    },
+    {
+      "name": "review_repo_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 671,
+      "is_public": true
+    },
+    {
+      "name": "review_perception_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 701,
+      "is_public": true
+    },
+    {
+      "name": "review_release_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 730,
+      "is_public": true
+    },
+    {
+      "name": "_contract_status_text",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 738,
+      "is_public": false
+    },
+    {
+      "name": "_contract_status_ok",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 753,
+      "is_public": false
+    },
+    {
+      "name": "learn_status_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 772,
+      "is_public": true
+    },
+    {
+      "name": "learn_search_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 806,
+      "is_public": true
+    },
+    {
+      "name": "learn_explain_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 855,
+      "is_public": true
+    },
+    {
+      "name": "skill_list_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 889,
+      "is_public": true
+    },
+    {
+      "name": "skill_route_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 936,
+      "is_public": true
+    },
+    {
+      "name": "skill_ecosystem_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 968,
+      "is_public": true
+    },
+    {
+      "name": "skill_run_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 998,
+      "is_public": true
+    },
+    {
+      "name": "signal",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1037,
+      "is_public": true
+    },
+    {
+      "name": "score",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1108,
+      "is_public": true
+    },
+    {
+      "name": "docs_audit",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1143,
+      "is_public": true
+    },
+    {
+      "name": "tui",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1169,
+      "is_public": true
+    },
+    {
+      "name": "tools",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1179,
+      "is_public": true
+    },
+    {
+      "name": "mcp_connect",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1227,
+      "is_public": true
+    },
+    {
+      "name": "mcp_disconnect",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1249,
+      "is_public": true
+    },
+    {
+      "name": "mcp_start",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1274,
+      "is_public": true
+    },
+    {
+      "name": "mcp_stop",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1319,
+      "is_public": true
+    },
+    {
+      "name": "mcp_status",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1343,
+      "is_public": true
+    },
+    {
+      "name": "mcp_tools_list",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1418,
+      "is_public": true
+    },
+    {
+      "name": "run_tool",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1441,
+      "is_public": true
+    },
+    {
+      "name": "memory_status_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1534,
+      "is_public": true
+    },
+    {
+      "name": "memory_build_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1567,
+      "is_public": true
+    },
+    {
+      "name": "memory_refresh_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1595,
+      "is_public": true
+    },
+    {
+      "name": "memory_search_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1623,
+      "is_public": true
+    },
+    {
+      "name": "memory_store_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1672,
+      "is_public": true
+    },
+    {
+      "name": "memory_doctor_cmd",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1715,
+      "is_public": true
+    },
+    {
+      "name": "task_list",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1755,
+      "is_public": true
+    },
+    {
+      "name": "task_run",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1796,
+      "is_public": true
+    },
+    {
+      "name": "browser_inspect",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1876,
+      "is_public": true
+    },
+    {
+      "name": "browser_summarize",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1916,
+      "is_public": true
+    },
+    {
+      "name": "browser_verify_release",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1937,
+      "is_public": true
+    },
+    {
+      "name": "swarm_list",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 1976,
+      "is_public": true
+    },
+    {
+      "name": "swarm_plan",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 2008,
+      "is_public": true
+    },
+    {
+      "name": "swarm_run",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 2057,
+      "is_public": true
+    },
+    {
+      "name": "swarm_audit",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 2092,
+      "is_public": true
+    },
+    {
+      "name": "swarm_release_check",
+      "kind": "function",
+      "file_path": "mq_agent/main.py",
+      "line": 2119,
+      "is_public": true
+    },
+    {
+      "name": "MCPSafetyClass",
+      "kind": "class",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 5,
+      "is_public": true
+    },
+    {
+      "name": "MCPToolSpec",
+      "kind": "class",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 73,
+      "is_public": true
+    },
+    {
+      "name": "normalize_safety_class",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 45,
+      "is_public": true
+    },
+    {
+      "name": "classify_tool_name",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 61,
+      "is_public": true
+    },
+    {
+      "name": "from_name",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 86,
+      "is_public": true
+    },
+    {
+      "name": "from_dict",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 99,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_registry.py",
+      "line": 117,
+      "is_public": true
+    },
+    {
+      "name": "run_command",
+      "kind": "function",
+      "file_path": "mq_agent/tools/shell_tools.py",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "which",
+      "kind": "function",
+      "file_path": "mq_agent/tools/shell_tools.py",
+      "line": 31,
+      "is_public": true
+    },
+    {
+      "name": "_run",
+      "kind": "function",
+      "file_path": "mq_agent/tools/git_tools.py",
+      "line": 2,
+      "is_public": false
+    },
+    {
+      "name": "git_status",
+      "kind": "function",
+      "file_path": "mq_agent/tools/git_tools.py",
+      "line": 7,
+      "is_public": true
+    },
+    {
+      "name": "git_log",
+      "kind": "function",
+      "file_path": "mq_agent/tools/git_tools.py",
+      "line": 12,
+      "is_public": true
+    },
+    {
+      "name": "git_diff",
+      "kind": "function",
+      "file_path": "mq_agent/tools/git_tools.py",
+      "line": 16,
+      "is_public": true
+    },
+    {
+      "name": "git_branch",
+      "kind": "function",
+      "file_path": "mq_agent/tools/git_tools.py",
+      "line": 21,
+      "is_public": true
+    },
+    {
+      "name": "git_remote",
+      "kind": "function",
+      "file_path": "mq_agent/tools/git_tools.py",
+      "line": 25,
+      "is_public": true
+    },
+    {
+      "name": "_version_tuple",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 22,
+      "is_public": false
+    },
+    {
+      "name": "signal_available",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 53,
+      "is_public": true
+    },
+    {
+      "name": "_not_available_msg",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 57,
+      "is_public": false
+    },
+    {
+      "name": "repo_scan",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 67,
+      "is_public": true
+    },
+    {
+      "name": "repo_readme_score",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 99,
+      "is_public": true
+    },
+    {
+      "name": "repo_publish_checklist",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 124,
+      "is_public": true
+    },
+    {
+      "name": "repo_analyze",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 153,
+      "is_public": true
+    },
+    {
+      "name": "repo_suggest",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 162,
+      "is_public": true
+    },
+    {
+      "name": "repo_signal_json",
+      "kind": "function",
+      "file_path": "mq_agent/tools/signal_tools.py",
+      "line": 173,
+      "is_public": true
+    },
+    {
+      "name": "register_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/__init__.py",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "tool_names",
+      "kind": "function",
+      "file_path": "mq_agent/tools/__init__.py",
+      "line": 53,
+      "is_public": true
+    },
+    {
+      "name": "MCPBridge",
+      "kind": "class",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 22,
+      "is_public": true
+    },
+    {
+      "name": "MultiMCPBridge",
+      "kind": "class",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 174,
+      "is_public": true
+    },
+    {
+      "name": "_infer_default_tool_source",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 14,
+      "is_public": false
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 26,
+      "is_public": false
+    },
+    {
+      "name": "is_available",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 33,
+      "is_public": true
+    },
+    {
+      "name": "not_reachable_message",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 43,
+      "is_public": true
+    },
+    {
+      "name": "_fetch_tools_raw",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 51,
+      "is_public": false
+    },
+    {
+      "name": "list_tools",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 68,
+      "is_public": true
+    },
+    {
+      "name": "list_tool_specs",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 76,
+      "is_public": true
+    },
+    {
+      "name": "_fetch_contract_specs",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 96,
+      "is_public": false
+    },
+    {
+      "name": "describe_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 116,
+      "is_public": true
+    },
+    {
+      "name": "call_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 144,
+      "is_public": true
+    },
+    {
+      "name": "review_file",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 165,
+      "is_public": true
+    },
+    {
+      "name": "review_diff",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 168,
+      "is_public": true
+    },
+    {
+      "name": "review_repo",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 171,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 178,
+      "is_public": false
+    },
+    {
+      "name": "is_available",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 183,
+      "is_public": true
+    },
+    {
+      "name": "list_tool_specs",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 187,
+      "is_public": true
+    },
+    {
+      "name": "describe_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 194,
+      "is_public": true
+    },
+    {
+      "name": "call_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 216,
+      "is_public": true
+    },
+    {
+      "name": "_call_required_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 223,
+      "is_public": false
+    },
+    {
+      "name": "_select_review_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 236,
+      "is_public": false
+    },
+    {
+      "name": "review_file",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 249,
+      "is_public": true
+    },
+    {
+      "name": "review_diff",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 255,
+      "is_public": true
+    },
+    {
+      "name": "review_repo",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 261,
+      "is_public": true
+    },
+    {
+      "name": "release_gate_run",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 267,
+      "is_public": true
+    },
+    {
+      "name": "search_semantic_memory",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 274,
+      "is_public": true
+    },
+    {
+      "name": "store_semantic_memory",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 278,
+      "is_public": true
+    },
+    {
+      "name": "list_architecture_decisions",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 282,
+      "is_public": true
+    },
+    {
+      "name": "get_architecture_decision",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 286,
+      "is_public": true
+    },
+    {
+      "name": "learn_status",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 290,
+      "is_public": true
+    },
+    {
+      "name": "search_learned_patterns",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 294,
+      "is_public": true
+    },
+    {
+      "name": "explain_learned_pattern",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 298,
+      "is_public": true
+    },
+    {
+      "name": "_call_optional_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 302,
+      "is_public": false
+    },
+    {
+      "name": "get_server_statuses",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 309,
+      "is_public": true
+    },
+    {
+      "name": "mcp_call",
+      "kind": "function",
+      "file_path": "mq_agent/tools/mcp_bridge.py",
+      "line": 337,
+      "is_public": true
+    },
+    {
+      "name": "_excluded",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 5,
+      "is_public": false
+    },
+    {
+      "name": "repo_summary",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "list_files",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 31,
+      "is_public": true
+    },
+    {
+      "name": "read_file",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 37,
+      "is_public": true
+    },
+    {
+      "name": "write_file",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 49,
+      "is_public": true
+    },
+    {
+      "name": "find_files",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 56,
+      "is_public": true
+    },
+    {
+      "name": "run_task_tool",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 62,
+      "is_public": true
+    },
+    {
+      "name": "_git",
+      "kind": "function",
+      "file_path": "mq_agent/tools/repo_tools.py",
+      "line": 85,
+      "is_public": false
+    },
+    {
+      "name": "_HTMLExtractor",
+      "kind": "class",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 18,
+      "is_public": false
+    },
+    {
+      "name": "_assert_safe_url",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 10,
+      "is_public": false
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 22,
+      "is_public": false
+    },
+    {
+      "name": "handle_starttag",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 34,
+      "is_public": true
+    },
+    {
+      "name": "handle_endtag",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "handle_data",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 62,
+      "is_public": true
+    },
+    {
+      "name": "text_content",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 74,
+      "is_public": true
+    },
+    {
+      "name": "fetch_url",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 77,
+      "is_public": true
+    },
+    {
+      "name": "inspect_url",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 86,
+      "is_public": true
+    },
+    {
+      "name": "summarize_url",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 133,
+      "is_public": true
+    },
+    {
+      "name": "verify_release_url",
+      "kind": "function",
+      "file_path": "mq_agent/tools/browser_tools.py",
+      "line": 153,
+      "is_public": true
+    },
+    {
+      "name": "AgentManifest",
+      "kind": "class",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 10,
+      "is_public": true
+    },
+    {
+      "name": "AgentResult",
+      "kind": "class",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 34,
+      "is_public": true
+    },
+    {
+      "name": "SwarmConfig",
+      "kind": "class",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "SwarmResult",
+      "kind": "class",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 84,
+      "is_public": true
+    },
+    {
+      "name": "SwarmRunner",
+      "kind": "class",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 111,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 20,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 42,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 61,
+      "is_public": true
+    },
+    {
+      "name": "agent_names",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 71,
+      "is_public": true
+    },
+    {
+      "name": "requires_approve",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 75,
+      "is_public": true
+    },
+    {
+      "name": "safety_classes",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 79,
+      "is_public": true
+    },
+    {
+      "name": "passed",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 94,
+      "is_public": true
+    },
+    {
+      "name": "failed_agents",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 98,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 100,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 122,
+      "is_public": false
+    },
+    {
+      "name": "run",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 125,
+      "is_public": true
+    },
+    {
+      "name": "plan",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 182,
+      "is_public": true
+    },
+    {
+      "name": "_run_agent",
+      "kind": "function",
+      "file_path": "mq_agent/core/swarm.py",
+      "line": 196,
+      "is_public": false
+    },
+    {
+      "name": "Planner",
+      "kind": "class",
+      "file_path": "mq_agent/core/planner.py",
+      "line": 11,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/core/planner.py",
+      "line": 15,
+      "is_public": false
+    },
+    {
+      "name": "create_plan",
+      "kind": "function",
+      "file_path": "mq_agent/core/planner.py",
+      "line": 22,
+      "is_public": true
+    },
+    {
+      "name": "Verifier",
+      "kind": "class",
+      "file_path": "mq_agent/core/verification.py",
+      "line": 18,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/core/verification.py",
+      "line": 22,
+      "is_public": false
+    },
+    {
+      "name": "verify",
+      "kind": "function",
+      "file_path": "mq_agent/core/verification.py",
+      "line": 29,
+      "is_public": true
+    },
+    {
+      "name": "verify_plan",
+      "kind": "function",
+      "file_path": "mq_agent/core/verification.py",
+      "line": 66,
+      "is_public": true
+    },
+    {
+      "name": "load_config",
+      "kind": "function",
+      "file_path": "mq_agent/core/config.py",
+      "line": 10,
+      "is_public": true
+    },
+    {
+      "name": "save_config",
+      "kind": "function",
+      "file_path": "mq_agent/core/config.py",
+      "line": 20,
+      "is_public": true
+    },
+    {
+      "name": "add_mcp_server",
+      "kind": "function",
+      "file_path": "mq_agent/core/config.py",
+      "line": 26,
+      "is_public": true
+    },
+    {
+      "name": "remove_mcp_server",
+      "kind": "function",
+      "file_path": "mq_agent/core/config.py",
+      "line": 35,
+      "is_public": true
+    },
+    {
+      "name": "get_mcp_servers",
+      "kind": "function",
+      "file_path": "mq_agent/core/config.py",
+      "line": 45,
+      "is_public": true
+    },
+    {
+      "name": "SkillIndex",
+      "kind": "class",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 35,
+      "is_public": true
+    },
+    {
+      "name": "SkillRecord",
+      "kind": "class",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 65,
+      "is_public": true
+    },
+    {
+      "name": "SkillRoute",
+      "kind": "class",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 99,
+      "is_public": true
+    },
+    {
+      "name": "EcosystemSkillSummary",
+      "kind": "class",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 129,
+      "is_public": true
+    },
+    {
+      "name": "SkillExecutionPlan",
+      "kind": "class",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 153,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 50,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 80,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 112,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 139,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 164,
+      "is_public": true
+    },
+    {
+      "name": "_slugify",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 176,
+      "is_public": false
+    },
+    {
+      "name": "_tokens",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 181,
+      "is_public": false
+    },
+    {
+      "name": "_display_name",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 185,
+      "is_public": false
+    },
+    {
+      "name": "_extract_command",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 193,
+      "is_public": false
+    },
+    {
+      "name": "_extract_outputs",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 201,
+      "is_public": false
+    },
+    {
+      "name": "_extract_safety_metadata",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 210,
+      "is_public": false
+    },
+    {
+      "name": "_extract_summary",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 229,
+      "is_public": false
+    },
+    {
+      "name": "_infer_safety",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 255,
+      "is_public": false
+    },
+    {
+      "name": "_record_from_section",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 267,
+      "is_public": false
+    },
+    {
+      "name": "_records_from_skill_table",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 287,
+      "is_public": false
+    },
+    {
+      "name": "normalize_skill_records",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 313,
+      "is_public": true
+    },
+    {
+      "name": "flush",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 331,
+      "is_public": true
+    },
+    {
+      "name": "discover_skill_index",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 365,
+      "is_public": true
+    },
+    {
+      "name": "discover_skill_indexes",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 391,
+      "is_public": true
+    },
+    {
+      "name": "default_mq_repo_paths",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 397,
+      "is_public": true
+    },
+    {
+      "name": "summarize_ecosystem_skills",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 404,
+      "is_public": true
+    },
+    {
+      "name": "route_skill_request",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 425,
+      "is_public": true
+    },
+    {
+      "name": "is_existing_mq_agent_command",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 490,
+      "is_public": true
+    },
+    {
+      "name": "plan_skill_execution",
+      "kind": "function",
+      "file_path": "mq_agent/core/skills.py",
+      "line": 501,
+      "is_public": true
+    },
+    {
+      "name": "Memory",
+      "kind": "class",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 7,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 11,
+      "is_public": false
+    },
+    {
+      "name": "_load",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 16,
+      "is_public": false
+    },
+    {
+      "name": "_save",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 25,
+      "is_public": false
+    },
+    {
+      "name": "set",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 29,
+      "is_public": true
+    },
+    {
+      "name": "get",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 36,
+      "is_public": true
+    },
+    {
+      "name": "delete",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 42,
+      "is_public": true
+    },
+    {
+      "name": "session_dump",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 48,
+      "is_public": true
+    },
+    {
+      "name": "persistent_dump",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 51,
+      "is_public": true
+    },
+    {
+      "name": "context",
+      "kind": "function",
+      "file_path": "mq_agent/core/memory.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "run_checks",
+      "kind": "function",
+      "file_path": "mq_agent/core/diagnostics.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "required_checks_pass",
+      "kind": "function",
+      "file_path": "mq_agent/core/diagnostics.py",
+      "line": 63,
+      "is_public": true
+    },
+    {
+      "name": "TaskStep",
+      "kind": "class",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 13,
+      "is_public": true
+    },
+    {
+      "name": "StepResult",
+      "kind": "class",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 21,
+      "is_public": true
+    },
+    {
+      "name": "Task",
+      "kind": "class",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 36,
+      "is_public": true
+    },
+    {
+      "name": "_resolve_templates",
+      "kind": "function",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 41,
+      "is_public": false
+    },
+    {
+      "name": "load_task",
+      "kind": "function",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "run_task",
+      "kind": "function",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 78,
+      "is_public": true
+    },
+    {
+      "name": "find_task_files",
+      "kind": "function",
+      "file_path": "mq_agent/core/task_runner.py",
+      "line": 126,
+      "is_public": true
+    },
+    {
+      "name": "SafetyGate",
+      "kind": "class",
+      "file_path": "mq_agent/core/safety.py",
+      "line": 32,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/core/safety.py",
+      "line": 35,
+      "is_public": false
+    },
+    {
+      "name": "check",
+      "kind": "function",
+      "file_path": "mq_agent/core/safety.py",
+      "line": 37,
+      "is_public": true
+    },
+    {
+      "name": "_is_destructive",
+      "kind": "function",
+      "file_path": "mq_agent/core/safety.py",
+      "line": 57,
+      "is_public": false
+    },
+    {
+      "name": "requires_approval",
+      "kind": "function",
+      "file_path": "mq_agent/core/safety.py",
+      "line": 63,
+      "is_public": true
+    },
+    {
+      "name": "can_execute",
+      "kind": "function",
+      "file_path": "mq_agent/core/safety.py",
+      "line": 68,
+      "is_public": true
+    },
+    {
+      "name": "Executor",
+      "kind": "class",
+      "file_path": "mq_agent/core/executor.py",
+      "line": 5,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/core/executor.py",
+      "line": 9,
+      "is_public": false
+    },
+    {
+      "name": "run_step",
+      "kind": "function",
+      "file_path": "mq_agent/core/executor.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "run_plan",
+      "kind": "function",
+      "file_path": "mq_agent/core/executor.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "SafetyMode",
+      "kind": "class",
+      "file_path": "mq_agent/core/state.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "StepStatus",
+      "kind": "class",
+      "file_path": "mq_agent/core/state.py",
+      "line": 16,
+      "is_public": true
+    },
+    {
+      "name": "PlanStep",
+      "kind": "class",
+      "file_path": "mq_agent/core/state.py",
+      "line": 27,
+      "is_public": true
+    },
+    {
+      "name": "AgentState",
+      "kind": "class",
+      "file_path": "mq_agent/core/state.py",
+      "line": 52,
+      "is_public": true
+    },
+    {
+      "name": "_default_memory",
+      "kind": "function",
+      "file_path": "mq_agent/core/state.py",
+      "line": 44,
+      "is_public": false
+    },
+    {
+      "name": "is_complete",
+      "kind": "function",
+      "file_path": "mq_agent/core/state.py",
+      "line": 64,
+      "is_public": true
+    },
+    {
+      "name": "has_failures",
+      "kind": "function",
+      "file_path": "mq_agent/core/state.py",
+      "line": 71,
+      "is_public": true
+    },
+    {
+      "name": "success_count",
+      "kind": "function",
+      "file_path": "mq_agent/core/state.py",
+      "line": 75,
+      "is_public": true
+    },
+    {
+      "name": "to_dict",
+      "kind": "function",
+      "file_path": "mq_agent/core/state.py",
+      "line": 77,
+      "is_public": true
+    },
+    {
+      "name": "SemanticMemoryStatus",
+      "kind": "class",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 14,
+      "is_public": true
+    },
+    {
+      "name": "DiagnosticItem",
+      "kind": "class",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 23,
+      "is_public": true
+    },
+    {
+      "name": "DoctorReport",
+      "kind": "class",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 31,
+      "is_public": true
+    },
+    {
+      "name": "healthy",
+      "kind": "function",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 35,
+      "is_public": true
+    },
+    {
+      "name": "get_vector_store_id",
+      "kind": "function",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 37,
+      "is_public": true
+    },
+    {
+      "name": "repo_signal_available",
+      "kind": "function",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 42,
+      "is_public": true
+    },
+    {
+      "name": "status",
+      "kind": "function",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 55,
+      "is_public": true
+    },
+    {
+      "name": "build",
+      "kind": "function",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 76,
+      "is_public": true
+    },
+    {
+      "name": "doctor",
+      "kind": "function",
+      "file_path": "mq_agent/memory/semantic.py",
+      "line": 94,
+      "is_public": true
+    },
+    {
+      "name": "MQAgentApp",
+      "kind": "class",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 86,
+      "is_public": true
+    },
+    {
+      "name": "compose",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 101,
+      "is_public": true
+    },
+    {
+      "name": "on_mount",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 114,
+      "is_public": true
+    },
+    {
+      "name": "on_list_view_selected",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 120,
+      "is_public": true
+    },
+    {
+      "name": "action_run_selected",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 127,
+      "is_public": true
+    },
+    {
+      "name": "action_clear_log",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 134,
+      "is_public": true
+    },
+    {
+      "name": "_run_command",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 137,
+      "is_public": false
+    },
+    {
+      "name": "_status_text",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 157,
+      "is_public": false
+    },
+    {
+      "name": "_update_status",
+      "kind": "function",
+      "file_path": "mq_agent/tui/app.py",
+      "line": 161,
+      "is_public": false
+    },
+    {
+      "name": "get_swarm",
+      "kind": "function",
+      "file_path": "mq_agent/agents/swarm_registry.py",
+      "line": 93,
+      "is_public": true
+    },
+    {
+      "name": "list_swarms",
+      "kind": "function",
+      "file_path": "mq_agent/agents/swarm_registry.py",
+      "line": 100,
+      "is_public": true
+    },
+    {
+      "name": "AuditAgent",
+      "kind": "class",
+      "file_path": "mq_agent/agents/audit_agent.py",
+      "line": 10,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/agents/audit_agent.py",
+      "line": 14,
+      "is_public": false
+    },
+    {
+      "name": "run",
+      "kind": "function",
+      "file_path": "mq_agent/agents/audit_agent.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "DocsAgent",
+      "kind": "class",
+      "file_path": "mq_agent/agents/docs_agent.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/agents/docs_agent.py",
+      "line": 13,
+      "is_public": false
+    },
+    {
+      "name": "audit",
+      "kind": "function",
+      "file_path": "mq_agent/agents/docs_agent.py",
+      "line": 18,
+      "is_public": true
+    },
+    {
+      "name": "CIAgent",
+      "kind": "class",
+      "file_path": "mq_agent/agents/ci_agent.py",
+      "line": 10,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/agents/ci_agent.py",
+      "line": 14,
+      "is_public": false
+    },
+    {
+      "name": "diagnose",
+      "kind": "function",
+      "file_path": "mq_agent/agents/ci_agent.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "_safe_run",
+      "kind": "function",
+      "file_path": "mq_agent/agents/ci_agent.py",
+      "line": 73,
+      "is_public": false
+    },
+    {
+      "name": "ReleaseAgent",
+      "kind": "class",
+      "file_path": "mq_agent/agents/release_agent.py",
+      "line": 19,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/agents/release_agent.py",
+      "line": 23,
+      "is_public": false
+    },
+    {
+      "name": "create_plan",
+      "kind": "function",
+      "file_path": "mq_agent/agents/release_agent.py",
+      "line": 28,
+      "is_public": true
+    },
+    {
+      "name": "run_check",
+      "kind": "function",
+      "file_path": "mq_agent/agents/release_agent.py",
+      "line": 32,
+      "is_public": true
+    },
+    {
+      "name": "SignalAgent",
+      "kind": "class",
+      "file_path": "mq_agent/agents/signal_agent.py",
+      "line": 18,
+      "is_public": true
+    },
+    {
+      "name": "__init__",
+      "kind": "function",
+      "file_path": "mq_agent/agents/signal_agent.py",
+      "line": 25,
+      "is_public": false
+    },
+    {
+      "name": "run",
+      "kind": "function",
+      "file_path": "mq_agent/agents/signal_agent.py",
+      "line": 30,
+      "is_public": true
+    },
+    {
+      "name": "_child_env",
+      "kind": "function",
+      "file_path": "mq_agent/mcp/manager.py",
+      "line": 18,
+      "is_public": false
+    },
+    {
+      "name": "mq_mcp_dir",
+      "kind": "function",
+      "file_path": "mq_agent/mcp/manager.py",
+      "line": 26,
+      "is_public": true
+    },
+    {
+      "name": "read_pid",
+      "kind": "function",
+      "file_path": "mq_agent/mcp/manager.py",
+      "line": 31,
+      "is_public": true
+    },
+    {
+      "name": "is_running",
+      "kind": "function",
+      "file_path": "mq_agent/mcp/manager.py",
+      "line": 40,
+      "is_public": true
+    },
+    {
+      "name": "start",
+      "kind": "function",
+      "file_path": "mq_agent/mcp/manager.py",
+      "line": 54,
+      "is_public": true
+    },
+    {
+      "name": "stop",
+      "kind": "function",
+      "file_path": "mq_agent/mcp/manager.py",
+      "line": 89,
+      "is_public": true
+    },
+    {
+      "name": "print_steps",
+      "kind": "function",
+      "file_path": "mq_agent/cli/render.py",
+      "line": 35,
+      "is_public": true
+    },
+    {
+      "name": "print_tool_spec",
+      "kind": "function",
+      "file_path": "mq_agent/cli/render.py",
+      "line": 51,
+      "is_public": true
+    },
+    {
+      "name": "print_mcp_tool_table",
+      "kind": "function",
+      "file_path": "mq_agent/cli/render.py",
+      "line": 66,
+      "is_public": true
+    },
+    {
+      "name": "print_swarm_result",
+      "kind": "function",
+      "file_path": "mq_agent/cli/render.py",
+      "line": 79,
+      "is_public": true
+    },
+    {
+      "name": "get_release_status",
+      "kind": "function",
+      "file_path": "mq_agent/integrations/release_gate.py",
+      "line": 9,
+      "is_public": true
+    },
+    {
+      "name": "_extract_release_gate_payload",
+      "kind": "function",
+      "file_path": "mq_agent/integrations/release_gate.py",
+      "line": 22,
+      "is_public": false
+    },
+    {
+      "name": "normalize_perception_output",
+      "kind": "function",
+      "file_path": "mq_agent/perception/adapter.py",
+      "line": 8,
+      "is_public": true
+    },
+    {
+      "name": "build_fallback_perception",
+      "kind": "function",
+      "file_path": "mq_agent/perception/adapter.py",
+      "line": 24,
+      "is_public": true
+    },
+    {
+      "name": "_unwrap",
+      "kind": "function",
+      "file_path": "mq_agent/perception/adapter.py",
+      "line": 38,
+      "is_public": false
+    },
+    {
+      "name": "validate_perception_payload",
+      "kind": "function",
+      "file_path": "mq_agent/perception/contract.py",
+      "line": 8,
+      "is_public": true
+    },
+    {
+      "name": "render_release_status",
+      "kind": "function",
+      "file_path": "mq_agent/operator/render_release_status.py",
+      "line": 5,
+      "is_public": true
+    },
+    {
+      "name": "_numbered",
+      "kind": "function",
+      "file_path": "mq_agent/operator/render_release_status.py",
+      "line": 33,
+      "is_public": false
+    },
+    {
+      "name": "_render_checks",
+      "kind": "function",
+      "file_path": "mq_agent/operator/render_release_status.py",
+      "line": 39,
+      "is_public": false
+    },
+    {
+      "name": "get_stack_health",
+      "kind": "function",
+      "file_path": "mq_agent/operator/stack_health.py",
+      "line": 6,
+      "is_public": true
+    },
+    {
+      "name": "render_stack_health",
+      "kind": "function",
+      "file_path": "mq_agent/operator/stack_health.py",
+      "line": 59,
+      "is_public": true
+    },
+    {
+      "name": "_mcp_detail",
+      "kind": "function",
+      "file_path": "mq_agent/operator/stack_health.py",
+      "line": 72,
+      "is_public": false
+    }
+  ]
+}

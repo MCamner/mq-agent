@@ -18,62 +18,68 @@ skills/repo-audit/SKILL.md
 ```
 
 Command: `mq-agent audit .`
+Safety: read-only
 Outputs: summary, steps, verification
 
 ### release-readiness
 
-Full release validation: git state, tests, version, changelog, CI. read-only.
+Full release validation: git state, tests, version, changelog, CI.
 
 ```text
 skills/release-readiness/SKILL.md
 ```
 
 Command: `mq-agent release-check`
+Safety: read-only
 Outputs: summary, checks, next_actions
 
 ### signal-assessment
 
-repo-signal static scan + AI improvement plan with scored output. read-only.
+repo-signal static scan + AI improvement plan with scored output.
 
 ```text
 skills/signal-assessment/SKILL.md
 ```
 
 Command: `mq-agent signal .`
+Safety: read-only
 Outputs: scores, readme, publish_checklist, focus_areas, next_actions
 
 ### ci-diagnosis
 
-Diagnose CI failures and generate actionable fix steps. requires --approve to execute fixes.
+Diagnose CI failures and generate actionable fix steps.
 
 ```text
 skills/ci-diagnosis/SKILL.md
 ```
 
 Command: `mq-agent fix-ci`
+Safety: requires --approve
 Outputs: ci_context, steps, recommended_fixes
 
 ### visual-analysis
 
-Analyze images, screenshots and visual diffs through `mq-image-analyze`. read-only.
+Analyze images, screenshots and visual diffs through `mq-image-analyze`.
 
 ```text
 skills/visual-analysis/SKILL.md
 ```
 
 Command: `mq-image analyze`, `mq-image analyze-ui`, `mq-image compare`
+Safety: read-only
 Outputs: visual_summary, ocr_text, detected_regions, risk_signals, confidence
 
 ### mq-mcp-review-orchestration
 
 Route review, risk, security and architecture workflows through mq-mcp without
-duplicating cognition logic in mq-agent. read-only.
+duplicating cognition logic in mq-agent.
 
 ```text
 skills/mq-mcp-review-orchestration/SKILL.md
 ```
 
 Command: future `mq-agent review` / task-runner backed review workflows
+Safety: read-only
 Outputs: findings, severity_summary, next_actions, raw_mcp_result
 
 ## Safety modes

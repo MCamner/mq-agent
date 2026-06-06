@@ -36,6 +36,9 @@ status and renders the response.
 ```bash
 mq-agent release status
 mq-agent release gate
+mq-agent release gate --run-tests
+mq-agent release gate --test-cmd "uv run pytest -q"
+mq-agent release prepare --approve
 mq-agent release explain
 mq-agent dashboard --json
 mq-agent review perception screenshot.png
@@ -66,9 +69,9 @@ mqlaunch agent review release
   -> BLOCKED when mq-agent lacks release/tool contract schema inputs
 ```
 
-This is expected until `mq-agent` has the release/tool contract schema expected
-by Release Gate v2. It means the mqlaunch route works and the gate is reporting
-a real missing contract input; it is not a perception-routing failure.
+Use `--test-cmd` when the operator wants Release Gate v2 to execute tests for
+that invocation. Without it, `tests_pass` remains a warning because the gate is
+read-only by default.
 
 See [`MQLAUNCH_TOOL_AUDIT.md`](MQLAUNCH_TOOL_AUDIT.md) for the current
 mqlaunch tool gap summary.

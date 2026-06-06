@@ -1,0 +1,61 @@
+{
+  "schema": "repo_summary.v1",
+  "repo_name": "mq-agent",
+  "generated_at": "2026-06-06T17:55:49.033802+00:00",
+  "version": "1.4.0",
+  "description": "[![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)",
+  "project_type": "Python project",
+  "languages": {
+    "Python": 64,
+    "Markdown": 41,
+    "Shell": 12,
+    "JSON": 11,
+    "YAML": 8,
+    "TOML": 1,
+    "HTML": 1
+  },
+  "file_count": 148,
+  "test_summary": "17 test files",
+  "key_files": [
+    "CHANGELOG.md",
+    "pyproject.toml",
+    "README.md",
+    "ROADMAP.md",
+    "VERSION"
+  ],
+  "entrypoints": [
+    "backups/scripts/20260601-030654/release-check.sh",
+    "backups/scripts/20260601-030654/scripts/check-docs-consistency.sh",
+    "backups/scripts/20260601-030654/scripts/smoke-mqlaunch.sh",
+    "docs/MQLAUNCH_INTEGRATION.md",
+    "docs/MQLAUNCH_TOOL_AUDIT.md",
+    "mq_agent/core/task_runner.py",
+    "mq_agent/main.py",
+    "mq_agent/tui/app.py",
+    "release-check.sh",
+    "scripts/check-docs-consistency.sh"
+  ],
+  "stable_contracts": [],
+  "top_symbols": [
+    "test_run_checks_returns_seven_items",
+    "test_run_checks_first_four_are_required",
+    "test_run_checks_sixth_is_optional_mcp",
+    "test_run_checks_includes_orchestration_contract_check",
+    "test_required_checks_pass_true_when_first_four_ok",
+    "test_required_checks_pass_false_when_one_required_fails",
+    "test_run_checks_python_check_passes_on_current_interpreter",
+    "test_run_checks_git_available",
+    "test_run_checks_with_no_api_key",
+    "test_load_task_parses_steps",
+    "test_load_task_defaults_name_to_stem",
+    "test_load_task_defaults_version",
+    "test_load_task_requires_pyyaml",
+    "block_yaml",
+    "test_run_task_dry_run_returns_dry_run_status",
+    "test_run_task_calls_registered_tool",
+    "test_run_task_unknown_tool",
+    "test_run_task_captures_exception",
+    "boom",
+    "test_run_task_multiple_steps_all_dry_run"
+  ]
+}

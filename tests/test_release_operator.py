@@ -40,9 +40,46 @@ def test_release_status_json_asks_mq_mcp_gate():
         result = runner.invoke(app, ["release", "status", "--repo", ".", "--target", "v1.4.0", "--json"])
 
     assert result.exit_code == 0
-    mock.assert_called_once_with(repo=str(Path(".").expanduser().resolve()), target="v1.4.0")
+    mock.assert_called_once_with(repo=str(Path(".").expanduser().resolve()), target="v1.4.0", test_command="")
     payload = json.loads(result.output)
     assert payload["status"] == "warning"
+
+
+def test_release_status_passes_test_command_to_release_gate():
+    with patch.object(MultiMCPBridge, "release_gate_run", return_value=sample_gate("pass")) as mock:
+        result = runner.invoke(
+            app,
+            [
+                "release",
+                "gate",
+                "--repo",
+                ".",
+                "--target",
+                "v1.4.0",
+                "--test-cmd",
+                "uv run pytest -q",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0
+    mock.assert_called_once_with(
+        repo=str(Path(".").expanduser().resolve()),
+        target="v1.4.0",
+        test_command="uv run pytest -q",
+    )
+
+
+def test_release_status_run_tests_uses_default_test_command():
+    with patch.object(MultiMCPBridge, "release_gate_run", return_value=sample_gate("pass")) as mock:
+        result = runner.invoke(app, ["release", "status", "--run-tests", "--json"])
+
+    assert result.exit_code == 0
+    mock.assert_called_once_with(
+        repo=str(Path(".").expanduser().resolve()),
+        target="v1.4.0",
+        test_command="uv run pytest -q",
+    )
 
 
 def test_release_status_json_unwraps_mcp_text_payload():
@@ -105,7 +142,19 @@ def test_release_workflow_json_lists_mqlaunch_entrypoints():
     payload = json.loads(result.output)
     assert payload["steps"][0]["name"] == "stack_health"
     assert any("mqlaunch agent release-workflow" in item for item in payload["mqlaunch"])
+    assert any("--run-tests" in item for item in payload["mqlaunch"])
     assert any(step["name"] == "review_release" for step in payload["steps"])
+    assert any("--run-tests" in step["command"] for step in payload["steps"])
+
+
+def test_release_prepare_is_dry_run_by_default():
+    result = runner.invoke(app, ["release", "prepare", "--repo", ".", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["approved"] is False
+    assert payload["status"] == "dry-run"
+    assert payload["command"] == "repo-signal export . --all"
 
 
 def test_review_release_delegates_to_release_gate():
@@ -113,7 +162,7 @@ def test_review_release_delegates_to_release_gate():
         result = runner.invoke(app, ["review", "release", "--repo", ".", "--target", "v1.4.0", "--json"])
 
     assert result.exit_code == 0
-    mock.assert_called_once_with(repo=str(Path(".").expanduser().resolve()), target="v1.4.0")
+    mock.assert_called_once_with(repo=str(Path(".").expanduser().resolve()), target="v1.4.0", test_command="")
     payload = json.loads(result.output)
     assert payload["status"] == "warning"
 

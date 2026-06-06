@@ -209,6 +209,25 @@ def _extract_outputs(lines: list[str]) -> list[str]:
     return []
 
 
+def _extract_safety_metadata(lines: list[str]) -> tuple[str, bool] | None:
+    for line in lines:
+        stripped = line.strip()
+        lower = stripped.lower()
+        if not lower.startswith(("safety:", "safety class:")):
+            continue
+        value = stripped.split(":", 1)[1].strip().lower()
+        if "requires --approve" in value or "requires approval" in value or value.startswith("approval"):
+            return "approval-gated", True
+        if "suggest" in value:
+            return "suggest", False
+        if "read-only" in value or "readonly" in value:
+            return "read-only", False
+        if "write" in value:
+            return "write-capable", True
+        return value or "unknown", "approval" in value
+    return None
+
+
 def _extract_summary(lines: list[str]) -> str:
     summary_lines: list[str] = []
     in_fence = False
@@ -227,6 +246,8 @@ def _extract_summary(lines: list[str]) -> str:
             continue
         if stripped.lower().startswith(("output:", "outputs:")):
             continue
+        if stripped.lower().startswith(("safety:", "safety class:")):
+            continue
         if stripped.startswith("|"):
             continue
         summary_lines.append(stripped)
@@ -234,6 +255,9 @@ def _extract_summary(lines: list[str]) -> str:
 
 
 def _infer_safety(lines: list[str]) -> tuple[str, bool]:
+    metadata = _extract_safety_metadata(lines)
+    if metadata:
+        return metadata
     text = "\n".join(lines).lower()
     if "requires --approve" in text or "requires approval" in text:
         return "approval-gated", True

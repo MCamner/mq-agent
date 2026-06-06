@@ -1,0 +1,752 @@
+{
+  "schema": "callgraph.v1",
+  "repo_name": "mq-agent",
+  "generated_at": "2026-06-06T17:55:48.799977+00:00",
+  "edge_count": 86,
+  "hub_files": [
+    "mq_agent/main.py",
+    "mq_agent/tools/mcp_bridge.py",
+    "mq_agent/tools/signal_tools.py",
+    "mq_agent/tools/__init__.py",
+    "mq_agent/core/task_runner.py",
+    "mq_agent/core/state.py",
+    "mq_agent/core/swarm.py",
+    "mq_agent/memory/semantic.py",
+    "mq_agent/tools/mcp_registry.py",
+    "mq_agent/tools/repo_tools.py"
+  ],
+  "imports": {
+    "mq_agent/core/diagnostics.py": [
+      "mq_agent/tools/signal_tools.py"
+    ],
+    "mq_agent/core/planner.py": [
+      "mq_agent/config.py"
+    ],
+    "mq_agent/core/task_runner.py": [
+      "mq_agent/tools/__init__.py"
+    ],
+    "mq_agent/integrations/release_gate.py": [
+      "mq_agent/tools/mcp_bridge.py"
+    ],
+    "mq_agent/main.py": [
+      "mq_agent/agents/audit_agent.py",
+      "mq_agent/agents/ci_agent.py",
+      "mq_agent/agents/docs_agent.py",
+      "mq_agent/agents/release_agent.py",
+      "mq_agent/agents/signal_agent.py",
+      "mq_agent/agents/swarm_registry.py",
+      "mq_agent/cli/render.py",
+      "mq_agent/core/config.py",
+      "mq_agent/core/diagnostics.py",
+      "mq_agent/core/planner.py",
+      "mq_agent/core/skills.py",
+      "mq_agent/core/state.py",
+      "mq_agent/core/swarm.py",
+      "mq_agent/core/task_runner.py",
+      "mq_agent/integrations/release_gate.py",
+      "mq_agent/mcp/manager.py",
+      "mq_agent/memory/semantic.py",
+      "mq_agent/operator/render_release_status.py",
+      "mq_agent/operator/stack_health.py",
+      "mq_agent/perception/adapter.py",
+      "mq_agent/tools/__init__.py",
+      "mq_agent/tools/browser_tools.py",
+      "mq_agent/tools/mcp_bridge.py",
+      "mq_agent/tools/mcp_registry.py",
+      "mq_agent/tools/repo_tools.py",
+      "mq_agent/tools/shell_tools.py",
+      "mq_agent/tools/signal_tools.py",
+      "mq_agent/tui/app.py"
+    ],
+    "mq_agent/operator/stack_health.py": [
+      "mq_agent/mcp/manager.py",
+      "mq_agent/tools/mcp_bridge.py",
+      "mq_agent/tools/signal_tools.py"
+    ],
+    "mq_agent/tools/repo_tools.py": [
+      "mq_agent/core/task_runner.py"
+    ],
+    "mq_agent/tui/app.py": [
+      "mq_agent/__init__.py"
+    ],
+    "tests/test_browser.py": [
+      "mq_agent/main.py",
+      "mq_agent/tools/browser_tools.py"
+    ],
+    "tests/test_core.py": [
+      "mq_agent/core/executor.py",
+      "mq_agent/core/memory.py",
+      "mq_agent/core/safety.py",
+      "mq_agent/core/state.py"
+    ],
+    "tests/test_diagnostics.py": [
+      "mq_agent/core/diagnostics.py"
+    ],
+    "tests/test_mcp.py": [
+      "mq_agent/core/__init__.py",
+      "mq_agent/main.py",
+      "mq_agent/mcp/__init__.py",
+      "mq_agent/tools/mcp_bridge.py",
+      "mq_agent/tools/mcp_registry.py"
+    ],
+    "tests/test_mcp_integration_contract.py": [
+      "mq_agent/tools/mcp_bridge.py",
+      "mq_agent/tools/mcp_registry.py"
+    ],
+    "tests/test_memory_cli.py": [
+      "mq_agent/main.py",
+      "mq_agent/memory/semantic.py"
+    ],
+    "tests/test_orchestration_contract.py": [
+      "mq_agent/core/state.py",
+      "mq_agent/core/swarm.py",
+      "mq_agent/core/task_runner.py",
+      "mq_agent/main.py",
+      "mq_agent/tools/__init__.py",
+      "mq_agent/tools/repo_tools.py",
+      "mq_agent/tui/app.py"
+    ],
+    "tests/test_release_operator.py": [
+      "mq_agent/main.py",
+      "mq_agent/operator/render_release_status.py",
+      "mq_agent/operator/stack_health.py",
+      "mq_agent/perception/adapter.py",
+      "mq_agent/perception/contract.py",
+      "mq_agent/tools/mcp_bridge.py"
+    ],
+    "tests/test_review_cli.py": [
+      "mq_agent/main.py",
+      "mq_agent/tools/mcp_bridge.py"
+    ],
+    "tests/test_semantic_memory.py": [
+      "mq_agent/memory/semantic.py"
+    ],
+    "tests/test_semantic_memory_cli.py": [
+      "mq_agent/main.py",
+      "mq_agent/tools/mcp_bridge.py"
+    ],
+    "tests/test_signal_tools.py": [
+      "mq_agent/tools/signal_tools.py"
+    ],
+    "tests/test_skill_system.py": [
+      "mq_agent/core/skills.py",
+      "mq_agent/main.py"
+    ],
+    "tests/test_swarm.py": [
+      "mq_agent/agents/swarm_registry.py",
+      "mq_agent/core/swarm.py",
+      "mq_agent/main.py"
+    ],
+    "tests/test_task_runner.py": [
+      "mq_agent/core/task_runner.py",
+      "mq_agent/main.py"
+    ],
+    "tests/test_tools.py": [
+      "mq_agent/tools/__init__.py",
+      "mq_agent/tools/git_tools.py",
+      "mq_agent/tools/repo_tools.py",
+      "mq_agent/tools/shell_tools.py",
+      "mq_agent/tools/signal_tools.py"
+    ],
+    "tests/test_v1_3_features.py": [
+      "mq_agent/main.py",
+      "mq_agent/tools/mcp_bridge.py"
+    ]
+  },
+  "importers": {
+    "mq_agent/__init__.py": [
+      "mq_agent/tui/app.py"
+    ],
+    "mq_agent/agents/audit_agent.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/agents/ci_agent.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/agents/docs_agent.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/agents/release_agent.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/agents/signal_agent.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/agents/swarm_registry.py": [
+      "mq_agent/main.py",
+      "tests/test_swarm.py"
+    ],
+    "mq_agent/cli/render.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/config.py": [
+      "mq_agent/core/planner.py"
+    ],
+    "mq_agent/core/__init__.py": [
+      "tests/test_mcp.py"
+    ],
+    "mq_agent/core/config.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/core/diagnostics.py": [
+      "mq_agent/main.py",
+      "tests/test_diagnostics.py"
+    ],
+    "mq_agent/core/executor.py": [
+      "tests/test_core.py"
+    ],
+    "mq_agent/core/memory.py": [
+      "tests/test_core.py"
+    ],
+    "mq_agent/core/planner.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/core/safety.py": [
+      "tests/test_core.py"
+    ],
+    "mq_agent/core/skills.py": [
+      "mq_agent/main.py",
+      "tests/test_skill_system.py"
+    ],
+    "mq_agent/core/state.py": [
+      "mq_agent/main.py",
+      "tests/test_core.py",
+      "tests/test_orchestration_contract.py"
+    ],
+    "mq_agent/core/swarm.py": [
+      "mq_agent/main.py",
+      "tests/test_orchestration_contract.py",
+      "tests/test_swarm.py"
+    ],
+    "mq_agent/core/task_runner.py": [
+      "mq_agent/main.py",
+      "mq_agent/tools/repo_tools.py",
+      "tests/test_orchestration_contract.py",
+      "tests/test_task_runner.py"
+    ],
+    "mq_agent/integrations/release_gate.py": [
+      "mq_agent/main.py"
+    ],
+    "mq_agent/main.py": [
+      "tests/test_browser.py",
+      "tests/test_mcp.py",
+      "tests/test_memory_cli.py",
+      "tests/test_orchestration_contract.py",
+      "tests/test_release_operator.py",
+      "tests/test_review_cli.py",
+      "tests/test_semantic_memory_cli.py",
+      "tests/test_skill_system.py",
+      "tests/test_swarm.py",
+      "tests/test_task_runner.py",
+      "tests/test_v1_3_features.py"
+    ],
+    "mq_agent/mcp/__init__.py": [
+      "tests/test_mcp.py"
+    ],
+    "mq_agent/mcp/manager.py": [
+      "mq_agent/main.py",
+      "mq_agent/operator/stack_health.py"
+    ],
+    "mq_agent/memory/semantic.py": [
+      "mq_agent/main.py",
+      "tests/test_memory_cli.py",
+      "tests/test_semantic_memory.py"
+    ],
+    "mq_agent/operator/render_release_status.py": [
+      "mq_agent/main.py",
+      "tests/test_release_operator.py"
+    ],
+    "mq_agent/operator/stack_health.py": [
+      "mq_agent/main.py",
+      "tests/test_release_operator.py"
+    ],
+    "mq_agent/perception/adapter.py": [
+      "mq_agent/main.py",
+      "tests/test_release_operator.py"
+    ],
+    "mq_agent/perception/contract.py": [
+      "tests/test_release_operator.py"
+    ],
+    "mq_agent/tools/__init__.py": [
+      "mq_agent/core/task_runner.py",
+      "mq_agent/main.py",
+      "tests/test_orchestration_contract.py",
+      "tests/test_tools.py"
+    ],
+    "mq_agent/tools/browser_tools.py": [
+      "mq_agent/main.py",
+      "tests/test_browser.py"
+    ],
+    "mq_agent/tools/git_tools.py": [
+      "tests/test_tools.py"
+    ],
+    "mq_agent/tools/mcp_bridge.py": [
+      "mq_agent/integrations/release_gate.py",
+      "mq_agent/main.py",
+      "mq_agent/operator/stack_health.py",
+      "tests/test_mcp.py",
+      "tests/test_mcp_integration_contract.py",
+      "tests/test_release_operator.py",
+      "tests/test_review_cli.py",
+      "tests/test_semantic_memory_cli.py",
+      "tests/test_v1_3_features.py"
+    ],
+    "mq_agent/tools/mcp_registry.py": [
+      "mq_agent/main.py",
+      "tests/test_mcp.py",
+      "tests/test_mcp_integration_contract.py"
+    ],
+    "mq_agent/tools/repo_tools.py": [
+      "mq_agent/main.py",
+      "tests/test_orchestration_contract.py",
+      "tests/test_tools.py"
+    ],
+    "mq_agent/tools/shell_tools.py": [
+      "mq_agent/main.py",
+      "tests/test_tools.py"
+    ],
+    "mq_agent/tools/signal_tools.py": [
+      "mq_agent/core/diagnostics.py",
+      "mq_agent/main.py",
+      "mq_agent/operator/stack_health.py",
+      "tests/test_signal_tools.py",
+      "tests/test_tools.py"
+    ],
+    "mq_agent/tui/app.py": [
+      "mq_agent/main.py",
+      "tests/test_orchestration_contract.py"
+    ]
+  },
+  "edges": [
+    {
+      "source": "mq_agent/core/diagnostics.py",
+      "target": "mq_agent/tools/signal_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/core/planner.py",
+      "target": "mq_agent/config.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/core/task_runner.py",
+      "target": "mq_agent/tools/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/integrations/release_gate.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/agents/audit_agent.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/agents/ci_agent.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/agents/docs_agent.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/agents/release_agent.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/agents/signal_agent.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/agents/swarm_registry.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/cli/render.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/config.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/diagnostics.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/planner.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/skills.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/state.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/swarm.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/core/task_runner.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/integrations/release_gate.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/mcp/manager.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/memory/semantic.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/operator/render_release_status.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/operator/stack_health.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/perception/adapter.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/browser_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/mcp_registry.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/repo_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/shell_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tools/signal_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/main.py",
+      "target": "mq_agent/tui/app.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/operator/stack_health.py",
+      "target": "mq_agent/mcp/manager.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/operator/stack_health.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/operator/stack_health.py",
+      "target": "mq_agent/tools/signal_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/tools/repo_tools.py",
+      "target": "mq_agent/core/task_runner.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "mq_agent/tui/app.py",
+      "target": "mq_agent/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_browser.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_browser.py",
+      "target": "mq_agent/tools/browser_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_core.py",
+      "target": "mq_agent/core/executor.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_core.py",
+      "target": "mq_agent/core/memory.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_core.py",
+      "target": "mq_agent/core/safety.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_core.py",
+      "target": "mq_agent/core/state.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_diagnostics.py",
+      "target": "mq_agent/core/diagnostics.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp.py",
+      "target": "mq_agent/core/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp.py",
+      "target": "mq_agent/mcp/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp.py",
+      "target": "mq_agent/tools/mcp_registry.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp_integration_contract.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_mcp_integration_contract.py",
+      "target": "mq_agent/tools/mcp_registry.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_memory_cli.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_memory_cli.py",
+      "target": "mq_agent/memory/semantic.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/core/state.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/core/swarm.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/core/task_runner.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/tools/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/tools/repo_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_orchestration_contract.py",
+      "target": "mq_agent/tui/app.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_release_operator.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_release_operator.py",
+      "target": "mq_agent/operator/render_release_status.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_release_operator.py",
+      "target": "mq_agent/operator/stack_health.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_release_operator.py",
+      "target": "mq_agent/perception/adapter.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_release_operator.py",
+      "target": "mq_agent/perception/contract.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_release_operator.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_review_cli.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_review_cli.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_semantic_memory.py",
+      "target": "mq_agent/memory/semantic.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_semantic_memory_cli.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_semantic_memory_cli.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_signal_tools.py",
+      "target": "mq_agent/tools/signal_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_skill_system.py",
+      "target": "mq_agent/core/skills.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_skill_system.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_swarm.py",
+      "target": "mq_agent/agents/swarm_registry.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_swarm.py",
+      "target": "mq_agent/core/swarm.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_swarm.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_task_runner.py",
+      "target": "mq_agent/core/task_runner.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_task_runner.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_tools.py",
+      "target": "mq_agent/tools/__init__.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_tools.py",
+      "target": "mq_agent/tools/git_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_tools.py",
+      "target": "mq_agent/tools/repo_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_tools.py",
+      "target": "mq_agent/tools/shell_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_tools.py",
+      "target": "mq_agent/tools/signal_tools.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_v1_3_features.py",
+      "target": "mq_agent/main.py",
+      "relation": "python_import"
+    },
+    {
+      "source": "tests/test_v1_3_features.py",
+      "target": "mq_agent/tools/mcp_bridge.py",
+      "relation": "python_import"
+    }
+  ]
+}

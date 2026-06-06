@@ -149,8 +149,8 @@ def test_release_operator_docs_record_mqlaunch_gate_gap():
         "mqlaunch agent release-workflow",
     ):
         assert command in release_operator
-    assert "release/tool contract schema" in release_operator
-    assert "not a perception-routing failure" in release_operator
+    assert '--test-cmd "uv run pytest -q"' in release_operator
+    assert "MQLAUNCH_TOOL_AUDIT.md" in release_operator
 
 
 def test_mqlaunch_tool_audit_records_known_gaps():
@@ -167,6 +167,7 @@ def test_mqlaunch_tool_audit_records_known_gaps():
     for gap in (
         "release/tool contract schema",
         "mq-image-analyze",
+        "--test-cmd",
         "mqlaunch version --plain",
         "mqlaunch system check --json",
         "mqlaunch perf --report",

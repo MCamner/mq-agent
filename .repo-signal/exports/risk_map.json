@@ -1,0 +1,64 @@
+{
+  "schema": "risk_map.v1",
+  "repo_name": "mq-agent",
+  "generated_at": "2026-06-06T17:55:49.275997+00:00",
+  "risk_count": 7,
+  "risks": [
+    {
+      "id": "RSK-001",
+      "level": "medium",
+      "kind": "large_file",
+      "file": "tests/test_skill_system.py",
+      "detail": "526 lines \u2014 consider splitting into focused modules.",
+      "structural": true
+    },
+    {
+      "id": "RSK-002",
+      "level": "medium",
+      "kind": "large_file",
+      "file": "tests/test_mcp.py",
+      "detail": "501 lines \u2014 consider splitting into focused modules.",
+      "structural": true
+    },
+    {
+      "id": "RSK-003",
+      "level": "medium",
+      "kind": "large_file",
+      "file": "mq_agent/main.py",
+      "detail": "2147 lines \u2014 consider splitting into focused modules.",
+      "structural": true
+    },
+    {
+      "id": "RSK-004",
+      "level": "medium",
+      "kind": "large_file",
+      "file": "mq_agent/core/skills.py",
+      "detail": "529 lines \u2014 consider splitting into focused modules.",
+      "structural": true
+    },
+    {
+      "id": "RSK-005",
+      "level": "medium",
+      "kind": "high_fan_in",
+      "file": "mq_agent/main.py",
+      "detail": "Imported by 11 files \u2014 changes here have wide blast radius.",
+      "structural": true
+    },
+    {
+      "id": "RSK-006",
+      "level": "medium",
+      "kind": "high_fan_in",
+      "file": "mq_agent/tools/mcp_bridge.py",
+      "detail": "Imported by 9 files \u2014 changes here have wide blast radius.",
+      "structural": true
+    },
+    {
+      "id": "RSK-007",
+      "level": "medium",
+      "kind": "high_fan_in",
+      "file": "mq_agent/tools/signal_tools.py",
+      "detail": "Imported by 5 files \u2014 changes here have wide blast radius.",
+      "structural": true
+    }
+  ]
+}

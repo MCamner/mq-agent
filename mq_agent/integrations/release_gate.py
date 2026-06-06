@@ -8,12 +8,16 @@ from typing import Any
 from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
 
-def get_release_status(repo: str = ".", target: str = "v1.4.0") -> Any:
+def get_release_status(repo: str = ".", target: str = "v1.4.0", test_command: str = "") -> Any:
     """Ask mq-mcp for Release Gate v2 status.
 
     mq-agent intentionally does not calculate release gate rules locally.
     """
-    result = MultiMCPBridge().release_gate_run(repo=str(Path(repo).expanduser().resolve()), target=target)
+    result = MultiMCPBridge().release_gate_run(
+        repo=str(Path(repo).expanduser().resolve()),
+        target=target,
+        test_command=test_command,
+    )
     return _extract_release_gate_payload(result)
 
 

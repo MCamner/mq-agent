@@ -41,6 +41,9 @@ not reimplement mq-mcp review logic or architecture reasoning locally.
 | `mq-agent release-check --approve` | execute | yes | Execute release checks |
 | `mq-agent release status` | read-only | no | Ask mq-mcp Release Gate v2 for operator status |
 | `mq-agent release gate` | read-only | no | Alias for `release status` |
+| `mq-agent release gate --run-tests` | subprocess via mq-mcp | no | Ask Release Gate v2 to run the default `uv run pytest -q` test command |
+| `mq-agent release gate --test-cmd "uv run pytest -q"` | subprocess via mq-mcp | no | Ask Release Gate v2 to execute a test command for this invocation |
+| `mq-agent release prepare --approve` | execute | yes | Generate `.repo-signal/exports` readiness packs |
 | `mq-agent release explain` | read-only | no | Explain release operator ownership boundaries |
 | `mq-agent dashboard` | read-only | no | Stack-health status for mq-agent, mq-mcp, repo-signal, mq-image-analyze and mq-hal |
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
@@ -195,6 +198,7 @@ The mqlaunch agent menu has exactly 12 items.
 | `mqlaunch agent score .` | `mq-agent score .` |
 | `mqlaunch agent audit .` | `mq-agent audit .` |
 | `mqlaunch agent release-check --dry-run` | `mq-agent release-check --dry-run` |
+| `mqlaunch agent release-check --execute` | `./release-check.sh` if present, else `mq-agent release gate --run-tests` |
 | `mqlaunch agent review release --repo . --target v1.4.0` | `mq-agent review release --repo . --target v1.4.0` |
 | `mqlaunch agent release-workflow --repo . --target v1.4.0` | `mq-agent release workflow --repo . --target v1.4.0` |
 | `mqlaunch agent mcp-status` | `mq-agent mcp status` |

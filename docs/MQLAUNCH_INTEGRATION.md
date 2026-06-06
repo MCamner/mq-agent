@@ -39,6 +39,7 @@ Run these from any shell:
 | `mqlaunch agent score .` | `mq-agent score .` |
 | `mqlaunch agent audit .` | `mq-agent audit .` |
 | `mqlaunch agent release-check --dry-run` | `mq-agent release-check --dry-run` |
+| `mqlaunch agent release-check --execute` | `./release-check.sh` if present, else `mq-agent release gate --run-tests` |
 | `mqlaunch agent review release --repo . --target v1.4.0` | `mq-agent review release --repo . --target v1.4.0` |
 | `mqlaunch agent release-workflow --repo . --target v1.4.0` | `mq-agent release workflow --repo . --target v1.4.0` |
 | `mqlaunch agent mcp-status` | `mq-agent mcp status` |

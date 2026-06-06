@@ -187,6 +187,38 @@ This is not a skill.
     assert records[1].outputs == ["summary", "steps", "verification"]
 
 
+def test_normalize_skill_records_prefers_explicit_safety_metadata(tmp_path):
+    skills = tmp_path / "SKILLS.md"
+    skills.write_text(
+        """# Skills
+
+### ci-diagnosis
+
+Diagnose CI failures.
+
+Safety: requires --approve
+Command: `mq-agent fix-ci`
+Outputs: ci_context, steps
+
+### release-readiness
+
+Full release validation.
+
+Safety Class: read-only
+Command: `mq-agent release-check`
+""",
+        encoding="utf-8",
+    )
+
+    records = normalize_skill_records(skills, repo="demo-repo")
+
+    assert records[0].safety_class == "approval-gated"
+    assert records[0].requires_approval is True
+    assert records[0].summary == "Diagnose CI failures."
+    assert records[1].safety_class == "read-only"
+    assert records[1].requires_approval is False
+
+
 def test_normalize_skill_records_from_skill_table(tmp_path):
     skills = tmp_path / "SKILLS.md"
     skills.write_text(

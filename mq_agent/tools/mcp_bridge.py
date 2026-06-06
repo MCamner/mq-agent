@@ -265,9 +265,12 @@ class MultiMCPBridge:
             return selected
         return self._call_required_tool(selected, {"path": path, **flags})
 
-    def release_gate_run(self, repo: str = ".", target: str = "v1.4.0") -> Any:
+    def release_gate_run(self, repo: str = ".", target: str = "v1.4.0", test_command: str = "") -> Any:
         """Ask mq-mcp to run Release Gate v2. mq-agent does not own gate rules."""
-        return self._call_required_tool("release_gate_run", {"repo": repo, "target": target})
+        args = {"repo": repo, "target": target}
+        if test_command:
+            args["test_command"] = test_command
+        return self._call_required_tool("release_gate_run", args)
 
     def search_semantic_memory(self, query: str) -> Any:
         """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""
