@@ -696,6 +696,50 @@ def learn_extract_review_cmd(
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Learn extract: {path}[/bold]"))
 
 
+@learn_app.command("review-flow")
+def learn_review_flow_cmd(
+    path: Annotated[str, typer.Argument(help="Repo-relative file path")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review a file then extract a dry-run learn candidate in one pass. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    review_result = bridge.review_file(path, {})
+    extract_result = bridge.learn_extract_from_last_review(path)
+
+    if json_out:
+        combined = {"path": path, "review": review_result, "extract": extract_result}
+        typer.echo(json.dumps(combined, indent=2, default=str))
+        if _is_error_result(review_result):
+            raise typer.Exit(1)
+        return
+
+    console.rule("[bold cyan]Step 1/2 — review file[/bold cyan]")
+    _render_review_result("review file", review_result)
+
+    console.rule("[bold cyan]Step 2/2 — learn extract-review[/bold cyan]")
+    if _is_error_result(extract_result):
+        console.print(Panel(
+            str(extract_result.get("error", extract_result)),
+            title="[bold yellow]learn extract unavailable[/bold yellow]",
+            border_style="yellow",
+        ))
+        return
+
+    text_result = _extract_mcp_text_result(extract_result)
+    if text_result:
+        console.print(Panel(Text(text_result), title=f"[bold]Learn extract: {path}[/bold]"))
+    else:
+        console.print(Panel(json.dumps(extract_result, indent=2, default=str), title=f"[bold]Learn extract: {path}[/bold]"))
+
+    console.rule("[dim]Next safe action[/dim]")
+    console.print(
+        "  [bold]mq-agent learn search <query>[/bold]   ← check if pattern already exists\n"
+        "  [dim]If the candidate is new and correct: trigger record_learning via mq-mcp.[/dim]"
+    )
+
+
 # ── signal ─────────────────────────────────────────────────────────────────
 
 @app.command()
