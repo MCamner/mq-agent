@@ -40,7 +40,7 @@ The active planning track also connects mq-agent's perception routing with
 
 ## Remaining operator work
 
-- [ ] repo-signal readiness export integration
+- [x] repo-signal readiness export integration
 - [x] Release Gate v2 perception artifact checks
 - [ ] Full stack-health dashboard across mq-agent, mq-mcp, repo-signal,
   mq-image-analyze and mq-hal
