@@ -169,8 +169,8 @@ Goal: lock architecture before adding features.
 
 * [x] Define the post-v1.4.0 boundary between perception input, review routing
   and operator-facing summaries
-* [ ] Add or refresh `docs/V1_4_0_SCOPE.md`
-* [ ] Add or refresh `docs/PERCEPTION_INTEGRATION.md`
+* [x] Add or refresh `docs/V1_4_0_SCOPE.md`
+* [x] Add or refresh `docs/PERCEPTION_INTEGRATION.md`
 * [x] Coordinate with `mq-mcp` on `docs/RELEASE_GATE_V2.md`
 * [x] Coordinate with `mq-mcp` on `contracts/release_gate_v2.schema.json`
 

@@ -120,6 +120,21 @@ def test_skill_quality_review_is_release_checked():
     assert "check-skill-quality.sh" in release_check
 
 
+def test_perception_scope_docs_lock_owner_boundaries():
+    scope = (ROOT / "docs" / "V1_4_0_SCOPE.md").read_text(encoding="utf-8")
+    perception = (ROOT / "docs" / "PERCEPTION_INTEGRATION.md").read_text(encoding="utf-8")
+
+    for doc in (scope, perception):
+        assert "mq-agent" in doc
+        assert "mq-image-analyze" in doc
+        assert "mq-mcp" in doc
+        assert "must not implement OCR" in doc or "No OCR" in doc
+
+    assert "mq-agent review perception" in perception
+    assert "source_type" in perception
+    assert "confidence" in perception
+
+
 # --- Shape contracts (locked before v0.9.0 consolidation) ---
 
 def test_plan_step_fields_are_stable():
