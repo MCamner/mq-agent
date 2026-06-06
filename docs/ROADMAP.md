@@ -279,7 +279,7 @@ Implemented so far:
 * [x] Human-readable Release Gate v2 output
 * [x] P0 checks for tests, version, changelog, README, ROADMAP, contracts,
   safety classes and release notes
-* [ ] Perception artifact validation
+* [x] Perception artifact validation
 * [ ] repo-signal readiness export integration
 
 #### Week 5 — operator UI first pass
