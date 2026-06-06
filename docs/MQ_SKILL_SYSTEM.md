@@ -10,6 +10,9 @@ the orchestration runtime.
 MQ Skill System v2.0 gives the mq ecosystem one predictable way to discover,
 route and report skill capabilities across repositories.
 
+Cross-repo ownership and escalation rules live in
+[`CROSS_REPO_ROUTING_MATRIX.md`](CROSS_REPO_ROUTING_MATRIX.md).
+
 The system must stay:
 
 * terminal-native
@@ -99,6 +102,29 @@ Each normalized skill record should include:
 
 Skill records must not include secrets, local credentials or hidden command
 execution. A skill entry describes capability; it does not authorize execution.
+
+## Output Contracts
+
+Operational skills should declare predictable output fields in repo-local
+`SKILLS.md` metadata:
+
+```text
+Outputs: summary, checks, next_actions
+```
+
+mq-agent normalizes `Output:` and `Outputs:` lines into the `outputs` list on
+each `mq.skill.v1` record. These names describe the stable human-readable and
+JSON-friendly sections operators can expect from the command. Missing output
+metadata is allowed during migration and normalizes to an empty list.
+
+Recommended field names:
+
+* `summary` — compact human-facing result
+* `checks` — deterministic check list
+* `findings` — review findings or warnings
+* `steps` — planned or executed steps
+* `next_actions` — recommended operator actions
+* `raw_mcp_result` — pass-through result from an owning MCP/tool runtime
 
 ## Routing Decision Contract
 

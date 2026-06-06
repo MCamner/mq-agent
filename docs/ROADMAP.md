@@ -119,11 +119,11 @@ Skill-layer readiness gates:
   should-use and should-not-use cases
 * [x] Evals: priority skills have realistic should-trigger and
   should-not-trigger prompts
-* [ ] Output contracts: operational skills define predictable human-readable
+* [x] Output contracts: operational skills define predictable human-readable
   and JSON-friendly output shapes
-* [ ] Cross-repo routing matrix: common user intents map to the owning repo and
+* [x] Cross-repo routing matrix: common user intents map to the owning repo and
   skill, with overlap and escalation rules
-* [ ] Validation tooling: release checks can detect broken skill paths, missing
+* [x] Validation tooling: release checks can detect broken skill paths, missing
   metadata, missing evals and stale repo references
 * [ ] Skill quality review: stable skills are scored for trigger clarity,
   responsibility boundary, output format, verification and overlap risk

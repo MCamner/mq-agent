@@ -200,6 +200,15 @@ def _extract_command(lines: list[str]) -> str | None:
     return None
 
 
+def _extract_outputs(lines: list[str]) -> list[str]:
+    for line in lines:
+        stripped = line.strip()
+        if stripped.lower().startswith(("output:", "outputs:")):
+            value = stripped.split(":", 1)[1].strip().replace("`", "")
+            return [item.strip() for item in value.split(",") if item.strip()]
+    return []
+
+
 def _extract_summary(lines: list[str]) -> str:
     summary_lines: list[str] = []
     in_fence = False
@@ -215,6 +224,8 @@ def _extract_summary(lines: list[str]) -> str:
                 break
             continue
         if stripped.lower().startswith("command:"):
+            continue
+        if stripped.lower().startswith(("output:", "outputs:")):
             continue
         if stripped.startswith("|"):
             continue
@@ -245,7 +256,7 @@ def _record_from_section(repo: str, source_path: Path, title: str, lines: list[s
         safety_class=safety_class,
         requires_approval=requires_approval,
         inputs=[],
-        outputs=[],
+        outputs=_extract_outputs(lines),
         command=command,
         source_path=str(source_path),
     )

@@ -14,6 +14,7 @@ from __future__ import annotations
 import inspect
 import json
 from dataclasses import fields
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -25,6 +26,7 @@ from mq_agent.tools import TOOL_REGISTRY, tool_names
 from mq_agent.tui.app import COMMANDS
 
 runner = CliRunner()
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_tool_registry_keeps_core_orchestration_tools():
@@ -97,6 +99,15 @@ def test_tui_command_list_keeps_core_commands():
         "mcp tools",
     }
     assert expected.issubset(commands)
+
+
+def test_cross_repo_routing_matrix_covers_core_owners():
+    matrix = (ROOT / "docs" / "CROSS_REPO_ROUTING_MATRIX.md").read_text(encoding="utf-8")
+
+    for owner in ("mq-agent", "mq-mcp", "repo-signal", "mq-image-analyze", "macos-scripts", "mq-hal"):
+        assert owner in matrix
+    for phrase in ("Overlap Rules", "Escalation Rules", "mq-agent must not auto-run"):
+        assert phrase in matrix
 
 
 # --- Shape contracts (locked before v0.9.0 consolidation) ---

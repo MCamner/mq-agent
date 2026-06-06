@@ -18,6 +18,7 @@ skills/repo-audit/SKILL.md
 ```
 
 Command: `mq-agent audit .`
+Outputs: summary, steps, verification
 
 ### release-readiness
 
@@ -28,6 +29,7 @@ skills/release-readiness/SKILL.md
 ```
 
 Command: `mq-agent release-check`
+Outputs: summary, checks, next_actions
 
 ### signal-assessment
 
@@ -38,6 +40,7 @@ skills/signal-assessment/SKILL.md
 ```
 
 Command: `mq-agent signal .`
+Outputs: scores, readme, publish_checklist, focus_areas, next_actions
 
 ### ci-diagnosis
 
@@ -48,6 +51,7 @@ skills/ci-diagnosis/SKILL.md
 ```
 
 Command: `mq-agent fix-ci`
+Outputs: ci_context, steps, recommended_fixes
 
 ### visual-analysis
 
@@ -58,6 +62,7 @@ skills/visual-analysis/SKILL.md
 ```
 
 Command: `mq-image analyze`, `mq-image analyze-ui`, `mq-image compare`
+Outputs: visual_summary, ocr_text, detected_regions, risk_signals, confidence
 
 ### mq-mcp-review-orchestration
 
@@ -69,6 +74,7 @@ skills/mq-mcp-review-orchestration/SKILL.md
 ```
 
 Command: future `mq-agent review` / task-runner backed review workflows
+Outputs: findings, severity_summary, next_actions, raw_mcp_result
 
 ## Safety modes
 

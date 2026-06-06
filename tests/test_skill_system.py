@@ -158,12 +158,14 @@ def test_normalize_skill_records_from_markdown_sections(tmp_path):
 Full release validation.
 
 Command: `mq-agent release-check`
+Outputs: summary, checks, next_actions
 
 ### repo-audit
 
 Read-only repository audit.
 
 Command: `mq-agent audit .`
+Output: summary, steps, verification
 
 ## Safety modes
 
@@ -179,8 +181,10 @@ This is not a skill.
     assert records[0].owner == "demo-repo"
     assert records[0].summary == "Full release validation."
     assert records[0].command == "mq-agent release-check"
+    assert records[0].outputs == ["summary", "checks", "next_actions"]
     assert records[0].safety_class == "unknown"
     assert records[1].safety_class == "read-only"
+    assert records[1].outputs == ["summary", "steps", "verification"]
 
 
 def test_normalize_skill_records_from_skill_table(tmp_path):
@@ -465,3 +469,26 @@ def test_skill_list_missing_file_is_successful_read_only(tmp_path):
     assert data["schema_version"] == "mq.skill_index.v1"
     assert data["exists"] is False
     assert data["skills"] == []
+
+
+def test_skill_list_json_includes_output_contracts(tmp_path):
+    (tmp_path / "SKILLS.md").write_text(
+        """# Skills
+
+## Built-in skills
+
+### release-readiness
+
+Full release validation.
+
+Command: `mq-agent release-check`
+Outputs: summary, checks, next_actions
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["skill", "list", str(tmp_path), "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["skills"][0]["outputs"] == ["summary", "checks", "next_actions"]
