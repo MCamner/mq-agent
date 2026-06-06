@@ -293,6 +293,13 @@ class MultiMCPBridge:
         """Fetch a detailed explanation of a learned pattern by ID."""
         return self._call_required_tool("explain_learned_pattern", {"id": pattern_id})
 
+    def learn_extract_from_last_review(self, relative_path: str) -> Any:
+        """Dry-run extraction of a learn candidate from the last review for a file."""
+        return self._call_required_tool(
+            "learn_extract_from_last_review",
+            {"relative_path": relative_path},
+        )
+
     def _call_optional_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
         """Call a named MCP tool, returning None (not an error) when not available."""
         for bridge in self.bridges.values():

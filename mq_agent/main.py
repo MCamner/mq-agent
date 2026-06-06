@@ -56,6 +56,22 @@ app.add_typer(learn_app, name="learn")
 console = Console()
 
 
+def _extract_mcp_text_result(result: Any) -> str | None:
+    """Return text from the common MCP HTTP wrapper shape, if present."""
+    if isinstance(result, dict) and isinstance(result.get("result"), str):
+        return result["result"]
+    if isinstance(result, list):
+        for item in result:
+            text = _extract_mcp_text_result(item)
+            if text:
+                return text
+            if isinstance(item, dict) and item.get("type") == "text":
+                text = item.get("text")
+                if isinstance(text, str):
+                    return text
+    return None
+
+
 def _client():
     from openai import OpenAI
 
@@ -646,6 +662,38 @@ def learn_explain_cmd(
         raise typer.Exit(1)
 
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Pattern: {pattern_id}[/bold]"))
+
+
+@learn_app.command("extract-review")
+def learn_extract_review_cmd(
+    path: Annotated[str, typer.Argument(help="Repo-relative file path to extract a learn candidate from.")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Dry-run extraction of a learn candidate from the last review for a file. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_extract_from_last_review(path)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]learn extract unavailable[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    text_result = _extract_mcp_text_result(result)
+    if text_result:
+        console.print(Panel(Text(text_result), title=f"[bold]Learn extract: {path}[/bold]"))
+        return
+
+    console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Learn extract: {path}[/bold]"))
 
 
 # ── signal ─────────────────────────────────────────────────────────────────
