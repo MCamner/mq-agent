@@ -12,6 +12,8 @@ route and report skill capabilities across repositories.
 
 Cross-repo ownership and escalation rules live in
 [`CROSS_REPO_ROUTING_MATRIX.md`](CROSS_REPO_ROUTING_MATRIX.md).
+Skill quality scoring lives in
+[`SKILL_QUALITY_REVIEW.md`](SKILL_QUALITY_REVIEW.md).
 
 The system must stay:
 

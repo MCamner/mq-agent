@@ -110,6 +110,16 @@ def test_cross_repo_routing_matrix_covers_core_owners():
         assert phrase in matrix
 
 
+def test_skill_quality_review_is_release_checked():
+    review = (ROOT / "docs" / "SKILL_QUALITY_REVIEW.md").read_text(encoding="utf-8")
+    release_check = (ROOT / "release-check.sh").read_text(encoding="utf-8")
+
+    for criterion in ("Trigger clarity", "Responsibility boundary", "Output format", "Verification", "Overlap risk"):
+        assert criterion in review
+    assert "scripts/check-skill-quality.sh" in review
+    assert "check-skill-quality.sh" in release_check
+
+
 # --- Shape contracts (locked before v0.9.0 consolidation) ---
 
 def test_plan_step_fields_are_stable():

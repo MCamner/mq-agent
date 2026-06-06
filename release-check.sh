@@ -71,6 +71,16 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# Skill quality
+echo ""
+echo "--- Skill quality ---"
+if bash "$ROOT/scripts/check-skill-quality.sh" > /dev/null 2>&1; then
+  ok "check-skill-quality.sh"
+else
+  bash "$ROOT/scripts/check-skill-quality.sh" || true
+  ERRORS=$((ERRORS + 1))
+fi
+
 # mqlaunch integration smoke
 echo ""
 echo "--- mqlaunch smoke ---"
