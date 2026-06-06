@@ -929,6 +929,38 @@ def learn_explain_cmd(
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Pattern: {pattern_id}[/bold]"))
 
 
+@learn_app.command("extract-review")
+def learn_extract_review_cmd(
+    path: Annotated[str, typer.Argument(help="Repo-relative file path to extract a learn candidate from.")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Dry-run extraction of a learn candidate from the last review for a file. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_extract_from_last_review(path)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(
+            str(result.get("error", result)),
+            title="[bold red]learn extract unavailable[/bold red]",
+            border_style="red",
+        ))
+        raise typer.Exit(1)
+
+    text_result = _extract_mcp_text_result(result)
+    if text_result:
+        console.print(Panel(Text(text_result), title=f"[bold]Learn extract: {path}[/bold]"))
+        return
+
+    console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Learn extract: {path}[/bold]"))
+
+
 # ── skill discovery ────────────────────────────────────────────────────────
 
 @skill_app.command("list")
