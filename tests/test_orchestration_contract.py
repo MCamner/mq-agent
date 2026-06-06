@@ -153,6 +153,30 @@ def test_release_operator_docs_record_mqlaunch_gate_gap():
     assert "not a perception-routing failure" in release_operator
 
 
+def test_mqlaunch_tool_audit_records_known_gaps():
+    audit = (ROOT / "docs" / "MQLAUNCH_TOOL_AUDIT.md").read_text(encoding="utf-8")
+
+    for command in (
+        "mqlaunch agent mcp-status",
+        "mqlaunch agent mcp-tools",
+        "mqlaunch agent release-workflow",
+        "mqlaunch agent release-check",
+        "mqlaunch agent review release",
+    ):
+        assert command in audit
+    for gap in (
+        "release/tool contract schema",
+        "mq-image-analyze",
+        "mqlaunch version --plain",
+        "mqlaunch system check --json",
+        "mqlaunch perf --report",
+        "mqlaunch demo --script",
+        "mqlaunch bundle --out",
+        "mqlaunch ask --no-clipboard",
+    ):
+        assert gap in audit
+
+
 # --- Shape contracts (locked before v0.9.0 consolidation) ---
 
 def test_plan_step_fields_are_stable():

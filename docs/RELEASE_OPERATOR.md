@@ -70,6 +70,9 @@ This is expected until `mq-agent` has the release/tool contract schema expected
 by Release Gate v2. It means the mqlaunch route works and the gate is reporting
 a real missing contract input; it is not a perception-routing failure.
 
+See [`MQLAUNCH_TOOL_AUDIT.md`](MQLAUNCH_TOOL_AUDIT.md) for the current
+mqlaunch tool gap summary.
+
 ## Release Flow
 
 ```text
