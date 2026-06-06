@@ -33,6 +33,7 @@ fi
 run_check doctor doctor
 run_check score score .
 run_check repo-summary repo-summary .
+run_check release-workflow release-workflow --json
 
 echo "[check] mqlaunch agent mcp-status"
 if mqlaunch agent mcp-status > "$TMPDIR/mq-agent-mcp-status.out" 2>&1; then

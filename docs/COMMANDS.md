@@ -83,6 +83,8 @@ agent score           # mq-agent score .
 agent audit           # mq-agent audit .
 agent doctor          # mq-agent doctor
 agent release-check   # mq-agent release-check
+agent review release  # mq-agent review release
+agent release-workflow # mq-agent release workflow
 agent mcp-status      # mq-agent mcp status
 agent mcp-tools       # mq-agent mcp tools
 ```

@@ -97,6 +97,26 @@ def test_release_renderer_does_not_need_gate_rules():
     assert "No action required." not in output
 
 
+def test_release_workflow_json_lists_mqlaunch_entrypoints():
+    result = runner.invoke(app, ["release", "workflow", "--repo", ".", "--target", "v1.4.0", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["steps"][0]["name"] == "stack_health"
+    assert any("mqlaunch agent release-workflow" in item for item in payload["mqlaunch"])
+    assert any(step["name"] == "review_release" for step in payload["steps"])
+
+
+def test_review_release_delegates_to_release_gate():
+    with patch.object(MultiMCPBridge, "release_gate_run", return_value=sample_gate("warning")) as mock:
+        result = runner.invoke(app, ["review", "release", "--repo", ".", "--target", "v1.4.0", "--json"])
+
+    assert result.exit_code == 0
+    mock.assert_called_once_with(repo=str(Path(".").expanduser().resolve()), target="v1.4.0")
+    payload = json.loads(result.output)
+    assert payload["status"] == "warning"
+
+
 def test_perception_contract_validates_minimal_payload():
     payload = {
         "source_type": "screenshot",

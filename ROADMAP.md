@@ -44,4 +44,4 @@ The active planning track also connects mq-agent's perception routing with
 - [x] Release Gate v2 perception artifact checks
 - [x] Full stack-health dashboard across mq-agent, mq-mcp, repo-signal,
   mq-image-analyze and mq-hal
-- [ ] mqlaunch entrypoint for review/release workflow
+- [x] mqlaunch entrypoint for review/release workflow

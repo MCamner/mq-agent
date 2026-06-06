@@ -54,7 +54,7 @@ ecosystem summaries.
 | Integration | Status | How |
 |-------------|--------|-----|
 | `repo-signal` | Active | `mq-agent signal .` / `mq-agent score .` |
-| `mqlaunch` | Active | 12-item agent menu + 6 prompt commands |
+| `mqlaunch` | Active | 12-item agent menu + 8 prompt commands |
 | `mq-mcp` | Active | HTTP bridge at `:8765`; 66 tools, safety classes A–D |
 | `mq-hal` | Active | `hal_repo_report` via mq-mcp bridge |
 | `mq-image-analyze` | Active | HTTP bridge at `:8766`; `observe_architecture`, `image_ocr` visual context |
@@ -83,6 +83,8 @@ mqlaunch → agent score          # mq-agent score .
 mqlaunch → agent audit          # mq-agent audit .
 mqlaunch → agent doctor         # mq-agent doctor
 mqlaunch → agent release-check  # mq-agent release-check
+mqlaunch → agent review release # mq-agent review release
+mqlaunch → agent release-workflow # mq-agent release workflow
 mqlaunch → agent mcp-status     # mq-agent mcp status
 mqlaunch → agent mcp-tools      # mq-agent mcp tools
 ```

@@ -310,7 +310,7 @@ stable contracts locked in v0.9.0 · versioned releases v0.1.0–v1.0.0
 
 - `mq-agent-menu.sh` (macos-scripts) — 12-item agent menu: REPO ANALYSIS (1-4), AI COMMANDS (5-8), ENVIRONMENT (9-10), MCP LOCAL TOOLS (11-12)
 - `mqlaunch agent ...` command surface for doctor, score, audit, release-check, MCP status and MCP tools
-- 6 direct prompt commands wired into mqlaunch: `agent score`, `agent audit`, `agent doctor`, `agent release-check`, `agent mcp-status`, `agent mcp-tools`
+- 8 direct prompt commands wired into mqlaunch: `agent score`, `agent audit`, `agent doctor`, `agent release-check`, `agent review release`, `agent release-workflow`, `agent mcp-status`, `agent mcp-tools`
 - `scripts/smoke-mqlaunch.sh` — smoke test that verifies `mqlaunch agent ...` can reach mq-agent without a live session
 - `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture, available commands, and smoke-test usage
 

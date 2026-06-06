@@ -39,6 +39,8 @@ Run these from any shell:
 | `mqlaunch agent score .` | `mq-agent score .` |
 | `mqlaunch agent audit .` | `mq-agent audit .` |
 | `mqlaunch agent release-check --dry-run` | `mq-agent release-check --dry-run` |
+| `mqlaunch agent review release --repo . --target v1.4.0` | `mq-agent review release --repo . --target v1.4.0` |
+| `mqlaunch agent release-workflow --repo . --target v1.4.0` | `mq-agent release workflow --repo . --target v1.4.0` |
 | `mqlaunch agent mcp-status` | `mq-agent mcp status` |
 | `mqlaunch agent mcp-tools` | `mq-agent mcp tools` |
 
@@ -97,6 +99,8 @@ Type these at the mqlaunch main prompt — no menu navigation needed:
 | `agent audit` | `mq-agent audit .` |
 | `agent doctor` | `mq-agent doctor` |
 | `agent release-check` | `mq-agent release-check` |
+| `agent review release` | `mq-agent review release` |
+| `agent release-workflow` | `mq-agent release workflow` |
 | `agent mcp-status` | `mq-agent mcp status` |
 | `agent mcp-tools` | `mq-agent mcp tools` |
 

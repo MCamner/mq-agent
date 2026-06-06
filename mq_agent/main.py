@@ -200,6 +200,39 @@ def _print_release_status(result: dict[str, Any], json_out: bool) -> None:
     console.print(Panel(render_release_status(result), title="[bold]MQ Release Operator[/bold]"))
 
 
+def _release_workflow(repo: str, target: str) -> dict[str, Any]:
+    return {
+        "repo": repo,
+        "target": target,
+        "steps": [
+            {
+                "name": "stack_health",
+                "command": "mq-agent dashboard",
+                "purpose": "Check mq-agent, mq-mcp, repo-signal, mq-image-analyze and mq-hal status.",
+            },
+            {
+                "name": "review_repo",
+                "command": f"mq-agent review repo {repo}",
+                "purpose": "Route repo review through mq-mcp.",
+            },
+            {
+                "name": "release_gate",
+                "command": f"mq-agent release status --repo {repo} --target {target}",
+                "purpose": "Ask mq-mcp Release Gate v2 for deterministic release readiness.",
+            },
+            {
+                "name": "review_release",
+                "command": f"mq-agent review release --repo {repo} --target {target}",
+                "purpose": "Render the same gate result from the review command surface.",
+            },
+        ],
+        "mqlaunch": [
+            f"mqlaunch agent release-workflow --repo {repo} --target {target}",
+            f"mqlaunch agent review release --repo {repo} --target {target}",
+        ],
+    }
+
+
 @release_app.command("status")
 def release_status_cmd(
     repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
@@ -246,6 +279,29 @@ def release_gate_cmd(
 ):
     """Alias for `release status`; mq-mcp owns gate logic."""
     release_status_cmd(repo=repo, target=target, json_out=json_out)
+
+
+@release_app.command("workflow")
+def release_workflow_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
+    target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show the review/release workflow that mqlaunch can route to."""
+    workflow = _release_workflow(repo, target)
+    if json_out:
+        typer.echo(json.dumps(workflow, indent=2, default=str))
+        return
+
+    lines = ["MQ REVIEW/RELEASE WORKFLOW", ""]
+    for index, step in enumerate(workflow["steps"], start=1):
+        lines.append(f"{index}. {step['name']}")
+        lines.append(f"   {step['command']}")
+        lines.append(f"   {step['purpose']}")
+    lines.append("")
+    lines.append("mqlaunch entrypoints:")
+    lines.extend(f"- {item}" for item in workflow["mqlaunch"])
+    console.print(Panel("\n".join(lines), title="[bold]Release Workflow[/bold]"))
 
 
 @release_app.command("explain")
@@ -666,6 +722,16 @@ def review_perception_cmd(
         return
     title = "[bold]Perception Review Context[/bold]"
     console.print(Panel(json.dumps(payload, indent=2, default=str), title=title))
+
+
+@review_app.command("release")
+def review_release_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
+    target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review release readiness through mq-mcp Release Gate v2."""
+    release_status_cmd(repo=repo, target=target, json_out=json_out)
 
 
 def _contract_status_text(value: Any) -> str:

@@ -315,7 +315,7 @@ uv run pytest tests/ -v
 - [x] `mq-agent tools --describe <name>` — tool metadata and safety class
 - [x] `mq-agent run-tool <tool>` — MCP tool through safety gates
 - [x] MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
-- [x] mqlaunch bridge — 12-item agent menu + 6 direct prompt commands
+- [x] mqlaunch bridge — 12-item agent menu + 8 direct prompt commands
 - [x] `scripts/smoke-mqlaunch.sh` — verifies `mqlaunch agent ...` reaches mq-agent
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] `docs/COMMAND_SURFACE.md` — single source of truth for command counts
@@ -375,6 +375,8 @@ mqlaunch agent score .
 mqlaunch agent audit .
 mqlaunch agent doctor
 mqlaunch agent release-check --dry-run
+mqlaunch agent review release --repo . --target v1.4.0
+mqlaunch agent release-workflow --repo . --target v1.4.0
 mqlaunch agent mcp-status
 mqlaunch agent mcp-tools
 ```

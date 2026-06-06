@@ -115,6 +115,8 @@ for stale in \
   "3 direct prompt commands" \
   "5 prompt commands" \
   "5 direct prompt commands" \
+  "6 prompt commands" \
+  "6 direct prompt commands" \
   "all 8 mqlaunch-callable"; do
   if grep -R -n "$stale" "${MQ_DOCS[@]}" >/dev/null 2>&1; then
     fail "Stale mqlaunch command-count wording found: '$stale'"
@@ -123,13 +125,13 @@ for stale in \
   fi
 done
 
-if grep -q "12-item agent menu + 6 direct prompt commands" "$ROOT/README.md"; then
+if grep -q "12-item agent menu + 8 direct prompt commands" "$ROOT/README.md"; then
   ok "README.md has canonical mqlaunch count"
 else
   fail "README.md missing canonical mqlaunch count"
 fi
 
-if grep -q "12-item agent menu + 6 prompt commands" "$ROOT/docs/MQ_ECOSYSTEM.md"; then
+if grep -q "12-item agent menu + 8 prompt commands" "$ROOT/docs/MQ_ECOSYSTEM.md"; then
   ok "MQ_ECOSYSTEM.md has canonical mqlaunch count"
 else
   fail "MQ_ECOSYSTEM.md missing canonical mqlaunch count"
@@ -143,8 +145,8 @@ fi
 
 for required in \
   "The mqlaunch agent menu has exactly 12 items." \
-  "exposes 6 direct subcommands plus the menu entrypoint." \
-  "exposes exactly 6 direct prompt commands." \
+  "exposes 8 direct subcommands plus the menu entrypoint." \
+  "exposes exactly 8 direct prompt commands." \
   "scripts/smoke-mqlaunch.sh"; do
   if grep -q "$required" "$ROOT/docs/COMMAND_SURFACE.md"; then
     ok "COMMAND_SURFACE.md contains: $required"
@@ -153,7 +155,7 @@ for required in \
   fi
 done
 
-for cmd in "agent score" "agent audit" "agent doctor" "agent release-check" "agent mcp-status" "agent mcp-tools"; do
+for cmd in "agent score" "agent audit" "agent doctor" "agent release-check" "agent review release" "agent release-workflow" "agent mcp-status" "agent mcp-tools"; do
   if grep -q "$cmd" "$ROOT/README.md" && \
      grep -q "$cmd" "$ROOT/docs/MQLAUNCH_INTEGRATION.md" && \
      grep -q "$cmd" "$ROOT/docs/COMMAND_SURFACE.md"; then

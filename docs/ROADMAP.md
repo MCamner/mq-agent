@@ -232,7 +232,7 @@ Implemented so far:
 * [x] `mq-agent release gate`
 * [x] `mq-agent release explain`
 * [x] `mq-agent dashboard`
-* [ ] `mq-agent review release`
+* [x] `mq-agent review release`
 * [x] Full stack-health dashboard
 
 Boundary:
@@ -429,7 +429,7 @@ P1:
 * [x] Add operator dashboard/status command
 * [x] Add initial cross-repo fixture tests
 * [ ] Add repo-signal readiness integration
-* [ ] Add mqlaunch entrypoint
+* [x] Add mqlaunch entrypoint
 * [x] Add initial visual/perception review examples
 
 P2:
@@ -505,7 +505,7 @@ Non-goals:
 * [x] `mqlaunch agent`
 * [x] Direct mqlaunch agent commands
 * [x] 12-item mqlaunch agent menu
-* [x] 6 direct prompt commands
+* [x] 8 direct prompt commands
 * [x] smoke test for mqlaunch bridge
 * [x] mqlaunch integration docs
 * [x] command surface docs
