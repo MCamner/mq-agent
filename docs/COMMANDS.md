@@ -27,6 +27,10 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent release-plan` | suggest | yes | Show the standard release plan |
 | `mq-agent release-check` | suggest | yes | Validate release readiness |
 | `mq-agent release-check --approve` | execute | yes | Run release checks with execution |
+| `mq-agent release status` | read-only | no | Ask mq-mcp Release Gate v2 for operator status |
+| `mq-agent release gate` | read-only | no | Alias for `release status` |
+| `mq-agent release explain` | read-only | no | Explain release operator ownership boundaries |
+| `mq-agent dashboard` | read-only | no | Terminal-first MQ operator status |
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
 | `mq-agent run "cmd" --approve` | execute | no | Run a shell command safely |
 | `mq-agent tui` | read-only | no | Launch Textual dashboard |

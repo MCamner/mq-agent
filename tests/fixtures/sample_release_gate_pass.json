@@ -1,0 +1,10 @@
+{
+  "repo": "mq-agent",
+  "target": "v1.4.0",
+  "status": "pass",
+  "score": 100,
+  "blockers": [],
+  "warnings": [],
+  "next_actions": [],
+  "checks": []
+}

@@ -39,6 +39,10 @@ not reimplement mq-mcp review logic or architecture reasoning locally.
 | `mq-agent release-plan` | suggest | yes | Show the standard release plan |
 | `mq-agent release-check` | suggest | yes | Validate release readiness |
 | `mq-agent release-check --approve` | execute | yes | Execute release checks |
+| `mq-agent release status` | read-only | no | Ask mq-mcp Release Gate v2 for operator status |
+| `mq-agent release gate` | read-only | no | Alias for `release status` |
+| `mq-agent release explain` | read-only | no | Explain release operator ownership boundaries |
+| `mq-agent dashboard` | read-only | no | Terminal-first MQ operator status |
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
 | `mq-agent run "cmd" --approve` | execute | no | Safe shell command execution |
 | `mq-agent tui` | read-only | no | Textual dashboard |
@@ -55,6 +59,7 @@ local review heuristics.
 | `mq-agent review file <path> --json` | yes | Raw mq-mcp JSON result |
 | `mq-agent review diff` | yes | Calls mq-mcp `review_diff` |
 | `mq-agent review repo [path]` | yes | Calls mq-mcp `review_repo` |
+| `mq-agent review perception <image>` | mq-image-analyze | Builds normalized perception review context |
 | `mq-agent review * --security` | yes | Passes `security=true` to mq-mcp |
 | `mq-agent review * --architecture` | yes | Passes `architecture=true` to mq-mcp |
 | `mq-agent review * --architecture-image <path>` | mq-image-analyze + mq-mcp | Observes image, then passes visual context to architecture review |

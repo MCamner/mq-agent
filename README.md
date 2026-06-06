@@ -14,6 +14,7 @@ mq-agent doctor                    # check environment
 mq-agent score .                   # README + publish score (no API key)
 mq-agent audit . --dry-run         # repo audit plan
 mq-agent release-check --dry-run   # release readiness plan
+mq-agent release status            # Release Gate v2 operator status
 ```
 
 ```mermaid

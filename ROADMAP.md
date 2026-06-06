@@ -23,6 +23,8 @@ The active planning track also connects mq-agent's perception routing with
 - [x] mq-mcp review runtime integration
 - [x] Semantic memory, risk review, architecture memory and learn routing
 - [x] mq-image-analyze perception tool integration
+- [x] Initial MQ Release Operator command flow
+- [x] Initial mq-mcp Release Gate v2 bridge and operator status rendering
 
 ## Maintenance notes
 
@@ -35,3 +37,11 @@ The active planning track also connects mq-agent's perception routing with
 - Keep root README, command docs and `docs/ROADMAP.md` aligned.
 - Start with contracts, routing, release gate and terminal operator UI before
   browser UI or richer reports.
+
+## Remaining operator work
+
+- [ ] repo-signal readiness export integration
+- [ ] Release Gate v2 perception artifact checks
+- [ ] Full stack-health dashboard across mq-agent, mq-mcp, repo-signal,
+  mq-image-analyze and mq-hal
+- [ ] mqlaunch entrypoint for review/release workflow

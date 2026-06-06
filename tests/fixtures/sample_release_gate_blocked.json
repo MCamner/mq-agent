@@ -1,0 +1,10 @@
+{
+  "repo": "mq-agent",
+  "target": "v1.4.0",
+  "status": "blocked",
+  "score": 78,
+  "blockers": ["CHANGELOG missing v1.4.0 entry"],
+  "warnings": ["README mentions old roadmap"],
+  "next_actions": ["Update CHANGELOG"],
+  "checks": []
+}

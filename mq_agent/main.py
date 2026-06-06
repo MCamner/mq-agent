@@ -50,6 +50,9 @@ app.add_typer(swarm_app, name="swarm")
 review_app = typer.Typer(help="Pass-through mq-mcp review orchestration.")
 app.add_typer(review_app, name="review")
 
+release_app = typer.Typer(help="Operator release status via mq-mcp Release Gate v2.")
+app.add_typer(release_app, name="release")
+
 learn_app = typer.Typer(help="Read-only access to mq-mcp learned review patterns.")
 app.add_typer(learn_app, name="learn")
 
@@ -168,6 +171,95 @@ def release_check(
         else "[bold red]✗ Not ready — see issues above[/bold red]"
     )
     console.print(f"\n{label}")
+
+
+# ── release operator ───────────────────────────────────────────────────────
+
+def _print_release_status(result: dict[str, Any], json_out: bool) -> None:
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        return
+    from mq_agent.operator.render_release_status import render_release_status
+
+    console.print(Panel(render_release_status(result), title="[bold]MQ Release Operator[/bold]"))
+
+
+@release_app.command("status")
+def release_status_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
+    target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Ask mq-mcp Release Gate v2 for operator release status."""
+    from mq_agent.integrations.release_gate import get_release_status
+
+    result = get_release_status(repo=repo, target=target)
+    if isinstance(result, dict):
+        if result.get("ok") is False:
+            result = {
+                "repo": Path(repo).name or repo,
+                "target": target,
+                "status": "blocked",
+                "score": 0,
+                "blockers": [str(result.get("error", "Release Gate v2 is unavailable."))],
+                "warnings": [],
+                "next_actions": [str(result.get("hint", "Start or upgrade mq-mcp, then rerun release status."))],
+            }
+        _print_release_status(result, json_out)
+        if result.get("status") == "blocked":
+            raise typer.Exit(1)
+        return
+    payload = {
+        "repo": Path(repo).name or repo,
+        "target": target,
+        "status": "blocked",
+        "score": 0,
+        "blockers": [str(result)],
+        "warnings": [],
+        "next_actions": ["Start or upgrade mq-mcp, then rerun release status."],
+    }
+    _print_release_status(payload, json_out)
+    raise typer.Exit(1)
+
+
+@release_app.command("gate")
+def release_gate_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
+    target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Alias for `release status`; mq-mcp owns gate logic."""
+    release_status_cmd(repo=repo, target=target, json_out=json_out)
+
+
+@release_app.command("explain")
+def release_explain_cmd():
+    """Explain the mq-agent/mq-mcp Release Gate v2 boundary."""
+    console.print(
+        Panel(
+            "\n".join(
+                [
+                    "mq-agent owns commands, orchestration and operator output.",
+                    "mq-mcp owns Release Gate v2 rules and deterministic validation.",
+                    "repo-signal provides repo readiness signals.",
+                    "mq-image-analyze provides perception output.",
+                    "",
+                    "mq-agent must not duplicate release gate rules locally.",
+                ]
+            ),
+            title="[bold]Release Operator Boundary[/bold]",
+        )
+    )
+
+
+@app.command("dashboard")
+def dashboard_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo path to validate")] = ".",
+    target: Annotated[str, typer.Option("--target", help="Target release, e.g. v1.4.0")] = "v1.4.0",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show terminal-first MQ operator status."""
+    release_status_cmd(repo=repo, target=target, json_out=json_out)
 
 
 # ── repo-summary ───────────────────────────────────────────────────────────
@@ -523,6 +615,35 @@ def review_repo_cmd(
         return
     result = bridge.review_repo(path, flags)
     _run_review("review repo", result, json_out, bridge=bridge)
+
+
+@review_app.command("perception")
+def review_perception_cmd(
+    image: Annotated[str, typer.Argument(help="Screenshot, UI image or diagram path")],
+    source_type: Annotated[str, typer.Option("--source-type", help="screenshot, diagram, ui, terminal or browser")] = "screenshot",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
+):
+    """Build perception review context through mq-image-analyze. No local vision logic."""
+    if dry_run:
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-image-analyze image_ocr image_path={image}[/bold]")
+        console.print("[blue][dry-run][/blue] Would normalize perception JSON for mq-mcp review context.")
+        return
+    from mq_agent.perception.adapter import build_fallback_perception, normalize_perception_output
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    raw = bridge.call_tool("image_ocr", {"image_path": image})
+    if isinstance(raw, str) and ("not found" in raw.lower() or "not reachable" in raw.lower()):
+        payload = build_fallback_perception(image, source_type=source_type)
+        payload["warnings"] = [raw]
+    else:
+        payload = normalize_perception_output(image, raw, source_type=source_type)
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, default=str))
+        return
+    title = "[bold]Perception Review Context[/bold]"
+    console.print(Panel(json.dumps(payload, indent=2, default=str), title=title))
 
 
 def _contract_status_text(value: Any) -> str:

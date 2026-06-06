@@ -167,12 +167,12 @@ The priority is trusted decision flow, not more tools.
 
 Goal: lock architecture before adding features.
 
-* [ ] Define the post-v1.4.0 boundary between perception input, review routing
+* [x] Define the post-v1.4.0 boundary between perception input, review routing
   and operator-facing summaries
 * [ ] Add or refresh `docs/V1_4_0_SCOPE.md`
 * [ ] Add or refresh `docs/PERCEPTION_INTEGRATION.md`
-* [ ] Coordinate with `mq-mcp` on `docs/RELEASE_GATE_V2.md`
-* [ ] Coordinate with `mq-mcp` on `contracts/release_gate_v2.schema.json`
+* [x] Coordinate with `mq-mcp` on `docs/RELEASE_GATE_V2.md`
+* [x] Coordinate with `mq-mcp` on `contracts/release_gate_v2.schema.json`
 
 Release Gate v2 should answer:
 
@@ -204,10 +204,9 @@ Normalized perception object:
 
 * [ ] Keep `mq-image-analyze` as owner of OCR, screenshot analysis and visual
   summaries
-* [ ] Keep `mq-agent` as owner of perception routing and review orchestration
-* [ ] Add or stabilize perception adapter surfaces such as
-  `mq_agent/integrations/mq_image_analyze.py`,
-  `mq_agent/perception/context.py` and `mq_agent/perception/normalizer.py`
+* [x] Keep `mq-agent` as owner of perception routing and review orchestration
+* [x] Add or stabilize perception adapter surfaces:
+  `mq_agent/perception/adapter.py` and `mq_agent/perception/contract.py`
 * [ ] Coordinate read-only `mq-mcp` support for perception review and perception
   contract checks
 
@@ -225,6 +224,16 @@ mq-agent review repo
 mq-agent review perception <image>
 mq-agent review release
 ```
+
+Implemented so far:
+
+* [x] `mq-agent review perception <image>`
+* [x] `mq-agent release status`
+* [x] `mq-agent release gate`
+* [x] `mq-agent release explain`
+* [x] `mq-agent dashboard`
+* [ ] `mq-agent review release`
+* [ ] Full stack-health dashboard
 
 Boundary:
 
@@ -261,6 +270,17 @@ mq-mcp release-gate run --repo . --profile v2
 
 The output should be both machine-readable and human-readable, with status,
 score, blockers, warnings and next actions.
+
+Implemented so far:
+
+* [x] `mq-mcp release-gate run --repo . --target <version>`
+* [x] Release Gate v2 JSON schema
+* [x] Machine-readable output with status, score, blockers, warnings and next actions
+* [x] Human-readable Release Gate v2 output
+* [x] P0 checks for tests, version, changelog, README, ROADMAP, contracts,
+  safety classes and release notes
+* [ ] Perception artifact validation
+* [ ] repo-signal readiness export integration
 
 #### Week 5 — operator UI first pass
 
@@ -347,8 +367,9 @@ Coverage targets:
 
 * [ ] `mq-agent`: review routing, perception adapter, MCPBridge compatibility
   and operator summary rendering tests
-* [ ] `mq-mcp`: Release Gate v2 schema, blocker/warning classification,
-  contract drift and unsafe command detection tests
+* [x] `mq-mcp`: initial Release Gate v2 schema and blocker/warning
+  classification tests
+* [ ] `mq-mcp`: contract drift and unsafe command detection tests
 * [ ] `mq-image-analyze`: output schema compatibility, OCR fallback and
   confidence handling tests
 
@@ -395,20 +416,20 @@ mq-mcp release-gate run --repo . --profile v2
 
 P0:
 
-* [ ] Define Release Gate v2 contract
-* [ ] Define perception input/output contract
-* [ ] Route perception through `mq-agent` without duplicating
+* [x] Define Release Gate v2 contract
+* [x] Define perception input/output contract
+* [x] Route perception through `mq-agent` without duplicating
   `mq-image-analyze`
-* [ ] Make `mq-mcp` the deterministic release validator
-* [ ] Add human-readable release status output
+* [x] Make `mq-mcp` the deterministic release validator
+* [x] Add human-readable release status output
 
 P1:
 
-* [ ] Add operator dashboard/status command
-* [ ] Add cross-repo fixture tests
+* [x] Add operator dashboard/status command
+* [x] Add initial cross-repo fixture tests
 * [ ] Add repo-signal readiness integration
 * [ ] Add mqlaunch entrypoint
-* [ ] Add visual/perception review examples
+* [x] Add initial visual/perception review examples
 
 P2:
 
