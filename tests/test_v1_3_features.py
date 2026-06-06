@@ -163,6 +163,19 @@ def test_learn_status_json():
     assert data["ok"] is True
 
 
+def test_learn_status_renders_mcp_text_result():
+    mcp_result = [
+        [{"type": "text", "text": "Learn layer: 5 lesson(s)"}],
+        {"result": "Learn layer: 5 lesson(s)"},
+    ]
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.learn_status.return_value = mcp_result
+        result = runner.invoke(app, ["learn", "status"])
+
+    assert result.exit_code == 0
+    assert "Learn layer: 5 lesson" in result.output
+
+
 def test_learn_status_unavailable_exits_nonzero():
     error = {"ok": False, "error": "mq-mcp tool 'learn_status' is not available.", "tool": "learn_status"}
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
@@ -187,6 +200,25 @@ def test_learn_search_renders_patterns():
     assert result.exit_code == 0
     assert "p-1" in result.output
     assert "p-2" in result.output
+
+
+def test_learn_search_renders_mcp_text_result():
+    mcp_result = [
+        [
+            {
+                "type": "text",
+                "text": "Found 1 match(es) for 'release':\n\n[learn-1] release lesson",
+            }
+        ],
+        {"result": "Found 1 match(es) for 'release':\n\n[learn-1] release lesson"},
+    ]
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.search_learned_patterns.return_value = mcp_result
+        result = runner.invoke(app, ["learn", "search", "release"])
+
+    assert result.exit_code == 0
+    assert "learn-1" in result.output
+    assert "release lesson" in result.output
 
 
 def test_learn_search_empty_results():
@@ -229,6 +261,20 @@ def test_learn_explain_renders_pattern():
 
     assert result.exit_code == 0
     assert "p-1" in result.output
+
+
+def test_learn_explain_renders_mcp_text_result():
+    mcp_result = [
+        [{"type": "text", "text": "[learn-1] Prefer immutable updates"}],
+        {"result": "[learn-1] Prefer immutable updates"},
+    ]
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.explain_learned_pattern.return_value = mcp_result
+        result = runner.invoke(app, ["learn", "explain", "learn-1"])
+
+    assert result.exit_code == 0
+    assert "learn-1" in result.output
+    assert "Prefer immutable" in result.output
 
 
 def test_learn_explain_json():

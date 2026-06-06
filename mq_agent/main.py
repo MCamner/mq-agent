@@ -62,6 +62,22 @@ app.add_typer(skill_app, name="skill")
 console = Console()
 
 
+def _extract_mcp_text_result(result: Any) -> str | None:
+    """Return text from the common MCP HTTP wrapper shape, if present."""
+    if isinstance(result, dict) and isinstance(result.get("result"), str):
+        return result["result"]
+    if isinstance(result, list):
+        for item in result:
+            text = _extract_mcp_text_result(item)
+            if text:
+                return text
+            if isinstance(item, dict) and item.get("type") == "text":
+                text = item.get("text")
+                if isinstance(text, str):
+                    return text
+    return None
+
+
 def _client():
     from openai import OpenAI
 
@@ -703,6 +719,11 @@ def learn_status_cmd(
             console.print(f"[dim]{hint}[/dim]")
         raise typer.Exit(1)
 
+    text_result = _extract_mcp_text_result(result)
+    if text_result:
+        console.print(Panel(Text(text_result), title="[bold]Learn system status[/bold]"))
+        return
+
     console.print(Panel(json.dumps(result, indent=2, default=str), title="[bold]Learn system status[/bold]"))
 
 
@@ -730,7 +751,17 @@ def learn_search_cmd(
         ))
         raise typer.Exit(1)
 
-    items: list[Any] = result if isinstance(result, list) else result.get("patterns") or result.get("items") or []
+    items: list[Any] = []
+    if isinstance(result, dict):
+        items = result.get("patterns") or result.get("items") or []
+    elif isinstance(result, list) and all(isinstance(item, dict) for item in result):
+        items = result
+
+    text_result = _extract_mcp_text_result(result)
+    if text_result and not items:
+        console.print(Panel(Text(text_result), title=f"[bold]Learned patterns: {query}[/bold]"))
+        return
+
     if not items:
         console.print(Panel(f"No patterns found for: [bold]{query}[/bold]", border_style="dim"))
         return
@@ -768,6 +799,11 @@ def learn_explain_cmd(
             border_style="red",
         ))
         raise typer.Exit(1)
+
+    text_result = _extract_mcp_text_result(result)
+    if text_result:
+        console.print(Panel(Text(text_result), title=f"[bold]Pattern: {pattern_id}[/bold]"))
+        return
 
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Pattern: {pattern_id}[/bold]"))
 
