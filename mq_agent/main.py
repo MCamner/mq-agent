@@ -904,6 +904,51 @@ def learn_store_cmd(
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
 
 
+# ── decide ─────────────────────────────────────────────────────────────────
+
+@app.command()
+def decide(
+    title: Annotated[str, typer.Argument(help="Short decision title")],
+    context: Annotated[str, typer.Option("--context", "-c", help="What prompted this decision")] = "",
+    decision: Annotated[str, typer.Option("--decision", "-d", help="What was decided")] = "",
+    rationale: Annotated[str, typer.Option("--rationale", "-r", help="Why this decision was made")] = "",
+    consequences: Annotated[str, typer.Option("--consequences", help="Known trade-offs or follow-ups")] = "",
+    tag: Annotated[list[str], typer.Option("--tag", help="Tag (repeatable)")] = [],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Record an architecture decision to mqobsidian/decisions/. Class C write."""
+    if not context or not decision or not rationale:
+        console.print(
+            "[yellow]Provide --context, --decision, and --rationale.[/yellow]\n"
+            "Example: mq-agent decide 'ADR title' --context '...' --decision '...' --rationale '...'"
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().call_tool("brain_record_decision", {
+        "title": title,
+        "context": context,
+        "decision": decision,
+        "rationale": rationale,
+        "consequences": consequences,
+        "tags": list(tag),
+    })
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok"):
+        console.print(f"[green]Decision recorded:[/green] {result.get('path', 'saved')}")
+    else:
+        err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
+        console.print(f"[red]decide failed:[/red] {err}")
+        raise typer.Exit(1)
+
+
 # ── signal ─────────────────────────────────────────────────────────────────
 
 @app.command()

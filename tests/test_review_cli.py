@@ -266,3 +266,60 @@ def test_contract_status_accepts_mcp_text_wrappers():
     assert _contract_status_ok(passing) is True
     assert _contract_status_ok([[{"type": "text", "text": passing["result"]}]]) is True
     assert _contract_status_ok(failing) is False
+
+
+_REVIEW_OK = {
+    "ok": True,
+    "findings": [{"severity": "HIGH", "message": "unused import", "file": "README.md"}],
+}
+
+
+def test_review_file_brain_calls_brain_record_review():
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.review_file.return_value = _REVIEW_OK
+        MockBridge.return_value.call_tool.return_value = {"ok": True, "path": "mqobsidian/reviews/2026-06-08-readme-md.md"}
+        MockBridge.return_value.list_architecture_decisions.return_value = None
+        result = runner.invoke(app, ["review", "file", "README.md", "--brain"])
+
+    assert result.exit_code == 0
+    call_args = [c[0][0] for c in MockBridge.return_value.call_tool.call_args_list]
+    assert "brain_record_review" in call_args
+
+
+def test_review_diff_brain_calls_brain_record_review():
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.review_diff.return_value = {
+            "ok": True,
+            "findings": [{"severity": "ARCHITECTURE", "message": "coupling issue"}],
+        }
+        MockBridge.return_value.call_tool.return_value = {"ok": True, "path": "mqobsidian/reviews/2026-06-08-diff.md"}
+        MockBridge.return_value.list_architecture_decisions.return_value = None
+        result = runner.invoke(app, ["review", "diff", "--brain"])
+
+    assert result.exit_code == 0
+    call_args = [c[0][0] for c in MockBridge.return_value.call_tool.call_args_list]
+    assert "brain_record_review" in call_args
+
+
+def test_review_repo_brain_calls_brain_record_review():
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.review_repo.return_value = {"ok": True, "findings": []}
+        MockBridge.return_value.call_tool.return_value = {"ok": True, "path": "mqobsidian/reviews/2026-06-08-dot.md"}
+        MockBridge.return_value.list_architecture_decisions.return_value = None
+        result = runner.invoke(app, ["review", "repo", ".", "--brain"])
+
+    assert result.exit_code == 0
+    call_args = [c[0][0] for c in MockBridge.return_value.call_tool.call_args_list]
+    assert "brain_record_review" in call_args
+
+
+def test_review_file_brain_skips_on_error():
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.review_file.return_value = {
+            "ok": False,
+            "error": "mq-mcp is not reachable",
+        }
+        result = runner.invoke(app, ["review", "file", "README.md", "--brain"])
+
+    assert result.exit_code == 1
+    MockBridge.return_value.call_tool.assert_not_called()
