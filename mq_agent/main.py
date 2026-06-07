@@ -327,6 +327,58 @@ def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
         console.print(f"[dim yellow]brain: {err[:80]}[/dim yellow]")
 
 
+def _brain_record_learning(bridge: Any, path: str, extract_result: Any) -> None:
+    """Record a learn extraction to the mqobsidian second brain. Silent on failure."""
+    text = _extract_mcp_text_result(extract_result) or ""
+
+    if "NO REVIEW FOUND" in text or not text.strip():
+        console.print("[dim]brain: skipped (no review found)[/dim]")
+        return
+
+    parsed: dict[str, Any] = {}
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        # Parse the key: value text format returned by learn_extract_from_last_review
+        for line in text.splitlines():
+            if ":" in line:
+                key, _, val = line.partition(":")
+                key = key.strip()
+                val = val.strip()
+                if key in ("pattern_name", "pattern_type", "confidence", "summary",
+                           "recommended_action", "evidence") and val:
+                    parsed[key] = val
+
+    from pathlib import Path as _Path
+    slug = _Path(path).stem.replace(".", "-")
+
+    raw_evidence = parsed.get("evidence", path)
+    evidence_list = raw_evidence if isinstance(raw_evidence, list) else [raw_evidence]
+
+    brain_result = bridge.call_tool("brain_record_learning", {
+        "pattern_name": parsed.get("pattern_name", slug),
+        "pattern_type": parsed.get("pattern_type", "code_pattern"),
+        "summary": parsed.get("summary", text[:1000]) or text[:1000] or "(no content)",
+        "evidence": evidence_list,
+        "recommended_action": parsed.get("recommended_action", "Review extracted pattern and store if valid."),
+        "confidence": parsed.get("confidence", "medium"),
+    })
+
+    if isinstance(brain_result, list) and brain_result:
+        brain_result = brain_result[0].get("text", brain_result) if isinstance(brain_result[0], dict) else brain_result
+    if isinstance(brain_result, str):
+        try:
+            brain_result = json.loads(brain_result)
+        except json.JSONDecodeError:
+            pass
+
+    if isinstance(brain_result, dict) and brain_result.get("ok"):
+        console.print(f"[dim]→ brain: {brain_result.get('path', 'saved')}[/dim]")
+    else:
+        err = brain_result.get("error", str(brain_result)) if isinstance(brain_result, dict) else str(brain_result)
+        console.print(f"[dim yellow]brain: {err[:80]}[/dim yellow]")
+
+
 def _review_flags(
     security: bool,
     architecture: bool,
@@ -725,11 +777,13 @@ def learn_explain_cmd(
 def learn_extract_review_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path to extract a learn candidate from.")],
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record learn candidate to mqobsidian")] = False,
 ):
     """Dry-run extraction of a learn candidate from the last review for a file. Read-only."""
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    result = MultiMCPBridge().learn_extract_from_last_review(path)
+    bridge = MultiMCPBridge()
+    result = bridge.learn_extract_from_last_review(path)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -748,15 +802,18 @@ def learn_extract_review_cmd(
     text_result = _extract_mcp_text_result(result)
     if text_result:
         console.print(Panel(Text(text_result), title=f"[bold]Learn extract: {path}[/bold]"))
-        return
+    else:
+        console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Learn extract: {path}[/bold]"))
 
-    console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold]Learn extract: {path}[/bold]"))
+    if brain and not _is_error_result(result):
+        _brain_record_learning(bridge, path, result)
 
 
 @learn_app.command("review-flow")
 def learn_review_flow_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path")],
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record learn candidate to mqobsidian")] = False,
 ):
     """Review a file then extract a dry-run learn candidate in one pass. Read-only."""
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
@@ -795,6 +852,9 @@ def learn_review_flow_cmd(
         "  [bold]mq-agent learn search <query>[/bold]   ← check if pattern already exists\n"
         "  [dim]If the candidate is new and correct:[/dim] [bold]mq-agent learn store {path} --approve[/bold]"
     )
+
+    if brain:
+        _brain_record_learning(bridge, path, extract_result)
 
 
 @learn_app.command("store")
