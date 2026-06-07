@@ -86,3 +86,28 @@ def test_learn_extract_review_calls_bridge_with_path():
         runner.invoke(app, ["learn", "extract-review", "some/path.py"])
 
     MockBridge.return_value.learn_extract_from_last_review.assert_called_once_with("some/path.py")
+
+
+def test_learn_extract_review_brain_calls_brain_record_learning():
+    brain_ok = {"ok": True, "path": "mqobsidian/learn/release-gate-contracts.md"}
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.learn_extract_from_last_review.return_value = _MCP_TEXT_RESULT
+        MockBridge.return_value.call_tool.return_value = brain_ok
+        result = runner.invoke(app, ["learn", "extract-review", "mq-mcp/server.py", "--brain"])
+
+    assert result.exit_code == 0
+    MockBridge.return_value.call_tool.assert_called_once()
+    assert MockBridge.return_value.call_tool.call_args[0][0] == "brain_record_learning"
+
+
+def test_learn_extract_review_brain_skips_when_no_review():
+    no_review = [
+        [{"type": "text", "text": "Learn extract from last review: NO REVIEW FOUND\n\nfile: mq-mcp/server.py"}],
+        {"result": "NO REVIEW FOUND"},
+    ]
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.learn_extract_from_last_review.return_value = no_review
+        result = runner.invoke(app, ["learn", "extract-review", "mq-mcp/server.py", "--brain"])
+
+    assert result.exit_code == 0
+    MockBridge.return_value.call_tool.assert_not_called()
