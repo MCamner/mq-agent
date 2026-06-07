@@ -150,7 +150,7 @@ class MCPBridge:
             response = httpx.post(
                 f"{self.endpoint}/tools/{tool_name}",
                 json=args,
-                timeout=30,
+                timeout=120,
             )
             response.raise_for_status()
             return response.json()
