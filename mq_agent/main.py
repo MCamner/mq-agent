@@ -279,6 +279,54 @@ def doctor():
 
 # ── review ─────────────────────────────────────────────────────────────────
 
+def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
+    """Record a completed review to the mqobsidian second brain. Silent on failure."""
+    findings = _iter_review_findings(result)
+
+    top_risks: list[str] = []
+    for f in findings:
+        sev = _severity_value(f).upper()
+        if sev in ("CRITICAL", "HIGH", "BLOCKER", "ERROR"):
+            msg = str(f.get("message") or f.get("title") or f.get("summary") or "")
+            if msg:
+                top_risks.append(f"[{sev}] {msg[:100]}")
+    if not top_risks:
+        for f in findings[:3]:
+            msg = str(f.get("message") or f.get("title") or f.get("summary") or "")
+            sev = _severity_value(f).upper()
+            if msg:
+                top_risks.append(f"[{sev}] {msg[:100]}")
+
+    raw = ""
+    if isinstance(result, str):
+        raw = result[:4000]
+    elif isinstance(result, dict):
+        raw = json.dumps(result, indent=2, default=str)[:4000]
+
+    brain_result = bridge.call_tool("brain_record_review", {
+        "source": source,
+        "finding_count": len(findings),
+        "top_risks": top_risks[:5],
+        "suggested_next_steps": [],
+        "confidence": "high" if findings else "medium",
+        "raw_summary": raw,
+    })
+
+    if isinstance(brain_result, list) and brain_result:
+        brain_result = brain_result[0].get("text", brain_result) if isinstance(brain_result[0], dict) else brain_result
+    if isinstance(brain_result, str):
+        try:
+            brain_result = json.loads(brain_result)
+        except json.JSONDecodeError:
+            pass
+
+    if isinstance(brain_result, dict) and brain_result.get("ok"):
+        console.print(f"[dim]→ brain: {brain_result.get('path', 'saved')}[/dim]")
+    else:
+        err = brain_result.get("error", str(brain_result)) if isinstance(brain_result, dict) else str(brain_result)
+        console.print(f"[dim yellow]brain: {err[:80]}[/dim yellow]")
+
+
 def _review_flags(
     security: bool,
     architecture: bool,
@@ -457,6 +505,7 @@ def review_file_cmd(
     architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -477,6 +526,8 @@ def review_file_cmd(
         return
     result = bridge.review_file(path, flags)
     _run_review("review file", result, json_out, bridge=bridge)
+    if brain and not _is_error_result(result):
+        _brain_record_review(bridge, path, result)
 
 
 @review_app.command("diff")
@@ -486,6 +537,7 @@ def review_diff_cmd(
     architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -506,6 +558,8 @@ def review_diff_cmd(
         return
     result = bridge.review_diff(flags)
     _run_review("review diff", result, json_out, bridge=bridge)
+    if brain and not _is_error_result(result):
+        _brain_record_review(bridge, "diff", result)
 
 
 @review_app.command("repo")
@@ -516,6 +570,7 @@ def review_repo_cmd(
     architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -536,6 +591,8 @@ def review_repo_cmd(
         return
     result = bridge.review_repo(path, flags)
     _run_review("review repo", result, json_out, bridge=bridge)
+    if brain and not _is_error_result(result):
+        _brain_record_review(bridge, path, result)
 
 
 def _contract_status_text(value: Any) -> str:
