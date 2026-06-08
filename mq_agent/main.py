@@ -956,6 +956,7 @@ def signal(
     path: Annotated[str, typer.Argument(help="Repo path to analyse")] = ".",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record signal result to mqobsidian second brain")] = False,
 ):
     """
     Run a full repo-signal assessment: scan + README score + publish checklist + AI plan.
@@ -1020,6 +1021,21 @@ def signal(
 
     if publish["next_action"]:
         console.print(f"\n[dim]Next: {publish['next_action']}[/dim]")
+
+    if brain:
+        from mq_agent.tools.mcp_bridge import MultiMCPBridge
+        _brain_record_review(
+            MultiMCPBridge(),
+            f"repo-signal:{result.get('repo', path)}",
+            {
+                "findings": [
+                    {"severity": "info", "message": f, "summary": f}
+                    for f in result.get("focus_areas", [])
+                ],
+                "scores": result.get("scores"),
+                "publish": result.get("publish"),
+            },
+        )
 
 
 @app.command()
