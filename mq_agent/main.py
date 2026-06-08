@@ -281,7 +281,19 @@ def doctor():
 
 def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
     """Record a completed review to the mqobsidian second brain. Silent on failure."""
+    # Resolve "." or directory paths to a human-readable repo name for the slug.
+    source_label = source
+    if source not in ("diff",) and (source in (".", "./") or os.path.isdir(source)):
+        source_label = os.path.basename(os.path.abspath(source))
+
     findings = _iter_review_findings(result)
+    finding_count = len(findings)
+
+    # Fallback: parse total from text-format review output (e.g. "N total [MISSING=N]").
+    if finding_count == 0:
+        raw_text = _contract_status_text(result)
+        if raw_text:
+            finding_count = sum(int(n) for n in re.findall(r":\s*(\d+)\s+total", raw_text))
 
     top_risks: list[str] = []
     for f in findings:
@@ -304,11 +316,11 @@ def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
         raw = json.dumps(result, indent=2, default=str)[:4000]
 
     brain_result = bridge.call_tool("brain_record_review", {
-        "source": source,
-        "finding_count": len(findings),
+        "source": source_label,
+        "finding_count": finding_count,
         "top_risks": top_risks[:5],
         "suggested_next_steps": [],
-        "confidence": "high" if findings else "medium",
+        "confidence": "high" if finding_count > 0 else "medium",
         "raw_summary": raw,
     })
 
