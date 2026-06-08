@@ -904,6 +904,63 @@ def learn_store_cmd(
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
 
 
+# ── brain ──────────────────────────────────────────────────────────────────
+
+brain_app = typer.Typer(help="Second brain vault commands (mqobsidian).")
+app.add_typer(brain_app, name="brain")
+
+
+@brain_app.command(name="record-review")
+def brain_record_review_cmd(
+    source: Annotated[str, typer.Option("--source", help="Review source identifier (e.g. zephyr:file.yaml)")],
+    top_risk: Annotated[list[str], typer.Option("--top-risk", help="Top risk finding (repeatable)")] = [],
+    next_step: Annotated[list[str], typer.Option("--next-step", help="Suggested next step (repeatable)")] = [],
+    finding_count: Annotated[int, typer.Option("--finding-count")] = 0,
+    confidence: Annotated[str, typer.Option("--confidence")] = "medium",
+    raw_summary: Annotated[str, typer.Option("--raw-summary")] = "",
+    approve: Annotated[bool, typer.Option("--approve")] = False,
+):
+    """Write a review summary to mqobsidian/reviews/ via brain_record_review.
+
+    Shell-friendly wrapper: accepts --top-risk and --next-step as repeatable
+    options instead of list arguments, so any tool (zephyr, shell scripts) can
+    call this without Python imports.
+    """
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    if not approve:
+        console.print(
+            "[bold yellow]Blocked:[/bold yellow] brain_record_review is a write operation.\n"
+            "Add [bold]--approve[/bold] to proceed."
+        )
+        raise typer.Exit(code=1)
+
+    bridge = MultiMCPBridge()
+    result = bridge.call_tool("brain_record_review", {
+        "source": source,
+        "finding_count": finding_count or len(top_risk),
+        "top_risks": list(top_risk),
+        "suggested_next_steps": list(next_step),
+        "confidence": confidence,
+        "raw_summary": raw_summary,
+    })
+
+    if isinstance(result, list) and result:
+        result = result[0].get("text", result) if isinstance(result[0], dict) else result
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError:
+            pass
+
+    if isinstance(result, dict) and result.get("ok"):
+        console.print(f"[green]brain:[/green] {result.get('path', 'saved')}")
+    else:
+        err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
+        console.print(f"[red]brain: {err[:120]}[/red]")
+        raise typer.Exit(code=1)
+
+
 # ── decide ─────────────────────────────────────────────────────────────────
 
 @app.command()
