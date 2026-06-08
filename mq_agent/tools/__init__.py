@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from .b2tui_tools import b2_get_prompt, b2_history, b2_list_prompts, b2_log_run, b2_route, b2_route_info
 from .browser_tools import fetch_url, inspect_url, summarize_url, verify_release_url
 from .git_tools import git_branch, git_diff, git_log, git_remote, git_status
 from .mcp_bridge import mcp_call
@@ -38,6 +39,13 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "repo_analyze": repo_analyze,
     "repo_signal_json": repo_signal_json,
     "repo_suggest": repo_suggest,
+    # B2 prompt OS
+    "b2_list_prompts": b2_list_prompts,
+    "b2_route": b2_route,
+    "b2_route_info": b2_route_info,
+    "b2_get_prompt": b2_get_prompt,
+    "b2_history": b2_history,
+    "b2_log_run": b2_log_run,
     # MCP
     "mcp_call": mcp_call,
     # Browser (read-only, safe GET requests only)

@@ -53,6 +53,9 @@ app.add_typer(review_app, name="review")
 learn_app = typer.Typer(help="Read-only access to mq-mcp learned review patterns.")
 app.add_typer(learn_app, name="learn")
 
+b2_app = typer.Typer(help="B2 prompt OS — route topics to prompts and run workflows.")
+app.add_typer(b2_app, name="b2")
+
 console = Console()
 
 
@@ -2187,6 +2190,182 @@ def swarm_release_check(
     print_swarm_result(console, result)
     if not result.passed:
         raise typer.Exit(1)
+
+
+# ── b2 — B2 prompt OS bridge ───────────────────────────────────────────────
+
+@b2_app.command("route")
+def b2_route_cmd(
+    topic: Annotated[str, typer.Argument(help="Topic or context to route")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Route a topic to the matching B2 prompt route and primary prompt ID."""
+    from mq_agent.tools.b2tui_tools import b2_route_info
+
+    raw = b2_route_info(topic)
+    if json_out:
+        typer.echo(raw)
+        return
+    data = json.loads(raw)
+    console.print(Panel(
+        f"[bold]Route:[/bold]      {data['route']}\n"
+        f"[bold]Prompt ID:[/bold]  {data['prompt_id']}\n"
+        f"[bold]Prompt:[/bold]     {data['prompt_name']}",
+        title="[cyan]B2 route[/cyan]",
+    ))
+
+
+@b2_app.command("prompt")
+def b2_prompt_cmd(
+    prompt_id: Annotated[str, typer.Argument(help="Prompt ID, e.g. 02.11")],
+):
+    """Print the full content of a B2 prompt by ID."""
+    from mq_agent.tools.b2tui_tools import b2_get_prompt
+
+    content = b2_get_prompt(prompt_id)
+    console.print(content)
+
+
+@b2_app.command("list")
+def b2_list_cmd(
+    category: Annotated[str, typer.Option("--category", "-c", help="Filter by category")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List available B2 prompts."""
+    from mq_agent.tools.b2tui_tools import b2_list_prompts
+
+    output = b2_list_prompts(category=category)
+    if json_out:
+        rows = []
+        for line in output.splitlines():
+            parts = line.split("  ", 2)
+            if len(parts) == 3:
+                rows.append({"id": parts[0].strip(), "category": parts[1].strip("[]"), "name": parts[2].strip()})
+        typer.echo(json.dumps(rows, indent=2))
+        return
+    table = Table(title="B2 Prompts", show_header=True)
+    table.add_column("ID", style="cyan", width=8)
+    table.add_column("Category", style="yellow")
+    table.add_column("Name")
+    for line in output.splitlines():
+        parts = line.split("  ", 2)
+        if len(parts) == 3:
+            table.add_row(parts[0].strip(), parts[1].strip("[]"), parts[2].strip())
+    console.print(table)
+
+
+@b2_app.command("history")
+def b2_history_cmd(
+    limit: Annotated[int, typer.Option("--limit", "-n")] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show recent b2tui workflow run history."""
+    from mq_agent.tools.b2tui_tools import b2_history
+
+    raw = b2_history(limit=limit)
+    if json_out:
+        typer.echo(raw)
+        return
+    entries = json.loads(raw)
+    if not entries:
+        console.print("[dim]No history yet.[/dim]")
+        return
+    table = Table(title="B2 Run History", show_header=True)
+    table.add_column("Timestamp", style="dim", width=22)
+    table.add_column("ID", style="cyan", width=8)
+    table.add_column("Prompt")
+    table.add_column("Context")
+    table.add_column("Source", style="dim")
+    for e in reversed(entries):
+        table.add_row(
+            e.get("timestamp", "")[:19],
+            e.get("prompt_id", ""),
+            e.get("prompt_name", ""),
+            (e.get("context", "") or "")[:40],
+            e.get("source", ""),
+        )
+    console.print(table)
+
+
+@b2_app.command("run")
+def b2_run_cmd(
+    context: Annotated[str, typer.Argument(help="Topic or context for this workflow run")] = "",
+    route: Annotated[str | None, typer.Option("--route", "-r", help="Force a specific route name")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run the B2 plan→compose→review→output workflow for a given context."""
+    from mq_agent.tools.b2tui_tools import (
+        ROUTE_PRIMARY,
+        b2_get_prompt,
+        b2_log_run,
+        b2_route_info,
+    )
+    from mq_agent.tools.mcp_bridge import MCPBridge
+
+    if not context:
+        console.print("[red]Provide a topic or context as argument.[/red]")
+        raise typer.Exit(1)
+
+    # ── Plan ──────────────────────────────────────────────────────────────────
+    if route:
+        if route not in ROUTE_PRIMARY:
+            console.print(f"[red]Unknown route: {route!r}. Valid: {list(ROUTE_PRIMARY)}[/red]")
+            raise typer.Exit(1)
+        prompt_id = ROUTE_PRIMARY[route]
+        route_name = route
+        route_raw = json.dumps({"route": route_name, "prompt_id": prompt_id})
+    else:
+        route_raw = b2_route_info(context)
+        route_data = json.loads(route_raw)
+        route_name = route_data["route"]
+        prompt_id = route_data["prompt_id"]
+
+    if dry_run:
+        console.print(f"[blue][dry-run][/blue] route={route_name}  prompt_id={prompt_id}")
+        return
+
+    console.print(f"[cyan]route[/cyan]  {route_name}  [dim]→[/dim]  [bold]{prompt_id}[/bold]")
+
+    # ── Compose ───────────────────────────────────────────────────────────────
+    with console.status("[cyan]Loading prompt...[/cyan]"):
+        prompt_content = b2_get_prompt(prompt_id)
+
+    console.print(Panel(
+        prompt_content[:600] + ("…" if len(prompt_content) > 600 else ""),
+        title=f"[bold]{prompt_id}[/bold] prompt (truncated)",
+        border_style="dim",
+    ))
+
+    # ── Review (best-effort via mq-mcp) ───────────────────────────────────────
+    bridge = MCPBridge()
+    review_result = ""
+    if bridge.is_available():
+        with console.status("[cyan]mq-mcp review pass...[/cyan]"):
+            try:
+                review_result = str(bridge.call_tool("review_repo", {}))
+                console.print(Panel(
+                    (review_result[:400] + "…") if len(review_result) > 400 else review_result,
+                    title="[green]mq-mcp review[/green]",
+                    border_style="green",
+                ))
+            except Exception as exc:
+                console.print(f"[yellow]mq-mcp review skipped: {exc}[/yellow]")
+    else:
+        console.print("[dim]mq-mcp offline — review pass skipped[/dim]")
+
+    # ── Output / log ──────────────────────────────────────────────────────────
+    log_msg = b2_log_run(prompt_id=prompt_id, context=context, result=review_result)
+    console.print(f"[dim]{log_msg}[/dim]")
+
+    if json_out:
+        typer.echo(json.dumps({
+            "route": route_name,
+            "prompt_id": prompt_id,
+            "prompt_preview": prompt_content[:200],
+            "review_preview": review_result[:200],
+            "logged": log_msg,
+        }, indent=2))
 
 
 if __name__ == "__main__":

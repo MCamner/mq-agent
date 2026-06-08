@@ -1,0 +1,50 @@
+name: b2-workflow
+version: "0.1"
+description: |
+  B2 prompt OS workflow — plan → compose → review → output.
+  Routes a topic/context string to the right B2 prompt, reads it, then
+  optionally calls mq-mcp for a structured review pass, and logs the run.
+
+  Usage:
+    mq-agent b2 run --context "din fråga eller ämne"
+    mq-agent task run tasks/b2_workflow.yaml
+
+steps:
+  - name: route
+    description: "Plan: route the topic to a B2 prompt ID"
+    tool: b2_route
+    args:
+      topic: "{{context}}"
+
+  - name: load-prompt
+    description: "Compose: load the primary prompt content from the B2 vault"
+    tool: b2_get_prompt
+    args:
+      prompt_id: "{{step:route}}"
+
+  - name: repo-context
+    description: Collect repo context to ground the review pass
+    tool: repo_summary
+    args:
+      path: "."
+
+  - name: review
+    description: "Review: call mq-mcp review_repo (read-only, best-effort)"
+    tool: mcp_call
+    args:
+      tool_name: review_repo
+      args_json: "{}"
+
+  - name: log
+    description: "Output: log this workflow run to b2tui history"
+    tool: b2_log_run
+    args:
+      prompt_id: "{{step:route}}"
+      context: "{{context}}"
+      result: "{{step:review}}"
+
+verify:
+  - route step resolves a valid B2 prompt_id
+  - load-prompt step returns non-empty content
+  - log step writes to ~/.b2tui_history.jsonl
+  - review step is best-effort (mq-mcp may be offline — error is acceptable)
