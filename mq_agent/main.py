@@ -904,6 +904,49 @@ def learn_store_cmd(
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
 
 
+@learn_app.command("promote")
+def learn_promote_cmd(
+    slug: Annotated[str, typer.Argument(help="Filename slug (without path or .md)")],
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to mqobsidian vault")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+):
+    """Promote learn/<slug>.md to learn/verified/. Class C write — requires --approve."""
+    if dry_run:
+        console.print(
+            f"[blue][dry-run][/blue] Would promote: [bold]learn/{slug}.md[/bold] → [bold]learn/verified/<timestamp>-{slug}.md[/bold]\n"
+            "Validates: pattern_name, pattern_type, ## Summary, ## Evidence, ## Recommended action"
+        )
+        return
+
+    if not approve:
+        console.print(
+            "[yellow]learn promote is a Class C write operation.[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    with console.status(f"[bold cyan]Promoting learn/{slug}.md...[/bold cyan]"):
+        result = MultiMCPBridge().call_tool("brain_promote_learning", {"slug": slug})
+
+    if isinstance(result, list) and result:
+        result = result[0].get("text", result) if isinstance(result[0], dict) else result
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError:
+            pass
+
+    if isinstance(result, dict) and result.get("ok"):
+        console.print(f"[green]Promoted:[/green] {result.get('path', 'saved')}")
+        console.print(f"[dim]Source marked as promoted: {result.get('source', '')}[/dim]")
+    else:
+        err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
+        console.print(f"[red]promote failed:[/red] {err}")
+        raise typer.Exit(1)
+
+
 # ── brain ──────────────────────────────────────────────────────────────────
 
 brain_app = typer.Typer(help="Second brain vault commands (mqobsidian).")
