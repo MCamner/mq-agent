@@ -53,6 +53,12 @@ app.add_typer(review_app, name="review")
 learn_app = typer.Typer(help="Read-only access to mq-mcp learned review patterns.")
 app.add_typer(learn_app, name="learn")
 
+b2_app = typer.Typer(help="B2 prompt OS — route topics to prompts and run workflows.")
+app.add_typer(b2_app, name="b2")
+
+stack_app = typer.Typer(help="mq-stack repo inventory, status, and Obsidian export.")
+app.add_typer(stack_app, name="stack")
+
 console = Console()
 
 
@@ -281,7 +287,19 @@ def doctor():
 
 def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
     """Record a completed review to the mqobsidian second brain. Silent on failure."""
+    # Resolve "." or directory paths to a human-readable repo name for the slug.
+    source_label = source
+    if source not in ("diff",) and (source in (".", "./") or os.path.isdir(source)):
+        source_label = os.path.basename(os.path.abspath(source))
+
     findings = _iter_review_findings(result)
+    finding_count = len(findings)
+
+    # Fallback: parse total from text-format review output (e.g. "N total [MISSING=N]").
+    if finding_count == 0:
+        raw_text = _contract_status_text(result)
+        if raw_text:
+            finding_count = sum(int(n) for n in re.findall(r":\s*(\d+)\s+total", raw_text))
 
     top_risks: list[str] = []
     for f in findings:
@@ -304,11 +322,11 @@ def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
         raw = json.dumps(result, indent=2, default=str)[:4000]
 
     brain_result = bridge.call_tool("brain_record_review", {
-        "source": source,
-        "finding_count": len(findings),
+        "source": source_label,
+        "finding_count": finding_count,
         "top_risks": top_risks[:5],
         "suggested_next_steps": [],
-        "confidence": "high" if findings else "medium",
+        "confidence": "high" if finding_count > 0 else "medium",
         "raw_summary": raw,
     })
 
@@ -904,6 +922,151 @@ def learn_store_cmd(
     console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
 
 
+@learn_app.command("promote")
+def learn_promote_cmd(
+    slug: Annotated[str, typer.Argument(help="Filename slug (without path or .md)")],
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to mqobsidian vault")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+):
+    """Promote learn/<slug>.md to learn/verified/. Class C write — requires --approve."""
+    if dry_run:
+        console.print(
+            f"[blue][dry-run][/blue] Would promote: [bold]learn/{slug}.md[/bold] → [bold]learn/verified/<timestamp>-{slug}.md[/bold]\n"
+            "Validates: pattern_name, pattern_type, ## Summary, ## Evidence, ## Recommended action"
+        )
+        return
+
+    if not approve:
+        console.print(
+            "[yellow]learn promote is a Class C write operation.[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    with console.status(f"[bold cyan]Promoting learn/{slug}.md...[/bold cyan]"):
+        result = MultiMCPBridge().call_tool("brain_promote_learning", {"slug": slug})
+
+    if isinstance(result, list) and result:
+        result = result[0].get("text", result) if isinstance(result[0], dict) else result
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError:
+            pass
+
+    if isinstance(result, dict) and result.get("ok"):
+        console.print(f"[green]Promoted:[/green] {result.get('path', 'saved')}")
+        console.print(f"[dim]Source marked as promoted: {result.get('source', '')}[/dim]")
+    else:
+        err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
+        console.print(f"[red]promote failed:[/red] {err}")
+        raise typer.Exit(1)
+
+
+# ── brain ──────────────────────────────────────────────────────────────────
+
+brain_app = typer.Typer(help="Second brain vault commands (mqobsidian).")
+app.add_typer(brain_app, name="brain")
+
+
+@brain_app.command(name="record-review")
+def brain_record_review_cmd(
+    source: Annotated[str, typer.Option("--source", help="Review source identifier (e.g. zephyr:file.yaml)")],
+    top_risk: Annotated[list[str], typer.Option("--top-risk", help="Top risk finding (repeatable)")] = [],
+    next_step: Annotated[list[str], typer.Option("--next-step", help="Suggested next step (repeatable)")] = [],
+    finding_count: Annotated[int, typer.Option("--finding-count")] = 0,
+    confidence: Annotated[str, typer.Option("--confidence")] = "medium",
+    raw_summary: Annotated[str, typer.Option("--raw-summary")] = "",
+    approve: Annotated[bool, typer.Option("--approve")] = False,
+):
+    """Write a review summary to mqobsidian/reviews/ via brain_record_review.
+
+    Shell-friendly wrapper: accepts --top-risk and --next-step as repeatable
+    options instead of list arguments, so any tool (zephyr, shell scripts) can
+    call this without Python imports.
+    """
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    if not approve:
+        console.print(
+            "[bold yellow]Blocked:[/bold yellow] brain_record_review is a write operation.\n"
+            "Add [bold]--approve[/bold] to proceed."
+        )
+        raise typer.Exit(code=1)
+
+    bridge = MultiMCPBridge()
+    result = bridge.call_tool("brain_record_review", {
+        "source": source,
+        "finding_count": finding_count or len(top_risk),
+        "top_risks": list(top_risk),
+        "suggested_next_steps": list(next_step),
+        "confidence": confidence,
+        "raw_summary": raw_summary,
+    })
+
+    if isinstance(result, list) and result:
+        result = result[0].get("text", result) if isinstance(result[0], dict) else result
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError:
+            pass
+
+    if isinstance(result, dict) and result.get("ok"):
+        console.print(f"[green]brain:[/green] {result.get('path', 'saved')}")
+    else:
+        err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
+        console.print(f"[red]brain: {err[:120]}[/red]")
+        raise typer.Exit(code=1)
+
+
+# ── decide ─────────────────────────────────────────────────────────────────
+
+@app.command()
+def decide(
+    title: Annotated[str, typer.Argument(help="Short decision title")],
+    context: Annotated[str, typer.Option("--context", "-c", help="What prompted this decision")] = "",
+    decision: Annotated[str, typer.Option("--decision", "-d", help="What was decided")] = "",
+    rationale: Annotated[str, typer.Option("--rationale", "-r", help="Why this decision was made")] = "",
+    consequences: Annotated[str, typer.Option("--consequences", help="Known trade-offs or follow-ups")] = "",
+    tag: Annotated[list[str], typer.Option("--tag", help="Tag (repeatable)")] = [],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Record an architecture decision to mqobsidian/decisions/. Class C write."""
+    if not context or not decision or not rationale:
+        console.print(
+            "[yellow]Provide --context, --decision, and --rationale.[/yellow]\n"
+            "Example: mq-agent decide 'ADR title' --context '...' --decision '...' --rationale '...'"
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().call_tool("brain_record_decision", {
+        "title": title,
+        "context": context,
+        "decision": decision,
+        "rationale": rationale,
+        "consequences": consequences,
+        "tags": list(tag),
+    })
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok"):
+        console.print(f"[green]Decision recorded:[/green] {result.get('path', 'saved')}")
+    else:
+        err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
+        console.print(f"[red]decide failed:[/red] {err}")
+        raise typer.Exit(1)
+
+
 # ── signal ─────────────────────────────────────────────────────────────────
 
 @app.command()
@@ -911,6 +1074,7 @@ def signal(
     path: Annotated[str, typer.Argument(help="Repo path to analyse")] = ".",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Record signal result to mqobsidian second brain")] = False,
 ):
     """
     Run a full repo-signal assessment: scan + README score + publish checklist + AI plan.
@@ -975,6 +1139,21 @@ def signal(
 
     if publish["next_action"]:
         console.print(f"\n[dim]Next: {publish['next_action']}[/dim]")
+
+    if brain:
+        from mq_agent.tools.mcp_bridge import MultiMCPBridge
+        _brain_record_review(
+            MultiMCPBridge(),
+            f"repo-signal:{result.get('repo', path)}",
+            {
+                "findings": [
+                    {"severity": "info", "message": f, "summary": f}
+                    for f in result.get("focus_areas", [])
+                ],
+                "scores": result.get("scores"),
+                "publish": result.get("publish"),
+            },
+        )
 
 
 @app.command()
@@ -2014,6 +2193,241 @@ def swarm_release_check(
     print_swarm_result(console, result)
     if not result.passed:
         raise typer.Exit(1)
+
+
+# ── b2 — B2 prompt OS bridge ───────────────────────────────────────────────
+
+@b2_app.command("route")
+def b2_route_cmd(
+    topic: Annotated[str, typer.Argument(help="Topic or context to route")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Route a topic to the matching B2 prompt route and primary prompt ID."""
+    from mq_agent.tools.b2tui_tools import b2_route_info
+
+    raw = b2_route_info(topic)
+    if json_out:
+        typer.echo(raw)
+        return
+    data = json.loads(raw)
+    console.print(Panel(
+        f"[bold]Route:[/bold]      {data['route']}\n"
+        f"[bold]Prompt ID:[/bold]  {data['prompt_id']}\n"
+        f"[bold]Prompt:[/bold]     {data['prompt_name']}",
+        title="[cyan]B2 route[/cyan]",
+    ))
+
+
+@b2_app.command("prompt")
+def b2_prompt_cmd(
+    prompt_id: Annotated[str, typer.Argument(help="Prompt ID, e.g. 02.11")],
+):
+    """Print the full content of a B2 prompt by ID."""
+    from mq_agent.tools.b2tui_tools import b2_get_prompt
+
+    content = b2_get_prompt(prompt_id)
+    console.print(content)
+
+
+@b2_app.command("list")
+def b2_list_cmd(
+    category: Annotated[str, typer.Option("--category", "-c", help="Filter by category")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List available B2 prompts."""
+    from mq_agent.tools.b2tui_tools import b2_list_prompts
+
+    output = b2_list_prompts(category=category)
+    if json_out:
+        rows = []
+        for line in output.splitlines():
+            parts = line.split("  ", 2)
+            if len(parts) == 3:
+                rows.append({"id": parts[0].strip(), "category": parts[1].strip("[]"), "name": parts[2].strip()})
+        typer.echo(json.dumps(rows, indent=2))
+        return
+    table = Table(title="B2 Prompts", show_header=True)
+    table.add_column("ID", style="cyan", width=8)
+    table.add_column("Category", style="yellow")
+    table.add_column("Name")
+    for line in output.splitlines():
+        parts = line.split("  ", 2)
+        if len(parts) == 3:
+            table.add_row(parts[0].strip(), parts[1].strip("[]"), parts[2].strip())
+    console.print(table)
+
+
+@b2_app.command("history")
+def b2_history_cmd(
+    limit: Annotated[int, typer.Option("--limit", "-n")] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show recent b2tui workflow run history."""
+    from mq_agent.tools.b2tui_tools import b2_history
+
+    raw = b2_history(limit=limit)
+    if json_out:
+        typer.echo(raw)
+        return
+    entries = json.loads(raw)
+    if not entries:
+        console.print("[dim]No history yet.[/dim]")
+        return
+    table = Table(title="B2 Run History", show_header=True)
+    table.add_column("Timestamp", style="dim", width=22)
+    table.add_column("ID", style="cyan", width=8)
+    table.add_column("Prompt")
+    table.add_column("Context")
+    table.add_column("Source", style="dim")
+    for e in reversed(entries):
+        table.add_row(
+            e.get("timestamp", "")[:19],
+            e.get("prompt_id", ""),
+            e.get("prompt_name", ""),
+            (e.get("context", "") or "")[:40],
+            e.get("source", ""),
+        )
+    console.print(table)
+
+
+@b2_app.command("run")
+def b2_run_cmd(
+    context: Annotated[str, typer.Argument(help="Topic or context for this workflow run")] = "",
+    route: Annotated[str | None, typer.Option("--route", "-r", help="Force a specific route name")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run the B2 plan→compose→review→output workflow for a given context."""
+    from mq_agent.tools.b2tui_tools import (
+        ROUTE_PRIMARY,
+        b2_get_prompt,
+        b2_log_run,
+        b2_route_info,
+    )
+    from mq_agent.tools.mcp_bridge import MCPBridge
+
+    if not context:
+        console.print("[red]Provide a topic or context as argument.[/red]")
+        raise typer.Exit(1)
+
+    # ── Plan ──────────────────────────────────────────────────────────────────
+    if route:
+        if route not in ROUTE_PRIMARY:
+            console.print(f"[red]Unknown route: {route!r}. Valid: {list(ROUTE_PRIMARY)}[/red]")
+            raise typer.Exit(1)
+        prompt_id = ROUTE_PRIMARY[route]
+        route_name = route
+        route_raw = json.dumps({"route": route_name, "prompt_id": prompt_id})
+    else:
+        route_raw = b2_route_info(context)
+        route_data = json.loads(route_raw)
+        route_name = route_data["route"]
+        prompt_id = route_data["prompt_id"]
+
+    if dry_run:
+        console.print(f"[blue][dry-run][/blue] route={route_name}  prompt_id={prompt_id}")
+        return
+
+    console.print(f"[cyan]route[/cyan]  {route_name}  [dim]→[/dim]  [bold]{prompt_id}[/bold]")
+
+    # ── Compose ───────────────────────────────────────────────────────────────
+    with console.status("[cyan]Loading prompt...[/cyan]"):
+        prompt_content = b2_get_prompt(prompt_id)
+
+    console.print(Panel(
+        prompt_content[:600] + ("…" if len(prompt_content) > 600 else ""),
+        title=f"[bold]{prompt_id}[/bold] prompt (truncated)",
+        border_style="dim",
+    ))
+
+    # ── Review (best-effort via mq-mcp) ───────────────────────────────────────
+    bridge = MCPBridge()
+    review_result = ""
+    if bridge.is_available():
+        with console.status("[cyan]mq-mcp review pass...[/cyan]"):
+            try:
+                review_result = str(bridge.call_tool("review_repo", {}))
+                console.print(Panel(
+                    (review_result[:400] + "…") if len(review_result) > 400 else review_result,
+                    title="[green]mq-mcp review[/green]",
+                    border_style="green",
+                ))
+            except Exception as exc:
+                console.print(f"[yellow]mq-mcp review skipped: {exc}[/yellow]")
+    else:
+        console.print("[dim]mq-mcp offline — review pass skipped[/dim]")
+
+    # ── Output / log ──────────────────────────────────────────────────────────
+    log_msg = b2_log_run(prompt_id=prompt_id, context=context, result=review_result)
+    console.print(f"[dim]{log_msg}[/dim]")
+
+    if json_out:
+        typer.echo(json.dumps({
+            "route": route_name,
+            "prompt_id": prompt_id,
+            "prompt_preview": prompt_content[:200],
+            "review_preview": review_result[:200],
+            "logged": log_msg,
+        }, indent=2))
+
+
+# ── stack — mq-stack repo status ───────────────────────────────────────────
+
+@stack_app.command("status")
+def stack_status_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show version, branch, last activity, drift risk and readiness for all mq-stack repos."""
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _repo_entry
+
+    with console.status("[cyan]Scanning mq-stack repos...[/cyan]"):
+        entries = [_repo_entry(r) for r in MQ_STACK_REPOS]
+
+    if json_out:
+        typer.echo(json.dumps(entries, indent=2))
+        return
+
+    table = Table(title="mq-stack Status", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column("Version", width=9)
+    table.add_column("Branch", width=28)
+    table.add_column("Last activity", width=14)
+    table.add_column("Drift", width=8)
+    table.add_column("Ready", width=7)
+    table.add_column("Next", style="dim")
+
+    for e in entries:
+        drift_style = {"Low": "green", "Medium": "yellow", "High": "red"}.get(e["drift_risk"], "")
+        table.add_row(
+            e["name"],
+            e["version"],
+            e["branch"],
+            e["last_activity"],
+            f"[{drift_style}]{e['drift_risk']}[/{drift_style}]" if drift_style else e["drift_risk"],
+            e["readiness"],
+            (e["next_action"] or "—")[:50],
+        )
+    console.print(table)
+
+
+@stack_app.command("export")
+def stack_export_cmd(
+    output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: mqobsidian)")] = "",
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+):
+    """Write the mq-stack status table to mqobsidian/mq-stack/05_RELEASE_STATUS.md."""
+    from mq_agent.tools.stack_tools import OBSIDIAN_STATUS, MQ_STACK_REPOS, _repo_entry, stack_export
+
+    dest = output or str(OBSIDIAN_STATUS)
+
+    if dry_run:
+        console.print(f"[blue][dry-run][/blue] Would write to: {dest}")
+        return
+
+    with console.status("[cyan]Collecting stack status...[/cyan]"):
+        msg = stack_export(output_path=dest)
+
+    console.print(f"[green]{msg}[/green]")
 
 
 if __name__ == "__main__":

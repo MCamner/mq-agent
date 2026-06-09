@@ -1,0 +1,32 @@
+name: stack-status
+version: "0.1"
+description: |
+  mq-stack status loop — collect repo inventory, last activity, version,
+  drift risk, and release readiness for all mq-stack repos, then export
+  to Obsidian (05_RELEASE_STATUS.md).
+
+  Usage:
+    mq-agent task run tasks/stack_status.yaml
+    mq-agent stack export
+
+steps:
+  - name: collect
+    description: Collect version, branch, last activity, drift risk and readiness for all repos
+    tool: stack_status
+    args: {}
+
+  - name: export
+    description: Write markdown status table to mqobsidian/mq-stack/05_RELEASE_STATUS.md
+    tool: stack_export
+    args: {}
+
+  - name: repo-context
+    description: Snapshot current mq-agent repo state for audit trail
+    tool: repo_summary
+    args:
+      path: "."
+
+verify:
+  - collect step returns JSON array with all mq-stack repos
+  - export step writes 05_RELEASE_STATUS.md
+  - no repos are mutated (all operations are read-only)

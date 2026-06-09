@@ -104,3 +104,16 @@ def test_review_flow_calls_bridge_with_path():
 
     MockBridge.return_value.review_file.assert_called_once_with("some/path.py", {})
     MockBridge.return_value.learn_extract_from_last_review.assert_called_once_with("some/path.py")
+
+
+def test_review_flow_brain_calls_brain_record_learning():
+    brain_ok = {"ok": True, "path": "mqobsidian/learn/release-gate-contracts.md"}
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.review_file.return_value = _REVIEW_RESULT
+        MockBridge.return_value.learn_extract_from_last_review.return_value = _EXTRACT_RESULT
+        MockBridge.return_value.call_tool.return_value = brain_ok
+        result = runner.invoke(app, ["learn", "review-flow", "mq-mcp/server.py", "--brain"])
+
+    assert result.exit_code == 0
+    MockBridge.return_value.call_tool.assert_called_once()
+    assert MockBridge.return_value.call_tool.call_args[0][0] == "brain_record_learning"
