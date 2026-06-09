@@ -1,0 +1,49 @@
+name: image_workflow
+description: >
+  Visual perception workflow.
+  Analyzes an image or diagram and passes structured observations to mq-mcp for review.
+  mq-agent orchestrates — mq-image-analyze perceives — mq-mcp reviews.
+
+context:
+  image_path: ""         # required: path to image, screenshot, or diagram
+  mode: "local-fast"     # local-fast | local-deep | cloud-verify
+  workflow_type: "auto"  # auto | architecture | ui | general
+
+steps:
+  - name: doctor
+    tool: image_doctor
+    args: {}
+    description: Verify mq-image-analyze is available before proceeding
+
+  - name: observe
+    tool: image_observe_architecture
+    args:
+      diagram_path: "{{context.image_path}}"
+    description: >
+      Parse architecture diagram into visual_architecture_observation.v1.
+      Falls back to general analysis if image_type != architecture-diagram.
+
+  - name: analyze
+    tool: image_analyze
+    args:
+      image_path: "{{context.image_path}}"
+      mode: "{{context.mode}}"
+    description: Full mq-image.analysis.v1 — objects, palette, composition, caption
+
+  - name: mcp_review
+    tool: mcp_call
+    args:
+      tool_name: "review_file"
+      args_json: "{}"
+    description: >
+      Pass visual context to mq-mcp for review.
+      Best-effort — skipped if mq-mcp is unavailable.
+    optional: true
+
+  - name: log
+    tool: b2_log_run
+    args:
+      prompt_id: "visual-observation"
+      context: "{{context.image_path}}"
+      result: "{{step:analyze}}"
+    description: Log the observation to b2tui history

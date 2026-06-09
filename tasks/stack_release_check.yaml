@@ -1,0 +1,22 @@
+name: stack_release_check
+description: >
+  Stack-wide release readiness check.
+  Checks VERSION, CHANGELOG, README, working tree, and branch state
+  for all mq-stack repos. Returns overall GO/NO-GO + per-repo blockers.
+
+steps:
+  - name: release_check
+    tool: stack_release_check
+    args: {}
+    description: Cross-repo release readiness (VERSION, CHANGELOG, README, dirty, unpushed)
+
+  - name: github_summary
+    tool: stack_github_summary
+    args: {}
+    description: Open PRs per repo (requires gh CLI — best-effort)
+    optional: true
+
+  - name: export_status
+    tool: stack_export
+    args: {}
+    description: Refresh 05_RELEASE_STATUS.md after the check

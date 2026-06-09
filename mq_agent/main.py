@@ -56,6 +56,9 @@ app.add_typer(learn_app, name="learn")
 b2_app = typer.Typer(help="B2 prompt OS — route topics to prompts and run workflows.")
 app.add_typer(b2_app, name="b2")
 
+stack_app = typer.Typer(help="mq-stack repo inventory, status, and Obsidian export.")
+app.add_typer(stack_app, name="stack")
+
 console = Console()
 
 
@@ -2366,6 +2369,65 @@ def b2_run_cmd(
             "review_preview": review_result[:200],
             "logged": log_msg,
         }, indent=2))
+
+
+# ── stack — mq-stack repo status ───────────────────────────────────────────
+
+@stack_app.command("status")
+def stack_status_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show version, branch, last activity, drift risk and readiness for all mq-stack repos."""
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _repo_entry
+
+    with console.status("[cyan]Scanning mq-stack repos...[/cyan]"):
+        entries = [_repo_entry(r) for r in MQ_STACK_REPOS]
+
+    if json_out:
+        typer.echo(json.dumps(entries, indent=2))
+        return
+
+    table = Table(title="mq-stack Status", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column("Version", width=9)
+    table.add_column("Branch", width=28)
+    table.add_column("Last activity", width=14)
+    table.add_column("Drift", width=8)
+    table.add_column("Ready", width=7)
+    table.add_column("Next", style="dim")
+
+    for e in entries:
+        drift_style = {"Low": "green", "Medium": "yellow", "High": "red"}.get(e["drift_risk"], "")
+        table.add_row(
+            e["name"],
+            e["version"],
+            e["branch"],
+            e["last_activity"],
+            f"[{drift_style}]{e['drift_risk']}[/{drift_style}]" if drift_style else e["drift_risk"],
+            e["readiness"],
+            (e["next_action"] or "—")[:50],
+        )
+    console.print(table)
+
+
+@stack_app.command("export")
+def stack_export_cmd(
+    output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: mqobsidian)")] = "",
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+):
+    """Write the mq-stack status table to mqobsidian/mq-stack/05_RELEASE_STATUS.md."""
+    from mq_agent.tools.stack_tools import OBSIDIAN_STATUS, MQ_STACK_REPOS, _repo_entry, stack_export
+
+    dest = output or str(OBSIDIAN_STATUS)
+
+    if dry_run:
+        console.print(f"[blue][dry-run][/blue] Would write to: {dest}")
+        return
+
+    with console.status("[cyan]Collecting stack status...[/cyan]"):
+        msg = stack_export(output_path=dest)
+
+    console.print(f"[green]{msg}[/green]")
 
 
 if __name__ == "__main__":
