@@ -22,7 +22,7 @@ Reads sweep history — no API key, no network calls.
 
 ### Example
 
-```
+```text
                     mq-stack Report  2026-06-10 12:00
 ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
 ┃ Repo               ┃ Score     ┃ Trend    ┃ Alert   ┃ Ready   ┃
@@ -71,7 +71,7 @@ Blockers prevent GO. Warnings are shown but do not block.
 
 ### Example
 
-```
+```text
                           mq-stack Release Check
 ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Repo               ┃ Version   ┃ Branch     ┃ Blockers     ┃ Warnings            ┃
