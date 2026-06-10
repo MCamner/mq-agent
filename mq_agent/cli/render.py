@@ -87,7 +87,7 @@ def print_swarm_result(console: Console, result) -> None:
 
     for r in result.results:
         icon = _STATUS_ICONS.get(r.status, r.status)
-        note = r.error if r.error else ""
+        note = r.error or ""
         if not note and r.status == "ok":
             passed = r.output.get("passed", r.output.get("ready", ""))
             if passed is not None:

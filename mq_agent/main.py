@@ -1429,12 +1429,12 @@ def mcp_status(
 
         color = "green" if available else "red"
         status_text = "[bold green]reachable[/bold green]" if available else "[bold red]not reachable[/bold red]"
-        
+
         lines = (
             f"status:   {status_text}\n"
             f"endpoint: {endpoint}\n"
         )
-        
+
         if name == "mq-mcp":
             pid_line = f"process:  PID {mq_mcp_pid}" if mq_mcp_pid else "process:  not started"
             lines += f"{pid_line}\n"
@@ -1811,7 +1811,7 @@ def task_list(
     from mq_agent.core.task_runner import find_task_files, load_task
 
     package_tasks = Path(__file__).parent.parent / "tasks"
-    local_tasks = Path(".") / "tasks"
+    local_tasks = Path("tasks")
     files = find_task_files(package_tasks, local_tasks)
 
     if json_out:
@@ -1858,7 +1858,7 @@ def task_run(
     task_path: Path | None = direct_path if direct_path.exists() else None
     if task_path is None:
         package_tasks = Path(__file__).parent.parent / "tasks"
-        local_tasks = Path(".") / "tasks"
+        local_tasks = Path("tasks")
         all_files = find_task_files(package_tasks, local_tasks)
         # stem match first (fast)
         task_path = next((f for f in all_files if f.stem == name), None)  # type: ignore[arg-type]

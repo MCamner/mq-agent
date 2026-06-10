@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -219,7 +219,7 @@ def stack_release_check() -> str:
         "blocked": blocked,
         "warned": warned,
         "repos": entries,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
     }, indent=2)
 
 
@@ -267,7 +267,7 @@ def stack_export(output_path: str = "") -> str:
     dest = Path(output_path).expanduser() if output_path else OBSIDIAN_STATUS
     entries = [_repo_entry(r) for r in MQ_STACK_REPOS]
 
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# MQ Stack Release Status",
         "",

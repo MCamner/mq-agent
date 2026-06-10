@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 VAULT = Path.home() / "mqobsidian"
@@ -186,7 +186,7 @@ def b2_log_run(prompt_id: str, context: str = "", result: str = "") -> str:
     prompts = _load_prompt_index()
     meta = next((p for p in prompts if p.id == prompt_id), None)
     entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "prompt_id": prompt_id,
         "prompt_name": meta.name if meta else prompt_id,
         "category": meta.category if meta else "",
