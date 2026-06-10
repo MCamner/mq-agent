@@ -43,7 +43,7 @@ or a pre-push hook to gate on regressions.
 
 ## Example output
 
-```
+```text
 Stack alerts  2026-06-09 12:00 → 2026-06-10 12:00
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Repo             ┃ Prev  ┃ Now ┃ Delta  ┃ Reason                             ┃
@@ -55,7 +55,7 @@ Stack alerts  2026-06-09 12:00 → 2026-06-10 12:00
 
 No alerts:
 
-```
+```text
 ✓ No alerts — all repos healthy or stable.
 Compared: 2026-06-09 12:00 → 2026-06-10 12:00
 ```
