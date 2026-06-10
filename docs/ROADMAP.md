@@ -100,13 +100,17 @@ All scoring stays in repo-signal and mq-mcp.
 * [x] mqlaunch agent menu item 17 — Demo flow (full stack)
 * [x] `docs/DEMO.md` rewritten as canonical v1.5.0 reference
 
-### v1.4.0 — mq-image-analyze perception tool integration
+### v1.4.0 — mq-image-analyze integration + learn write commands
 
 * [x] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze
 * [x] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze
 * [x] `mq-agent review --architecture` includes `visual_architecture_observation.v1` context
 * [x] mq-image-analyze tool registration documented in `docs/MQ_ECOSYSTEM.md`
 * [x] Smoke tests: mq-agent → mq-image-analyze → structured visual context → mq-mcp
+* [x] `mq-agent learn extract-review <path>` — dry-run extraction of learn candidate from last review
+* [x] `mq-agent learn review-flow <path>` — orchestrates `review file` + `learn extract-review` in one pass
+* [x] `mq-agent learn store <path> --approve` — stores extracted candidate via `record_learning` (Class C)
+* [x] `mq-agent learn promote` — promotes a staged learn candidate to a confirmed pattern
 
 ### v1.3.0 — Architecture memory, model-selection, learn commands
 
