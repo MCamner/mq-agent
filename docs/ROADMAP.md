@@ -93,9 +93,6 @@ All scoring stays in repo-signal and mq-mcp.
 
 ### v1.5.0 — End-to-end demo flow
 
-Goal: run the full MQ stack as one verifiable flow — no new features, just
-integration and documentation.
-
 * [x] `mq-agent signal . --brain` — repo-signal readiness + brain note
 * [x] `mq-agent review repo . --brain` — mq-mcp review + brain note
 * [x] `mq-agent release-check --dry-run` — contract/release gate
@@ -105,22 +102,50 @@ integration and documentation.
 
 ### v1.4.0 — mq-image-analyze perception tool integration
 
-Goal: route mq-image-analyze visual perception tools through mq-agent.
-mq-agent delegates image inspection to mq-image-analyze and passes
-structured visual context onward to mq-mcp or the user.
-
-* [x] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze `observe_architecture` tool
-* [x] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze `image_ocr` tool
-* [x] Route `mq-agent review --architecture` to include `visual_architecture_observation.v1` context
-* [x] Document mq-image-analyze tool registration in `docs/MQ_ECOSYSTEM.md`
+* [x] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze
+* [x] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze
+* [x] `mq-agent review --architecture` includes `visual_architecture_observation.v1` context
+* [x] mq-image-analyze tool registration documented in `docs/MQ_ECOSYSTEM.md`
 * [x] Smoke tests: mq-agent → mq-image-analyze → structured visual context → mq-mcp
 
-Hard boundary: mq-agent must never implement image analysis locally.
-Delegation and rendering only.
+### v1.3.0 — Architecture memory, model-selection, learn commands
 
----
+* [x] Architecture-memory context in review — `list_architecture_decisions` surfaced automatically
+* [x] `--fast` flag on `review file/diff/repo` — Class A tool routing via mq-mcp
+* [x] `mq-agent learn status / search / explain` — read-only access to learned patterns
+* [x] `MultiMCPBridge._call_optional_tool()` — silent None when tool not available
+* [x] 292 tests total
 
-## Completed (pre-v1.4.0)
+### v1.2.0 — mq-mcp semantic memory + risk review routing
+
+* [x] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge
+* [x] `mq-agent memory store <key> <value> --approve` — Class C write, explicit approval
+* [x] `mq-agent review --risk` routes to `risk_review_file / risk_review_diff` (mq-mcp ≥ v1.5.0)
+* [x] `mq-agent mcp status` shows semantic memory item count and contract freshness
+
+### v1.1.0 — mq-mcp review runtime integration
+
+* [x] `mq-agent review file / diff / repo` via MCPBridge
+* [x] `--security`, `--architecture`, `--risk` flags routed to mq-mcp contracts
+* [x] Severity findings passed through unchanged — no local review logic
+* [x] `validate_orchestration_contract` in doctor checks
+* [x] Architecture-memory context surfaced after review findings
+
+### v1.0.0 — Stable orchestration platform
+
+* [x] Stable CLI surface (`COMMAND_SURFACE.md` as single source of truth)
+* [x] Stable config format (`MqAgentConfig`, `~/.mq-agent/config.json`)
+* [x] Stable safety model — read-only / suggest / execute / approve gates
+* [x] Stable mqlaunch, mq-mcp, repo-signal integrations
+* [x] Planner wired to `MqAgentConfig.effective_model()`
+* [x] Complete docs, examples, release checklist, protected main, GitHub Pages
+
+### v0.9.0 — Orchestration kernel consolidation
+
+* [x] Planner / executor / verifier / task runner contracts locked
+* [x] Orchestration logic extracted from `main.py` → `cli/render.py` + `core/diagnostics.py`
+* [x] `MqAgentConfig` dataclass and config schema
+* [x] 229 tests
 
 ### v0.1.0 — Foundation
 
@@ -248,288 +273,13 @@ Delegation and rendering only.
 * [x] `tests/test_browser.py` — 27 tests (URL safety, HTML parsing, CLI commands)
 * [x] 161 tests total
 
-### Non-goals (v0.7.0)
-
-* No credential handling
-* No hidden form submission
-* No checkout/payment flows
-* No unsafe automation
-
-### Architectural guardrails (v0.7.0)
-
-* Browser workflows must be read-only by default
-* No credential capture or storage
-* No hidden form submission
-* No purchase, booking or account actions
-* No autonomous browser control
-* All browser actions require explicit operator confirmation
-* Browser results must be inspectable and citeable
-* Browser workflow logic must use existing task/orchestration systems
-* Do not create a second workflow engine
-
----
-
 ### v0.8.0 — Controlled specialist orchestration
 
-This phase coordinates specialized agents through the existing task runner and
-safety model. Each agent declares its purpose, safety class, allowed tools, and
-failure behavior via `AgentManifest`.
-
-The goal is planner-driven specialization, not autonomous multi-agent behavior.
-
-* [x] `mq-agent swarm list` — list swarm configs with agents and safety classes
-* [x] `mq-agent swarm plan <config>` — dry plan; no API, no execution
-* [x] `mq-agent swarm run <config> [path]` — execute swarm, unified report
-* [x] `mq-agent swarm audit [path]` — audit + signal + docs
-* [x] `mq-agent swarm release-check [path]` — CI + audit + release
-* [x] `AgentManifest` — declares purpose, safety_class, allowed_tools, requires_approve, output_contract, failure_behavior
-* [x] `SwarmRunner` — dispatches agents, collects results, handles failures per manifest policy
-* [x] `--approve` gate for write-capable agents
-* [x] Dry-run requires no API key
+* [x] `mq-agent swarm list / plan / run / audit / release-check`
+* [x] `AgentManifest` — purpose, safety_class, allowed_tools, requires_approve, failure_behavior
+* [x] `SwarmRunner` — dispatches agents, collects results, handles failures per manifest
 * [x] Built-in swarm configs: `audit`, `release-check`, `ci`
-* [x] `tests/test_swarm.py` — 29 tests
 * [x] 190 tests total
-
----
-
-## v0.9.0 — Orchestration kernel consolidation
-
-Goal:
-
-Stabilize orchestration boundaries and normalize runtime coordination before the
-v1.0.0 stable release. No new features — only consolidation.
-
-### v0.9.0 focus
-
-* Normalize orchestration lifecycle — planner / executor / verifier contracts
-* Unify task execution model — consistent step contracts across task runner and specialist orchestration
-* Separate orchestration from presentation — CLI output must not bleed into core logic
-* Formalize runtime provider layer — tool registry, MCP bridge, signal integration
-* Reduce architectural drift — remove or document any divergent patterns
-* Strengthen state consistency — no silent state across step boundaries
-* Improve workflow composability — tasks and swarm configs are interchangeable primitives
-
-### Non-goals (v0.9.0)
-
-* No redesign of TUI or CLI surface
-* No new autonomous systems
-* No additional orchestration modes
-* No uncontrolled browser automation
-* No duplicate orchestration engines
-
-### v0.9.0 checklist
-
-#### Orchestration lifecycle
-
-* [x] Document the boundary between `PlanStep` (executor loop) and `StepResult` (task runner) — docstrings in `core/state.py`, `core/task_runner.py`, and `test_orchestration_contract.py`
-* [x] Document `SwarmRunner` as a separate runtime mode, not a competing implementation of `Executor` — docstring in `core/swarm.py`
-* [x] Verify executor stop-on-failure behavior is consistent with task runner error propagation — confirmed by design: executor stops on failure (safety), task runner collects all results (batch)
-* [x] Verify `AgentState.to_dict()` output matches JSON output format used by CLI commands — locked by `test_agent_state_to_dict_shape_is_stable()`
-
-#### Presentation separation
-
-* [x] Extract orchestration logic out of `main.py` — `doctor()` logic → `core/diagnostics.py`; rendering helpers → `cli/render.py`
-* [x] Centralize status/result rendering — `cli/render.py` owns all Rich output helpers; core has no CLI imports
-
-#### Runtime provider layer
-
-* [x] Define `~/.mq-agent/config.json` schema — `MqAgentConfig` dataclass in `mq_agent/config.py`; schema documented in module docstring
-* [x] Wire `Planner` to use `MqAgentConfig` — `load_config().effective_model()` replaces direct env var read
-* [x] Enforce tool registry signature contract — `test_tool_registry_has_no_positional_only_params()` passes
-
-#### Contract tests
-
-* [x] Extend `tests/test_orchestration_contract.py` — 7 new shape/delegation tests locking `PlanStep`, `StepResult`, `AgentManifest`, `AgentState`
-* [x] Test that `run_task` tool delegates correctly to `task_runner.run_task` — `test_run_task_tool_delegates_to_task_runner()`
-* [x] Test that `AgentManifest.allowed_tools` entries are a subset of `TOOL_REGISTRY` keys — `test_agent_manifest_allowed_tools_must_be_subset_of_registry()`
-
-#### Release
-
-* [x] 229 tests pass
-* [x] Green CI
-* [x] GitHub release `v0.9.0` published
-
----
-
-## v1.0.0 — Stable orchestration platform
-
-Goal:
-
-Publish mq-agent as a stable, documented orchestration runtime for the mq
-ecosystem. The platform is stable when its contracts are locked and its
-orchestration boundaries are enforced.
-
-### v1.0.0 requirements
-
-* [x] Stable CLI command surface — `COMMAND_SURFACE.md` is single source of truth
-* [x] Stable config format — `MqAgentConfig` dataclass with documented `~/.mq-agent/config.json` schema
-* [x] Stable safety model — read-only / suggest / execute / approve gates
-* [x] Stable memory model — dry-run default, explicit `--approve`
-* [x] Stable mqlaunch integration — bridge tested, menu + direct commands
-* [x] Stable mq-mcp integration — start/stop, tool listing, safety classes
-* [x] Stable repo-signal integration — version guard, suggest.v1, signal_json
-* [x] Stable orchestration contracts — planner / executor / verifier / task runner (v0.9.0)
-* [x] Extract orchestration logic from `main.py` — `cli/render.py` + `core/diagnostics.py`
-* [x] Wire `Planner` to `MqAgentConfig` — `load_config().effective_model()`
-* [x] Complete docs — `ARCHITECTURE.md` updated with full module map, runtime modes, config schema, safety model
-* [x] Complete examples — `EXAMPLES.md` covers all commands: task, browser, swarm, memory, mcp, score, signal
-* [x] Complete release checklist — `release-check.sh` verified
-* [x] Green CI
-* [x] Protected main branch
-* [x] Versioned GitHub releases — v0.6.0, v0.7.0, v0.8.0 published on GitHub
-* [x] GitHub Pages documentation
-* [x] No known critical safety gaps
-
----
-
-## Post-v1.0 roadmap
-
-### v1.1.0 — mq-mcp review runtime integration
-
-Goal: route repo-aware cognition through mq-mcp; mq-agent surfaces findings
-without re-implementing review logic.
-
-The formal boundary is defined in
-[mq-mcp/docs/ORCHESTRATION_CONTRACT.md](https://github.com/MCamner/mq-mcp/blob/main/docs/ORCHESTRATION_CONTRACT.md):
-
-* mq-agent may auto-invoke Class A/B tools without user confirmation
-* Class C (write) and Class D (subprocess) tools require explicit user approval
-* mq-agent must never reimplement review logic locally
-* mq-agent must not assume mq-mcp maintains session state between calls
-
-Items:
-
-* [x] `mq-agent review` command — calls `review_file` / `review_diff` / `review_repo`
-  via MCPBridge; displays severity summary in terminal
-* [x] Route `--security` and `--architecture` flags to mq-mcp review contracts
-* [x] Route `--risk` only when supported by the installed mq-mcp version
-  (v1.5.0 risk layer in mq-mcp)
-* [x] Display mq-mcp severity findings (`RISK`, `ARCHITECTURE`, `WARNING`, etc.)
-  without reinterpreting — pass through as-is
-* [x] `--dry-run` on all review commands — plan output without executing
-* [x] Keep TUI/session UX in mq-agent while leaving cognition logic in mq-mcp
-* [x] Smoke tests: `mq-agent → mq-mcp review_file / review_diff / review_repo`
-* [x] `validate_orchestration_contract` invocable from mq-agent doctor checks
-* [x] Surface mq-mcp architecture-memory context (`list_architecture_decisions`,
-  `get_architecture_decision`) — shown automatically after review findings when available
-* [x] Model-selection policy: `--fast` flag on review commands passes `fast=True` to
-  mq-mcp; mq-mcp routes to Class A tools internally
-
-Implementation plan:
-
-1. Add CLI command group:
-   * `mq-agent review file <path>`
-   * `mq-agent review diff`
-   * `mq-agent review repo [path]`
-2. Add MCPBridge review helpers:
-   * `review_file(path, flags)`
-   * `review_diff(flags)`
-   * `review_repo(path, flags)`
-3. Add pass-through renderer:
-   * severity summary
-   * grouped findings
-   * source file / line when available
-   * raw JSON with `--json`
-4. Add flags:
-   * `--risk`
-   * `--security`
-   * `--architecture`
-   * `--json`
-   * `--approve` only if future write-capable review tools require it
-5. Add tests:
-   * command invokes correct mq-mcp tool
-   * no local review logic exists in mq-agent
-   * severity labels are passed through unchanged
-   * missing mq-mcp tool gives clear error
-   * `validate_orchestration_contract` appears in doctor output
-
-Hard boundary:
-
-mq-agent must not implement:
-
-* severity scoring
-* architecture reasoning
-* risk classification
-* semantic retrieval
-* review heuristics
-* drift detection
-
-mq-agent may implement:
-
-* CLI command routing
-* MCPBridge calls
-* result rendering
-* JSON output
-* approval gates
-* doctor checks
-* orchestration contract validation
-
-v1.1.0 definition of done:
-
-* `mq-agent review file` works through mq-mcp
-* `mq-agent review diff` works through mq-mcp
-* `mq-agent review repo` works through mq-mcp
-* `--json` output is stable and tested
-* severity labels are passed through unchanged
-* no local review engine exists in mq-agent
-* doctor verifies mq-mcp orchestration contract
-* smoke tests pass against mq-mcp v1.3.0+
-* docs updated:
-  * `COMMAND_SURFACE.md`
-  * `MCP_INTEGRATION.md`
-  * `EXAMPLES.md`
-  * `ROADMAP.md`
-
-Non-goals:
-
-* No duplicate review engine in mq-agent
-* No architecture reasoning implementation in mq-agent
-* No separate semantic retrieval runtime in mq-agent
-
----
-
-### v1.2.0 — mq-mcp semantic memory + risk review routing
-
-Goal: surface mq-mcp semantic memory (v1.4.0) and risk analysis (v1.5.0) in
-mq-agent workflows.
-
-Items:
-
-* [x] `mq-agent memory search <query>` — calls `search_semantic_memory` via MCPBridge;
-  renders key/excerpt table; degrades gracefully when mq-mcp v1.4.0 tool is absent
-* [x] `mq-agent memory store <key> <value> --approve` — calls `store_semantic_memory`
-  (Class C write tool); requires `--approve`; `--dry-run` supported
-* [x] Risk review routing: `mq-agent review --risk` invokes `risk_review_file` /
-  `risk_review_diff` when available in mq-mcp ≥ v1.5.0 — already implemented in bridge
-* [x] `mq-agent mcp status` extended: shows semantic memory item count and contract
-  freshness from `validate_orchestration_contract` when tools are available
-
-Learned review patterns (implemented in v1.3.0):
-
-* [x] `mq-agent learn status` — check mq-mcp learn system availability
-* [x] `mq-agent learn search <query>` — search learned review patterns
-* [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation
-
-Non-goal:
-
-mq-agent must not train, infer, mutate or store learning data directly. All
-learning and memory behavior belongs in mq-mcp.
-
----
-
-### v1.3.0 — Architecture memory, model-selection, learn commands
-
-* [x] Architecture-memory context in review — `list_architecture_decisions` surfaced
-  automatically after review findings when tool is available
-* [x] `get_architecture_decision` bridge method for fetching individual decisions
-* [x] `--fast` flag on `review file/diff/repo` — passes `fast=True` to mq-mcp for
-  Class A tool routing
-* [x] `mq-agent learn status` — check mq-mcp learn system
-* [x] `mq-agent learn search <query>` — search learned patterns (read-only)
-* [x] `mq-agent learn explain <pattern-id>` — fetch pattern explanation (read-only)
-* [x] Optional Ollama-backed learn extraction documented as an mq-mcp-owned policy
-* [x] `MultiMCPBridge._call_optional_tool()` — silent None when tool not available
-* [x] 24 new tests (292 total)
 
 ---
 
