@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.5.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.6.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -245,6 +245,16 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.6.0 status
+
+- [x] `mq-agent stack sweep` — loop repo-signal over all mq-stack repos in one pass
+- [x] `mq-agent stack sweep --brain` — write a brain note per repo to mqobsidian
+- [x] `mq-agent stack sweep --decide` — consolidated health ADR via `brain_record_decision`
+- [x] `mq-agent stack sweep --dry-run` — preview without writes
+- [x] `mq-agent stack sweep --json` — machine-readable summary table
+- [x] mqlaunch agent menu item 18 — Stack health sweep
+- [x] `docs/STACK_HEALTH.md` — multi-repo sweep reference with example output
 
 ## v1.5.0 status
 

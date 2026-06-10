@@ -2569,5 +2569,126 @@ def stack_export_cmd(
     console.print(f"[green]{msg}[/green]")
 
 
+@stack_app.command("sweep")
+def stack_sweep_cmd(
+    brain: Annotated[bool, typer.Option("--brain", help="Record signal result for each repo to mqobsidian")] = False,
+    decide: Annotated[bool, typer.Option("--decide", help="Write a brain ADR summarising the stack health snapshot")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run repo-signal over every mq-stack repo and optionally write brain notes + an ADR snapshot.
+
+    For each reachable repo: runs mq-agent signal --brain (read + optional write).
+    With --decide: writes a brain ADR via mq-agent decide capturing overall health.
+    """
+    from mq_agent.agents.signal_agent import SignalAgent
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+    from mq_agent.tools.signal_tools import signal_available
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand
+
+    if not signal_available():
+        console.print("[bold red]repo-signal not installed.[/bold red]\nRun: [bold]uv pip install repo-signal[/bold]")
+        raise typer.Exit(1)
+
+    if dry_run:
+        console.print("[blue][dry-run][/blue] Would run signal on:")
+        for r in MQ_STACK_REPOS:
+            p = _expand(r["path"])
+            reachable = "✓" if p.exists() else "✗ (not found)"
+            console.print(f"  {r['name']:<18} {reachable}")
+        if brain:
+            console.print("\n  Each result → brain note via --brain")
+        if decide:
+            console.print("  Final snapshot → brain decide ADR")
+        return
+
+    client = _client()
+    agent = SignalAgent(client)
+    bridge = MultiMCPBridge()
+
+    results: list[dict] = []
+    for r in MQ_STACK_REPOS:
+        p = _expand(r["path"])
+        if not p.exists():
+            console.print(f"[dim]  {r['name']}: path not found — skipped[/dim]")
+            results.append({"name": r["name"], "skipped": True})
+            continue
+
+        console.rule(f"[bold cyan]{r['name']}[/bold cyan]")
+        with console.status(f"[cyan]Scanning {r['name']}...[/cyan]"):
+            result = agent.run(str(p), dry_run=False)
+
+        overall = result["scores"]["overall"]
+        color = "green" if overall >= 80 else "yellow" if overall >= 50 else "red"
+        console.print(Panel(
+            f"Overall: [{color}]{overall}/100[/{color}]  "
+            f"README: {result['scores']['readme']}/{result['scores']['readme_max']}  "
+            f"Publish: {result['scores']['publish']}/{result['scores']['publish_total']}",
+            title=f"[bold]{r['name']}[/bold] · {result.get('project_type', '')}",
+        ))
+
+        entry = {"name": r["name"], "overall": overall, "publish": result["scores"]["publish"], "skipped": False}
+        results.append(entry)
+
+        if brain:
+            _brain_record_review(
+                bridge,
+                f"repo-signal:{r['name']}",
+                {
+                    "findings": [{"severity": "info", "message": f, "summary": f} for f in result.get("focus_areas", [])],
+                    "scores": result.get("scores"),
+                    "publish": result.get("publish"),
+                },
+            )
+
+    if json_out:
+        typer.echo(json.dumps(results, indent=2, default=str))
+        return
+
+    # Summary table
+    table = Table(title="Stack health sweep — summary", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column("Overall", width=10)
+    table.add_column("Publish", width=10)
+    table.add_column("Status", width=8)
+    for e in results:
+        if e.get("skipped"):
+            table.add_row(e["name"], "—", "—", "[dim]skipped[/dim]")
+            continue
+        score = e["overall"]
+        color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
+        table.add_row(e["name"], f"[{color}]{score}/100[/{color}]", str(e.get("publish", "?")), "[green]✓[/green]" if score >= 80 else "[yellow]~[/yellow]")
+    console.print(table)
+
+    if decide:
+        healthy = [e["name"] for e in results if not e.get("skipped") and e.get("overall", 0) >= 80]
+        needs_work = [e["name"] for e in results if not e.get("skipped") and e.get("overall", 0) < 80]
+        skipped = [e["name"] for e in results if e.get("skipped")]
+        context = f"Stack sweep ran on {len(results)} repos. Healthy (≥80): {healthy or 'none'}. Needs work: {needs_work or 'none'}. Skipped: {skipped or 'none'}."
+        decision = f"Stack is {'ready' if not needs_work else 'not fully ready'} — {len(healthy)}/{len(results) - len(skipped)} repos healthy."
+        rationale = f"Based on repo-signal overall scores. Repos below 80: {needs_work or 'none'}."
+
+        from mq_agent.tools.mcp_bridge import MultiMCPBridge as _B
+        bridge2 = _B()
+        adr_result = bridge2.call_tool("brain_record_decision", {
+            "title": "MQ Stack Health Snapshot",
+            "context": context,
+            "decision": decision,
+            "rationale": rationale,
+            "tags": ["stack", "health", "sweep"],
+        })
+        if isinstance(adr_result, list) and adr_result:
+            adr_result = adr_result[0].get("text", adr_result) if isinstance(adr_result[0], dict) else adr_result
+        if isinstance(adr_result, str):
+            try:
+                adr_result = json.loads(adr_result)
+            except json.JSONDecodeError:
+                pass
+        if isinstance(adr_result, dict) and adr_result.get("ok"):
+            console.print(f"\n[dim]→ brain ADR: {adr_result.get('path', 'saved')}[/dim]")
+        else:
+            console.print("\n[dim yellow]brain decide: skipped or unavailable[/dim yellow]")
+
+
 if __name__ == "__main__":
     app()

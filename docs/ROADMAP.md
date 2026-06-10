@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.5.0 — End-to-end demo flow (done)
-Next:    v1.6.0 — Stack-wide health
+v1.6.0 — Stack-wide health (done)
+Next:    v1.7.0 — TBD
 ```
 
 Completed foundation:
@@ -64,32 +64,20 @@ Completed foundation:
 | v1.3.0  | Architecture memory, model-selection, learn  | Done    |
 | v1.4.0  | mq-image-analyze perception tool integration | Done    |
 | v1.5.0  | End-to-end demo flow                         | Done    |
-| v1.6.0  | Stack-wide health                            | Next    |
-
----
-
-## v1.6.0 — Stack-wide health
-
-Goal: run the demo flow across all core MQ repos in one sweep and write a
-consolidated health view to mqobsidian. No new architecture — uses existing
-`swarm`, `stack`, and `brain` commands.
-
-Items:
-
-* [ ] `mq-agent stack status` — verify all core repos are reachable and tracked
-* [ ] `mq-agent swarm release-check` — run release-check across the MQ stack
-* [ ] `mq-agent signal <repo> --brain` loop over all stack repos — one brain note per repo
-* [ ] Consolidated brain summary: `brain decide` ADR capturing stack health snapshot
-* [ ] `mqlaunch` menu item 18 — Stack health sweep
-* [ ] `docs/STACK_HEALTH.md` — document the multi-repo flow with example output
-* [ ] Tag v1.6.0 once sweep runs clean across all core repos
-
-Hard boundary: mq-agent orchestrates the sweep; it does not implement repo health scoring locally.
-All scoring stays in repo-signal and mq-mcp.
+| v1.6.0  | Stack-wide health                            | Done    |
 
 ---
 
 ## Completed
+
+### v1.6.0 — Stack-wide health
+
+* [x] `mq-agent stack sweep` — loop repo-signal over all mq-stack repos in one pass
+* [x] `mq-agent stack sweep --brain` — brain note per repo via `_brain_record_review`
+* [x] `mq-agent stack sweep --decide` — consolidated ADR via `brain_record_decision`
+* [x] `mq-agent stack sweep --dry-run` / `--json` — dry-run and machine-readable output
+* [x] mqlaunch agent menu item 18 — Stack health sweep
+* [x] `docs/STACK_HEALTH.md` — multi-repo sweep reference with example output
 
 ### v1.5.0 — End-to-end demo flow
 
@@ -363,11 +351,9 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Start v1.6.0 — Stack-wide health:
+v1.6.0 is complete. To kick off v1.7.0, first run the full stack sweep to baseline
+the current state, then decide scope from the health output:
 
-* Run `mq-agent stack status` and verify all core repos are tracked
-* Loop `mq-agent signal <repo> --brain` over the MQ stack repos
-* Run `mq-agent swarm release-check` across the stack
-* Write consolidated health ADR via `mq-agent decide`
-* Add mqlaunch agent menu item 18 — Stack health sweep
-* Document the multi-repo flow in `docs/STACK_HEALTH.md`
+```bash
+mq-agent stack sweep --brain --decide
+```

@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.6.0] — 2026-06-10
+
+### Added
+
+* `mq-agent stack sweep` — run repo-signal over every mq-stack repo in one pass; prints per-repo panel + summary table
+* `mq-agent stack sweep --brain` — write a brain note per repo to mqobsidian via `_brain_record_review`
+* `mq-agent stack sweep --decide` — consolidated health ADR via `brain_record_decision`
+* `mq-agent stack sweep --dry-run` — preview which repos would be scanned without executing
+* `mq-agent stack sweep --json` — machine-readable JSON summary (one entry per repo)
+* mqlaunch agent menu item 18 — **Stack health sweep** (`mq-agent stack sweep --brain`)
+* `docs/STACK_HEALTH.md` — reference doc for the multi-repo sweep flow with example output and companion commands
+
 ## [v1.5.0] — 2026-06-10
 
 ### Added
