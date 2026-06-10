@@ -204,6 +204,31 @@ def _release_entry(entry: dict[str, str]) -> dict[str, Any]:
     }
 
 
+def _release_notes_entry(entry: dict[str, str]) -> dict[str, Any]:
+    """Return git commits since the last tag for a single repo."""
+    path = _expand(entry["path"])
+    if not path.exists():
+        return {"name": entry["name"], "exists": False, "version": "?", "last_tag": None, "commits": [], "has_changes": False}
+
+    version = _version(path)
+    last_tag = _git(["describe", "--tags", "--abbrev=0"], path) or None
+
+    if last_tag:
+        raw = _git(["log", f"{last_tag}..HEAD", "--oneline", "--no-merges"], path)
+    else:
+        raw = _git(["log", "--oneline", "--no-merges", "--max-count=20"], path)
+
+    commits = [line.strip() for line in raw.splitlines() if line.strip()] if raw else []
+    return {
+        "name": entry["name"],
+        "exists": True,
+        "version": version,
+        "last_tag": last_tag,
+        "commits": commits,
+        "has_changes": len(commits) > 0,
+    }
+
+
 def stack_release_check() -> str:
     """Cross-repo release readiness check for all mq-stack repos.
 

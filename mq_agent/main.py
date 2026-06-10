@@ -3089,5 +3089,61 @@ def stack_release_check_cmd(
         raise typer.Exit(1)
 
 
+# ── stack release-notes ────────────────────────────────────────────────────
+
+@stack_app.command("release-notes")
+def stack_release_notes_cmd(
+    repo_filter: Annotated[str | None, typer.Option("--repo", help="Limit to one repo")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Draft release notes from git commits since the last tag, per repo.
+
+    Reads git log since last tag for each mq-stack repo.
+    No API key required. Always exits 0 (informational).
+    """
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _release_notes_entry
+
+    repos = [r for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    if repo_filter:
+        repos = [r for r in repos if r["name"] == repo_filter]
+        if not repos:
+            console.print(f"[red]Repo '{repo_filter}' not found in stack.[/red]")
+            raise typer.Exit(1)
+
+    with console.status("[cyan]Reading git history...[/cyan]"):
+        entries = [_release_notes_entry(r) for r in repos]
+
+    if json_out:
+        typer.echo(json.dumps(entries, indent=2, default=str))
+        return
+
+    has_any = any(e.get("has_changes") for e in entries)
+    console.print()
+    console.rule("[bold]mq-stack Release Notes[/bold]")
+    console.print()
+
+    for e in entries:
+        if not e.get("exists"):
+            console.print(f"[dim]{e['name']:<18}  not found locally[/dim]")
+            console.print()
+            continue
+
+        last_tag = e.get("last_tag") or "—"
+        version = e.get("version", "?")
+        since = f"since {last_tag}" if last_tag else "all commits (no tag)"
+        console.print(f"[cyan bold]{e['name']}[/cyan bold]  [dim]v{version}  ({since})[/dim]")
+
+        commits = e.get("commits", [])
+        if commits:
+            for c in commits:
+                console.print(f"  [dim]•[/dim] {c}")
+        else:
+            console.print("  [dim]no unreleased commits[/dim]")
+        console.print()
+
+    if not has_any:
+        console.print("[green]✓ All repos are up to date — no unreleased commits.[/green]")
+
+
 if __name__ == "__main__":
     app()

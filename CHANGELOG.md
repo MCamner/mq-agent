@@ -9,6 +9,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.10.0] — 2026-06-10
+
+### Added
+
+* `mq-agent stack release-notes` — draft release notes from git commits since last tag, per repo
+* `mq-agent stack release-notes --repo <name>` — limit to one repo
+* `mq-agent stack release-notes --json` — machine-readable output
+* `_release_notes_entry()` helper in `stack_tools.py` — reads last tag and commits since
+* `docs/STACK_RELEASE_NOTES.md` — reference doc
+* 13 new tests (389 total)
+
 ## [v1.9.0] — 2026-06-10
 
 ### Added
