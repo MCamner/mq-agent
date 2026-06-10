@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.9.0 — Stack report + release gate (done)
-Next:    v1.10.0 — TBD
+v1.10.0 — Stack release notes (done)
+Next:    v1.11.0 — TBD
 ```
 
 Completed foundation:
@@ -68,10 +68,20 @@ Completed foundation:
 | v1.7.0  | Repo health history                          | Done    |
 | v1.8.0  | Stack alert                                  | Done    |
 | v1.9.0  | Stack report + release gate                  | Done    |
+| v1.10.0 | Stack release notes                          | Done    |
 
 ---
 
 ## Completed
+
+### v1.10.0 — Stack release notes
+
+* [x] `mq-agent stack release-notes` — draft notes from git commits since last tag, per repo
+* [x] `mq-agent stack release-notes --repo <name>` — single repo filter
+* [x] `mq-agent stack release-notes --json` — machine-readable output
+* [x] `_release_notes_entry()` helper in `stack_tools.py`
+* [x] `docs/STACK_RELEASE_NOTES.md` — reference doc
+* [x] 13 new tests (389 total)
 
 ### v1.9.0 — Stack report + release gate
 
