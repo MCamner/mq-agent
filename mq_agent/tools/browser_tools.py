@@ -182,7 +182,7 @@ def verify_release_url(url: str, expected_tag: str = "", timeout: int = 10) -> d
     checks.append({
         "check": "page has title",
         "passed": bool(title),
-        "note": title if title else "no title found",
+        "note": title or "no title found",
     })
 
     # GitHub release: look for version/tag reference

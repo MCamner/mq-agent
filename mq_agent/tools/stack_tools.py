@@ -1,0 +1,289 @@
+"""mq-stack status tools — repo inventory, last activity, release readiness."""
+from __future__ import annotations
+
+import json
+import subprocess
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+MQ_STACK_REPOS: list[dict[str, str]] = [
+    {"name": "mqlaunch",        "path": "~/macos-scripts",    "role": "Terminal entrypoint"},
+    {"name": "mq-agent",        "path": "~/mq-agent",         "role": "Orchestrator"},
+    {"name": "mq-mcp",          "path": "~/mq-mcp",           "role": "Runtime/review truth"},
+    {"name": "repo-signal",     "path": "~/repo-signal",      "role": "Repo intelligence"},
+    {"name": "mq-hal",          "path": "~/mq-hal",           "role": "Local reasoning shell"},
+    {"name": "mq-image-analyze","path": "~/mq-image-analyze", "role": "Visual perception"},
+    {"name": "mq-ums",          "path": "~/mq-ums",           "role": "UMS/IGEL tooling"},
+    {"name": "mqobsidian",      "path": "~/mqobsidian",       "role": "Second brain"},
+]
+
+OBSIDIAN_STATUS = Path.home() / "mqobsidian" / "mq-stack" / "05_RELEASE_STATUS.md"
+
+
+def _expand(path: str) -> Path:
+    return Path(path).expanduser().resolve()
+
+
+def _git(args: list[str], cwd: Path) -> str:
+    try:
+        return subprocess.check_output(
+            ["git"] + args, cwd=cwd, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except Exception:
+        return ""
+
+
+def _version(repo_path: Path) -> str:
+    for name in ("VERSION", "version.txt"):
+        f = repo_path / name
+        if f.exists():
+            return f.read_text().strip()
+    pyproject = repo_path / "pyproject.toml"
+    if pyproject.exists():
+        text = pyproject.read_text()
+        import re
+        m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        if m:
+            return m.group(1)
+    return "?"
+
+
+def _readiness_score(repo_path: Path) -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            ["repo-signal", "publish-checklist", str(repo_path), "--format", "json"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            return {
+                "score": data.get("score", "?"),
+                "total": data.get("total", "?"),
+                "status": data.get("status", "?"),
+                "next_action": data.get("next_action") or "",
+            }
+    except Exception:
+        pass
+    return {"score": "?", "total": "?", "status": "unknown", "next_action": ""}
+
+
+def _drift_risk(repo_path: Path) -> str:
+    """Heuristic drift risk based on uncommitted changes and branch state."""
+    branch = _git(["branch", "--show-current"], repo_path)
+    dirty = _git(["status", "--short"], repo_path)
+    ahead = _git(["rev-list", "--count", "@{u}..HEAD"], repo_path) if branch else "0"
+    score = 0
+    if dirty:
+        score += 1
+    if branch and branch not in ("main", "master"):
+        score += 1
+    try:
+        if int(ahead) > 3:
+            score += 1
+    except ValueError:
+        pass
+    return ["Low", "Low", "Medium", "High"][min(score, 3)]
+
+
+def _last_activity(repo_path: Path) -> str:
+    return _git(["log", "-1", "--format=%ar"], repo_path) or "unknown"
+
+
+def _repo_entry(entry: dict[str, str]) -> dict[str, Any]:
+    path = _expand(entry["path"])
+    if not path.exists():
+        return {
+            "name": entry["name"],
+            "role": entry["role"],
+            "version": "—",
+            "branch": "—",
+            "last_activity": "—",
+            "drift_risk": "—",
+            "readiness": "—",
+            "next_action": "repo not found locally",
+            "exists": False,
+        }
+    version = _version(path)
+    branch = _git(["branch", "--show-current"], path)
+    last = _last_activity(path)
+    drift = _drift_risk(path)
+    readiness = _readiness_score(path)
+    return {
+        "name": entry["name"],
+        "role": entry["role"],
+        "version": version,
+        "branch": branch or "—",
+        "last_activity": last,
+        "drift_risk": drift,
+        "readiness": f"{readiness['score']}/{readiness['total']}",
+        "next_action": readiness["next_action"],
+        "exists": True,
+    }
+
+
+def stack_status() -> str:
+    """Collect version, branch, last activity, drift risk and readiness for all mq-stack repos.
+
+    Returns JSON array.
+    """
+    results = [_repo_entry(r) for r in MQ_STACK_REPOS]
+    return json.dumps(results, indent=2)
+
+
+def _changelog_has_version(repo_path: Path, version: str) -> bool:
+    """Return True if CHANGELOG.md mentions the current version."""
+    cl = repo_path / "CHANGELOG.md"
+    if not cl.exists() or version in ("?", "—"):
+        return False
+    text = cl.read_text()
+    return f"[{version}]" in text or f"v{version}" in text or f"## {version}" in text
+
+
+def _readme_present(repo_path: Path) -> bool:
+    return (repo_path / "README.md").exists()
+
+
+def _roadmap_present(repo_path: Path) -> bool:
+    return (repo_path / "ROADMAP.md").exists()
+
+
+def _unpushed_count(repo_path: Path) -> int:
+    raw = _git(["rev-list", "--count", "@{u}..HEAD"], repo_path)
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _release_entry(entry: dict[str, str]) -> dict[str, Any]:
+    path = _expand(entry["path"])
+    if not path.exists():
+        return {"name": entry["name"], "exists": False, "go": False, "blockers": ["repo not found"]}
+
+    version = _version(path)
+    branch = _git(["branch", "--show-current"], path)
+    dirty = bool(_git(["status", "--short"], path))
+    unpushed = _unpushed_count(path)
+    cl_ok = _changelog_has_version(path, version)
+    readme_ok = _readme_present(path)
+    roadmap_ok = _roadmap_present(path)
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+
+    if version == "?":
+        blockers.append("no VERSION file")
+    if not cl_ok:
+        warnings.append(f"CHANGELOG missing entry for v{version}")
+    if not readme_ok:
+        blockers.append("no README.md")
+    if dirty:
+        warnings.append("uncommitted changes")
+    if unpushed > 0:
+        warnings.append(f"{unpushed} unpushed commit(s)")
+    if not roadmap_ok:
+        warnings.append("no ROADMAP.md")
+
+    go = len(blockers) == 0
+
+    return {
+        "name": entry["name"],
+        "exists": True,
+        "version": version,
+        "branch": branch or "—",
+        "on_main": branch in ("main", "master"),
+        "dirty": dirty,
+        "unpushed": unpushed,
+        "changelog_ok": cl_ok,
+        "readme_ok": readme_ok,
+        "roadmap_ok": roadmap_ok,
+        "blockers": blockers,
+        "warnings": warnings,
+        "go": go,
+    }
+
+
+def stack_release_check() -> str:
+    """Cross-repo release readiness check for all mq-stack repos.
+
+    Checks VERSION, CHANGELOG, README, working tree, branch state.
+    Returns JSON with per-repo status and overall go/no-go.
+    """
+    entries = [_release_entry(r) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    all_go = all(e.get("go", False) for e in entries)
+    blocked = [e["name"] for e in entries if not e.get("go", False)]
+    warned = [e["name"] for e in entries if e.get("warnings")]
+    return json.dumps({
+        "overall": "GO" if all_go else "NO-GO",
+        "blocked": blocked,
+        "warned": warned,
+        "repos": entries,
+        "checked_at": datetime.now(UTC).isoformat(),
+    }, indent=2)
+
+
+def stack_github_summary() -> str:
+    """Show open PRs and branch state for all mq-stack repos.
+
+    Uses 'gh pr list' — degrades gracefully if gh is not installed.
+    Returns JSON array.
+    """
+    import shutil
+    if not shutil.which("gh"):
+        return json.dumps({"available": False, "error": "gh CLI not found"})
+
+    results = []
+    for repo in MQ_STACK_REPOS:
+        if repo["name"] == "mqobsidian":
+            continue
+        path = _expand(repo["path"])
+        if not path.exists():
+            continue
+        try:
+            raw = subprocess.check_output(
+                ["gh", "pr", "list", "--json", "number,title,headRefName,state"],
+                cwd=path, text=True, stderr=subprocess.DEVNULL, timeout=10,
+            )
+            prs = json.loads(raw)
+        except Exception:
+            prs = []
+        branch = _git(["branch", "--show-current"], path)
+        results.append({
+            "name": repo["name"],
+            "branch": branch or "—",
+            "open_prs": len(prs),
+            "prs": prs,
+        })
+    return json.dumps(results, indent=2)
+
+
+def stack_export(output_path: str = "") -> str:
+    """Generate and write the mq-stack status markdown table to Obsidian.
+
+    Writes to 05_RELEASE_STATUS.md in mqobsidian by default.
+    Returns a confirmation message.
+    """
+    dest = Path(output_path).expanduser() if output_path else OBSIDIAN_STATUS
+    entries = [_repo_entry(r) for r in MQ_STACK_REPOS]
+
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    lines = [
+        "# MQ Stack Release Status",
+        "",
+        f"*Auto-generated by `mq-agent stack export` — {ts}*",
+        "",
+        "| Repo | Role | Version | Branch | Last activity | Drift risk | Readiness | Next focus |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for e in entries:
+        lines.append(
+            f"| {e['name']} | {e['role']} | {e['version']} "
+            f"| {e['branch']} | {e['last_activity']} "
+            f"| {e['drift_risk']} | {e['readiness']} | {e['next_action'] or '—'} |"
+        )
+
+    content = "\n".join(lines) + "\n"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(content)
+    return f"Written: {dest} ({len(entries)} repos, {ts})"

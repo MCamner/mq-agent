@@ -1,6 +1,6 @@
 # Demo
 
-End-to-end walkthrough of `mq-agent` on a real repo.
+End-to-end walkthrough of the MQ stack on a real repo.
 
 ## Setup
 
@@ -10,7 +10,94 @@ export OPENAI_API_KEY="sk-proj-..."
 cd ~/mq-agent
 ```
 
-## Step 1 — Environment check
+## v1.5.0 — Full stack demo flow
+
+Runs three commands in sequence: repo-signal readiness, mq-mcp review, and release gate.
+Every step writes findings to the mqobsidian second brain.
+
+### One-liner (via mqlaunch)
+
+```bash
+mqlaunch agent    # → choose 17. Demo flow (full stack)
+```
+
+### Manual run
+
+```bash
+# Step 1: repo-signal readiness → brain
+mq-agent signal . --brain
+
+# Step 2: review repo via mq-mcp → brain
+mq-agent review repo . --brain
+
+# Step 3: release-check (contract gate, dry-run safe)
+mq-agent release-check --dry-run
+```
+
+### Or via the demo-flow script directly
+
+```bash
+~/macos-scripts/mqlaunch/commands/demo-flow.sh .
+```
+
+---
+
+## Step-by-step output
+
+### Step 1 — repo-signal readiness
+
+```bash
+mq-agent signal . --brain
+```
+
+```text
+╭──────────────────────── mq-agent · Python project ────────────────────────╮
+│ Overall:  100/100                                                           │
+│ README:   100/100                                                           │
+│ Publish:  16/16  [PASS]                                                     │
+╰─────────────────────────────────────────────────────────────────────────────╯
+
+Focus areas:
+  1. Foundation looks healthy; improve analysis depth next
+
+✓ Repo looks healthy
+→ brain: reviews/repo-signal:mq-agent.md
+```
+
+### Step 2 — review repo → brain
+
+```bash
+mq-agent review repo . --brain
+```
+
+```text
+╭─────────────────────── Review: repo ──────────────────────────╮
+│ Findings: 2   HIGH: 0   MEDIUM: 1   LOW: 1   INFO: 0          │
+│ Approved: yes                                                   │
+╰─────────────────────────────────────────────────────────────────╯
+→ brain: reviews/mq-agent.md
+```
+
+### Step 3 — release-check (contract gate)
+
+```bash
+mq-agent release-check --dry-run
+```
+
+```text
+╭────────────────────── Release Check ─────────────────────────╮
+│ git state    ✓ clean                                          │
+│ version      ✓ VERSION matches pyproject.toml (1.5.0)        │
+│ changelog    ✓ [v1.5.0] entry present                        │
+│ tests        ✓ all passing                                    │
+│ CI           ✓ last run green                                 │
+╰───────────────────────────────────────────────────────────────╯
+Ready to release.
+```
+
+---
+
+## Environment check
 
 ```bash
 mq-agent doctor
@@ -26,114 +113,19 @@ mq-agent doctor
 │ uv                │ ✓ OK   │                       │
 │ Python ≥ 3.11     │ ✓ OK   │                       │
 │ repo-signal       │ ✓ OK   │                       │
-│ mq-mcp (optional) │ ✗ FAIL │ Start mq-mcp on :8765 │
+│ mq-mcp (optional) │ ✓ OK   │                       │
 └───────────────────┴────────┴───────────────────────┘
 All required checks passed.
 ```
-
-## Step 2 — Score (no API key needed)
-
-```bash
-mq-agent score .
-```
-
-```text
-╭──────────────────────────────── README Score ────────────────────────────────╮
-│ README score: 100/100  [██████████]                                          │
-│                                                                              │
-│ Present:                                                                     │
-│   ✓ title                                                                    │
-│   ✓ short_pitch                                                              │
-│   ✓ install                                                                  │
-│   ✓ usage                                                                    │
-│   ✓ examples                                                                 │
-│   ✓ screenshots_demo                                                         │
-│   ✓ badges                                                                   │
-│   ✓ license                                                                  │
-│   ✓ roadmap                                                                  │
-│   ✓ contributing                                                             │
-│                                                                              │
-│ Missing:                                                                     │
-│   (none — perfect score!)                                                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭───────────────────────────── Publish Checklist ──────────────────────────────╮
-│ Publish checklist: 16/16  [PASS]                                             │
-│                                                                              │
-│ [Front door]                                                                 │
-│   ✓ README exists                                                            │
-│   ✓ README has quick start                                                   │
-│   ✓ README links to GitHub Pages                                             │
-│   ✓ README mentions demo                                                     │
-│   ✓ README mentions screenshots or gallery                                   │
-│                                                                              │
-│ [Public quality]                                                             │
-│   ✓ LICENSE exists      ✓ CHANGELOG exists   ✓ VERSION exists               │
-│   ✓ .gitignore exists   ✓ README mentions roadmap                            │
-│   ✓ issue templates exist                                                    │
-│                                                                              │
-│ [GitHub Pages]                                                               │
-│   ✓ docs folder exists                                                       │
-│   ✓ GitHub Pages landing exists                                              │
-│   ✓ docs screenshots folder exists                                           │
-│                                                                              │
-│ Next: Repo looks publish-ready from the static checklist.                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## Step 3 — Full signal assessment
-
-```bash
-mq-agent signal .
-```
-
-```text
-╭─────────────────────────── mq-agent · Python project ───────────────────────╮
-│ Overall:  100/100                                                            │
-│ README:   100/100                                                            │
-│ Publish:  16/16  [PASS]                                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-
-Focus areas:
-  1. Foundation looks healthy; improve analysis depth next
-
-                            AI Improvement Plan
-┏━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
-┃ # ┃ Step                                 ┃ Status     ┃ Note                ┃
-┡━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
-│ 1 │ Scan the repository                  │ success    │ 60 files, main      │
-│ 2 │ Analyze the repository               │ success    │ Python project      │
-│ 3 │ Read the README file                 │ success    │ 100/100 score       │
-│ 4 │ Check the git log                    │ success    │ Clean working tree  │
-│ 5 │ Review repository status             │ success    │ Clean working tree  │
-└───┴──────────────────────────────────────┴────────────┴─────────────────────┘
-
-✓ Repo looks healthy
-Next: Repo looks publish-ready from the static checklist.
-```
-
-## Step 4 — Audit (dry-run)
-
-```bash
-mq-agent audit . --dry-run
-```
-
-Shows the full AI-generated audit plan without executing any steps. Safe to run on any repo.
-
-## Step 5 — Release check
-
-```bash
-mq-agent release-check --dry-run
-```
-
-Validates: git state, version alignment, changelog, test coverage, CI status.
 
 ## JSON output
 
 Every command supports `--json` for scripting:
 
 ```bash
-mq-agent audit . --json | jq '.steps[] | select(.status == "failed")'
-mq-agent score . --json | jq '.readme_score'
+mq-agent signal . --json | jq '.scores'
+mq-agent review repo . --json | jq '.findings[] | select(.severity == "HIGH")'
+mq-agent release-check --json | jq '.ready'
 ```
 
 ## TUI

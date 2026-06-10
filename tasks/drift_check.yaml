@@ -1,0 +1,45 @@
+name: drift-check
+version: "0.1"
+description: |
+  Architecture drift check — detects divergence between mq-mcp's declared
+  documentation and its actual runtime state. Calls mq-mcp read-only tools:
+  detect_architecture_drift and review_runtime_contract.
+
+  Usage:
+    mq-agent task run tasks/drift_check.yaml
+    mq-agent task run tasks/drift_check.yaml --dry-run
+
+steps:
+  - name: detect-drift
+    description: Detect tool count drift, contract coverage gaps, and stale architecture maps
+    tool: mcp_call
+    args:
+      tool_name: detect_architecture_drift
+      args_json: "{}"
+
+  - name: review-contract
+    description: Review docs/RUNTIME_CONTRACT.md against actual server.py state (structural + AI pass)
+    tool: mcp_call
+    args:
+      tool_name: review_runtime_contract
+      args_json: "{}"
+
+  - name: repo-state
+    description: Capture current mq-mcp repo context as a baseline snapshot
+    tool: mcp_call
+    args:
+      tool_name: build_repo_context
+      args_json: "{}"
+
+  - name: write-report
+    description: Write drift report to drift-report.md for review
+    tool: write_file
+    args:
+      path: "drift-report.md"
+      content: "{{step:detect-drift}}"
+
+verify:
+  - detect-drift step completes without hard failure
+  - review-contract step completes (structural checks always run)
+  - drift-report.md written
+  - mq-mcp is not mutated (all tools are read-only Class A)
