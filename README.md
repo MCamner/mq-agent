@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.11.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.12.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -218,7 +218,7 @@ mq_agent/
 
 ## Proof
 
-- 292 tests pass — `uv run pytest -v` — no OpenAI calls required
+- 408+ tests pass — `uv run pytest -v` — no OpenAI calls required
 - `mq-agent score .` — 100/100 README, 16/16 publish checklist [PASS]
 - `mq-agent doctor` — all required checks pass
 - `mq-agent audit . --dry-run` — safe, read-only plan generation
@@ -245,6 +245,14 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.12.0 status
+
+- [x] `.github/workflows/mq-stack-gate.yml` — CI workflow for MQ stack gates
+- [x] CI checks out active MQ stack repos and links them to expected `~/...` paths
+- [x] `mq-agent stack contract-check --json` runs on pull requests and pushes to `main`
+- [x] `mq-agent stack release-check --json` runs on pull requests and pushes to `main`
+- [x] Stack drift and release blockers now fail CI before merge
 
 ## v1.11.0 status
 
@@ -449,7 +457,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-- harden v1.4.0 perception workflows
+- formalize v1.12.0 CI stack-gate release
+- add mqobsidian stack truth export
 - keep mq-agent orchestration-only
 - keep review logic, learn extraction, memory and risk reasoning in mq-mcp
 - improve mq ecosystem integrations without adding hidden autonomy
