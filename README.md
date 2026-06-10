@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.10.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.11.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -245,6 +245,16 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.11.0 status
+
+- [x] `mq-agent stack contract-check` — validates `.mq/repo-contract.json` across all stack repos
+- [x] `mq-agent stack contract-check --json` — machine-readable output
+- [x] `_contract_entry()` helper with READY / REVIEW / DRIFT / BLOCKED status model
+- [x] `schemas/mq_stack_repo_contract.schema.json` — JSON Schema for contract manifests
+- [x] `.mq/repo-contract.json` deployed to all 8 MQ stack repos
+- [x] `docs/STACK_CONTRACT_GATE.md` — reference doc
+- [x] 19 new tests (408 total)
 
 ## v1.10.0 status
 

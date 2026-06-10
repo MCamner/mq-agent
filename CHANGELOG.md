@@ -9,6 +9,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.11.0] — 2026-06-10
+
+### Added
+
+* `mq-agent stack contract-check` — validates that every mq-stack repo declares a
+  `.mq/repo-contract.json` manifest and that `contract.version` matches the repo's
+  `VERSION` file. Exits 1 on any BLOCKED or DRIFT.
+* `mq-agent stack contract-check --json` — machine-readable output.
+* `_contract_entry()` helper in `stack_tools.py` — per-repo contract validation
+  returning READY / REVIEW / DRIFT / BLOCKED.
+* `REQUIRED_CONTRACT_FIELDS` constant in `stack_tools.py`.
+* `schemas/mq_stack_repo_contract.schema.json` — JSON Schema for `.mq/repo-contract.json`.
+* `.mq/repo-contract.json` in all 8 MQ stack repos (initial manifests).
+* `docs/STACK_CONTRACT_GATE.md` — reference documentation.
+* 19 new tests (408 total).
+
 ## [v1.10.0] — 2026-06-10
 
 ### Added

@@ -1,0 +1,15 @@
+{
+  "repo": "mq-agent",
+  "role": "orchestrator",
+  "version": "1.11.0",
+  "status": "active",
+  "contracts": [
+    "stack_sweep.v1",
+    "stack_report.v1",
+    "stack_alert.v1",
+    "release_gate.v1",
+    "release_notes.v1",
+    "contract_gate.v1"
+  ],
+  "next_focus": "CI integration for stack alert"
+}

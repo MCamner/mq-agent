@@ -283,6 +283,79 @@ def stack_github_summary() -> str:
     return json.dumps(results, indent=2)
 
 
+REQUIRED_CONTRACT_FIELDS: frozenset[str] = frozenset({"repo", "role", "version", "status", "contracts"})
+
+
+def _contract_entry(entry: dict[str, str]) -> dict[str, Any]:
+    """Validate .mq/repo-contract.json for a single repo."""
+    path = _expand(entry["path"])
+    if not path.exists():
+        return {"name": entry["name"], "status": "BLOCKED", "reason": "repo not found locally"}
+
+    version = _version(path)
+    if version == "?":
+        return {"name": entry["name"], "status": "BLOCKED", "reason": "no VERSION file"}
+
+    if not (path / "README.md").exists():
+        return {"name": entry["name"], "status": "BLOCKED", "reason": "no README.md"}
+
+    contract_path = path / ".mq" / "repo-contract.json"
+    if not contract_path.exists():
+        return {"name": entry["name"], "status": "DRIFT", "reason": "missing .mq/repo-contract.json"}
+
+    try:
+        contract = json.loads(contract_path.read_text())
+    except Exception as exc:
+        return {"name": entry["name"], "status": "BLOCKED", "reason": f"invalid contract JSON: {exc}"}
+
+    missing = REQUIRED_CONTRACT_FIELDS - set(contract.keys())
+    if missing:
+        return {
+            "name": entry["name"],
+            "status": "BLOCKED",
+            "reason": f"contract missing fields: {', '.join(sorted(missing))}",
+        }
+
+    if contract.get("version") != version:
+        return {
+            "name": entry["name"],
+            "status": "DRIFT",
+            "reason": f"version mismatch: contract={contract['version']!r}, repo={version!r}",
+            "contract": contract,
+        }
+
+    warnings: list[str] = []
+    if _git(["status", "--short"], path):
+        warnings.append("uncommitted changes")
+    branch = _git(["branch", "--show-current"], path)
+    if branch and branch not in ("main", "master"):
+        warnings.append(f"on branch {branch!r}")
+
+    return {
+        "name": entry["name"],
+        "status": "REVIEW" if warnings else "READY",
+        "reason": "; ".join(warnings),
+        "contract": contract,
+    }
+
+
+def stack_contract_check() -> str:
+    """Cross-repo contract manifest check for all mq-stack repos.
+
+    Reads .mq/repo-contract.json per repo and validates VERSION sync.
+    Returns JSON with per-repo status (READY/REVIEW/DRIFT/BLOCKED) and overall verdict.
+    """
+    entries = [_contract_entry(r) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    has_failure = any(e["status"] in ("BLOCKED", "DRIFT") for e in entries)
+    reasons = [f"{e['name']}: {e['reason']}" for e in entries if e["status"] in ("BLOCKED", "DRIFT")]
+    return json.dumps({
+        "overall": "READY" if not has_failure else "NOT READY",
+        "reasons": reasons,
+        "repos": entries,
+        "checked_at": datetime.now(UTC).isoformat(),
+    }, indent=2)
+
+
 def stack_export(output_path: str = "") -> str:
     """Generate and write the mq-stack status markdown table to Obsidian.
 
