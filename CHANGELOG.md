@@ -9,6 +9,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.5.0] — 2026-06-10
+
+### Added
+
+* End-to-end MQ stack demo flow: `mq-agent signal . --brain` → `mq-agent review repo . --brain` → `mq-agent release-check --dry-run`
+* `mqlaunch/commands/demo-flow.sh` — standalone script running the full chain with progress headers
+* mqlaunch agent menu item 17 — **Demo flow (full stack)** exposing the chain from the interactive menu
+* `docs/DEMO.md` rewritten as the canonical v1.5.0 end-to-end reference with step-by-step output, one-liner, JSON and TUI sections
+
 ## [v1.4.0] — 2026-06-04
 
 ### Added
@@ -16,11 +25,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 * `mq-agent learn review-flow <path>` — orchestrates `review file` + `learn extract-review` in one read-only pass, with step-by-step output and a next-safe-action hint.
 * `mq-agent learn store <path> --approve` — stores the last extracted learn candidate as a learned pattern via `record_learning` (Class C write tool); `--dry-run` previews without executing.
 * `MultiMCPBridge.learn_record()` bridge method for `record_learning`
-
-## [v1.4.0] — 2026-06-04
-
-### Added
-
 * `mq-image-analyze` default MCP endpoint (`:8766`) for visual perception tools.
 * Read-only safety classification for `observe_architecture`, `image_ocr`,
   `analyze_*`, `extract_*`, `reverse_*` and `compare_*` MCP tool families.
