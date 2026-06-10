@@ -2652,6 +2652,89 @@ def stack_status_cmd(
     console.print(table)
 
 
+@stack_app.command("report")
+def stack_report_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Consolidated stack health view: score, trend, alert and readiness per repo.
+
+    Reads sweep history for scores and trend; no API key required.
+    """
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS
+
+    history_file = Path.home() / ".mq-agent" / "sweep-history.jsonl"
+    sweeps: list[dict] = []
+    if history_file.exists():
+        with history_file.open(encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line:
+                    try:
+                        sweeps.append(json.loads(_line))
+                    except json.JSONDecodeError:
+                        continue
+
+    alerts = _compute_alerts(sweeps) if len(sweeps) >= 2 else []
+    alert_names = {a["name"] for a in alerts}
+    latest = {e["name"]: e for e in sweeps[-1]["results"]} if sweeps else {}
+    prev = {e["name"]: e for e in sweeps[-2]["results"]} if len(sweeps) >= 2 else {}
+
+    rows: list[dict] = []
+    for r in MQ_STACK_REPOS:
+        name = r["name"]
+        curr = latest.get(name)
+        prv = prev.get(name)
+        if curr is None or curr.get("skipped"):
+            score: int | None = None
+            trend = "—"
+        else:
+            score = curr["overall"]
+            ps = prv.get("overall") if prv and not prv.get("skipped") else None
+            if ps is None:
+                trend = "new"
+            elif score > ps:
+                trend = f"↑+{score - ps}"
+            elif score < ps:
+                trend = f"↓{score - ps}"
+            else:
+                trend = "=="
+        has_alert = name in alert_names
+        ready = score is not None and score >= 80 and not has_alert
+        rows.append({"name": name, "score": score, "trend": trend, "alert": has_alert, "ready": ready})
+
+    if json_out:
+        typer.echo(json.dumps(rows, indent=2))
+        return
+
+    ts_note = f"  [dim]{sweeps[-1]['ts'][:16].replace('T', ' ')}[/dim]" if sweeps else ""
+    table = Table(title=f"mq-stack Report{ts_note}", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column("Score", width=9)
+    table.add_column("Trend", width=8)
+    table.add_column("Alert", width=7)
+    table.add_column("Ready", width=7)
+
+    for row in rows:
+        if row["score"] is None:
+            score_str = "[dim]—[/dim]"
+        else:
+            c = "green" if row["score"] >= 80 else "yellow" if row["score"] >= 50 else "red"
+            score_str = f"[{c}]{row['score']}/100[/{c}]"
+        t = row["trend"]
+        trend_str = f"[green]{t}[/green]" if t.startswith("↑") else (f"[red]{t}[/red]" if t.startswith("↓") else f"[dim]{t}[/dim]")
+        alert_str = "[yellow]⚠[/yellow]" if row["alert"] else ("[green]✓[/green]" if row["score"] is not None else "[dim]—[/dim]")
+        ready_str = "[green]✓[/green]" if row["ready"] else ("[dim]—[/dim]" if row["score"] is None else "[yellow]~[/yellow]")
+        table.add_row(row["name"], score_str, trend_str, alert_str, ready_str)
+
+    console.print(table)
+    if not sweeps:
+        console.print("\n[dim yellow]No sweep history — run:[/dim yellow] [bold]mq-agent stack sweep[/bold]")
+    else:
+        ready_count = sum(1 for r in rows if r["ready"])
+        total = sum(1 for r in rows if r["score"] is not None)
+        console.print(f"\n[dim]{ready_count}/{total} repos ready (score ≥ 80, no alert)[/dim]")
+
+
 @stack_app.command("export")
 def stack_export_cmd(
     output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: mqobsidian)")] = "",
@@ -2939,6 +3022,71 @@ def stack_alert_cmd(
 
     _print_alerts(alerts, sweeps[-2]["ts"], sweeps[-1]["ts"])
     raise typer.Exit(1)
+
+
+# ── stack release-check ────────────────────────────────────────────────────
+
+@stack_app.command("release-check")
+def stack_release_check_cmd(
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run release-readiness checks across all mq-stack repos.
+
+    Checks per repo: VERSION file, CHANGELOG entry, clean working tree,
+    on main/master branch. No API key required. Exits 1 on any blocker.
+    """
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, _release_entry
+
+    if dry_run:
+        console.print("[blue][dry-run][/blue] Would check:")
+        for r in MQ_STACK_REPOS:
+            p = _expand(r["path"])
+            console.print(f"  {r['name']:<18} {'✓' if p.exists() else '✗ (not found)'}")
+        return
+
+    with console.status("[cyan]Checking release readiness...[/cyan]"):
+        entries = [_release_entry(r) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+
+    all_go = all(e.get("go", False) for e in entries)
+
+    if json_out:
+        typer.echo(json.dumps({
+            "overall": "GO" if all_go else "NO-GO",
+            "repos": entries,
+        }, indent=2, default=str))
+        raise typer.Exit(0 if all_go else 1)
+
+    table = Table(title="mq-stack Release Check", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column("Version", width=9)
+    table.add_column("Branch", width=10)
+    table.add_column("Blockers", style="red", width=22)
+    table.add_column("Warnings", style="yellow")
+
+    for e in entries:
+        if not e.get("exists", True):
+            table.add_row(e["name"], "—", "—", "repo not found", "")
+            continue
+        branch = e.get("branch", "—")
+        branch_str = f"[green]{branch}[/green]" if e.get("on_main") else f"[yellow]{branch}[/yellow]"
+        blockers = ", ".join(e.get("blockers", [])) or "[green]none[/green]"
+        warnings = ", ".join(e.get("warnings", [])) or "[dim]none[/dim]"
+        table.add_row(
+            e["name"],
+            e.get("version", "?"),
+            branch_str,
+            blockers,
+            warnings,
+        )
+    console.print(table)
+
+    if all_go:
+        console.print("\n[bold green]✓ All repos clear — stack is GO.[/bold green]")
+    else:
+        blocked = [e["name"] for e in entries if not e.get("go", False)]
+        console.print(f"\n[bold red]✗ NO-GO — blocked: {', '.join(blocked)}[/bold red]")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

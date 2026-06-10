@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.8.0 — Stack alert (done)
-Next:    v1.9.0 — TBD
+v1.9.0 — Stack report + release gate (done)
+Next:    v1.10.0 — TBD
 ```
 
 Completed foundation:
@@ -67,10 +67,20 @@ Completed foundation:
 | v1.6.0  | Stack-wide health                            | Done    |
 | v1.7.0  | Repo health history                          | Done    |
 | v1.8.0  | Stack alert                                  | Done    |
+| v1.9.0  | Stack report + release gate                  | Done    |
 
 ---
 
 ## Completed
+
+### v1.9.0 — Stack report + release gate
+
+* [x] `mq-agent stack report` — score, trend, alert, readiness in one table
+* [x] `mq-agent stack report --json`
+* [x] `mq-agent stack release-check` — local release gate, exits 1 on blocker
+* [x] `mq-agent stack release-check --json` / `--dry-run`
+* [x] `docs/STACK_REPORT.md` — reference with workflow
+* [x] 15 new tests (376 total)
 
 ### v1.8.0 — Stack alert
 
