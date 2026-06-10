@@ -25,7 +25,7 @@ mq-agent stack history --json
 
 Every `mq-agent stack sweep` (without `--dry-run`) appends one snapshot to:
 
-```
+```text
 ~/.mq-agent/sweep-history.jsonl
 ```
 
@@ -44,7 +44,7 @@ Each line is a JSON record:
 
 ## Example: history table
 
-```
+```text
                Stack health history — last 3 sweep(s)
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
 ┃ Repo             ┃ 2026-06-08  ┃ 2026-06-09  ┃ 2026-06-10  ┃
@@ -64,7 +64,7 @@ History: ~/.mq-agent/sweep-history.jsonl  (3 sweep(s) total)
 
 ## Example: diff between two sweeps
 
-```
+```text
                  Sweep diff: 2026-06-09 12:00 → 2026-06-10 12:00
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
 ┃ Repo             ┃ 2026-06-09      ┃ 2026-06-10      ┃ Delta    ┃
