@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.4.0 — mq-image-analyze perception tool integration (done)
-Next:    define v1.5.0
+v1.5.0 — End-to-end demo flow (done)
+Next:    v1.6.0 — Stack-wide health
 ```
 
 Completed foundation:
@@ -25,7 +25,7 @@ Completed foundation:
 * Tool registry
 * repo-signal integration (v0.7.0+ with version guard)
 * mq-mcp bridge (mq-mcp v1.3.0, 66 tools, safety classes A–D)
-* mqlaunch integration
+* mqlaunch integration (menu + direct commands + demo-flow entry)
 * mq-image-analyze perception tool integration
 * Command surface documentation
 * Semantic repository memory
@@ -36,6 +36,8 @@ Completed foundation:
 * Declarative task runner with `{{step:name}}` templates
 * Controlled specialist orchestration
 * `run_task` tool — task chaining
+* End-to-end demo flow: signal → review → release-check → brain
+* mqobsidian second brain integration (brain record-review, brain decide, learn promote)
 
 ---
 
@@ -61,16 +63,51 @@ Completed foundation:
 | v1.2.0  | mq-mcp semantic memory + risk review routing | Done    |
 | v1.3.0  | Architecture memory, model-selection, learn  | Done    |
 | v1.4.0  | mq-image-analyze perception tool integration | Done    |
+| v1.5.0  | End-to-end demo flow                         | Done    |
+| v1.6.0  | Stack-wide health                            | Next    |
 
 ---
 
-## v1.4.0 — mq-image-analyze perception tool integration
+## v1.6.0 — Stack-wide health
+
+Goal: run the demo flow across all core MQ repos in one sweep and write a
+consolidated health view to mqobsidian. No new architecture — uses existing
+`swarm`, `stack`, and `brain` commands.
+
+Items:
+
+* [ ] `mq-agent stack status` — verify all core repos are reachable and tracked
+* [ ] `mq-agent swarm release-check` — run release-check across the MQ stack
+* [ ] `mq-agent signal <repo> --brain` loop over all stack repos — one brain note per repo
+* [ ] Consolidated brain summary: `brain decide` ADR capturing stack health snapshot
+* [ ] `mqlaunch` menu item 18 — Stack health sweep
+* [ ] `docs/STACK_HEALTH.md` — document the multi-repo flow with example output
+* [ ] Tag v1.6.0 once sweep runs clean across all core repos
+
+Hard boundary: mq-agent orchestrates the sweep; it does not implement repo health scoring locally.
+All scoring stays in repo-signal and mq-mcp.
+
+---
+
+## Completed
+
+### v1.5.0 — End-to-end demo flow
+
+Goal: run the full MQ stack as one verifiable flow — no new features, just
+integration and documentation.
+
+* [x] `mq-agent signal . --brain` — repo-signal readiness + brain note
+* [x] `mq-agent review repo . --brain` — mq-mcp review + brain note
+* [x] `mq-agent release-check --dry-run` — contract/release gate
+* [x] `mqlaunch/commands/demo-flow.sh` — standalone chain script
+* [x] mqlaunch agent menu item 17 — Demo flow (full stack)
+* [x] `docs/DEMO.md` rewritten as canonical v1.5.0 reference
+
+### v1.4.0 — mq-image-analyze perception tool integration
 
 Goal: route mq-image-analyze visual perception tools through mq-agent.
 mq-agent delegates image inspection to mq-image-analyze and passes
 structured visual context onward to mq-mcp or the user.
-
-Items:
 
 * [x] `mq-agent run-tool observe_architecture` — delegate to mq-image-analyze `observe_architecture` tool
 * [x] `mq-agent run-tool image_ocr` — delegate to mq-image-analyze `image_ocr` tool
@@ -78,12 +115,12 @@ Items:
 * [x] Document mq-image-analyze tool registration in `docs/MQ_ECOSYSTEM.md`
 * [x] Smoke tests: mq-agent → mq-image-analyze → structured visual context → mq-mcp
 
-Hard boundary (unchanged): mq-agent must never implement image analysis locally.
+Hard boundary: mq-agent must never implement image analysis locally.
 Delegation and rendering only.
 
 ---
 
-## Completed
+## Completed (pre-v1.4.0)
 
 ### v0.1.0 — Foundation
 
@@ -572,13 +609,11 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-Start v1.1.0 implementation:
+Start v1.6.0 — Stack-wide health:
 
-* Add `mq-agent review` command group
-* Route `review_file`, `review_diff` and `review_repo` through MCPBridge
-* Display mq-mcp severity findings without reinterpretation
-* Route `--security` and `--architecture` flags to mq-mcp review contracts
-* Route `--risk` only when supported by the installed mq-mcp version
-* Add smoke tests for mq-agent -> mq-mcp review runtime calls
-* Add `validate_orchestration_contract` to mq-agent doctor checks
-* Update `COMMAND_SURFACE.md`, `MCP_INTEGRATION.md` and `EXAMPLES.md`
+* Run `mq-agent stack status` and verify all core repos are tracked
+* Loop `mq-agent signal <repo> --brain` over the MQ stack repos
+* Run `mq-agent swarm release-check` across the stack
+* Write consolidated health ADR via `mq-agent decide`
+* Add mqlaunch agent menu item 18 — Stack health sweep
+* Document the multi-repo flow in `docs/STACK_HEALTH.md`

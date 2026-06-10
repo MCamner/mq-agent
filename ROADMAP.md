@@ -10,6 +10,7 @@ All planned phases complete through v1.4.0.
 | --- | --- | --- |
 | v1.4.0 | mq-image-analyze perception tool integration | Done |
 | v1.5.0 | End-to-end demo flow | Done |
+| v1.6.0 | Stack-wide health | Unscheduled |
 
 ## v1.5.0 — End-to-end demo flow
 
