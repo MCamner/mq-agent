@@ -246,6 +246,16 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
+## v1.11.0 status
+
+- [x] `mq-agent stack contract-check` — validates `.mq/repo-contract.json` across all stack repos
+- [x] `mq-agent stack contract-check --json` — machine-readable output
+- [x] `_contract_entry()` helper with READY / REVIEW / DRIFT / BLOCKED status model
+- [x] `schemas/mq_stack_repo_contract.schema.json` — JSON Schema for contract manifests
+- [x] `.mq/repo-contract.json` deployed to all 8 MQ stack repos
+- [x] `docs/STACK_CONTRACT_GATE.md` — reference doc
+- [x] 19 new tests (408 total)
+
 ## v1.10.0 status
 
 - [x] `mq-agent stack release-notes` — draft notes from git commits since last tag, per repo
