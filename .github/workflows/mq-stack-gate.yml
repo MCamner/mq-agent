@@ -1,0 +1,87 @@
+name: MQ Stack Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mq-stack-gate:
+    name: Contract and release gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out mq-agent
+        uses: actions/checkout@v4
+        with:
+          path: mq-agent
+
+      - name: Check out macos-scripts
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/macos-scripts
+          path: macos-scripts
+
+      - name: Check out mq-mcp
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/mq-mcp
+          path: mq-mcp
+
+      - name: Check out repo-signal
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/repo-signal
+          path: repo-signal
+
+      - name: Check out mq-hal
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/mq-hal
+          path: mq-hal
+
+      - name: Check out mq-image-analyze
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/mq-image-analyze
+          path: mq-image-analyze
+
+      - name: Check out mq-ums
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/mq-ums
+          path: mq-ums
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mq-agent
+        working-directory: mq-agent
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Link MQ stack repos into expected home layout
+        run: |
+          ln -s "$GITHUB_WORKSPACE/macos-scripts" "$HOME/macos-scripts"
+          ln -s "$GITHUB_WORKSPACE/mq-agent" "$HOME/mq-agent"
+          ln -s "$GITHUB_WORKSPACE/mq-mcp" "$HOME/mq-mcp"
+          ln -s "$GITHUB_WORKSPACE/repo-signal" "$HOME/repo-signal"
+          ln -s "$GITHUB_WORKSPACE/mq-hal" "$HOME/mq-hal"
+          ln -s "$GITHUB_WORKSPACE/mq-image-analyze" "$HOME/mq-image-analyze"
+          ln -s "$GITHUB_WORKSPACE/mq-ums" "$HOME/mq-ums"
+
+      - name: Run stack contract gate
+        working-directory: mq-agent
+        run: mq-agent stack contract-check --json
+
+      - name: Run stack release gate
+        working-directory: mq-agent
+        run: mq-agent stack release-check --json
