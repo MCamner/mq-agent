@@ -2416,7 +2416,10 @@ def stack_export_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
 ):
     """Write the mq-stack status table to mqobsidian/mq-stack/05_RELEASE_STATUS.md."""
-    from mq_agent.tools.stack_tools import OBSIDIAN_STATUS, MQ_STACK_REPOS, _repo_entry, stack_export
+    from mq_agent.tools.stack_tools import (
+        OBSIDIAN_STATUS,
+        stack_export,
+    )
 
     dest = output or str(OBSIDIAN_STATUS)
 
