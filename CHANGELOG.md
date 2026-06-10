@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.8.0] — 2026-06-10
+
+### Added
+
+* `mq-agent stack alert` — standalone command comparing the last two sweep snapshots; exits 1 when alerts are found (CI-friendly)
+* `mq-agent stack sweep --alert` — inline alert check at the end of a sweep
+* `--threshold N` — point drop that triggers an alert (default: 10)
+* `--min-score N` — score below which a repo always alerts (default: 80)
+* `--json` — machine-readable alert list (`[]` + exit 0 when clean)
+* `docs/STACK_ALERT.md` — reference with alert conditions, exit codes, and CI integration examples
+* 18 new tests (`tests/test_stack_alert.py`) — 361 total
+
 ## [v1.7.0] — 2026-06-10
 
 ### Added
