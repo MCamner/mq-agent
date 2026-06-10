@@ -35,6 +35,7 @@ The command exits 1 if any repo is BLOCKED or DRIFT. REVIEW does not fail the ga
 * **REVIEW** — contract valid but has warnings (uncommitted changes, non-main branch). Does not fail the gate.
 * **DRIFT** — contract missing or version not synced with `VERSION` file. Fails the gate.
 * **BLOCKED** — hard error: repo not found, no VERSION, no README, invalid JSON, or missing required fields. Fails the gate.
+* **SKIPPED** (CI mode only) — repo not present in the CI workspace. Never fails the gate.
 
 ## Contract file
 
@@ -44,7 +45,7 @@ Each MQ repo must have `.mq/repo-contract.json`:
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "status": "active",
   "contracts": ["stack_sweep.v1", "contract_gate.v1"],
   "next_focus": ""
@@ -107,6 +108,40 @@ jq '.version = "1.12.0"' .mq/repo-contract.json > /tmp/c.json && mv /tmp/c.json 
 # 3. Run the gate
 mq-agent stack contract-check
 ```
+
+## CI mode
+
+In GitHub Actions only the repo under test is checked out — the sibling repos
+in `~/` do not exist. Running the gate plainly there would report every sibling
+as BLOCKED. The `--ci` flag fixes this:
+
+```bash
+mq-agent stack contract-check --ci --json
+mq-agent stack release-check --ci --json
+```
+
+In CI mode:
+
+* A repo missing from the workspace is reported as **SKIPPED** and never fails the gate.
+* The CI checkout itself is detected via its directory name (the checkout
+  directory equals the repo name) and is **fully validated** — version sync,
+  required fields, README. A DRIFT or BLOCKED in the checked-out repo still
+  exits 1.
+* The JSON output gains a `mode` field (`"ci"` or `"local"`).
+
+The repo ships `.github/workflows/mq-stack-gate.yml`, which runs both gates on
+every pull request and push to `main`:
+
+```yaml
+- name: Stack contract gate
+  run: uv run mq-agent stack contract-check --ci --json
+
+- name: Stack release gate
+  run: uv run mq-agent stack release-check --ci --json
+```
+
+This means a version bump that forgets to update `.mq/repo-contract.json`
+fails the PR before it can merge.
 
 ## Companion commands
 

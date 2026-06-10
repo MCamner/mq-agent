@@ -1,0 +1,27 @@
+name: MQ Stack Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mq-stack-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: uv pip install -e .
+
+      - name: Stack contract gate
+        run: uv run mq-agent stack contract-check --ci --json
+
+      - name: Stack release gate
+        run: uv run mq-agent stack release-check --ci --json

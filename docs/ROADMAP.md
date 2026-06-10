@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.11.0 — Stack contract gate (done)
-Next:    v1.12.0 — TBD
+v1.12.0 — CI integration for stack gates (done)
+Next:    v1.13.0 — TBD
 ```
 
 Completed foundation:
@@ -70,10 +70,21 @@ Completed foundation:
 | v1.9.0  | Stack report + release gate                  | Done    |
 | v1.10.0 | Stack release notes                          | Done    |
 | v1.11.0 | Stack contract gate                          | Done    |
+| v1.12.0 | CI integration for stack gates               | Done    |
 
 ---
 
 ## Completed
+
+### v1.12.0 — CI integration for stack gates
+
+* [x] `.github/workflows/mq-stack-gate.yml` — contract + release gates on PRs and pushes to main
+* [x] `mq-agent stack contract-check --ci` — missing sibling repos SKIPPED instead of BLOCKED
+* [x] `mq-agent stack release-check --ci` — missing sibling repos do not block
+* [x] `_ci_repo_path()` — CI checkout (dir named after repo) is validated fully
+* [x] `mode` field (`ci` / `local`) in JSON output of both gates
+* [x] CI behavior documented in `docs/STACK_CONTRACT_GATE.md` and `docs/STACK_ALERT.md`
+* [x] 21 new tests (`test_stack_ci_mode.py`, 429 total)
 
 ### v1.11.0 — Stack contract gate
 

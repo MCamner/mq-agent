@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -9,7 +9,8 @@
     "stack_alert.v1",
     "release_gate.v1",
     "release_notes.v1",
-    "contract_gate.v1"
+    "contract_gate.v1",
+    "ci_gate.v1"
   ],
-  "next_focus": "CI integration for stack alert"
+  "next_focus": "stack gate results to brain (--brain)"
 }

@@ -9,6 +9,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.12.0] — 2026-06-10
+
+### Added
+
+* `.github/workflows/mq-stack-gate.yml` — runs the stack contract gate and the
+  stack release gate on every pull request and push to `main`.
+* `mq-agent stack contract-check --ci` — CI mode: sibling repos missing from the
+  workspace are reported as SKIPPED instead of BLOCKED; the CI checkout itself
+  is still fully validated (VERSION sync, required fields, README).
+* `mq-agent stack release-check --ci` — CI mode: missing sibling repos are
+  skipped instead of blocking the gate.
+* `_ci_repo_path()` helper in `stack_tools.py` — maps the CI checkout directory
+  (named after the repo) to its stack entry.
+* `mode` field (`ci` / `local`) in the JSON output of both gates.
+* 21 new tests (`tests/test_stack_ci_mode.py`, 429 total).
+
+### Changed
+
+* `stack contract-check` status model extended with SKIPPED (CI mode only).
+
 ## [v1.11.0] — 2026-06-10
 
 ### Added
