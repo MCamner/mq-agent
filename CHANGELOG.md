@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.9.0] — 2026-06-10
+
+### Added
+
+* `mq-agent stack report` — consolidated per-repo view: score, trend (↑↓==), alert status, readiness; reads sweep history, no API key
+* `mq-agent stack report --json` — machine-readable rows with all fields
+* `mq-agent stack release-check` — local release gate across all stack repos: VERSION, README, CHANGELOG entry, clean tree, branch; exits 1 on any blocker
+* `mq-agent stack release-check --dry-run` — list repos without running checks
+* `mq-agent stack release-check --json` — GO/NO-GO with full per-repo detail
+* `docs/STACK_REPORT.md` — reference doc with example output, column guide, and typical workflow
+* 15 new tests (`tests/test_stack_report.py`) — 376 total
+
 ## [v1.8.0] — 2026-06-10
 
 ### Added
