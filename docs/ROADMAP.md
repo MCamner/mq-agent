@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.10.0 — Stack release notes (done)
-Next:    v1.11.0 — TBD
+v1.11.0 — Stack contract gate (done)
+Next:    v1.12.0 — TBD
 ```
 
 Completed foundation:
@@ -69,10 +69,23 @@ Completed foundation:
 | v1.8.0  | Stack alert                                  | Done    |
 | v1.9.0  | Stack report + release gate                  | Done    |
 | v1.10.0 | Stack release notes                          | Done    |
+| v1.11.0 | Stack contract gate                          | Done    |
 
 ---
 
 ## Completed
+
+### v1.11.0 — Stack contract gate
+
+* [x] `mq-agent stack contract-check` — validate `.mq/repo-contract.json` across all repos
+* [x] `mq-agent stack contract-check --json` — machine-readable; exits 1 on BLOCKED or DRIFT
+* [x] Status model: READY → REVIEW (uncommitted) → DRIFT (version mismatch) → BLOCKED (missing)
+* [x] `REQUIRED_CONTRACT_FIELDS` frozenset — validates required JSON keys
+* [x] `_contract_entry()` helper in `stack_tools.py`
+* [x] `schemas/mq_stack_repo_contract.schema.json` — JSON Schema 2020-12
+* [x] `.mq/repo-contract.json` seeded in all 7 active stack repos
+* [x] `docs/STACK_CONTRACT_GATE.md` — reference with workflow and jq one-liners
+* [x] 19 new tests (`test_stack_contract_gate.py`)
 
 ### v1.10.0 — Stack release notes
 

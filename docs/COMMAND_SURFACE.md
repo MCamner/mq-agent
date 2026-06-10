@@ -147,6 +147,71 @@ Each swarm runs multiple agents in sequence with declared safety contracts.
 | `release-check` | ci + audit + release | yes (for release agent) |
 | `ci` | ci + audit | no |
 
+## Stack Commands
+
+Stack commands operate across all mq-stack repos without an API key. They read
+local clones and git history only. No AI calls unless `--brain` or `--decide` is used.
+
+### Stack status and sweep
+
+| Command | Needs API key | Notes |
+|---|---:|---|
+| `mq-agent stack status` | no | Version, branch, drift risk and readiness per repo |
+| `mq-agent stack status --json` | no | Machine-readable status |
+| `mq-agent stack export` | no | Export stack manifest as JSON |
+| `mq-agent stack sweep` | yes (signal) | Run repo-signal over all repos |
+| `mq-agent stack sweep --dry-run` | no | Preview repos that would be scanned |
+| `mq-agent stack sweep --json` | yes | Machine-readable sweep results |
+| `mq-agent stack sweep --brain` | yes | Write brain note per repo via mqobsidian |
+| `mq-agent stack sweep --decide` | yes | Write ADR snapshot to brain |
+| `mq-agent stack sweep --alert` | yes | Exit 1 if any repo dropped or is below 80 |
+| `mq-agent stack sweep --alert --threshold N` | yes | Custom drop threshold |
+
+### Stack health history
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack history` | Show last 5 sweep scores per repo |
+| `mq-agent stack history -n N` | Show last N sweeps |
+| `mq-agent stack history --diff` | Score delta between two most recent sweeps |
+| `mq-agent stack history --json` | Machine-readable history |
+
+### Stack alert
+
+Exits 0 when no alerts, exits 1 when alerts are found — CI-friendly.
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack alert` | Warn when any repo dropped ≥ 10 pts or is below 80 |
+| `mq-agent stack alert --threshold N` | Custom drop threshold |
+| `mq-agent stack alert --min-score N` | Custom minimum score |
+| `mq-agent stack alert --json` | Machine-readable alert output |
+
+### Stack report and release gate
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack report` | Score, trend, alert, readiness in one table |
+| `mq-agent stack report --json` | Machine-readable report |
+| `mq-agent stack release-check` | Release-readiness check; exits 1 on blocker |
+| `mq-agent stack release-check --dry-run` | Preview repos that would be checked |
+| `mq-agent stack release-check --json` | Machine-readable; exits 1 on NO-GO |
+| `mq-agent stack release-notes` | Draft release notes from git log since last tag |
+| `mq-agent stack release-notes --repo <name>` | Limit to one repo |
+| `mq-agent stack release-notes --json` | Machine-readable notes |
+
+### Stack contract gate
+
+Validates that every repo has a `.mq/repo-contract.json` in sync with `VERSION`.
+Exits 0 only when all repos are READY or REVIEW. Exits 1 on BLOCKED or DRIFT.
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack contract-check` | Validate contract manifests across all repos |
+| `mq-agent stack contract-check --json` | Machine-readable; exits 1 on NOT READY |
+
+Status levels: `READY` → `REVIEW` (uncommitted changes) → `DRIFT` (version mismatch) → `BLOCKED` (missing file/field).
+
 ## mqlaunch Agent Menu
 
 The mqlaunch agent menu has exactly 12 items.
