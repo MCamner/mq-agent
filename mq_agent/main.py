@@ -3030,11 +3030,14 @@ def stack_alert_cmd(
 def stack_release_check_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    ci: Annotated[bool, typer.Option("--ci", help="CI mode: skip repos missing from the workspace")] = False,
 ):
     """Run release-readiness checks across all mq-stack repos.
 
     Checks per repo: VERSION file, CHANGELOG entry, clean working tree,
     on main/master branch. No API key required. Exits 1 on any blocker.
+    With --ci, sibling repos missing from the workspace are skipped instead
+    of blocking — only repos that are present (e.g. the CI checkout) gate.
     """
     from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, _release_entry
 
@@ -3046,13 +3049,14 @@ def stack_release_check_cmd(
         return
 
     with console.status("[cyan]Checking release readiness...[/cyan]"):
-        entries = [_release_entry(r) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+        entries = [_release_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
 
     all_go = all(e.get("go", False) for e in entries)
 
     if json_out:
         typer.echo(json.dumps({
             "overall": "GO" if all_go else "NO-GO",
+            "mode": "ci" if ci else "local",
             "repos": entries,
         }, indent=2, default=str))
         raise typer.Exit(0 if all_go else 1)
@@ -3065,6 +3069,9 @@ def stack_release_check_cmd(
     table.add_column("Warnings", style="yellow")
 
     for e in entries:
+        if e.get("skipped"):
+            table.add_row(e["name"], "—", "—", "", "[dim]skipped (CI)[/dim]")
+            continue
         if not e.get("exists", True):
             table.add_row(e["name"], "—", "—", "repo not found", "")
             continue
@@ -3150,16 +3157,19 @@ def stack_release_notes_cmd(
 @stack_app.command("contract-check")
 def stack_contract_check_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    ci: Annotated[bool, typer.Option("--ci", help="CI mode: skip repos missing from the workspace")] = False,
 ):
     """Validate that every mq-stack repo declares a contract manifest.
 
     Reads .mq/repo-contract.json per repo and checks VERSION sync.
     No API key required. Exits 1 if any repo is BLOCKED or DRIFT.
+    With --ci, repos missing from the workspace are SKIPPED instead of
+    BLOCKED — the CI checkout itself is still fully validated.
     """
     from mq_agent.tools.stack_tools import stack_contract_check as _check
 
     with console.status("[cyan]Reading contract manifests...[/cyan]"):
-        raw = _check()
+        raw = _check(ci=ci)
 
     data = json.loads(raw)
 
@@ -3172,6 +3182,7 @@ def stack_contract_check_cmd(
         "REVIEW":  "[yellow]REVIEW[/yellow]",
         "DRIFT":   "[red]DRIFT[/red]",
         "BLOCKED": "[bold red]BLOCKED[/bold red]",
+        "SKIPPED": "[dim]SKIPPED[/dim]",
     }
 
     console.print()

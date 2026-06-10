@@ -4,14 +4,47 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 5 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  mq-stack-gate:
+  # Fast, isolated gate for pull requests: only the checkout itself is
+  # validated; sibling repos are SKIPPED so unrelated drift in another
+  # stack repo cannot fail an mq-agent PR.
+  pr-gate:
+    name: Contract and release gates (CI mode)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mq-agent
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Stack contract gate
+        run: mq-agent stack contract-check --ci --json
+
+      - name: Stack release gate
+        run: mq-agent stack release-check --ci --json
+
+  # Full-stack gate for pushes to main, nightly runs, and manual dispatch:
+  # checks out every MQ stack repo and validates the whole stack.
+  full-stack-gate:
     name: Contract and release gates
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
