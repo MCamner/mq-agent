@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.6.0 — Stack-wide health (done)
-Next:    v1.7.0 — TBD
+v1.7.0 — Repo health history (done)
+Next:    v1.8.0 — TBD
 ```
 
 Completed foundation:
@@ -65,10 +65,20 @@ Completed foundation:
 | v1.4.0  | mq-image-analyze perception tool integration | Done    |
 | v1.5.0  | End-to-end demo flow                         | Done    |
 | v1.6.0  | Stack-wide health                            | Done    |
+| v1.7.0  | Repo health history                          | Done    |
 
 ---
 
 ## Completed
+
+### v1.7.0 — Repo health history
+
+* [x] `stack sweep` appends every non-dry-run run to `~/.mq-agent/sweep-history.jsonl`
+* [x] `mq-agent stack history` — tabular trend view, last N sweeps
+* [x] `mq-agent stack history --diff` — delta table between last two sweeps
+* [x] `mq-agent stack history --json` / `--limit N`
+* [x] `docs/STACK_HISTORY.md` — reference with JSONL schema and jq examples
+* [x] 13 new tests (343 total)
 
 ### v1.6.0 — Stack-wide health
 
@@ -351,9 +361,9 @@ Every powerful feature must have:
 
 ## Current recommended next step
 
-v1.6.0 is complete. To kick off v1.7.0, first run the full stack sweep to baseline
-the current state, then decide scope from the health output:
+v1.7.0 is complete. Run a sweep to baseline, then view the trend:
 
 ```bash
-mq-agent stack sweep --brain --decide
+mq-agent stack sweep
+mq-agent stack history
 ```

@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.7.0] — 2026-06-10
+
+### Added
+
+* `mq-agent stack sweep` now appends every non-dry-run result to `~/.mq-agent/sweep-history.jsonl`
+* `mq-agent stack history` — tabular view of per-repo health scores across the last N sweeps
+* `mq-agent stack history --diff` — delta table comparing the last two sweep snapshots
+* `mq-agent stack history --json` — machine-readable output (full JSONL records)
+* `mq-agent stack history --limit N` — control how many past sweeps to display (default 5)
+* `docs/STACK_HISTORY.md` — reference doc with example output, JSONL schema, and jq scripting
+* 13 new tests (`tests/test_stack_history.py`) — 343 total
+
 ## [v1.6.0] — 2026-06-10
 
 ### Added
