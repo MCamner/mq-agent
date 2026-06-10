@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/mq_stack_repo_contract.schema.json",
+  "title": "MQ Stack Repo Contract",
+  "description": "Declares a repo's participation in the MQ stack contract gate.",
+  "type": "object",
+  "required": ["repo", "role", "version", "status", "contracts"],
+  "additionalProperties": false,
+  "properties": {
+    "repo": {
+      "type": "string",
+      "description": "Repository slug matching MQ_STACK_REPOS name."
+    },
+    "role": {
+      "type": "string",
+      "description": "Role this repo plays in the MQ stack."
+    },
+    "version": {
+      "type": "string",
+      "description": "Must match the VERSION file in the repo root.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+.*$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "rc", "experimental", "deprecated"],
+      "description": "Release status of the repo."
+    },
+    "contracts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Interface contracts this repo declares (e.g. 'stack_sweep.v1')."
+    },
+    "next_focus": {
+      "type": "string",
+      "description": "Optional: next planned work item."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional: free-text notes."
+    }
+  }
+}
