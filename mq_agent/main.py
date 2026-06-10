@@ -2507,6 +2507,63 @@ def b2_run_cmd(
         }, indent=2))
 
 
+# ── stack — history persistence ────────────────────────────────────────────
+
+def _sweep_history_append(results: list[dict]) -> None:
+    """Append a sweep snapshot to ~/.mq-agent/sweep-history.jsonl."""
+    import datetime
+    history_file = Path.home() / ".mq-agent" / "sweep-history.jsonl"
+    history_file.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "ts": datetime.datetime.now(datetime.UTC).isoformat(),
+        "results": results,
+    }
+    with history_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, default=str) + "\n")
+
+
+def _stack_history_diff(sweep_a: dict, sweep_b: dict) -> None:
+    """Print a diff table between two sweep snapshots."""
+    ts_a = sweep_a["ts"][:16].replace("T", " ")
+    ts_b = sweep_b["ts"][:16].replace("T", " ")
+    results_a = {e["name"]: e for e in sweep_a["results"]}
+    results_b = {e["name"]: e for e in sweep_b["results"]}
+    all_names = list(dict.fromkeys(list(results_a) + list(results_b)))
+
+    table = Table(title=f"Sweep diff: {ts_a} → {ts_b}", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column(ts_a, width=12)
+    table.add_column(ts_b, width=12)
+    table.add_column("Delta", width=10)
+
+    def _fmt(e: dict | None) -> str:
+        if e is None or e.get("skipped"):
+            return "[dim]—[/dim]"
+        score = e.get("overall", 0)
+        color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
+        return f"[{color}]{score}[/{color}]"
+
+    def _score(e: dict | None) -> int | None:
+        if e is None or e.get("skipped"):
+            return None
+        return e.get("overall")
+
+    for name in all_names:
+        sa = _score(results_a.get(name))
+        sb = _score(results_b.get(name))
+        if sa is None or sb is None:
+            delta_str = "[dim]—[/dim]"
+        elif sb > sa:
+            delta_str = f"[green]+{sb - sa}[/green]"
+        elif sb < sa:
+            delta_str = f"[red]{sb - sa}[/red]"
+        else:
+            delta_str = "[dim]==[/dim]"
+        table.add_row(name, _fmt(results_a.get(name)), _fmt(results_b.get(name)), delta_str)
+
+    console.print(table)
+
+
 # ── stack — mq-stack repo status ───────────────────────────────────────────
 
 @stack_app.command("status")
@@ -2641,6 +2698,8 @@ def stack_sweep_cmd(
                 },
             )
 
+    _sweep_history_append(results)
+
     if json_out:
         typer.echo(json.dumps(results, indent=2, default=str))
         return
@@ -2688,6 +2747,77 @@ def stack_sweep_cmd(
             console.print(f"\n[dim]→ brain ADR: {adr_result.get('path', 'saved')}[/dim]")
         else:
             console.print("\n[dim yellow]brain decide: skipped or unavailable[/dim yellow]")
+
+
+# ── stack history ──────────────────────────────────────────────────────────
+
+@stack_app.command("history")
+def stack_history_cmd(
+    limit: Annotated[int, typer.Option("--limit", "-n", help="Number of past sweeps to show")] = 5,
+    diff: Annotated[bool, typer.Option("--diff", help="Diff the two most recent sweeps")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show repo health scores from past stack sweeps."""
+    history_file = Path.home() / ".mq-agent" / "sweep-history.jsonl"
+    if not history_file.exists():
+        console.print("[yellow]No sweep history yet.[/yellow]  Run: [bold]mq-agent stack sweep[/bold]")
+        return
+
+    sweeps: list[dict] = []
+    with history_file.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    sweeps.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+    if not sweeps:
+        console.print("[yellow]History file is empty.[/yellow]  Run: [bold]mq-agent stack sweep[/bold]")
+        return
+
+    if diff:
+        if len(sweeps) < 2:
+            console.print("[yellow]Need at least 2 sweeps to diff.[/yellow]")
+            return
+        _stack_history_diff(sweeps[-2], sweeps[-1])
+        return
+
+    recent = sweeps[-limit:]
+
+    if json_out:
+        typer.echo(json.dumps(recent, indent=2, default=str))
+        return
+
+    repo_names: list[str] = []
+    for sweep in recent:
+        for e in sweep["results"]:
+            if e["name"] not in repo_names:
+                repo_names.append(e["name"])
+
+    table = Table(title=f"Stack health history — last {len(recent)} sweep(s)", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    for sweep in recent:
+        ts = sweep["ts"][:16].replace("T", " ")
+        table.add_column(ts, width=12)
+
+    for name in repo_names:
+        row: list[str] = [name]
+        for sweep in recent:
+            entry = next((e for e in sweep["results"] if e["name"] == name), None)
+            if entry is None:
+                row.append("[dim]—[/dim]")
+            elif entry.get("skipped"):
+                row.append("[dim]skip[/dim]")
+            else:
+                score = entry["overall"]
+                color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
+                row.append(f"[{color}]{score}[/{color}]")
+        table.add_row(*row)
+
+    console.print(table)
+    console.print(f"\n[dim]History: {history_file}  ({len(sweeps)} sweep(s) total)[/dim]")
 
 
 if __name__ == "__main__":

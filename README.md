@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.6.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.7.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -245,6 +245,15 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.7.0 status
+
+- [x] `mq-agent stack sweep` appends every run to `~/.mq-agent/sweep-history.jsonl`
+- [x] `mq-agent stack history` — tabular trend view across last N sweeps
+- [x] `mq-agent stack history --diff` — delta table between last two sweeps
+- [x] `mq-agent stack history --json` / `--limit N` — scripting and filtering
+- [x] `docs/STACK_HISTORY.md` — reference with example output and JSON scripting
+- [x] 13 new tests (343 total)
 
 ## v1.6.0 status
 
