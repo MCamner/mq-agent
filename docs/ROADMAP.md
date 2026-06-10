@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.7.0 — Repo health history (done)
-Next:    v1.8.0 — TBD
+v1.8.0 — Stack alert (done)
+Next:    v1.9.0 — TBD
 ```
 
 Completed foundation:
@@ -66,10 +66,20 @@ Completed foundation:
 | v1.5.0  | End-to-end demo flow                         | Done    |
 | v1.6.0  | Stack-wide health                            | Done    |
 | v1.7.0  | Repo health history                          | Done    |
+| v1.8.0  | Stack alert                                  | Done    |
 
 ---
 
 ## Completed
+
+### v1.8.0 — Stack alert
+
+* [x] `mq-agent stack alert` — exits 1 when a repo dropped ≥ threshold or is below min-score
+* [x] `mq-agent stack sweep --alert` — inline alert at end of sweep
+* [x] `--threshold N` / `--min-score N` — configurable thresholds
+* [x] `--json` — machine-readable, CI-friendly exit codes
+* [x] `docs/STACK_ALERT.md` — reference with CI integration examples
+* [x] 18 new tests (361 total)
 
 ### v1.7.0 — Repo health history
 

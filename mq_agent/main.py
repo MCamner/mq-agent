@@ -2564,6 +2564,55 @@ def _stack_history_diff(sweep_a: dict, sweep_b: dict) -> None:
     console.print(table)
 
 
+# ── stack — alert helpers ──────────────────────────────────────────────────
+
+def _compute_alerts(sweeps: list[dict], threshold: int = 10, min_score: int = 80) -> list[dict]:
+    """Return alert entries by comparing the last two sweep snapshots."""
+    if len(sweeps) < 2:
+        return []
+    prev_map = {e["name"]: e for e in sweeps[-2]["results"]}
+    curr_map = {e["name"]: e for e in sweeps[-1]["results"]}
+    alerts: list[dict] = []
+    for name, e in curr_map.items():
+        if e.get("skipped"):
+            continue
+        score = e.get("overall", 0)
+        p = prev_map.get(name)
+        prev_score: int | None = p.get("overall") if p and not p.get("skipped") else None
+        reasons: list[str] = []
+        if prev_score is not None and (prev_score - score) >= threshold:
+            reasons.append(f"dropped {prev_score - score} pts")
+        if score < min_score:
+            reasons.append(f"below {min_score}")
+        if reasons:
+            alerts.append({
+                "name": name,
+                "prev": prev_score,
+                "current": score,
+                "delta": (score - prev_score) if prev_score is not None else None,
+                "reasons": reasons,
+            })
+    return alerts
+
+
+def _print_alerts(alerts: list[dict], ts_prev: str, ts_curr: str) -> None:
+    """Render alert table to console."""
+    table = Table(title=f"[bold red]Stack alerts[/bold red]  {ts_prev[:16].replace('T', ' ')} → {ts_curr[:16].replace('T', ' ')}", show_header=True)
+    table.add_column("Repo", style="cyan", width=18)
+    table.add_column("Prev", width=6)
+    table.add_column("Now", width=6)
+    table.add_column("Delta", width=8)
+    table.add_column("Reason", style="yellow")
+    for a in alerts:
+        prev_str = str(a["prev"]) if a["prev"] is not None else "—"
+        score = a["current"]
+        color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
+        delta = a["delta"]
+        delta_str = f"[red]{delta}[/red]" if delta is not None and delta < 0 else (f"[green]+{delta}[/green]" if delta and delta > 0 else "[dim]==[/dim]")
+        table.add_row(a["name"], prev_str, f"[{color}]{score}[/{color}]", delta_str, ", ".join(a["reasons"]))
+    console.print(table)
+
+
 # ── stack — mq-stack repo status ───────────────────────────────────────────
 
 @stack_app.command("status")
@@ -2632,11 +2681,14 @@ def stack_sweep_cmd(
     decide: Annotated[bool, typer.Option("--decide", help="Write a brain ADR summarising the stack health snapshot")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    alert: Annotated[bool, typer.Option("--alert", help="Warn when a repo drops or falls below min-score")] = False,
+    threshold: Annotated[int, typer.Option("--threshold", help="Point drop that triggers an alert")] = 10,
 ):
     """Run repo-signal over every mq-stack repo and optionally write brain notes + an ADR snapshot.
 
     For each reachable repo: runs mq-agent signal --brain (read + optional write).
     With --decide: writes a brain ADR via mq-agent decide capturing overall health.
+    With --alert: exits 1 if any repo dropped >= threshold points or is below 80.
     """
     from mq_agent.agents.signal_agent import SignalAgent
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
@@ -2718,6 +2770,25 @@ def stack_sweep_cmd(
         color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
         table.add_row(e["name"], f"[{color}]{score}/100[/{color}]", str(e.get("publish", "?")), "[green]✓[/green]" if score >= 80 else "[yellow]~[/yellow]")
     console.print(table)
+
+    if alert:
+        history_file = Path.home() / ".mq-agent" / "sweep-history.jsonl"
+        sweeps: list[dict] = []
+        if history_file.exists():
+            with history_file.open(encoding="utf-8") as _hf:
+                for _line in _hf:
+                    _line = _line.strip()
+                    if _line:
+                        try:
+                            sweeps.append(json.loads(_line))
+                        except json.JSONDecodeError:
+                            continue
+        found_alerts = _compute_alerts(sweeps, threshold=threshold)
+        if found_alerts:
+            _print_alerts(found_alerts, sweeps[-2]["ts"] if len(sweeps) >= 2 else "", sweeps[-1]["ts"] if sweeps else "")
+            raise typer.Exit(1)
+        else:
+            console.print("[green]✓ No alerts — all repos healthy or stable.[/green]")
 
     if decide:
         healthy = [e["name"] for e in results if not e.get("skipped") and e.get("overall", 0) >= 80]
@@ -2818,6 +2889,56 @@ def stack_history_cmd(
 
     console.print(table)
     console.print(f"\n[dim]History: {history_file}  ({len(sweeps)} sweep(s) total)[/dim]")
+
+
+# ── stack alert ────────────────────────────────────────────────────────────
+
+@stack_app.command("alert")
+def stack_alert_cmd(
+    threshold: Annotated[int, typer.Option("--threshold", "-t", help="Point drop that triggers an alert")] = 10,
+    min_score: Annotated[int, typer.Option("--min-score", help="Score below this always alerts")] = 80,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Warn when a repo dropped >= threshold points or is below min-score since the last sweep.
+
+    Exits 0 when no alerts, exits 1 when alerts are found (CI-friendly).
+    """
+    history_file = Path.home() / ".mq-agent" / "sweep-history.jsonl"
+    if not history_file.exists():
+        console.print("[yellow]No sweep history yet.[/yellow]  Run: [bold]mq-agent stack sweep[/bold]")
+        return
+
+    sweeps: list[dict] = []
+    with history_file.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    sweeps.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+    if not sweeps:
+        console.print("[yellow]History file is empty.[/yellow]  Run: [bold]mq-agent stack sweep[/bold]")
+        return
+
+    if len(sweeps) < 2:
+        console.print("[yellow]Need at least 2 sweeps to compare.[/yellow]  Run: [bold]mq-agent stack sweep[/bold] again.")
+        return
+
+    alerts = _compute_alerts(sweeps, threshold=threshold, min_score=min_score)
+
+    if json_out:
+        typer.echo(json.dumps(alerts, indent=2))
+        raise typer.Exit(1 if alerts else 0)
+
+    if not alerts:
+        console.print("[green]✓ No alerts — all repos healthy or stable.[/green]")
+        console.print(f"[dim]Compared: {sweeps[-2]['ts'][:16].replace('T', ' ')} → {sweeps[-1]['ts'][:16].replace('T', ' ')}[/dim]")
+        return
+
+    _print_alerts(alerts, sweeps[-2]["ts"], sweeps[-1]["ts"])
+    raise typer.Exit(1)
 
 
 if __name__ == "__main__":
