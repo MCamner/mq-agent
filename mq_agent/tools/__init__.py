@@ -31,6 +31,7 @@ from .signal_tools import (
     repo_suggest,
 )
 from .stack_tools import stack_export, stack_github_summary, stack_release_check, stack_status
+from .stack_truth import stack_truth_export
 
 TOOL_REGISTRY: dict[str, Callable] = {
     # Git
@@ -59,6 +60,7 @@ TOOL_REGISTRY: dict[str, Callable] = {
     # mq-stack status & release discipline
     "stack_status": stack_status,
     "stack_export": stack_export,
+    "stack_truth_export": stack_truth_export,
     "stack_release_check": stack_release_check,
     "stack_github_summary": stack_github_summary,
     # B2 prompt OS
