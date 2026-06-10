@@ -304,6 +304,32 @@ class MultiMCPBridge:
         """Store the extracted learn candidate for a file as a learned pattern (Class C write)."""
         return self._call_required_tool("record_learning", {"relative_path": relative_path})
 
+    def learn_from_review(self, relative_path: str, task: str = "", risk: str = "low") -> Any:
+        """Create a learning record from the last review findings for a file (Class C write)."""
+        return self._call_required_tool(
+            "learn_from_review",
+            {"relative_path": relative_path, "task": task, "risk": risk},
+        )
+
+    def learn_from_diff(self, task: str, lesson: str, risk: str = "low", validation: str = "") -> Any:
+        """Create a learning record with the current git diff as context (Class C write)."""
+        return self._call_required_tool(
+            "learn_from_diff",
+            {"task": task, "lesson": lesson, "risk": risk, "validation": validation},
+        )
+
+    def learn_hygiene(self) -> Any:
+        """Return a hygiene report for stored learning records."""
+        return self._call_optional_tool("learn_hygiene", {})
+
+    def learn_summarize(self, limit: int = 20) -> Any:
+        """Return a plain-text summary of stored learning records."""
+        return self._call_optional_tool("summarize_learnings", {"limit": limit})
+
+    def ollama_learn_status(self) -> Any:
+        """Check whether the local Ollama mq-learn model is available."""
+        return self._call_optional_tool("ollama_learn_status", {})
+
     def _call_optional_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
         """Call a named MCP tool, returning None (not an error) when not available."""
         for bridge in self.bridges.values():

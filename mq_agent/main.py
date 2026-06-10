@@ -50,7 +50,7 @@ app.add_typer(swarm_app, name="swarm")
 review_app = typer.Typer(help="Pass-through mq-mcp review orchestration.")
 app.add_typer(review_app, name="review")
 
-learn_app = typer.Typer(help="Read-only access to mq-mcp learned review patterns.")
+learn_app = typer.Typer(help="Learn commands — extraction, storage and promotion of review patterns.")
 app.add_typer(learn_app, name="learn")
 
 b2_app = typer.Typer(help="B2 prompt OS — route topics to prompts and run workflows.")
@@ -963,6 +963,142 @@ def learn_promote_cmd(
         err = result.get("error", str(result)) if isinstance(result, dict) else str(result)
         console.print(f"[red]promote failed:[/red] {err}")
         raise typer.Exit(1)
+
+
+@learn_app.command("from-review")
+def learn_from_review_cmd(
+    path: Annotated[str, typer.Argument(help="Repo-relative file path")],
+    task: Annotated[str, typer.Option("--task", "-t", help="What was being worked on")] = "",
+    risk: Annotated[str, typer.Option("--risk", help="low | medium | high")] = "low",
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to mq-mcp learn layer")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Create a learning record from the last review for a file. Class C write — requires --approve."""
+    if dry_run:
+        console.print(
+            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp learn_from_review relative_path={path}"
+            f"{' task=' + task if task else ''} risk={risk}[/bold]"
+        )
+        return
+
+    if not approve:
+        console.print(
+            "[yellow]learn_from_review is a Class C write tool.[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_from_review(path, task=task, risk=risk)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(str(result.get("error", result)), title="[bold red]learn from-review failed[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+
+    text_result = _extract_mcp_text_result(result)
+    msg = text_result or json.dumps(result, indent=2, default=str)
+    console.print(Panel(Text(msg), title=f"[bold green]Learning recorded: {path}[/bold green]", border_style="green"))
+
+
+@learn_app.command("from-diff")
+def learn_from_diff_cmd(
+    task: Annotated[str, typer.Option("--task", "-t", help="What was being done")] = "",
+    lesson: Annotated[str, typer.Option("--lesson", "-l", help="What was learned")] = "",
+    risk: Annotated[str, typer.Option("--risk", help="low | medium | high")] = "low",
+    validation: Annotated[str, typer.Option("--validation", help="How it was verified")] = "",
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to mq-mcp learn layer")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Create a learning record with the current git diff as context. Class C write — requires --approve."""
+    if not task or not lesson:
+        console.print("[red]--task and --lesson are required.[/red]")
+        raise typer.Exit(1)
+
+    if dry_run:
+        console.print(
+            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp learn_from_diff "
+            f"task={task!r} lesson={lesson!r} risk={risk}[/bold]"
+        )
+        return
+
+    if not approve:
+        console.print(
+            "[yellow]learn_from_diff is a Class C write tool.[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_from_diff(task=task, lesson=lesson, risk=risk, validation=validation)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if isinstance(result, dict) and result.get("ok") is False:
+            raise typer.Exit(1)
+        return
+
+    if isinstance(result, dict) and result.get("ok") is False:
+        console.print(Panel(str(result.get("error", result)), title="[bold red]learn from-diff failed[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+
+    text_result = _extract_mcp_text_result(result)
+    msg = text_result or json.dumps(result, indent=2, default=str)
+    console.print(Panel(Text(msg), title="[bold green]Learning recorded from diff[/bold green]", border_style="green"))
+
+
+@learn_app.command("hygiene")
+def learn_hygiene_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show hygiene report for stored learning records. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_hygiene()
+
+    if result is None:
+        console.print("[dim]learn_hygiene not available in this mq-mcp version.[/dim]")
+        return
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        return
+
+    text_result = _extract_mcp_text_result(result)
+    msg = text_result or json.dumps(result, indent=2, default=str)
+    console.print(Panel(Text(msg), title="[bold]Learn hygiene report[/bold]"))
+
+
+@learn_app.command("summarize")
+def learn_summarize_cmd(
+    limit: Annotated[int, typer.Option("--limit", help="Max number of records to include")] = 20,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Summarize stored learning records. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_summarize(limit=limit)
+
+    if result is None:
+        console.print("[dim]summarize_learnings not available in this mq-mcp version.[/dim]")
+        return
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        return
+
+    text_result = _extract_mcp_text_result(result)
+    msg = text_result or json.dumps(result, indent=2, default=str)
+    console.print(Panel(Text(msg), title="[bold]Learned patterns — summary[/bold]"))
 
 
 # ── brain ──────────────────────────────────────────────────────────────────
