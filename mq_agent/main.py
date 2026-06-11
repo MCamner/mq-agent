@@ -2735,25 +2735,28 @@ def stack_report_cmd(
         console.print(f"\n[dim]{ready_count}/{total} repos ready (score ≥ 80, no alert)[/dim]")
 
 
+@stack_app.command("truth-export")
 @stack_app.command("export")
 def stack_export_cmd(
-    output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: mqobsidian)")] = "",
+    output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: dated note under mqobsidian/memory/stack-truth/)")] = "",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
 ):
-    """Write the mq-stack status table to mqobsidian/mq-stack/05_RELEASE_STATUS.md."""
-    from mq_agent.tools.stack_tools import (
-        OBSIDIAN_STATUS,
-        stack_export,
-    )
+    """Write the mq-stack truth snapshot (contract + release gates) to mqobsidian.
 
-    dest = output or str(OBSIDIAN_STATUS)
+    Primary name: `stack truth-export`. `stack export` is kept as a
+    backwards-compatible alias — both run the same export.
+    """
+    from mq_agent.tools.stack_tools import stack_export
+    from mq_agent.tools.stack_truth import default_stack_truth_path
+
+    dest = output or str(default_stack_truth_path())
 
     if dry_run:
         console.print(f"[blue][dry-run][/blue] Would write to: {dest}")
         return
 
-    with console.status("[cyan]Collecting stack status...[/cyan]"):
-        msg = stack_export(output_path=dest)
+    with console.status("[cyan]Collecting stack truth...[/cyan]"):
+        msg = stack_export(output_path=output)
 
     console.print(f"[green]{msg}[/green]")
 
