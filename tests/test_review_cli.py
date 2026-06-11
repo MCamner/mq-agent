@@ -15,10 +15,10 @@ runner = CliRunner()
 
 class FakeReviewBridge:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, object | None, dict[str, bool]]] = []
+        self.calls: list[tuple[str, object | None, dict[str, Any]]] = []
         self.tool_calls: list[tuple[str, dict[str, str]]] = []
 
-    def call_tool(self, tool: str, args: dict[str, str]) -> dict[str, Any]:
+    def call_tool(self, tool: str, args: dict[str, str]) -> Any:
         self.tool_calls.append((tool, args))
         return {
             "schema": "visual_architecture_observation.v1",
@@ -97,7 +97,7 @@ def test_review_file_architecture_image_passes_visual_context_to_mcp():
 
 def test_review_diff_architecture_image_unwraps_json_string_payload():
     class JsonStringBridge(FakeReviewBridge):
-        def call_tool(self, tool: str, args: dict[str, str]) -> str:
+        def call_tool(self, tool: str, args: dict[str, str]) -> Any:
             self.tool_calls.append((tool, args))
             return json.dumps({
                 "schema": "visual_architecture_observation.v1",
