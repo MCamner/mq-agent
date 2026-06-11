@@ -102,6 +102,7 @@ def test_executor_dry_run_skips_actual_call():
     step = PlanStep(index=0, description="Echo something", tool="echo_tool")
     result = ex.run_step(step, state)
     assert result.status == StepStatus.SUCCESS
+    assert result.result is not None
     assert "[dry-run]" in result.result
 
 def test_executor_runs_tool():
@@ -111,6 +112,7 @@ def test_executor_runs_tool():
     step = PlanStep(index=0, description="Echo something", tool="echo_tool", args={"message": "hi"})
     result = ex.run_step(step, state)
     assert result.status == StepStatus.SUCCESS
+    assert result.result is not None
     assert "echo: hi" in result.result
 
 def test_executor_captures_tool_failure():
@@ -120,6 +122,7 @@ def test_executor_captures_tool_failure():
     step = PlanStep(index=0, description="Failing step", tool="failing_tool")
     result = ex.run_step(step, state)
     assert result.status == StepStatus.FAILED
+    assert result.error is not None
     assert "boom" in result.error
 
 def test_executor_unknown_tool():
@@ -129,6 +132,7 @@ def test_executor_unknown_tool():
     step = PlanStep(index=0, description="Run unknown", tool="nonexistent_tool")
     result = ex.run_step(step, state)
     assert result.status == StepStatus.FAILED
+    assert result.error is not None
     assert "Unknown tool" in result.error
 
 def test_executor_skips_when_safety_blocks():
