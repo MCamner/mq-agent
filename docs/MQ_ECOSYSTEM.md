@@ -19,6 +19,9 @@ Division of labour across the stack: **mqlaunch launches, mq-agent
 orchestrates, mq-mcp thinks and runs, repo-signal measures, mqobsidian
 remembers.**
 
+See [MQ_CONTROL_PLANE.md](MQ_CONTROL_PLANE.md) for the control-plane map that
+ties signal, review, learn, memory and release into one operator flow.
+
 ## Layered architecture
 
 ```text

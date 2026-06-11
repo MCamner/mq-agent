@@ -235,6 +235,7 @@ uv run pytest tests/ -v
 - [Command reference](docs/COMMANDS.md)
 - [Command surface](docs/COMMAND_SURFACE.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [MQ control plane](docs/MQ_CONTROL_PLANE.md)
 - [Safety contract](docs/SAFETY_CONTRACT.md)
 - [Ollama-backed learn extraction](docs/LEARN_OLLAMA.md)
 - [mq ecosystem](docs/MQ_ECOSYSTEM.md)

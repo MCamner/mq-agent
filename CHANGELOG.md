@@ -15,6 +15,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   Ollama, brain export rendering and release readiness. Read-only by default;
   supports `--dry-run`, `--json`, `--brain`, `--ci`, and `--approve`.
 * `mq-agent run --stack` — canonical root alias for the stack runtime pipeline.
+* `docs/MQ_CONTROL_PLANE.md` — system map for signal, review, learn, memory
+  and release across the MQ stack.
 
 ## [v1.15.0] — 2026-06-11
 
