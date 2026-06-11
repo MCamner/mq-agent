@@ -22,6 +22,21 @@ mqlaunch -> mq-agent -> mq-mcp / mq-hal / repo-signal
 profiles. Class C/D tools always require explicit `--approve`. mq-agent must
 not reimplement mq-mcp review logic or architecture reasoning locally.
 
+## Flag Contract
+
+These rules hold across the whole command surface and are enforced by
+`tests/test_flag_contract.py`:
+
+* `--dry-run` never writes — it previews the calls and returns before any
+  execution, including `--brain` writes.
+* `--json` is machine-readable: stdout is parseable JSON.
+* `--brain` is the explicit opt-in for a brain write on otherwise read-only
+  commands, and always respects `--dry-run`. Every `--brain` command also
+  offers `--dry-run` and `--json`.
+* `--approve` is required for commands whose primary action is a write
+  (`learn store/promote/from-review/from-diff`, `brain record-review`,
+  `decide`).
+
 ## mq-agent Commands
 
 | Command | Safety mode | Needs API key | Notes |

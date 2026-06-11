@@ -28,7 +28,7 @@ measures, mqobsidian remembers, mqlaunch launches.
 * [x] `mq-agent stack cockpit` — one table for the whole stack:
   repo, status, branch, dirty, version, contract, release gate,
   brain export freshness, next action. Later the input to mq-hal.
-* [ ] Consistent flag behaviour across write-capable commands:
+* [x] Consistent flag behaviour across write-capable commands:
   `--dry-run` never writes, `--json` machine-readable, `--brain`
   never writes without an explicit command, `--approve` required
   for write flows.
