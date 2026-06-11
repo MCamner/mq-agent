@@ -35,6 +35,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 * `docs/COMMAND_SURFACE.md` — added the missing `stack release` section and
   the new `stack cockpit` section.
 * 17 new tests (`tests/test_stack_cockpit.py`).
+* Standard mqobsidian export structure — `mq-agent brain structure` checks
+  the vault against the standard layout (`memory/stack-truth/`,
+  `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`, `mq-stack/roadmaps/`),
+  reports legacy vault-root directories, and creates the missing directories
+  with `--init --approve` (`mq_agent/tools/vault_structure.py`, registered as
+  the `vault_structure` tool). Gate-friendly exit codes; `--json` output.
+* `docs/VAULT_STRUCTURE.md` — reference documentation; Brain Commands section
+  in `docs/COMMAND_SURFACE.md`.
+* 15 new tests (`tests/test_vault_structure.py`).
 
 ## [v1.14.0] — 2026-06-11
 
