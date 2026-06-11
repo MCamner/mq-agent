@@ -8,6 +8,7 @@ from .b2tui_tools import (
     b2_route,
     b2_route_info,
 )
+from .brain_gate import brain_release_gate
 from .browser_tools import fetch_url, inspect_url, summarize_url, verify_release_url
 from .git_tools import git_branch, git_diff, git_log, git_remote, git_status
 from .image_tools import (
@@ -69,6 +70,7 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "stack_cockpit": stack_cockpit,
     "stack_github_summary": stack_github_summary,
     "vault_structure": vault_structure,
+    "brain_release_gate": brain_release_gate,
     # B2 prompt OS
     "b2_list_prompts": b2_list_prompts,
     "b2_route": b2_route,

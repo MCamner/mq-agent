@@ -35,8 +35,9 @@ measures, mqobsidian remembers, mqlaunch launches.
 * [x] Standard mqobsidian export structure: `memory/stack-truth/`,
   `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`, `mq-stack/roadmaps/`
   — `mq-agent brain structure` (check / `--init --approve`)
-* [ ] Brain release gate: `contract-check` + `release-check` +
-  `truth-export --dry-run` + `review repo --brain --dry-run` green before release
+* [x] Brain release gate: `mq-agent stack brain-gate` — `contract-check` +
+  `release-check` + truth-export dry-run + vault structure + the
+  review→brain write path, all green before release
 * [ ] Docs sync: README, docs/ROADMAP, MQ_ECOSYSTEM, CHANGELOG, repo-contract
 * [ ] Tag v1.15.0
 

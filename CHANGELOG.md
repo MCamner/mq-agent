@@ -44,6 +44,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 * `docs/VAULT_STRUCTURE.md` — reference documentation; Brain Commands section
   in `docs/COMMAND_SURFACE.md`.
 * 15 new tests (`tests/test_vault_structure.py`).
+* Brain release gate — `mq-agent stack brain-gate` runs the pre-release
+  checklist for the brain-integrated stack: contract-check READY,
+  release-check GO, truth-export dry-run renders, vault structure complete,
+  and the review→brain write path wired (mq-mcp reachable with both
+  `review_repo` and `brain_record_review`). Read-only, gate-friendly exit
+  codes, `--json`
+  (`mq_agent/tools/brain_gate.py`, registered as the `brain_release_gate`
+  tool).
+* `docs/BRAIN_GATE.md` — reference documentation.
+* 12 new tests (`tests/test_brain_gate.py`).
 
 ## [v1.14.0] — 2026-06-11
 
