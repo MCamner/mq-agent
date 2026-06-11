@@ -32,8 +32,9 @@ measures, mqobsidian remembers, mqlaunch launches.
   `--dry-run` never writes, `--json` machine-readable, `--brain`
   never writes without an explicit command, `--approve` required
   for write flows.
-* [ ] Standard mqobsidian export structure: `memory/stack-truth/`,
+* [x] Standard mqobsidian export structure: `memory/stack-truth/`,
   `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`, `mq-stack/roadmaps/`
+  — `mq-agent brain structure` (check / `--init --approve`)
 * [ ] Brain release gate: `contract-check` + `release-check` +
   `truth-export --dry-run` + `review repo --brain --dry-run` green before release
 * [ ] Docs sync: README, docs/ROADMAP, MQ_ECOSYSTEM, CHANGELOG, repo-contract

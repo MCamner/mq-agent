@@ -97,6 +97,22 @@ local review heuristics.
 | `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 
+## Brain Commands
+
+Direct mqobsidian vault commands. All writes are Class C and require `--approve`.
+
+| Command | Writes | Notes |
+|---|---:|---|
+| `mq-agent brain structure` | no | Check the vault against the standard export structure (exit 1 if incomplete) |
+| `mq-agent brain structure --json` | no | Machine-readable structure report |
+| `mq-agent brain structure --init --approve` | yes | Create missing standard directories, each with a README |
+| `mq-agent brain record-review --source <id> --approve` | yes | Write a review summary via mq-mcp `brain_record_review` |
+| `mq-agent decide <title> --context ... --decision ... --rationale ... --approve` | yes | Write an ADR via mq-mcp `brain_record_decision` |
+
+The standard export structure (see [VAULT_STRUCTURE.md](VAULT_STRUCTURE.md)):
+`memory/stack-truth/`, `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`,
+`mq-stack/roadmaps/`.
+
 ## MCP Commands
 
 | Command | Needs MCP server | Notes |

@@ -1178,6 +1178,78 @@ def brain_record_review_cmd(
         raise typer.Exit(code=1)
 
 
+@brain_app.command(name="structure")
+def brain_structure_cmd(
+    init: Annotated[bool, typer.Option("--init", help="Create missing standard directories (write)")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Required with --init")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Check the mqobsidian vault against the standard export structure.
+
+    Read-only by default. --init --approve creates the missing standard
+    directories (memory/stack-truth, memory/reviews, memory/learn,
+    mq-stack/runs, mq-stack/roadmaps), each with a small README. Exit code
+    1 unless the structure is complete — usable as a gate.
+    """
+    from mq_agent.tools.vault_structure import vault_structure
+
+    if init and not approve:
+        console.print(
+            "[bold yellow]Blocked:[/bold yellow] --init writes to the mqobsidian vault.\n"
+            "Add [bold]--approve[/bold] to proceed."
+        )
+        raise typer.Exit(code=1)
+
+    raw = vault_structure(init=init)
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        if data["status"] != "OK":
+            raise typer.Exit(code=1)
+        return
+
+    if data["status"] == "NO_VAULT":
+        console.print(f"[red]Vault not found:[/red] {data['vault']}")
+        raise typer.Exit(code=1)
+
+    console.print()
+    console.rule("[bold]mqobsidian export structure[/bold]")
+    console.print()
+
+    table = Table(show_header=True)
+    table.add_column("Directory", style="cyan", no_wrap=True)
+    table.add_column("Purpose")
+    table.add_column("Notes", justify="right", no_wrap=True)
+    table.add_column("Newest", no_wrap=True)
+    table.add_column("Status", no_wrap=True)
+
+    for d in data["dirs"]:
+        table.add_row(
+            d["path"] + "/",
+            d["purpose"],
+            str(d["notes"]) if d["exists"] else "—",
+            d["newest"] or "—",
+            "[green]ok[/green]" if d["exists"] else "[red]missing[/red]",
+        )
+    console.print(table)
+
+    for created in data["created"]:
+        console.print(f"  [green]created:[/green] {created}/")
+    for legacy in data["legacy"]:
+        console.print(
+            f"  [yellow]legacy:[/yellow] {legacy['path']}/ — {legacy['notes']} note(s)"
+            f" (standard: {legacy['standard']}/)"
+        )
+
+    console.print()
+    status_str = "[green]OK[/green]" if data["status"] == "OK" else "[red]INCOMPLETE[/red]"
+    console.print(f"  Structure: {status_str}   Vault: [dim]{data['vault']}[/dim]")
+    if data["status"] != "OK":
+        console.print("  Next: [bold]mq-agent brain structure --init --approve[/bold]")
+        raise typer.Exit(code=1)
+
+
 # ── decide ─────────────────────────────────────────────────────────────────
 
 @app.command()

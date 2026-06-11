@@ -34,6 +34,7 @@ from .stack_cockpit import stack_cockpit
 from .stack_release import stack_release
 from .stack_tools import stack_export, stack_github_summary, stack_release_check, stack_status
 from .stack_truth import stack_truth_export
+from .vault_structure import vault_structure
 
 TOOL_REGISTRY: dict[str, Callable] = {
     # Git
@@ -67,6 +68,7 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "stack_release": stack_release,
     "stack_cockpit": stack_cockpit,
     "stack_github_summary": stack_github_summary,
+    "vault_structure": vault_structure,
     # B2 prompt OS
     "b2_list_prompts": b2_list_prompts,
     "b2_route": b2_route,
