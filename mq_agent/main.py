@@ -3440,5 +3440,42 @@ def stack_cockpit_cmd(
     console.print(f"  Next: [bold]{data['next_action']}[/bold]")
 
 
+@stack_app.command("brain-gate")
+def stack_brain_gate_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Brain release gate: contract-check + release-check + truth-export
+    dry-run + vault structure + the review→brain write path, all green
+    before a release. Read-only; exit 1 on NO-GO.
+    """
+    from mq_agent.tools.brain_gate import brain_release_gate
+
+    with console.status("[cyan]Running brain release gate...[/cyan]"):
+        raw = brain_release_gate()
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        if data["overall"] != "GO":
+            raise typer.Exit(code=1)
+        return
+
+    console.print()
+    console.rule("[bold]Brain release gate[/bold]")
+    console.print()
+    for check in data["checks"]:
+        mark = "[green]✓[/green]" if check["status"] == "PASS" else "[red]✗[/red]"
+        console.print(f"  {mark} [bold]{check['name']:<16}[/bold] {check['detail']}")
+        if check.get("hint"):
+            console.print(f"      [dim]→ {check['hint']}[/dim]")
+
+    console.print()
+    if data["overall"] == "GO":
+        console.print("  Brain gate: [bold green]GO[/bold green] — all green, release away")
+    else:
+        console.print(f"  Brain gate: [bold red]NO-GO[/bold red]   Next: [bold]{data['next_action']}[/bold]")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

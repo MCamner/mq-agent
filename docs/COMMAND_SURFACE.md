@@ -272,6 +272,16 @@ One merged read-only view of the whole stack — later the input to mq-hal.
 | `mq-agent stack cockpit` | Repo, version, branch, dirty, contract, gate, next action per repo |
 | `mq-agent stack cockpit --json` | Machine-readable cockpit snapshot |
 
+### Brain release gate
+
+Pre-release checklist for the brain-integrated stack. Read-only; exit 1 on
+NO-GO. See `docs/BRAIN_GATE.md`.
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack brain-gate` | contract-check + release-check + truth-export dry-run + vault structure + brain write path |
+| `mq-agent stack brain-gate --json` | Machine-readable gate result |
+
 ## mqlaunch Agent Menu
 
 The mqlaunch agent menu has exactly 12 items.
