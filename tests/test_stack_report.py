@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -143,7 +142,7 @@ class TestStackReleaseCheck:
         assert "Would check" in result.output
 
     def test_json_shape(self, fake_repo):
-        from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _release_entry
+        from mq_agent.tools.stack_tools import _release_entry
         entry = _release_entry({"name": "fake", "path": str(fake_repo)})
         assert "go" in entry
         assert "blockers" in entry
