@@ -7,6 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+* `mq-agent stack run` — v1.16 stack runtime gate for repo-signal, mq-mcp,
+  Ollama, brain export rendering and release readiness. Read-only by default;
+  supports `--dry-run`, `--json`, `--brain`, `--ci`, and `--approve`.
+* `mq-agent run --stack` — canonical root alias for the stack runtime pipeline.
+
 ## [v1.15.0] — 2026-06-11
 
 ### Fixed

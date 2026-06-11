@@ -21,6 +21,7 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent release-check --approve` | execute | yes | Run release checks with execution |
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
 | `mq-agent run "cmd" --approve` | execute | no | Run a shell command safely |
+| `mq-agent run --stack` | read-only | no | Run the canonical stack runtime pipeline |
 | `mq-agent tui` | read-only | no | Launch Textual dashboard |
 
 ## MCP commands
@@ -115,6 +116,10 @@ mq-agent release-check --dry-run
 # Safe shell execution
 mq-agent run "pytest" --approve
 mq-agent run "git status"          # read commands don't need --approve
+
+# Canonical stack runtime
+mq-agent run --stack --dry-run
+mq-agent run --stack --json
 
 # MCP tool inspection and execution
 mq-agent mcp status --json

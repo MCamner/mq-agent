@@ -210,17 +210,41 @@ def repo_summary_cmd(
 
 @app.command()
 def run(
-    command: Annotated[str, typer.Argument(help="Shell command to run")],
+    command: Annotated[str, typer.Argument(help="Shell command to run")] = "",
     cwd: Annotated[str, typer.Option("--cwd")] = ".",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     approve: Annotated[bool, typer.Option("--approve", help="Execute the command")] = False,
+    stack: Annotated[bool, typer.Option("--stack", help="Run the canonical stack runtime pipeline")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Write stack truth export when combined with --approve and --stack")] = False,
+    ci: Annotated[bool, typer.Option("--ci", help="CI mode for --stack runtime gates")] = False,
 ):
-    """Run a shell command safely. Requires --approve to execute."""
+    """Run a shell command safely, or the canonical stack runtime with --stack."""
     from mq_agent.tools.shell_tools import run_command
+
+    if stack:
+        from mq_agent.tools.stack_runtime import stack_run as _stack_run
+
+        with console.status("[cyan]Running stack runtime...[/cyan]"):
+            raw = _stack_run(dry_run=dry_run, brain=brain, ci=ci, approve=approve)
+        data = json.loads(raw)
+        if json_out:
+            typer.echo(raw)
+            raise typer.Exit(0 if data["overall"] == "PASS" else 1)
+        _print_stack_runtime(data)
+        raise typer.Exit(0 if data["overall"] == "PASS" else 1)
+
+    if not command:
+        console.print("[red]Provide a shell command, or use [bold]--stack[/bold] for the stack runtime.[/red]")
+        raise typer.Exit(1)
 
     if dry_run:
         console.print(f"[blue][dry-run][/blue] Would run: [bold]{command}[/bold]")
         return
+
+    if json_out or brain or ci:
+        console.print("[red]--json, --brain and --ci are only valid with [bold]--stack[/bold].[/red]")
+        raise typer.Exit(1)
 
     if not approve:
         console.print(f"[yellow]?[/yellow] Would run: [bold]{command}[/bold]")
@@ -3445,6 +3469,53 @@ def stack_cockpit_cmd(
                   f"   Contract: {'[green]READY[/green]' if data['overall_contract'] == 'READY' else '[red]NOT READY[/red]'}"
                   f"   Brain export: {brain_str}")
     console.print(f"  Next: [bold]{data['next_action']}[/bold]")
+
+
+def _print_stack_runtime(data: dict[str, Any]) -> None:
+    console.print()
+    console.rule("[bold]mq-stack Runtime[/bold]")
+    console.print()
+    for step in data["steps"]:
+        mark = "[green]✓[/green]" if step["status"] == "PASS" else "[red]✗[/red]"
+        console.print(f"  {mark} [bold]{step['name']:<13}[/bold] {step['detail']}")
+        if step.get("hint"):
+            console.print(f"      [dim]→ {step['hint']}[/dim]")
+
+    console.print()
+    if data["overall"] == "PASS":
+        suffix = "  [dim](dry-run)[/dim]" if data["dry_run"] else ""
+        console.print(f"  Runtime: [bold green]PASS[/bold green]{suffix}")
+    else:
+        console.print(f"  Runtime: [bold red]FAIL[/bold red]   Next: [bold]{data['next_action']}[/bold]")
+
+
+@stack_app.command("run")
+def stack_run_cmd(
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    brain: Annotated[bool, typer.Option("--brain", help="Write the stack truth export when combined with --approve")] = False,
+    ci: Annotated[bool, typer.Option("--ci", help="CI mode: skip repos missing from the workspace in release gates")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write steps requested by --brain")] = False,
+):
+    """Run the v1.16 stack runtime gate.
+
+    Checks repo-signal, mq-mcp, Ollama, brain export rendering and release
+    readiness in one operator-facing pass. Read-only by default; `--brain`
+    writes the truth export only when `--approve` is also supplied.
+    """
+    from mq_agent.tools.stack_runtime import stack_run as _stack_run
+
+    with console.status("[cyan]Running stack runtime...[/cyan]"):
+        raw = _stack_run(dry_run=dry_run, brain=brain, ci=ci, approve=approve)
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        raise typer.Exit(0 if data["overall"] == "PASS" else 1)
+
+    _print_stack_runtime(data)
+    if data["overall"] != "PASS":
+        raise typer.Exit(1)
 
 
 @stack_app.command("brain-gate")

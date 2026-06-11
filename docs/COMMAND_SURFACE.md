@@ -56,6 +56,7 @@ These rules hold across the whole command surface and are enforced by
 | `mq-agent release-check --approve` | execute | yes | Execute release checks |
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
 | `mq-agent run "cmd" --approve` | execute | no | Safe shell command execution |
+| `mq-agent run --stack` | read-only | no | Canonical stack runtime pipeline |
 | `mq-agent tui` | read-only | no | Textual dashboard |
 
 ## Review Commands
@@ -272,6 +273,21 @@ One merged read-only view of the whole stack — later the input to mq-hal.
 |---|---|
 | `mq-agent stack cockpit` | Repo, version, branch, dirty, contract, gate, next action per repo |
 | `mq-agent stack cockpit --json` | Machine-readable cockpit snapshot |
+
+### Stack runtime
+
+One runtime pass across repo-signal, mq-mcp, Ollama, brain export rendering and
+release readiness. Read-only by default; `--brain` writes the truth export only
+when paired with `--approve`.
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack run` | Run the stack runtime gate |
+| `mq-agent run --stack` | Canonical root alias for `stack run` |
+| `mq-agent stack run --dry-run` | Run without write steps |
+| `mq-agent stack run --json` | Machine-readable runtime result; exits 1 on FAIL |
+| `mq-agent stack run --brain --approve` | Write the stack truth export after runtime checks |
+| `mq-agent stack run --ci` | CI mode for release gates; skips missing sibling repos |
 
 ### Brain release gate
 
