@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -42,7 +41,7 @@ class TestSweepHistoryAppend:
     def test_appends_valid_jsonl(self, tmp_history):
         _sweep_history_append(_make_results({"mq-agent": 100}))
         _sweep_history_append(_make_results({"mq-agent": 95}))
-        lines = [l for l in tmp_history.read_text().splitlines() if l.strip()]
+        lines = [ln for ln in tmp_history.read_text().splitlines() if ln.strip()]
         assert len(lines) == 2
         for line in lines:
             record = json.loads(line)
