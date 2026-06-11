@@ -219,6 +219,28 @@ In CI mode only: `SKIPPED` (repo not present in the CI workspace; never fails th
 Both gates run automatically in `.github/workflows/mq-stack-gate.yml` on every
 pull request and push to `main`.
 
+### Stack release
+
+Orchestrated single-repo release pipeline. Dry-run by default; exits 1 on
+NO-GO or any failed step. See `docs/STACK_RELEASE.md`.
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack release --repo <name>` | Dry-run: show the release plan |
+| `mq-agent stack release --repo <name> --execute` | Apply the release (bump, changelog, tag, push, truth-export) |
+| `mq-agent stack release --repo <name> --bump minor` | Version bump: patch (default), minor or major |
+| `mq-agent stack release --repo <name> --version X.Y.Z` | Explicit target version |
+| `mq-agent stack release --repo <name> --json` | Machine-readable plan or result |
+
+### Stack cockpit
+
+One merged read-only view of the whole stack — later the input to mq-hal.
+
+| Command | Notes |
+|---|---|
+| `mq-agent stack cockpit` | Repo, version, branch, dirty, contract, gate, next action per repo |
+| `mq-agent stack cockpit --json` | Machine-readable cockpit snapshot |
+
 ## mqlaunch Agent Menu
 
 The mqlaunch agent menu has exactly 12 items.

@@ -3281,5 +3281,64 @@ def stack_release_cmd(
         raise typer.Exit(1)
 
 
+@stack_app.command("cockpit")
+def stack_cockpit_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """One-table stack cockpit: repo, version, branch, dirty, contract,
+    release gate, unreleased work, brain-export freshness and next action.
+
+    Read-only — combines stack status, contract-check, release-check and
+    the latest mqobsidian stack-truth note into a single view. Later the
+    input to mq-hal.
+    """
+    from mq_agent.tools.stack_cockpit import stack_cockpit as _cockpit
+
+    with console.status("[cyan]Assembling stack cockpit...[/cyan]"):
+        raw = _cockpit()
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        return
+
+    console.print()
+    console.rule("[bold]mq-stack Cockpit[/bold]")
+    console.print()
+
+    table = Table(show_header=True)
+    table.add_column("Repo", style="cyan", no_wrap=True)
+    table.add_column("Version", no_wrap=True)
+    table.add_column("Branch", no_wrap=True, max_width=14)
+    table.add_column("Dirty", no_wrap=True)
+    table.add_column("Contract", no_wrap=True)
+    table.add_column("Gate", no_wrap=True)
+    table.add_column("Next action", style="dim")
+
+    _CONTRACT_STYLE = {"READY": "green", "REVIEW": "yellow", "DRIFT": "red", "BLOCKED": "red"}
+    for r in data["repos"]:
+        c_style = _CONTRACT_STYLE.get(r["contract"], "")
+        table.add_row(
+            r["repo"],
+            r["version"],
+            r["branch"],
+            "[yellow]yes[/yellow]" if r["dirty"] else "no",
+            f"[{c_style}]{r['contract']}[/{c_style}]" if c_style else r["contract"],
+            "[green]GO[/green]" if r["gate"] == "GO" else ("[red]NO-GO[/red]" if r["gate"] == "NO-GO" else r["gate"]),
+            r["next_action"][:60],
+        )
+    console.print(table)
+
+    brain = data["brain_export"]
+    _BRAIN_STYLE = {"fresh": "green", "aging": "yellow", "stale": "red", "none": "red"}
+    b_style = _BRAIN_STYLE.get(brain["status"], "")
+    brain_str = f"{brain['date'] or '—'} ([{b_style}]{brain['status']}[/{b_style}])" if b_style else "—"
+    console.print()
+    console.print(f"  Release gate: {'[green]GO[/green]' if data['overall_gate'] == 'GO' else '[red]NO-GO[/red]'}"
+                  f"   Contract: {'[green]READY[/green]' if data['overall_contract'] == 'READY' else '[red]NOT READY[/red]'}"
+                  f"   Brain export: {brain_str}")
+    console.print(f"  Next: [bold]{data['next_action']}[/bold]")
+
+
 if __name__ == "__main__":
     app()

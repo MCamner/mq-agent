@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* Stack cockpit — `mq-agent stack cockpit` merges git state, contract gate,
+  release gate, unreleased work and mqobsidian truth-note freshness into one
+  read-only table with a recommended next action per repo
+  (`mq_agent/tools/stack_cockpit.py`, registered as the `stack_cockpit` tool).
+  Later the input to mq-hal. `--json` for a machine-readable snapshot.
+* `docs/STACK_COCKPIT.md` — reference documentation.
+* `docs/COMMAND_SURFACE.md` — added the missing `stack release` section and
+  the new `stack cockpit` section.
+* 17 new tests (`tests/test_stack_cockpit.py`).
+
 ## [v1.14.0] — 2026-06-11
 
 ### Added
