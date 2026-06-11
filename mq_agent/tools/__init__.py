@@ -33,6 +33,7 @@ from .signal_tools import (
 )
 from .stack_cockpit import stack_cockpit
 from .stack_release import stack_release
+from .stack_runtime import stack_run
 from .stack_tools import stack_export, stack_github_summary, stack_release_check, stack_status
 from .stack_truth import stack_truth_export
 from .vault_structure import vault_structure
@@ -67,6 +68,7 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "stack_truth_export": stack_truth_export,
     "stack_release_check": stack_release_check,
     "stack_release": stack_release,
+    "stack_run": stack_run,
     "stack_cockpit": stack_cockpit,
     "stack_github_summary": stack_github_summary,
     "vault_structure": vault_structure,

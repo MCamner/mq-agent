@@ -1,7 +1,7 @@
 # mq-agent Roadmap
 
 v1.15.0 — brain-integrated stack workflow. Released.
-Next: v1.16.0 — TBD.
+Next: v1.16.0 — Runtime consolidation.
 
 ## Current status
 
@@ -17,6 +17,43 @@ All phases complete through v1.15.0.
 | v1.13.0 | mqobsidian stack truth export | Done |
 | v1.14.0 | Stack release orchestration | Done |
 | v1.15.0 | Brain-integrated stack workflow | Done |
+| v1.16.0 | Runtime consolidation | Planned |
+| v1.17.0 | Ollama runtime | Planned |
+| v1.18.0 | Memory engine | Planned |
+| v1.19.0 | Operator dashboard | Planned |
+| v1.20.0 | Autonomous stack | Planned |
+
+## v1.16.0 — Runtime consolidation
+
+Goal: keep mq-agent focused as the orchestrator while reducing parallel paths.
+
+The rule remains:
+
+```text
+mqlaunch → starts
+mq-agent → orchestrates
+mq-mcp → runs
+repo-signal → measures
+mqobsidian → remembers
+ollama → reasons
+mq-hal → presents
+```
+
+* [ ] Consolidate overlapping entrypoints where `signal`, `review`, `learn`,
+  and `truth-export` duplicate the same operator flow.
+* [ ] Define one canonical orchestration pipeline:
+  inspect → review → extract → learn → truth-export → release.
+* [x] Add `mq-agent stack run` as the first stack runtime surface with
+  `--dry-run`, `--json`, `--brain`, `--ci`, and `--approve`; expose it from
+  the canonical root surface as `mq-agent run --stack`.
+
+## Planned after v1.16.0
+
+* [ ] v1.17.0 — Ollama runtime: first-class `mq-agent models` commands.
+* [ ] v1.18.0 — Memory engine: ingest, search, summarize, and link memory.
+* [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
+  Ollama, repos, and contracts.
+* [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
 
 ## v1.15.0 — Brain-integrated stack workflow
 

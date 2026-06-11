@@ -16,7 +16,8 @@
     "stack_cockpit.v1",
     "flag_contract.v1",
     "vault_structure.v1",
-    "brain_gate.v1"
+    "brain_gate.v1",
+    "stack_runtime.v1"
   ],
-  "next_focus": "v1.16.0 — TBD"
+  "next_focus": "v1.16.0 — Runtime consolidation"
 }
