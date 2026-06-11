@@ -9,6 +9,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* Stack release orchestration — `mq-agent stack release --repo <name>` runs a
+  gated single-repo release pipeline: release-check pre-gate, version bump
+  (`--bump patch|minor|major` or explicit `--version`), contract sync,
+  changelog section drafted from commits since the last tag, release commit,
+  tag, push, and a closing stack truth-export to mqobsidian
+  (`mq_agent/tools/stack_release.py`, registered as the `stack_release` tool).
+* Dry-run by default — `--execute` applies the plan; any failed step aborts
+  the run and pre-commit file edits are rolled back, so no repo is left
+  half-released. `--json` for machine-readable output and CI exit codes.
+* `docs/STACK_RELEASE.md` — reference documentation.
+* 27 new tests (`tests/test_stack_release.py`).
+
 ## [v1.13.0] — 2026-06-11
 
 ### Added
