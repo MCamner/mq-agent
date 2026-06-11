@@ -21,6 +21,7 @@ CI log.
 ```bash
 mq-agent stack truth-export
 mq-agent stack export        # alias, same export
+mq-agent stack truth-export --json
 ```
 
 Default output:
@@ -39,6 +40,12 @@ Preview target path only:
 
 ```bash
 mq-agent stack truth-export --dry-run
+```
+
+Machine-readable dry-run:
+
+```bash
+mq-agent stack truth-export --dry-run --json
 ```
 
 ---
