@@ -3207,5 +3207,79 @@ def stack_contract_check_cmd(
         raise typer.Exit(1)
 
 
+# ── stack release ──────────────────────────────────────────────────────────
+
+@stack_app.command("release")
+def stack_release_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Stack repo to release")],
+    bump: Annotated[str, typer.Option("--bump", help="Version bump: patch, minor or major")] = "patch",
+    version: Annotated[str, typer.Option("--version", help="Explicit target version (overrides --bump)")] = "",
+    execute: Annotated[bool, typer.Option("--execute", help="Apply the release (default is dry-run)")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Orchestrated single-repo release: gate, bump, changelog, tag, push, truth-export.
+
+    Dry-run by default — shows the plan without touching the repo. With
+    --execute the plan is applied step by step; any failed step aborts the
+    run and pre-commit file edits are rolled back. Exits 1 on NO-GO or on a
+    failed step. Ends with a stack truth-export so the release lands in
+    mqobsidian memory.
+    """
+    from mq_agent.tools.stack_release import BUMP_PARTS, stack_release as _release
+
+    if bump not in BUMP_PARTS:
+        console.print(f"[red]Invalid --bump {bump!r} — expected one of: {', '.join(BUMP_PARTS)}[/red]")
+        raise typer.Exit(1)
+
+    with console.status("[cyan]Planning release...[/cyan]" if not execute else "[cyan]Releasing...[/cyan]"):
+        raw = _release(repo, bump=bump, version=version, execute=execute)
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        ok = data.get("go", False) if not execute else data.get("ok", False)
+        raise typer.Exit(0 if ok else 1)
+
+    console.print()
+    console.rule(f"[bold]Stack Release — {repo}[/bold]")
+    console.print()
+
+    if not execute:
+        if not data.get("go"):
+            console.print(f"[bold red]✗ NO-GO — {repo} cannot be released:[/bold red]")
+            for b in data.get("blockers", []):
+                console.print(f"  [red]→[/red] {b}")
+            raise typer.Exit(1)
+        console.print(f"[blue]dry-run:[/blue] {data['current_version']} → [bold]{data['new_version']}[/bold]  (tag {data['tag']})")
+        console.print()
+        for s in data.get("steps", []):
+            console.print(f"  [dim]•[/dim] {s['step']:<18} {s.get('detail', '')}")
+        for w in data.get("warnings", []):
+            console.print(f"  [yellow]⚠ {w}[/yellow]")
+        console.print("\n[dim]Run again with --execute to apply.[/dim]")
+        return
+
+    _STEP = {"done": "[green]done[/green]", "failed": "[bold red]failed[/bold red]", "aborted": "[dim]aborted[/dim]"}
+    for s in data.get("steps", []):
+        status_str = _STEP.get(s["status"], s["status"])
+        detail = f"  [dim]{s['detail']}[/dim]" if s.get("detail") else ""
+        console.print(f"  {s['step']:<18} {status_str}{detail}")
+    console.print()
+
+    if data.get("ok"):
+        console.print(f"[bold green]✓ Released {repo} {data['tag']}[/bold green]  [dim]truth note: {data.get('truth_note', '—')}[/dim]")
+    elif data.get("released"):
+        console.print(f"[yellow]⚠ Released {repo} {data['tag']}, but: {data.get('warning')}[/yellow]")
+        raise typer.Exit(1)
+    else:
+        console.print(f"[bold red]✗ Release aborted — {data.get('error', 'unknown error')}[/bold red]")
+        if data.get("blockers"):
+            for b in data["blockers"]:
+                console.print(f"  [red]→[/red] {b}")
+        if data.get("rolled_back"):
+            console.print(f"  [dim]rolled back: {', '.join(data['rolled_back'])}[/dim]")
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

@@ -1,10 +1,10 @@
 # mq-agent Roadmap
 
-v1.13.0 — mqobsidian stack truth export. Done.
+v1.14.0 — stack release orchestration. In review.
 
 ## Current status
 
-All planned phases complete through v1.13.0.
+All phases complete through v1.13.0. v1.14.0 implemented, pending release.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -14,6 +14,26 @@ All planned phases complete through v1.13.0.
 | v1.11.0 | Stack contract gate | Done |
 | v1.12.0 | CI integration for stack gates | Done |
 | v1.13.0 | mqobsidian stack truth export | Done |
+| v1.14.0 | Stack release orchestration | In review |
+
+## v1.14.0 — Stack release orchestration
+
+Goal: close the loop. The stack suite observes (`status`, `report`, `sweep`,
+`history`), gates (`alert`, `release-check`, `contract-check`), remembers
+(`truth-export`), and drafts (`release-notes`) — but the release itself is
+still manual, per repo, across 7 repos. `stack release` makes the pipeline act.
+
+* [x] `mq-agent stack release --repo <name>` — orchestrated single-repo release:
+  release-check as pre-gate, version bump, changelog update from the
+  release-notes draft, tag, push
+* [x] Dry-run by default (same pattern as `sweep`); `--execute` to apply
+* [x] `--json` — machine-readable output for CI
+* [x] Automatic `truth-export` after a successful release, so the release
+  lands in mqobsidian memory
+* [x] Abort cleanly on any failed step — no half-released repos
+* [x] `docs/STACK_RELEASE.md` — reference doc
+* [x] Tests for gate refusal, dry-run plan, step failure rollback (27 tests)
+* [ ] Tag v1.14.0
 
 ## v1.13.0 — mqobsidian stack truth export
 
