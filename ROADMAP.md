@@ -25,7 +25,7 @@ repo status → review → learn extract → brain write → stack truth export
 → next action. mq-agent orchestrates; mq-mcp thinks/runs, repo-signal
 measures, mqobsidian remembers, mqlaunch launches.
 
-* [ ] `mq-agent stack cockpit` — one table for the whole stack:
+* [x] `mq-agent stack cockpit` — one table for the whole stack:
   repo, status, branch, dirty, version, contract, release gate,
   brain export freshness, next action. Later the input to mq-hal.
 * [ ] Consistent flag behaviour across write-capable commands:
