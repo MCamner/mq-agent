@@ -796,8 +796,14 @@ def learn_extract_review_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path to extract a learn candidate from.")],
     json_out: Annotated[bool, typer.Option("--json")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record learn candidate to mqobsidian")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Dry-run extraction of a learn candidate from the last review for a file. Read-only."""
+    if dry_run:
+        console.print(f"[blue]dry-run:[/blue] Would call: [bold]mq-mcp learn_extract_from_last_review {path}[/bold]")
+        if brain:
+            console.print("[blue]dry-run:[/blue] With --brain: would write a learn note to mqobsidian")
+        return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
@@ -832,8 +838,15 @@ def learn_review_flow_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path")],
     json_out: Annotated[bool, typer.Option("--json")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record learn candidate to mqobsidian")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review a file then extract a dry-run learn candidate in one pass. Read-only."""
+    if dry_run:
+        console.print(f"[blue]dry-run:[/blue] Would call: [bold]mq-mcp review_file {path}[/bold]")
+        console.print(f"[blue]dry-run:[/blue] Then: [bold]mq-mcp learn_extract_from_last_review {path}[/bold]")
+        if brain:
+            console.print("[blue]dry-run:[/blue] With --brain: would write a learn note to mqobsidian")
+        return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
@@ -1116,6 +1129,7 @@ def brain_record_review_cmd(
     confidence: Annotated[str, typer.Option("--confidence")] = "medium",
     raw_summary: Annotated[str, typer.Option("--raw-summary")] = "",
     approve: Annotated[bool, typer.Option("--approve")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Write a review summary to mqobsidian/reviews/ via brain_record_review.
 
@@ -1150,6 +1164,12 @@ def brain_record_review_cmd(
         except json.JSONDecodeError:
             pass
 
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        if not (isinstance(result, dict) and result.get("ok")):
+            raise typer.Exit(code=1)
+        return
+
     if isinstance(result, dict) and result.get("ok"):
         console.print(f"[green]brain:[/green] {result.get('path', 'saved')}")
     else:
@@ -1169,12 +1189,20 @@ def decide(
     consequences: Annotated[str, typer.Option("--consequences", help="Known trade-offs or follow-ups")] = "",
     tag: Annotated[list[str], typer.Option("--tag", help="Tag (repeatable)")] = [],
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Required: decide is a write operation")] = False,
 ):
     """Record an architecture decision to mqobsidian/decisions/. Class C write."""
     if not context or not decision or not rationale:
         console.print(
             "[yellow]Provide --context, --decision, and --rationale.[/yellow]\n"
-            "Example: mq-agent decide 'ADR title' --context '...' --decision '...' --rationale '...'"
+            "Example: mq-agent decide 'ADR title' --context '...' --decision '...' --rationale '...' --approve"
+        )
+        raise typer.Exit(1)
+
+    if not approve:
+        console.print(
+            "[bold yellow]Blocked:[/bold yellow] decide is a write operation (mqobsidian decisions).\n"
+            "Add [bold]--approve[/bold] to proceed."
         )
         raise typer.Exit(1)
 
@@ -1276,7 +1304,7 @@ def signal(
     if publish["next_action"]:
         console.print(f"\n[dim]Next: {publish['next_action']}[/dim]")
 
-    if brain:
+    if brain and not dry_run:
         from mq_agent.tools.mcp_bridge import MultiMCPBridge
         _brain_record_review(
             MultiMCPBridge(),

@@ -9,8 +9,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+* `mq-agent signal --brain --dry-run` no longer writes to the brain — the
+  brain note is skipped on dry-run, per the flag contract.
+
 ### Added
 
+* Flag contract enforced across write-capable commands: `--dry-run` never
+  writes, `--json` is machine-readable, `--brain` respects `--dry-run`,
+  `--approve` is required for primary-write commands. Structural rules are
+  locked by `tests/test_flag_contract.py` (Typer introspection: every
+  `--brain` command must offer `--dry-run` and `--json`).
+* `mq-agent learn extract-review --dry-run` / `learn review-flow --dry-run` —
+  preview the mq-mcp calls (and the would-be brain write) without executing.
+* `mq-agent decide` now requires `--approve` (Class C write to
+  mqobsidian/decisions/), matching `brain record-review`.
+* `mq-agent brain record-review --json` — machine-readable result.
 * Stack cockpit — `mq-agent stack cockpit` merges git state, contract gate,
   release gate, unreleased work and mqobsidian truth-note freshness into one
   read-only table with a recommended next action per repo
