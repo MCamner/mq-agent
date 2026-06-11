@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.14.0 — stack release orchestration. Released.
-Next: v1.15.0 — brain-integrated stack workflow.
+v1.15.0 — brain-integrated stack workflow. Released.
+Next: v1.16.0 — TBD.
 
 ## Current status
 
-All phases complete through v1.14.0. v1.15.0 planned.
+All phases complete through v1.15.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ All phases complete through v1.14.0. v1.15.0 planned.
 | v1.12.0 | CI integration for stack gates | Done |
 | v1.13.0 | mqobsidian stack truth export | Done |
 | v1.14.0 | Stack release orchestration | Done |
-| v1.15.0 | Brain-integrated stack workflow | Planned |
+| v1.15.0 | Brain-integrated stack workflow | Done |
 
 ## v1.15.0 — Brain-integrated stack workflow
 
@@ -38,8 +38,8 @@ measures, mqobsidian remembers, mqlaunch launches.
 * [x] Brain release gate: `mq-agent stack brain-gate` — `contract-check` +
   `release-check` + truth-export dry-run + vault structure + the
   review→brain write path, all green before release
-* [ ] Docs sync: README, docs/ROADMAP, MQ_ECOSYSTEM, CHANGELOG, repo-contract
-* [ ] Tag v1.15.0
+* [x] Docs sync: README, docs/ROADMAP, MQ_ECOSYSTEM, CHANGELOG, repo-contract
+* [x] Tag v1.15.0
 
 ## v1.14.0 — Stack release orchestration
 
