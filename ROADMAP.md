@@ -1,10 +1,11 @@
 # mq-agent Roadmap
 
-v1.14.0 — stack release orchestration. In review.
+v1.14.0 — stack release orchestration. Released.
+Next: v1.15.0 — brain-integrated stack workflow.
 
 ## Current status
 
-All phases complete through v1.13.0. v1.14.0 implemented, pending release.
+All phases complete through v1.14.0. v1.15.0 planned.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -14,7 +15,29 @@ All phases complete through v1.13.0. v1.14.0 implemented, pending release.
 | v1.11.0 | Stack contract gate | Done |
 | v1.12.0 | CI integration for stack gates | Done |
 | v1.13.0 | mqobsidian stack truth export | Done |
-| v1.14.0 | Stack release orchestration | In review |
+| v1.14.0 | Stack release orchestration | Done |
+| v1.15.0 | Brain-integrated stack workflow | Planned |
+
+## v1.15.0 — Brain-integrated stack workflow
+
+Goal: make mq-agent the stable conductor of the full loop —
+repo status → review → learn extract → brain write → stack truth export
+→ next action. mq-agent orchestrates; mq-mcp thinks/runs, repo-signal
+measures, mqobsidian remembers, mqlaunch launches.
+
+* [ ] `mq-agent stack cockpit` — one table for the whole stack:
+  repo, status, branch, dirty, version, contract, release gate,
+  brain export freshness, next action. Later the input to mq-hal.
+* [ ] Consistent flag behaviour across write-capable commands:
+  `--dry-run` never writes, `--json` machine-readable, `--brain`
+  never writes without an explicit command, `--approve` required
+  for write flows.
+* [ ] Standard mqobsidian export structure: `memory/stack-truth/`,
+  `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`, `mq-stack/roadmaps/`
+* [ ] Brain release gate: `contract-check` + `release-check` +
+  `truth-export --dry-run` + `review repo --brain --dry-run` green before release
+* [ ] Docs sync: README, docs/ROADMAP, MQ_ECOSYSTEM, CHANGELOG, repo-contract
+* [ ] Tag v1.15.0
 
 ## v1.14.0 — Stack release orchestration
 
@@ -33,7 +56,7 @@ still manual, per repo, across 7 repos. `stack release` makes the pipeline act.
 * [x] Abort cleanly on any failed step — no half-released repos
 * [x] `docs/STACK_RELEASE.md` — reference doc
 * [x] Tests for gate refusal, dry-run plan, step failure rollback (27 tests)
-* [ ] Tag v1.14.0
+* [x] Tag v1.14.0
 
 ## v1.13.0 — mqobsidian stack truth export
 
