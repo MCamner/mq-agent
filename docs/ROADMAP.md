@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.13.0 — mqobsidian stack truth export (done)
-Next:    v1.14.0 — TBD
+v1.15.0 — brain-integrated stack workflow (done)
+Next:    v1.16.0 — TBD
 ```
 
 Completed foundation:
@@ -74,10 +74,30 @@ Completed foundation:
 | v1.11.0 | Stack contract gate                          | Done    |
 | v1.12.0 | CI integration for stack gates               | Done    |
 | v1.13.0 | mqobsidian stack truth export                | Done    |
+| v1.14.0 | Stack release orchestration                  | Done    |
+| v1.15.0 | Brain-integrated stack workflow              | Done    |
 
 ---
 
 ## Completed
+
+### v1.15.0 — Brain-integrated stack workflow
+
+* [x] `mq-agent stack cockpit` — merged stack view: version, branch, dirty, contract, release gate, brain-export freshness, next action per repo
+* [x] Flag contract across the command surface: `--dry-run` never writes, `--json` machine-readable, `--brain` respects `--dry-run`, `--approve` required for write flows
+* [x] Fixed `signal --brain --dry-run` writing to the brain despite dry-run
+* [x] `mq-agent brain structure` — standard mqobsidian export structure (`memory/stack-truth/`, `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`, `mq-stack/roadmaps/`) with `--init --approve` and legacy detection
+* [x] `mq-agent stack brain-gate` — pre-release checklist: contract-check + release-check + truth-export dry-run + vault structure + review→brain write path
+* [x] `docs/STACK_COCKPIT.md`, `docs/VAULT_STRUCTURE.md`, `docs/BRAIN_GATE.md` — reference docs
+* [x] 56 new tests (511 total)
+
+### v1.14.0 — Stack release orchestration
+
+* [x] `mq-agent stack release --repo <name>` — orchestrated single-repo release: release-check pre-gate, version bump, contract sync, changelog from release-notes draft, commit, tag, push
+* [x] Dry-run by default; `--execute` applies; abort on first failed step with pre-commit rollback
+* [x] Closing `truth-export` after a successful release
+* [x] `docs/STACK_RELEASE.md` — reference doc
+* [x] 27 new tests (455 total)
 
 ### v1.13.0 — mqobsidian stack truth export
 

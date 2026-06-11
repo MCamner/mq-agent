@@ -11,8 +11,13 @@ mq-mcp            Central AI cognition runtime (review, architecture, semantic m
 repo-signal       Repository intelligence and preprocessing layer
 mq-hal            Runtime observability and operator status layer
 mq-image-analyze  Visual cognition layer (diagram, screenshot, infra topology)
+mqobsidian        Second brain vault (durable memory: truth notes, reviews, learn, decisions)
 atlas-one         Prompt and interaction layer
 ```
+
+Division of labour across the stack: **mqlaunch launches, mq-agent
+orchestrates, mq-mcp thinks and runs, repo-signal measures, mqobsidian
+remembers.**
 
 ## Layered architecture
 
@@ -53,6 +58,7 @@ and storage approval; mq-agent only exposes read-only learn status/search/explai
 | `mq-mcp` | Active | HTTP bridge at `:8765`; 66 tools, safety classes A–D |
 | `mq-hal` | Active | `hal_repo_report` via mq-mcp bridge |
 | `mq-image-analyze` | Active | HTTP bridge at `:8766`; `observe_architecture`, `image_ocr` visual context |
+| `mqobsidian` | Active | Standard export structure (`mq-agent brain structure`); truth notes, reviews and learn notes via `--brain` / `truth-export`; gated by `mq-agent stack brain-gate` |
 
 ## mqlaunch integration
 
