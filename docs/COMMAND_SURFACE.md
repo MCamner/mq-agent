@@ -196,6 +196,7 @@ Exits 0 when no alerts, exits 1 when alerts are found — CI-friendly.
 | `mq-agent stack release-check` | Release-readiness check; exits 1 on blocker |
 | `mq-agent stack release-check --dry-run` | Preview repos that would be checked |
 | `mq-agent stack release-check --json` | Machine-readable; exits 1 on NO-GO |
+| `mq-agent stack release-check --ci` | CI mode; skips repos missing from the workspace |
 | `mq-agent stack release-notes` | Draft release notes from git log since last tag |
 | `mq-agent stack release-notes --repo <name>` | Limit to one repo |
 | `mq-agent stack release-notes --json` | Machine-readable notes |
@@ -209,8 +210,13 @@ Exits 0 only when all repos are READY or REVIEW. Exits 1 on BLOCKED or DRIFT.
 |---|---|
 | `mq-agent stack contract-check` | Validate contract manifests across all repos |
 | `mq-agent stack contract-check --json` | Machine-readable; exits 1 on NOT READY |
+| `mq-agent stack contract-check --ci` | CI mode; missing repos SKIPPED instead of BLOCKED |
 
 Status levels: `READY` → `REVIEW` (uncommitted changes) → `DRIFT` (version mismatch) → `BLOCKED` (missing file/field).
+In CI mode only: `SKIPPED` (repo not present in the CI workspace; never fails the gate).
+
+Both gates run automatically in `.github/workflows/mq-stack-gate.yml` on every
+pull request and push to `main`.
 
 ## mqlaunch Agent Menu
 

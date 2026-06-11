@@ -25,6 +25,19 @@ def _expand(path: str) -> Path:
     return Path(path).expanduser().resolve()
 
 
+def _ci_repo_path(entry: dict[str, str]) -> Path | None:
+    """Map a stack repo to the CI checkout directory, if it is the repo under test.
+
+    In CI only one repo is checked out, at a workspace path that does not match
+    the local ~/<repo> layout. The checkout directory name equals the repo name,
+    so a cwd named like the entry (and containing .git) is treated as that repo.
+    """
+    cwd = Path.cwd()
+    if cwd.name == entry["name"] and (cwd / ".git").exists():
+        return cwd
+    return None
+
+
 def _git(args: list[str], cwd: Path) -> str:
     try:
         return subprocess.check_output(
@@ -156,10 +169,24 @@ def _unpushed_count(repo_path: Path) -> int:
         return 0
 
 
-def _release_entry(entry: dict[str, str]) -> dict[str, Any]:
+def _release_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
     path = _expand(entry["path"])
     if not path.exists():
-        return {"name": entry["name"], "exists": False, "go": False, "blockers": ["repo not found"]}
+        if ci:
+            ci_path = _ci_repo_path(entry)
+            if ci_path is None:
+                return {
+                    "name": entry["name"],
+                    "exists": False,
+                    "skipped": True,
+                    "go": True,
+                    "blockers": [],
+                    "warnings": [],
+                    "reason": "not present in CI workspace — skipped",
+                }
+            path = ci_path
+        else:
+            return {"name": entry["name"], "exists": False, "go": False, "blockers": ["repo not found"]}
 
     version = _version(path)
     branch = _git(["branch", "--show-current"], path)
@@ -229,18 +256,20 @@ def _release_notes_entry(entry: dict[str, str]) -> dict[str, Any]:
     }
 
 
-def stack_release_check() -> str:
+def stack_release_check(ci: bool = False) -> str:
     """Cross-repo release readiness check for all mq-stack repos.
 
     Checks VERSION, CHANGELOG, README, working tree, branch state.
-    Returns JSON with per-repo status and overall go/no-go.
+    In CI mode, sibling repos missing from the workspace are skipped
+    instead of blocking. Returns JSON with per-repo status and overall go/no-go.
     """
-    entries = [_release_entry(r) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    entries = [_release_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
     all_go = all(e.get("go", False) for e in entries)
     blocked = [e["name"] for e in entries if not e.get("go", False)]
     warned = [e["name"] for e in entries if e.get("warnings")]
     return json.dumps({
         "overall": "GO" if all_go else "NO-GO",
+        "mode": "ci" if ci else "local",
         "blocked": blocked,
         "warned": warned,
         "repos": entries,
@@ -286,11 +315,21 @@ def stack_github_summary() -> str:
 REQUIRED_CONTRACT_FIELDS: frozenset[str] = frozenset({"repo", "role", "version", "status", "contracts"})
 
 
-def _contract_entry(entry: dict[str, str]) -> dict[str, Any]:
-    """Validate .mq/repo-contract.json for a single repo."""
+def _contract_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
+    """Validate .mq/repo-contract.json for a single repo.
+
+    In CI mode a repo missing from the workspace is SKIPPED unless the
+    current working directory is that repo's checkout.
+    """
     path = _expand(entry["path"])
     if not path.exists():
-        return {"name": entry["name"], "status": "BLOCKED", "reason": "repo not found locally"}
+        if ci:
+            ci_path = _ci_repo_path(entry)
+            if ci_path is None:
+                return {"name": entry["name"], "status": "SKIPPED", "reason": "not present in CI workspace"}
+            path = ci_path
+        else:
+            return {"name": entry["name"], "status": "BLOCKED", "reason": "repo not found locally"}
 
     version = _version(path)
     if version == "?":
@@ -339,17 +378,19 @@ def _contract_entry(entry: dict[str, str]) -> dict[str, Any]:
     }
 
 
-def stack_contract_check() -> str:
+def stack_contract_check(ci: bool = False) -> str:
     """Cross-repo contract manifest check for all mq-stack repos.
 
     Reads .mq/repo-contract.json per repo and validates VERSION sync.
-    Returns JSON with per-repo status (READY/REVIEW/DRIFT/BLOCKED) and overall verdict.
+    In CI mode, repos missing from the workspace are SKIPPED instead of BLOCKED.
+    Returns JSON with per-repo status (READY/REVIEW/DRIFT/BLOCKED/SKIPPED) and overall verdict.
     """
-    entries = [_contract_entry(r) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    entries = [_contract_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
     has_failure = any(e["status"] in ("BLOCKED", "DRIFT") for e in entries)
     reasons = [f"{e['name']}: {e['reason']}" for e in entries if e["status"] in ("BLOCKED", "DRIFT")]
     return json.dumps({
         "overall": "READY" if not has_failure else "NOT READY",
+        "mode": "ci" if ci else "local",
         "reasons": reasons,
         "repos": entries,
         "checked_at": datetime.now(UTC).isoformat(),

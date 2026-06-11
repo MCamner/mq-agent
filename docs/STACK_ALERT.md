@@ -82,8 +82,17 @@ Empty array `[]` + exit 0 when no alerts.
 
 ## CI integration
 
+Since v1.12.0 the repo ships `.github/workflows/mq-stack-gate.yml`: pull
+requests run `stack contract-check --ci` and `stack release-check --ci`
+(isolated to the checkout), while pushes to `main`, the nightly run, and
+manual dispatch validate the full stack via multi-repo checkout. See
+[STACK_CONTRACT_GATE.md](STACK_CONTRACT_GATE.md) for the CI-mode semantics.
+
+`stack alert` needs sweep history (`~/.mq-agent/sweep-history.jsonl`), which a
+fresh CI runner does not have, so it stays a local/self-hosted gate:
+
 ```yaml
-# .github/workflows/stack-health.yml
+# .github/workflows/stack-health.yml (self-hosted runner with sweep history)
 - name: Stack alert
   run: mq-agent stack alert --json
   # Fails the job if any repo regressed
