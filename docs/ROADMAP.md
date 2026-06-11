@@ -109,6 +109,8 @@ mq-hal → presents
 * [x] Add `mq-agent stack run` as the first stack runtime surface with
   `--dry-run`, `--json`, `--brain`, `--ci`, and `--approve`; expose it from
   the canonical root surface as `mq-agent run --stack`.
+* [x] Add `docs/MQ_CONTROL_PLANE.md` — one system map for signal, review,
+  learn, memory and release.
 
 ### Later planned releases
 
