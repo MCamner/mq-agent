@@ -9,10 +9,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.13.0] — 2026-06-11
+
 ### Added
 
+* Stack truth export — `stack export` upgraded from a status table to a durable
+  truth snapshot combining contract-check and release-check, written as a dated
+  Markdown note to mqobsidian (`mq_agent/tools/stack_truth.py`, registered as
+  the `stack_truth_export` tool).
 * `mq-agent stack truth-export` — primary name for the stack truth export;
   `stack export` is kept as a backwards-compatible alias.
+* `docs/STACK_TRUTH_EXPORT.md` — reference documentation.
 * `mq-agent stack contract-check --ci` / `stack release-check --ci` — CI mode:
   sibling repos missing from the workspace are reported as SKIPPED instead of
   failing the gate; the CI checkout itself is detected via its directory name

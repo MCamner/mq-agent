@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.12.0 — CI integration for stack gates (done)
-Next:    v1.13.0 — mqobsidian stack truth export
+v1.13.0 — mqobsidian stack truth export (done)
+Next:    v1.14.0 — TBD
 ```
 
 Completed foundation:
@@ -73,11 +73,22 @@ Completed foundation:
 | v1.10.0 | Stack release notes                          | Done    |
 | v1.11.0 | Stack contract gate                          | Done    |
 | v1.12.0 | CI integration for stack gates               | Done    |
-| v1.13.0 | mqobsidian stack truth export                | Next    |
+| v1.13.0 | mqobsidian stack truth export                | Done    |
 
 ---
 
 ## Completed
+
+### v1.13.0 — mqobsidian stack truth export
+
+* [x] `mq-agent stack truth-export` — durable truth note (contract + release gates) to mqobsidian
+* [x] `mq-agent stack export` kept as backwards-compatible alias
+* [x] `mq_agent/tools/stack_truth.py` — snapshot builder, Markdown renderer, `stack_truth_export` tool
+* [x] Default note path `~/mqobsidian/memory/stack-truth/YYYY-MM-DD-mq-stack-truth.md`
+* [x] `--ci` mode for `stack contract-check` / `stack release-check` — SKIPPED for missing repos
+* [x] `mq-stack-gate.yml` split into `pr-gate` (--ci on PRs) and `full-stack-gate` (main/nightly/dispatch)
+* [x] `docs/STACK_TRUTH_EXPORT.md` — reference doc
+* [x] 25 new tests (439 total)
 
 ### v1.12.0 — CI integration for stack gates
 

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.12.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.13.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -246,6 +246,16 @@ uv run pytest tests/ -v
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
+## v1.13.0 status
+
+- [x] `mq-agent stack truth-export` — durable stack truth note (contract + release gates) to mqobsidian
+- [x] `mq-agent stack export` kept as backwards-compatible alias
+- [x] Default note path: `~/mqobsidian/memory/stack-truth/YYYY-MM-DD-mq-stack-truth.md`
+- [x] `stack contract-check --ci` / `stack release-check --ci` — CI mode with SKIPPED for missing repos
+- [x] `mq-stack-gate.yml` split: fast `--ci` gate on PRs, full multi-repo gate on main/nightly
+- [x] `docs/STACK_TRUTH_EXPORT.md` — reference doc
+- [x] 25 new tests (439 total)
+
 ## v1.12.0 status
 
 - [x] `.github/workflows/mq-stack-gate.yml` — CI workflow for MQ stack gates
@@ -457,8 +467,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-- formalize v1.12.0 CI stack-gate release
-- add mqobsidian stack truth export
+- send stack gate results to the brain (`--brain`)
 - keep mq-agent orchestration-only
 - keep review logic, learn extraction, memory and risk reasoning in mq-mcp
 - improve mq ecosystem integrations without adding hidden autonomy
