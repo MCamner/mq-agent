@@ -93,3 +93,57 @@ class TestStackTruthExport:
         assert result["written"] is True
         assert output.exists()
         assert "MQ Stack Truth" in output.read_text()
+
+# ── CLI: truth-export primary + export alias ────────────────────────────────
+
+class TestTruthExportCli:
+    def _patches(self):
+        return (
+            patch("mq_agent.tools.stack_tools.stack_contract_check", return_value=json.dumps(_contract_payload())),
+            patch("mq_agent.tools.stack_tools.stack_release_check", return_value=json.dumps(_release_payload())),
+        )
+
+    def test_truth_export_writes_note(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2:
+            result = CliRunner().invoke(app, ["stack", "truth-export", "--output", str(output)])
+        assert result.exit_code == 0
+        assert output.exists()
+        assert "MQ Stack Truth" in output.read_text()
+
+    def test_export_alias_writes_same_note(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2:
+            result = CliRunner().invoke(app, ["stack", "export", "--output", str(output)])
+        assert result.exit_code == 0
+        assert "MQ Stack Truth" in output.read_text()
+
+    def test_dry_run_defaults_to_dated_stack_truth_path(self):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        result = CliRunner().invoke(app, ["stack", "truth-export", "--dry-run"])
+        assert result.exit_code == 0
+        assert "stack-truth" in result.output
+        assert "mq-stack-truth.md" in result.output
+
+    def test_default_write_goes_to_dated_path_not_release_status(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+
+        import mq_agent.tools.stack_truth as stack_truth
+        from mq_agent.main import app
+        monkeypatch.setattr(stack_truth, "DEFAULT_STACK_TRUTH_DIR", tmp_path / "stack-truth")
+        p1, p2 = self._patches()
+        with p1, p2:
+            result = CliRunner().invoke(app, ["stack", "truth-export"])
+        assert result.exit_code == 0
+        written = list((tmp_path / "stack-truth").glob("*-mq-stack-truth.md"))
+        assert len(written) == 1

@@ -11,6 +11,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* `mq-agent stack truth-export` — primary name for the stack truth export;
+  `stack export` is kept as a backwards-compatible alias.
 * `mq-agent stack contract-check --ci` / `stack release-check --ci` — CI mode:
   sibling repos missing from the workspace are reported as SKIPPED instead of
   failing the gate; the CI checkout itself is detected via its directory name
@@ -18,6 +20,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 * `_ci_repo_path()` helper in `stack_tools.py`.
 * `mode` field (`ci` / `local`) in the JSON output of both gates.
 * 21 new tests (`tests/test_stack_ci_mode.py`).
+
+### Fixed
+
+* `stack truth-export` / `stack export` now defaults to the dated note path
+  (`~/mqobsidian/memory/stack-truth/YYYY-MM-DD-mq-stack-truth.md`) as documented;
+  previously the CLI always passed the old `05_RELEASE_STATUS.md` path.
 
 ### Changed
 

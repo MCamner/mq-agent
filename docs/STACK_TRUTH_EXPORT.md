@@ -1,6 +1,7 @@
 # Stack Truth Export
 
-`mq-agent stack export` writes a durable MQ stack truth note to mqobsidian.
+`mq-agent stack truth-export` writes a durable MQ stack truth note to mqobsidian.
+`mq-agent stack export` is a backwards-compatible alias — both run the same export.
 
 v1.13.0 upgrades the old stack export from a simple status table into a combined
 truth snapshot built from two gates:
@@ -18,7 +19,8 @@ CI log.
 ## Command
 
 ```bash
-mq-agent stack export
+mq-agent stack truth-export
+mq-agent stack export        # alias, same export
 ```
 
 Default output:
@@ -30,13 +32,13 @@ Default output:
 Custom output:
 
 ```bash
-mq-agent stack export --output ~/mqobsidian/memory/stack-truth/manual-stack-truth.md
+mq-agent stack truth-export --output ~/mqobsidian/memory/stack-truth/manual-stack-truth.md
 ```
 
 Preview target path only:
 
 ```bash
-mq-agent stack export --dry-run
+mq-agent stack truth-export --dry-run
 ```
 
 ---
@@ -133,5 +135,5 @@ mq-agent stack report
 mq-agent stack alert
 mq-agent stack contract-check
 mq-agent stack release-check
-mq-agent stack export
+mq-agent stack truth-export   # alias: stack export
 ```

@@ -158,7 +158,8 @@ local clones and git history only. No AI calls unless `--brain` or `--decide` is
 |---|---:|---|
 | `mq-agent stack status` | no | Version, branch, drift risk and readiness per repo |
 | `mq-agent stack status --json` | no | Machine-readable status |
-| `mq-agent stack export` | no | Export stack manifest as JSON |
+| `mq-agent stack truth-export` | no | Write stack truth note (contract + release gates) to mqobsidian |
+| `mq-agent stack export` | no | Alias for `stack truth-export` |
 | `mq-agent stack sweep` | yes (signal) | Run repo-signal over all repos |
 | `mq-agent stack sweep --dry-run` | no | Preview repos that would be scanned |
 | `mq-agent stack sweep --json` | yes | Machine-readable sweep results |
