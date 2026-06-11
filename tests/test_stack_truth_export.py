@@ -135,6 +135,43 @@ class TestTruthExportCli:
         assert "stack-truth" in result.output
         assert "mq-stack-truth.md" in result.output
 
+    def test_truth_export_json_writes_machine_readable_result(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2:
+            result = CliRunner().invoke(
+                app,
+                ["stack", "truth-export", "--output", str(output), "--json"],
+            )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["ok"] is True
+        assert data["written"] is True
+        assert data["path"] == str(output)
+        assert "MQ Stack Truth" in data["markdown"]
+        assert output.exists()
+
+    def test_truth_export_json_dry_run_does_not_write(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2:
+            result = CliRunner().invoke(
+                app,
+                ["stack", "truth-export", "--output", str(output), "--dry-run", "--json"],
+            )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["ok"] is True
+        assert data["written"] is False
+        assert data["path"] == str(output)
+        assert not output.exists()
+
     def test_default_write_goes_to_dated_path_not_release_status(self, tmp_path, monkeypatch):
         from typer.testing import CliRunner
 

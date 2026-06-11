@@ -2840,6 +2840,7 @@ def stack_report_cmd(
 def stack_export_cmd(
     output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: dated note under mqobsidian/memory/stack-truth/)")] = "",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Write the mq-stack truth snapshot (contract + release gates) to mqobsidian.
 
@@ -2847,9 +2848,15 @@ def stack_export_cmd(
     backwards-compatible alias — both run the same export.
     """
     from mq_agent.tools.stack_tools import stack_export
+    from mq_agent.tools.stack_truth import stack_truth_export
     from mq_agent.tools.stack_truth import default_stack_truth_path
 
     dest = output or str(default_stack_truth_path())
+
+    if json_out:
+        result = stack_truth_export(output_path=output, write=not dry_run)
+        typer.echo(json.dumps(result, indent=2, default=str))
+        return
 
     if dry_run:
         console.print(f"[blue][dry-run][/blue] Would write to: {dest}")

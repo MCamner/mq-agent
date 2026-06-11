@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -28,20 +30,27 @@ def _bridge(available: bool = True, tools: tuple[str, ...] = BRAIN_REVIEW_TOOLS)
     return mock_cls
 
 
+@dataclass
+class GateMocks:
+    truth_mock: MagicMock
+
+
+@contextmanager
 def _gate(contract=GREEN_CONTRACT, release=GREEN_RELEASE, truth=GREEN_TRUTH,
-          vault=GREEN_VAULT, bridge_cls=None) -> ExitStack:
-    stack = ExitStack()
-    stack.enter_context(patch(
-        "mq_agent.tools.stack_tools.stack_contract_check", return_value=contract))
-    stack.enter_context(patch(
-        "mq_agent.tools.stack_tools.stack_release_check", return_value=release))
-    stack.truth_mock = stack.enter_context(patch(
-        "mq_agent.tools.stack_truth.stack_truth_export", return_value=truth))
-    stack.enter_context(patch(
-        "mq_agent.tools.vault_structure.vault_structure", return_value=vault))
-    stack.enter_context(patch(
-        "mq_agent.tools.mcp_bridge.MultiMCPBridge", bridge_cls or _bridge()))
-    return stack
+          vault=GREEN_VAULT, bridge_cls=None) -> Iterator[GateMocks]:
+    with ExitStack() as stack:
+        stack.enter_context(patch(
+            "mq_agent.tools.stack_tools.stack_contract_check", return_value=contract))
+        stack.enter_context(patch(
+            "mq_agent.tools.stack_tools.stack_release_check", return_value=release))
+        truth_mock = stack.enter_context(patch(
+            "mq_agent.tools.stack_truth.stack_truth_export", return_value=truth))
+        stack.enter_context(patch(
+            "mq_agent.tools.vault_structure.vault_structure", return_value=vault))
+        stack.enter_context(patch(
+            "mq_agent.tools.mcp_bridge.MultiMCPBridge", bridge_cls or _bridge()))
+        yield GateMocks(truth_mock=truth_mock)
+
 
 
 def _statuses(data: dict) -> dict[str, str]:
