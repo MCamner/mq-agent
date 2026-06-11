@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.14.0] — 2026-06-11
+
 ### Added
 
 * Stack release orchestration — `mq-agent stack release --repo <name>` runs a

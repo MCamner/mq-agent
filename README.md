@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.13.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.14.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -245,6 +245,16 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.14.0 status
+
+- [x] `mq-agent stack release --repo <name>` — orchestrated single-repo release pipeline
+- [x] Dry-run by default; `--execute` applies; `--bump patch|minor|major` or explicit `--version`
+- [x] Release-check pre-gate, version bump, contract sync, changelog from release-notes draft
+- [x] Release commit, tag, push, closing `truth-export` to mqobsidian
+- [x] Abort on first failed step with pre-commit rollback — no half-released repos
+- [x] `docs/STACK_RELEASE.md` — reference doc
+- [x] 27 new tests (455 total)
 
 ## v1.13.0 status
 
