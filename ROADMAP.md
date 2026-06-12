@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
 v1.20.0 — Autonomous stack. In progress.
-Next: harden controlled stack loops.
+Next: expose controlled stack loop from mqlaunch.
 
 ## Current status
 
-All phases complete through v1.18.0. v1.19.0 is next.
+All phases complete through v1.19.0. v1.20.0 is in progress.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -104,8 +104,10 @@ not just a write target for exports.
 * [x] Add dashboard documentation to the GitHub Pages index.
 * [x] v1.20.0 — Autonomous stack foundation: `mq-agent stack loop`
   read-only preview for controlled stack loops.
-* [ ] Add approved execution only after explicit loop contracts and rollback
-  behaviour are documented.
+* [x] Add explicit loop contract schema and rollback behaviour documentation.
+* [x] Add mqlaunch menu entry for manual `mq-agent stack loop` planning.
+* [ ] Add approved execution only after command-specific rollback behaviour is
+  implemented and tested.
 
 ## v1.15.0 — Brain-integrated stack workflow
 

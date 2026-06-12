@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/mq_stack_loop_plan.schema.json",
+  "title": "MQ Stack Loop Plan",
+  "description": "Read-only contract for controlled stack loop planning.",
+  "type": "object",
+  "required": [
+    "contract",
+    "overall",
+    "mode",
+    "approved",
+    "writes_enabled",
+    "max_iterations",
+    "dashboard_overall",
+    "next_action",
+    "decision",
+    "steps",
+    "blocked",
+    "blocker",
+    "checked_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "type": "object",
+      "required": [
+        "schema",
+        "execution",
+        "writes_enabled",
+        "approval_required_for_writes",
+        "rollback_required_before_execution",
+        "rollback"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "mq_stack_loop_plan.v1" },
+        "execution": { "const": "read-only" },
+        "writes_enabled": { "const": false },
+        "approval_required_for_writes": { "const": true },
+        "rollback_required_before_execution": { "const": true },
+        "rollback": {
+          "type": "object",
+          "required": ["strategy", "guarantee"],
+          "additionalProperties": false,
+          "properties": {
+            "strategy": { "type": "string" },
+            "guarantee": { "type": "string" }
+          }
+        }
+      }
+    },
+    "overall": { "const": "PLAN" },
+    "mode": { "enum": ["dry-run", "blocked"] },
+    "approved": { "type": "boolean" },
+    "writes_enabled": { "const": false },
+    "max_iterations": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "dashboard_overall": { "type": ["string", "null"] },
+    "next_action": { "type": "string" },
+    "decision": { "enum": ["idle", "preview", "manual"] },
+    "steps": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "detail"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string" },
+          "detail": { "type": "string" },
+          "decision": { "enum": ["idle", "preview", "manual"] },
+          "next_action": { "type": "string" },
+          "writes": { "type": "boolean" }
+        }
+      }
+    },
+    "blocked": { "type": "boolean" },
+    "blocker": { "type": ["string", "null"] },
+    "checked_at": { "type": "string", "format": "date-time" }
+  }
+}

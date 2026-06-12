@@ -14,7 +14,7 @@ Current project phase:
 
 ```text
 v1.20.0 — Autonomous stack (in progress)
-Next:    Harden controlled stack loops
+Next:    Expose controlled stack loop from mqlaunch
 ```
 
 Completed foundation:
@@ -161,8 +161,12 @@ unsupervised writes.
   orchestration
 * [x] Non-dry-run loop execution is blocked until explicit contracts and
   rollback behaviour exist
-* [ ] Add approved execution only after loop contracts and rollback behaviour
-  are documented
+* [x] `mq_stack_loop_plan.v1` schema documents the read-only loop contract
+* [x] Rollback behaviour is documented as preflight-only while writes are
+  blocked
+* [x] mqlaunch menu entry runs the manual loop plan
+* [ ] Add approved execution only after command-specific rollback behaviour is
+  implemented and tested
 
 ### v1.19.0 — Operator dashboard
 

@@ -139,6 +139,7 @@ mq-agent dashboard --json
 # Controlled stack loop preview
 mq-agent stack loop
 mq-agent stack loop --json
+mqlaunch agent    # choose 19. Stack loop plan
 
 # MCP tool inspection and execution
 mq-agent mcp status --json

@@ -163,6 +163,7 @@ mq-agent learn search <query>      # Search learned review patterns
 mq-agent learn explain <pattern>   # Fetch pattern explanation
 mq-agent dashboard                  # Operator snapshot: stack, brain, Ollama, contracts
 mq-agent stack loop                 # Controlled autonomous stack loop preview
+mqlaunch agent → 19                 # Manual stack loop plan from the menu
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json
@@ -448,7 +449,7 @@ uv run pytest tests/ -v
 - [x] `mq-agent tools --describe <name>` — tool metadata and safety class
 - [x] `mq-agent run-tool <tool>` — MCP tool through safety gates
 - [x] MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
-- [x] mqlaunch bridge — 12-item agent menu + 6 direct prompt commands
+- [x] mqlaunch bridge — 19-item agent menu + 6 direct prompt commands
 - [x] `scripts/smoke-mqlaunch.sh` — verifies `mqlaunch agent ...` reaches mq-agent
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] `docs/COMMAND_SURFACE.md` — single source of truth for command counts

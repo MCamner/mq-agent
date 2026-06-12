@@ -6,6 +6,19 @@ from datetime import UTC, datetime
 from typing import Any
 
 
+LOOP_CONTRACT: dict[str, Any] = {
+    "schema": "mq_stack_loop_plan.v1",
+    "execution": "read-only",
+    "writes_enabled": False,
+    "approval_required_for_writes": True,
+    "rollback_required_before_execution": True,
+    "rollback": {
+        "strategy": "preflight-only",
+        "guarantee": "no repository, brain, model, or process mutations are attempted",
+    },
+}
+
+
 def _planned_command(next_action: str) -> str | None:
     """Map a dashboard next action to a safe preview command when possible."""
     if next_action.startswith("run stack truth-export"):
@@ -73,6 +86,7 @@ def stack_loop(
         })
 
     return json.dumps({
+        "contract": LOOP_CONTRACT,
         "overall": "PLAN",
         "mode": "dry-run" if dry_run else "blocked",
         "approved": approve,

@@ -57,7 +57,7 @@ and storage approval; mq-agent only exposes read-only learn status/search/explai
 | Integration | Status | How |
 |-------------|--------|-----|
 | `repo-signal` | Active | `mq-agent signal .` / `mq-agent score .` |
-| `mqlaunch` | Active | 12-item agent menu + 6 prompt commands |
+| `mqlaunch` | Active | 19-item agent menu + 6 prompt commands |
 | `mq-mcp` | Active | HTTP bridge at `:8765`; 66 tools, safety classes A–D |
 | `mq-hal` | Active | `hal_repo_report` via mq-mcp bridge |
 | `mq-image-analyze` | Active | HTTP bridge at `:8766`; `observe_architecture`, `image_ocr` visual context |
@@ -68,7 +68,7 @@ and storage approval; mq-agent only exposes read-only learn status/search/explai
 `mq-agent` is fully wired into `mqlaunch` via a dedicated menu module and prompt commands.
 See [COMMAND_SURFACE.md](COMMAND_SURFACE.md) for the canonical command-count reference.
 
-**Menu** — press `g` or type `agent` at the mqlaunch prompt, then choose 1–12:
+**Menu** — press `g` or type `agent` at the mqlaunch prompt, then choose 1–19:
 
 ```text
 mqlaunch → g → Agent menu
@@ -78,6 +78,8 @@ mqlaunch → g → Agent menu
   7  release-check    8  fix-ci
   9  doctor           10 tui
   11 mcp status       12 mcp tools
+  17 demo flow        18 stack sweep
+  19 stack loop plan
 ```
 
 **Direct prompt commands:**

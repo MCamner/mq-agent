@@ -5,7 +5,7 @@ The canonical command-count reference is [COMMAND_SURFACE.md](COMMAND_SURFACE.md
 
 The integration is split between two files in the `macos-scripts` repo:
 
-- `terminal/menus/mq-agent-menu.sh` — the 12-item agent menu module
+- `terminal/menus/mq-agent-menu.sh` — the 19-item agent menu module
 - `terminal/launchers/mqlaunch.sh` — direct `mqlaunch agent ...` command routing
 - `terminal/menus/mq-main-menu.sh` — prompt commands at the top-level prompt
 
@@ -13,7 +13,7 @@ The integration is split between two files in the `macos-scripts` repo:
 
 ## How the bridge works
 
-```
+```text
 mqlaunch (sourced from mqlaunch.sh)
   └── sources mq-agent-menu.sh
         ├── run_agent_command() for mqlaunch agent ...
@@ -44,11 +44,11 @@ Run these from any shell:
 
 ---
 
-## Agent menu (12 options)
+## Agent menu (19 options)
 
 Press `g` or type `agent` at the mqlaunch prompt to open the agent menu.
 
-```
+```text
 ╔═══════════════════════════════════════════════╗
 ║  AI Agent Orchestrator  [mq-agent]            ║
 ╠═══════════════════════════════════════════════╣
@@ -65,6 +65,12 @@ Press `g` or type `agent` at the mqlaunch prompt to open the agent menu.
 ╠═══════════════════════════════════════════════╣
 ║  MCP LOCAL TOOLS  (requires mq-mcp on :8765)  ║
 ║  11. MCP status        12. MCP tools list     ║
+║  13. Start MCP         14. Stop MCP           ║
+╠═══════════════════════════════════════════════╣
+║  SECOND BRAIN / STACK                         ║
+║  15. Review → brain    16. Promote pattern    ║
+║  17. Demo flow         18. Stack health sweep ║
+║  19. Stack loop plan                          ║
 ╠═══════════════════════════════════════════════╣
 ║  b. Back                                      ║
 ╚═══════════════════════════════════════════════╝
@@ -84,6 +90,13 @@ Press `g` or type `agent` at the mqlaunch prompt to open the agent menu.
 | 10 | `mq-agent tui` |
 | 11 | `mq-agent mcp status` |
 | 12 | `mq-agent mcp tools` |
+| 13 | start mq-mcp server |
+| 14 | stop mq-mcp server |
+| 15 | `mq-agent review repo . --brain` |
+| 16 | promote learn pattern to mqobsidian |
+| 17 | demo flow |
+| 18 | `mq-agent stack sweep --brain` |
+| 19 | `mq-agent stack loop` |
 
 ---
 
@@ -113,7 +126,7 @@ bash scripts/smoke-mqlaunch.sh
 
 Expected output:
 
-```
+```text
 [PASS] mqlaunch can call mq-agent doctor
 [PASS] mqlaunch can call mq-agent score
 [PASS] mqlaunch can call mq-agent release-check

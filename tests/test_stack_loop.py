@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import json
 from importlib import import_module
+from pathlib import Path
 
 from typer.testing import CliRunner
 
 from mq_agent.main import app
-from mq_agent.tools.stack_loop import stack_loop
+from mq_agent.tools.stack_loop import LOOP_CONTRACT, stack_loop
 
 runner = CliRunner()
 
@@ -35,6 +36,7 @@ def test_stack_loop_manual_when_next_action_needs_operator(monkeypatch):
     data = json.loads(stack_loop())
 
     assert data["overall"] == "PLAN"
+    assert data["contract"] == LOOP_CONTRACT
     assert data["decision"] == "manual"
     assert data["writes_enabled"] is False
     assert data["steps"][1]["next_action"] == "mq-agent: commit or stash uncommitted changes"
@@ -76,6 +78,8 @@ def test_stack_loop_blocks_non_dry_run(monkeypatch):
 
     assert data["blocked"] is True
     assert data["writes_enabled"] is False
+    assert data["contract"]["execution"] == "read-only"
+    assert data["contract"]["rollback_required_before_execution"] is True
     assert "not enabled" in data["blocker"]
 
 
@@ -103,3 +107,14 @@ def test_stack_loop_registered_in_tool_registry():
     from mq_agent.tools import TOOL_REGISTRY
 
     assert TOOL_REGISTRY["stack_loop"] is stack_loop
+
+
+def test_stack_loop_plan_schema_documents_contract():
+    schema = json.loads(Path("schemas/mq_stack_loop_plan.schema.json").read_text())
+
+    assert schema["title"] == "MQ Stack Loop Plan"
+    assert "contract" in schema["required"]
+    contract = schema["properties"]["contract"]["properties"]
+    assert contract["schema"]["const"] == "mq_stack_loop_plan.v1"
+    assert contract["execution"]["const"] == "read-only"
+    assert contract["writes_enabled"]["const"] is False

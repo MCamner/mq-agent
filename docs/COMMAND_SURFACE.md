@@ -328,7 +328,7 @@ NO-GO. See `docs/BRAIN_GATE.md`.
 
 ## mqlaunch Agent Menu
 
-The mqlaunch agent menu has exactly 12 items.
+The mqlaunch agent menu has exactly 19 items.
 
 | Menu item | Runs |
 |---:|---|
@@ -344,6 +344,13 @@ The mqlaunch agent menu has exactly 12 items.
 | 10 | `mq-agent tui` |
 | 11 | `mq-agent mcp status` |
 | 12 | `mq-agent mcp tools` |
+| 13 | start mq-mcp server |
+| 14 | stop mq-mcp server |
+| 15 | `mq-agent review repo . --brain` |
+| 16 | promote learn pattern to mqobsidian |
+| 17 | demo flow |
+| 18 | `mq-agent stack sweep --brain` |
+| 19 | `mq-agent stack loop` |
 
 ## mqlaunch Direct Command Surface
 
