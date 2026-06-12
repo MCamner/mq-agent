@@ -19,7 +19,8 @@
     "brain_gate.v1",
     "stack_runtime.v1",
     "model_runtime.v1",
-    "memory_engine.v1"
+    "memory_engine.v1",
+    "operator_dashboard.v1"
   ],
-  "next_focus": "v1.19.0 — Operator dashboard"
+  "next_focus": "v1.20.0 — Autonomous stack"
 }

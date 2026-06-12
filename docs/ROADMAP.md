@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.18.0 — Memory engine (done)
-Next:    v1.19.0 — Operator dashboard
+v1.19.0 — Operator dashboard (in progress)
+Next:    v1.20.0 — Autonomous stack
 ```
 
 Completed foundation:
@@ -79,7 +79,7 @@ Completed foundation:
 | v1.16.0 | Runtime consolidation                        | Done    |
 | v1.17.0 | Ollama runtime                               | Done    |
 | v1.18.0 | Memory engine                                | Done    |
-| v1.19.0 | Operator dashboard                           | Planned |
+| v1.19.0 | Operator dashboard                           | In progress |
 | v1.20.0 | Autonomous stack                             | Planned |
 
 ---
@@ -150,10 +150,23 @@ profiles and operator-visible status.
 
 ## Planned
 
+### v1.19.0 — Operator dashboard
+
+Goal: make stack operations visible from one operator surface before moving
+toward controlled autonomous loops.
+
+* [x] `mq-agent dashboard` — read-only snapshot for stack health, release
+  readiness, mqobsidian truth freshness, Ollama profile status, repos and
+  contracts
+* [x] `mq-agent dashboard --json` — machine-readable operator state
+* [x] `mq-agent tui` — starts with the same operator snapshot before command
+  execution
+* [x] Add refresh-oriented TUI panels for stack, release, brain and models
+* [x] Add operator dashboard reference documentation
+* [x] Add dashboard documentation to the GitHub Pages index
+
 ### Later planned releases
 
-* [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
-  Ollama, repos, and contracts.
 * [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
 
 ---

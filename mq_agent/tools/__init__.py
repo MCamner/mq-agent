@@ -23,6 +23,7 @@ from .image_tools import (
 from .mcp_bridge import mcp_call
 from .memory_engine import memory_ingest, memory_link, memory_search, memory_summarize
 from .model_runtime import bench_model, current_model, list_ollama_models, switch_model
+from .operator_dashboard import operator_dashboard
 from .repo_tools import find_files, list_files, read_file, repo_summary, run_task_tool, write_file
 from .shell_tools import run_command, which
 from .signal_tools import (
@@ -102,6 +103,8 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "models_current": current_model,
     "models_switch": switch_model,
     "models_bench": bench_model,
+    # v1.19 operator dashboard
+    "operator_dashboard": operator_dashboard,
     # Browser (read-only, safe GET requests only)
     "fetch_url": fetch_url,
     "inspect_url": inspect_url,

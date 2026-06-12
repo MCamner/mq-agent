@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shlex
 from typing import ClassVar
@@ -35,6 +36,11 @@ COMMANDS = [
     ("tools", "tools"),
     ("mcp status", "mcp status"),
     ("mcp tools", "mcp tools"),
+    ("dashboard", "dashboard"),
+    ("stack cockpit", "stack cockpit"),
+    ("stack run", "stack run"),
+    ("models current", "models current"),
+    ("memory summarize", "memory summarize"),
 ]
 
 CSS = """
@@ -57,6 +63,28 @@ Screen {
 
 #output {
     padding: 1 2;
+}
+
+#dashboard {
+    height: auto;
+    margin-bottom: 1;
+}
+
+.panel {
+    width: 1fr;
+    min-height: 5;
+    border: round $primary-darken-2;
+    padding: 0 1;
+    margin-right: 1;
+}
+
+.panel-title {
+    text-style: bold;
+    color: $primary;
+}
+
+#log {
+    min-height: 10;
 }
 
 ListView {
@@ -95,6 +123,7 @@ class MQAgentApp(App):
         Binding("ctrl+c", "quit", "Quit", show=False),
         Binding("enter", "run_selected", "Run"),
         Binding("c", "clear_log", "Clear"),
+        Binding("r", "refresh_dashboard", "Refresh"),
     ]
 
     selected_command: reactive[str] = reactive("")
@@ -108,6 +137,13 @@ class MQAgentApp(App):
                     *[ListItem(Label(label), id=f"cmd-{i}") for i, (label, _) in enumerate(COMMANDS)]
                 )
             with ScrollableContainer(id="output"):
+                with Vertical(id="dashboard"):
+                    with Horizontal():
+                        yield Static("", id="panel-stack", classes="panel")
+                        yield Static("", id="panel-brain", classes="panel")
+                    with Horizontal():
+                        yield Static("", id="panel-ollama", classes="panel")
+                        yield Static("", id="panel-next", classes="panel")
                 yield Log(id="log", highlight=True)
         yield Static(self._status_text(), id="status-bar")
         yield Footer()
@@ -116,6 +152,7 @@ class MQAgentApp(App):
         log = self.query_one(Log)
         log.write_line("[bold cyan]mq-agent[/bold cyan] ready.")
         log.write_line(f"OPENAI_API_KEY: {'set ✓' if os.environ.get('OPENAI_API_KEY') else 'NOT SET ✗'}")
+        self._refresh_dashboard(log=log)
         log.write_line("Select a command from the sidebar and press [bold]Enter[/bold].")
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
@@ -134,6 +171,9 @@ class MQAgentApp(App):
 
     def action_clear_log(self) -> None:
         self.query_one(Log).clear()
+
+    def action_refresh_dashboard(self) -> None:
+        self._refresh_dashboard(log=self.query_one(Log))
 
     async def _run_command(self, cmd: str, log: Log) -> None:
         parts = shlex.split(f"mq-agent {cmd}")
@@ -157,11 +197,77 @@ class MQAgentApp(App):
 
     def _status_text(self) -> str:
         key = "✓" if os.environ.get("OPENAI_API_KEY") else "✗ NO KEY"
-        return f" OPENAI {key}  |  q=quit  enter=run  c=clear"
+        return f" OPENAI {key}  |  q=quit  enter=run  r=refresh  c=clear"
 
     def _update_status(self) -> None:
         try:
             bar = self.query_one("#status-bar", Static)
-            bar.update(f" Selected: mq-agent {self.selected_command}  |  q=quit  enter=run  c=clear")
+            bar.update(f" Selected: mq-agent {self.selected_command}  |  q=quit  enter=run  r=refresh  c=clear")
         except Exception:
             pass
+
+    def _refresh_dashboard(self, log: Log | None = None) -> None:
+        try:
+            from mq_agent.tools.operator_dashboard import operator_dashboard
+
+            data = json.loads(operator_dashboard())
+        except Exception as exc:
+            if log is not None:
+                log.write_line(f"[yellow]dashboard unavailable:[/yellow] {exc}")
+            return
+
+        panels = dashboard_panel_text(data)
+        for panel_id, text in panels.items():
+            self.query_one(f"#{panel_id}", Static).update(text)
+        if log is not None:
+            log.write_line(f"[dim]dashboard refreshed: {data.get('checked_at', '')}[/dim]")
+
+    def _write_dashboard_snapshot(self, log: Log) -> None:
+        """Compatibility wrapper for tests and older TUI callers."""
+        self._refresh_dashboard(log=log)
+
+
+def dashboard_panel_text(data: dict[str, object]) -> dict[str, str]:
+    """Format operator dashboard data for compact TUI panels."""
+    stack = data["stack"]
+    brain = data["brain"]
+    ollama = data["ollama"]
+
+    assert isinstance(stack, dict)
+    assert isinstance(brain, dict)
+    assert isinstance(ollama, dict)
+
+    contracts = data.get("contracts", {})
+    contract_text = (
+        ", ".join(f"{key}={value}" for key, value in sorted(contracts.items()))
+        if isinstance(contracts, dict)
+        else "unknown"
+    )
+    brain_path = str(brain.get("path") or "no stack-truth note")
+    if len(brain_path) > 54:
+        brain_path = "..." + brain_path[-51:]
+
+    return {
+        "panel-stack": (
+            "[b]Stack[/b]\n"
+            f"Gate: {stack.get('gate')} | Contract: {stack.get('contract')}\n"
+            f"Repos: {stack.get('repo_count')} | Actions: {stack.get('actionable_count')} | Dirty: {stack.get('dirty_count')}\n"
+            f"Contracts: {contract_text}"
+        ),
+        "panel-brain": (
+            "[b]Brain[/b]\n"
+            f"Truth: {brain.get('status', 'unknown')} | Age: {brain.get('age_days', '-')}\n"
+            f"{brain_path}"
+        ),
+        "panel-ollama": (
+            "[b]Ollama[/b]\n"
+            f"Status: {'OK' if ollama.get('ok') else 'CHECK'}\n"
+            f"Profile: {ollama.get('profile')} -> {ollama.get('model')}\n"
+            f"Models: {len(ollama.get('models', []))}"
+        ),
+        "panel-next": (
+            "[b]Next[/b]\n"
+            f"Overall: {data.get('overall')}\n"
+            f"{data.get('next_action')}"
+        ),
+    }

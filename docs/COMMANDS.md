@@ -30,7 +30,8 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent memory query <query>` | read-only | no | Search mqobsidian memory notes |
 | `mq-agent memory summarize` | read-only | no | Summarize mqobsidian memory sections |
 | `mq-agent memory link` | read-only | no | Report note link candidates |
-| `mq-agent tui` | read-only | no | Launch Textual dashboard |
+| `mq-agent dashboard` | read-only | no | Operator snapshot for stack, brain, Ollama and contracts |
+| `mq-agent tui` | read-only | no | Launch refreshable Textual operator dashboard |
 
 ## MCP commands
 
@@ -129,6 +130,10 @@ mq-agent run "git status"          # read commands don't need --approve
 mq-agent run --stack --dry-run
 mq-agent run --stack --json
 mq-agent run --stack --markdown
+
+# Operator dashboard
+mq-agent dashboard
+mq-agent dashboard --json
 
 # MCP tool inspection and execution
 mq-agent mcp status --json

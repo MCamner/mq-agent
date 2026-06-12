@@ -1487,6 +1487,58 @@ def docs_audit(
 
 # ── tui ────────────────────────────────────────────────────────────────────
 
+@app.command(name="dashboard")
+def dashboard_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show the v1.19 operator dashboard snapshot."""
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    with console.status("[cyan]Assembling operator dashboard...[/cyan]"):
+        raw = operator_dashboard()
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        return
+
+    status = "[green]READY[/green]" if data["overall"] == "READY" else "[yellow]ATTENTION[/yellow]"
+    console.print()
+    console.rule("[bold]mq-agent Operator Dashboard[/bold]")
+    console.print()
+    console.print(f"  Overall: {status}   Next: [bold]{data['next_action']}[/bold]")
+    console.print()
+
+    table = Table(show_header=True)
+    table.add_column("Area", style="cyan", no_wrap=True)
+    table.add_column("Status", no_wrap=True)
+    table.add_column("Detail")
+
+    stack = data["stack"]
+    stack_status = "[green]GO[/green]" if stack["gate"] == "GO" else "[red]NO-GO[/red]"
+    table.add_row(
+        "Stack",
+        stack_status,
+        f"{stack['repo_count']} repos, {stack['actionable_count']} action(s), {stack['dirty_count']} dirty",
+    )
+
+    contract_status = "[green]READY[/green]" if stack["contract"] == "READY" else "[red]NOT READY[/red]"
+    table.add_row("Contracts", contract_status, ", ".join(f"{k}={v}" for k, v in sorted(data["contracts"].items())))
+
+    brain = data["brain"]
+    brain_style = {"fresh": "green", "aging": "yellow", "stale": "red", "none": "red"}.get(brain.get("status"), "dim")
+    table.add_row("Brain", f"[{brain_style}]{brain.get('status', 'unknown')}[/{brain_style}]", brain.get("path") or "no stack-truth note")
+
+    ollama = data["ollama"]
+    table.add_row(
+        "Ollama",
+        "[green]OK[/green]" if ollama["ok"] else "[yellow]CHECK[/yellow]",
+        f"{ollama['profile']} → {ollama['model']} ({len(ollama['models'])} local model(s))",
+    )
+
+    console.print(table)
+
+
 @app.command()
 def tui():
     """Launch the Textual TUI dashboard."""

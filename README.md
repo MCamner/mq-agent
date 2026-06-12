@@ -161,6 +161,7 @@ mq-agent review file <path> --architecture-image docs/arch.png
 mq-agent learn status              # Check mq-mcp learn system
 mq-agent learn search <query>      # Search learned review patterns
 mq-agent learn explain <pattern>   # Fetch pattern explanation
+mq-agent dashboard                  # Operator snapshot: stack, brain, Ollama, contracts
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json
@@ -256,6 +257,11 @@ uv run pytest tests/ -v
 - [x] `mq-agent memory link` — read-only link candidates between notes
 - [x] `docs/MEMORY_ENGINE.md`
 - [x] Write-backed links deferred to a later explicit approval flow
+
+## v1.19.0 status
+
+- [x] `mq-agent dashboard` — read-only operator snapshot for stack health, contracts, mqobsidian truth freshness and Ollama profile status
+- [x] `mq-agent tui` — starts with the same operator snapshot before command execution
 
 ## v1.17.0 status
 
