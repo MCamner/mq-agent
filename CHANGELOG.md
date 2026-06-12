@@ -9,6 +9,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.18.0] — 2026-06-12
+
+### Added
+
+* `mq-agent memory ingest` — read-only mqobsidian Markdown index across truth,
+  reviews, learn, releases, architecture, decisions and stack runs.
+* `mq-agent memory query` / `memory search-vault` — local vault search without
+  requiring mq-mcp or a vector store.
+* `mq-agent memory summarize` — section-level memory summary with note counts,
+  word counts and top tags.
+* `mq-agent memory link` — read-only link candidates between related notes.
+* `memory_engine.v1` repo contract capability and `docs/MEMORY_ENGINE.md`.
+
+### Changed
+
+* Write-backed vault links are deferred to a later explicit approval flow;
+  v1.18.0 keeps the memory engine read-only.
+
 ## [v1.17.0] — 2026-06-12
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.17.0",
+  "version": "1.18.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -18,7 +18,8 @@
     "vault_structure.v1",
     "brain_gate.v1",
     "stack_runtime.v1",
-    "model_runtime.v1"
+    "model_runtime.v1",
+    "memory_engine.v1"
   ],
-  "next_focus": "v1.18.0 — Memory engine"
+  "next_focus": "v1.19.0 — Operator dashboard"
 }
