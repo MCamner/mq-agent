@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.20.0 — Autonomous stack (in progress)
-Next:    Expose controlled stack loop from mqlaunch
+v1.20.0 — Autonomous stack (done)
+Next:    Prepare v1.21.0
 ```
 
 Completed foundation:
@@ -80,7 +80,7 @@ Completed foundation:
 | v1.17.0 | Ollama runtime                               | Done    |
 | v1.18.0 | Memory engine                                | Done    |
 | v1.19.0 | Operator dashboard                           | Done    |
-| v1.20.0 | Autonomous stack                             | In progress |
+| v1.20.0 | Autonomous stack                             | Done    |
 
 ---
 
@@ -155,18 +155,16 @@ profiles and operator-visible status.
 Goal: move from dashboards to controlled stack loops without allowing
 unsupervised writes.
 
-* [x] `mq-agent stack loop` — read-only loop preview from the operator
+* [x] `mq-agent stack loop` — controlled loop plan from the operator
   dashboard next action
-* [x] `mq-agent stack loop --json` — machine-readable plan for future
+* [x] `mq-agent stack loop --json` — machine-readable plan for
   orchestration
-* [x] Non-dry-run loop execution is blocked until explicit contracts and
-  rollback behaviour exist
-* [x] `mq_stack_loop_plan.v1` schema documents the read-only loop contract
-* [x] Rollback behaviour is documented as preflight-only while writes are
-  blocked
+* [x] Non-approved loop execution is blocked until explicit approval is passed
+* [x] `mq_stack_loop_plan.v1` schema documents the controlled loop contract
+* [x] Command-specific rollback behaviour is documented and tested
 * [x] mqlaunch menu entry runs the manual loop plan
-* [ ] Add approved execution only after command-specific rollback behaviour is
-  implemented and tested
+* [x] Add approved execution for allowlisted `truth-export` and
+  `stack-release` actions
 
 ### v1.19.0 — Operator dashboard
 
@@ -185,7 +183,7 @@ toward controlled autonomous loops.
 
 ### Later planned releases
 
-* [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
+* [ ] v1.21.0 — Next stack automation increment.
 
 ---
 

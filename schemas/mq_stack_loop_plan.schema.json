@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MCamner/mq-agent/schemas/mq_stack_loop_plan.schema.json",
   "title": "MQ Stack Loop Plan",
-  "description": "Read-only contract for controlled stack loop planning.",
+  "description": "Controlled contract for stack loop planning and approved one-step execution.",
   "type": "object",
   "required": [
     "contract",
@@ -17,6 +17,7 @@
     "steps",
     "blocked",
     "blocker",
+    "execution_result",
     "checked_at"
   ],
   "additionalProperties": false,
@@ -26,33 +27,40 @@
       "required": [
         "schema",
         "execution",
-        "writes_enabled",
         "approval_required_for_writes",
-        "rollback_required_before_execution",
-        "rollback"
+        "writes_require_execute",
+        "allowed_actions",
+        "rollback_required"
       ],
       "additionalProperties": false,
       "properties": {
         "schema": { "const": "mq_stack_loop_plan.v1" },
-        "execution": { "const": "read-only" },
-        "writes_enabled": { "const": false },
+        "execution": { "const": "controlled" },
         "approval_required_for_writes": { "const": true },
-        "rollback_required_before_execution": { "const": true },
+        "writes_require_execute": { "const": true },
+        "allowed_actions": {
+          "type": "array",
+          "items": { "enum": ["truth-export", "stack-release"] }
+        },
+        "rollback_required": { "const": true }
+      }
+    },
+    "execution_result": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "ok": { "type": "boolean" },
+        "action": { "enum": ["truth-export", "stack-release"] },
         "rollback": {
           "type": "object",
-          "required": ["strategy", "guarantee"],
-          "additionalProperties": false,
-          "properties": {
-            "strategy": { "type": "string" },
-            "guarantee": { "type": "string" }
-          }
+          "additionalProperties": true
         }
       }
     },
     "overall": { "const": "PLAN" },
-    "mode": { "enum": ["dry-run", "blocked"] },
+    "mode": { "enum": ["dry-run", "blocked", "idle", "approved-execution"] },
     "approved": { "type": "boolean" },
-    "writes_enabled": { "const": false },
+    "writes_enabled": { "type": "boolean" },
     "max_iterations": { "type": "integer", "minimum": 1, "maximum": 5 },
     "dashboard_overall": { "type": ["string", "null"] },
     "next_action": { "type": "string" },

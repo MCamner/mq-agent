@@ -162,7 +162,8 @@ mq-agent learn status              # Check mq-mcp learn system
 mq-agent learn search <query>      # Search learned review patterns
 mq-agent learn explain <pattern>   # Fetch pattern explanation
 mq-agent dashboard                  # Operator snapshot: stack, brain, Ollama, contracts
-mq-agent stack loop                 # Controlled autonomous stack loop preview
+mq-agent stack loop                 # Controlled autonomous stack loop
+mq-agent stack loop --execute --approve
 mqlaunch agent → 19                 # Manual stack loop plan from the menu
 mq-agent tui                       # Launch Textual dashboard
 

@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.20.0 — Autonomous stack. In progress.
-Next: expose controlled stack loop from mqlaunch.
+v1.20.0 — Autonomous stack. Done.
+Next: prepare v1.21.0.
 
 ## Current status
 
-All phases complete through v1.19.0. v1.20.0 is in progress.
+All phases complete through v1.20.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ All phases complete through v1.19.0. v1.20.0 is in progress.
 | v1.17.0 | Ollama runtime | Done |
 | v1.18.0 | Memory engine | Done |
 | v1.19.0 | Operator dashboard | Done |
-| v1.20.0 | Autonomous stack | In progress |
+| v1.20.0 | Autonomous stack | Done |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -103,10 +103,10 @@ not just a write target for exports.
 * [x] Add operator dashboard reference documentation.
 * [x] Add dashboard documentation to the GitHub Pages index.
 * [x] v1.20.0 — Autonomous stack foundation: `mq-agent stack loop`
-  read-only preview for controlled stack loops.
+  controlled planning and approved one-step execution.
 * [x] Add explicit loop contract schema and rollback behaviour documentation.
 * [x] Add mqlaunch menu entry for manual `mq-agent stack loop` planning.
-* [ ] Add approved execution only after command-specific rollback behaviour is
+* [x] Add approved execution after command-specific rollback behaviour is
   implemented and tested.
 
 ## v1.15.0 — Brain-integrated stack workflow

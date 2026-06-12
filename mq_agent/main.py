@@ -3809,20 +3809,21 @@ def stack_run_cmd(
 
 @stack_app.command("loop")
 def stack_loop_cmd(
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Plan only; autonomous execution is not enabled yet")] = True,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Plan only; do not execute the selected loop action")] = True,
+    execute: Annotated[bool, typer.Option("--execute", help="Execute one allowlisted loop action; requires --approve")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
-    approve: Annotated[bool, typer.Option("--approve", help="Reserved for future controlled execution")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Approve controlled execution for one allowlisted action")] = False,
     max_iterations: Annotated[int, typer.Option("--max-iterations", help="Bounded loop count for the plan")] = 1,
 ):
-    """Plan the v1.20 controlled autonomous stack loop.
+    """Plan or execute one v1.20 controlled autonomous stack loop.
 
-    Read-only preview: observes the operator dashboard and maps the current
-    next action to a safe planned command when one is available.
+    Dry-run by default. `--execute --approve` runs one allowlisted action with
+    command-specific rollback behaviour.
     """
     from mq_agent.tools.stack_loop import stack_loop as _stack_loop
 
     with console.status("[cyan]Planning stack loop...[/cyan]"):
-        raw = _stack_loop(dry_run=dry_run, approve=approve, max_iterations=max_iterations)
+        raw = _stack_loop(dry_run=dry_run, approve=approve, execute=execute, max_iterations=max_iterations)
     data = json.loads(raw)
 
     if json_out:
@@ -3835,6 +3836,10 @@ def stack_loop_cmd(
     console.print(f"  Decision: [bold]{data['decision']}[/bold]   Next: [bold]{data['next_action']}[/bold]")
     if data.get("blocked"):
         console.print(f"  [yellow]Blocked:[/yellow] {data['blocker']}")
+    if data.get("execution_result"):
+        result = data["execution_result"]
+        status = "ok" if result.get("ok") else "failed"
+        console.print(f"  Execution: [bold]{status}[/bold]   Action: [bold]{result.get('action')}[/bold]")
     console.print()
     for step in data["steps"]:
         console.print(f"  • [bold]{step['name']}[/bold] — {step['detail']}")
