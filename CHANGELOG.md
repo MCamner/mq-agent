@@ -7,13 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [v1.16.0] — 2026-06-11
 
 ### Added
 
 * `mq-agent stack run` — v1.16 stack runtime gate for repo-signal, mq-mcp,
   Ollama, brain export rendering and release readiness. Read-only by default;
-  supports `--dry-run`, `--json`, `--brain`, `--ci`, and `--approve`.
+  supports `--dry-run`, `--json`, `--markdown`, `--brain`, `--ci`, and
+  `--approve`.
 * `mq-agent run --stack` — canonical root alias for the stack runtime pipeline.
 * `docs/MQ_CONTROL_PLANE.md` — system map for signal, review, learn, memory
   and release across the MQ stack.

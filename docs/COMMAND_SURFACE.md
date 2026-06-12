@@ -286,6 +286,7 @@ when paired with `--approve`.
 | `mq-agent run --stack` | Canonical root alias for `stack run` |
 | `mq-agent stack run --dry-run` | Run without write steps |
 | `mq-agent stack run --json` | Machine-readable runtime result; exits 1 on FAIL |
+| `mq-agent stack run --markdown` | Markdown runtime report with pipeline and checks |
 | `mq-agent stack run --brain --approve` | Write the stack truth export after runtime checks |
 | `mq-agent stack run --ci` | CI mode for release gates; skips missing sibling repos |
 

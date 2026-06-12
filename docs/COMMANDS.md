@@ -120,6 +120,7 @@ mq-agent run "git status"          # read commands don't need --approve
 # Canonical stack runtime
 mq-agent run --stack --dry-run
 mq-agent run --stack --json
+mq-agent run --stack --markdown
 
 # MCP tool inspection and execution
 mq-agent mcp status --json
