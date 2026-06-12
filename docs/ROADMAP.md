@@ -13,7 +13,7 @@ surface.
 Current project phase:
 
 ```text
-v1.17.0 — Ollama runtime (in progress)
+v1.17.0 — Ollama runtime (done)
 Next:    v1.18.0 — Memory engine
 ```
 
@@ -77,7 +77,7 @@ Completed foundation:
 | v1.14.0 | Stack release orchestration                  | Done    |
 | v1.15.0 | Brain-integrated stack workflow              | Done    |
 | v1.16.0 | Runtime consolidation                        | Done    |
-| v1.17.0 | Ollama runtime                               | In progress |
+| v1.17.0 | Ollama runtime                               | Done    |
 | v1.18.0 | Memory engine                                | Planned |
 | v1.19.0 | Operator dashboard                           | Planned |
 | v1.20.0 | Autonomous stack                             | Planned |
@@ -129,8 +129,8 @@ profiles and operator-visible status.
 * [x] `~/.mq-agent/models.json` — profile config for `fast`, `review`,
   `planner`, and `memory`
 * [x] `mq-agent stack run` — shows active model profile in the Ollama check
-* [ ] v1.17.0 release docs/status sync
-* [ ] Full test suite and stack gates before PR
+* [x] v1.17.0 release docs/status sync
+* [x] Full test suite and stack gates before PR
 
 ## Planned
 

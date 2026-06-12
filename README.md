@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.16.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.17.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -253,8 +253,8 @@ uv run pytest tests/ -v
 - [x] `mq-agent models list/current/switch/bench`
 - [x] Model profiles persisted in `~/.mq-agent/models.json`
 - [x] `mq-agent stack run` surfaces the active model profile in the Ollama check
-- [ ] v1.17.0 release docs/status sync
-- [ ] Full suite and stack gates before PR
+- [x] v1.17.0 release docs/status sync
+- [x] Full suite and stack gates before PR
 
 ## v1.16.0 status
 
