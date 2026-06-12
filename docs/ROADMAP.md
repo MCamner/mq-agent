@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.16.0 — runtime consolidation (done)
-Next:    v1.17.0 — Ollama runtime
+v1.17.0 — Ollama runtime (in progress)
+Next:    v1.18.0 — Memory engine
 ```
 
 Completed foundation:
@@ -77,7 +77,7 @@ Completed foundation:
 | v1.14.0 | Stack release orchestration                  | Done    |
 | v1.15.0 | Brain-integrated stack workflow              | Done    |
 | v1.16.0 | Runtime consolidation                        | Done    |
-| v1.17.0 | Ollama runtime                               | Planned |
+| v1.17.0 | Ollama runtime                               | In progress |
 | v1.18.0 | Memory engine                                | Planned |
 | v1.19.0 | Operator dashboard                           | Planned |
 | v1.20.0 | Autonomous stack                             | Planned |
@@ -113,11 +113,29 @@ mq-hal → presents
 * [x] Add `docs/MQ_CONTROL_PLANE.md` — one system map for signal, review,
   learn, memory and release.
 
+## Active
+
+### v1.17.0 — Ollama runtime
+
+Goal: make Ollama a first-class runtime dependency with explicit model
+profiles and operator-visible status.
+
+* [x] `mq-agent models` — first-class command group for local model runtime
+* [x] `mq-agent models list` — list local Ollama models
+* [x] `mq-agent models current` — show active profile and model
+* [x] `mq-agent models switch` — switch active profile or assign model to a
+  profile, with `--approve` required for writes
+* [x] `mq-agent models bench` — local Ollama smoke benchmark
+* [x] `~/.mq-agent/models.json` — profile config for `fast`, `review`,
+  `planner`, and `memory`
+* [x] `mq-agent stack run` — shows active model profile in the Ollama check
+* [ ] v1.17.0 release docs/status sync
+* [ ] Full test suite and stack gates before PR
+
 ## Planned
 
 ### Later planned releases
 
-* [ ] v1.17.0 — Ollama runtime: first-class `mq-agent models` commands.
 * [ ] v1.18.0 — Memory engine: ingest, search, summarize, and link memory.
 * [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
   Ollama, repos, and contracts.

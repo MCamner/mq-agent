@@ -21,6 +21,7 @@ from .image_tools import (
     image_version,
 )
 from .mcp_bridge import mcp_call
+from .model_runtime import bench_model, current_model, list_ollama_models, switch_model
 from .repo_tools import find_files, list_files, read_file, repo_summary, run_task_tool, write_file
 from .shell_tools import run_command, which
 from .signal_tools import (
@@ -90,6 +91,11 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "image_compare": image_compare,
     # MCP
     "mcp_call": mcp_call,
+    # Ollama model runtime
+    "models_list": list_ollama_models,
+    "models_current": current_model,
+    "models_switch": switch_model,
+    "models_bench": bench_model,
     # Browser (read-only, safe GET requests only)
     "fetch_url": fetch_url,
     "inspect_url": inspect_url,
