@@ -14,7 +14,7 @@ Current project phase:
 
 ```text
 v1.20.0 — Autonomous stack (done)
-Next:    Prepare v1.21.0
+Next:    v1.21.0 — mq-hal operator layer readiness
 ```
 
 Completed foundation:
@@ -81,6 +81,7 @@ Completed foundation:
 | v1.18.0 | Memory engine                                | Done    |
 | v1.19.0 | Operator dashboard                           | Done    |
 | v1.20.0 | Autonomous stack                             | Done    |
+| v1.21.0 | mq-hal operator layer readiness              | Planned |
 
 ---
 
@@ -181,9 +182,28 @@ toward controlled autonomous loops.
 * [x] Add operator dashboard reference documentation
 * [x] Add dashboard documentation to the GitHub Pages index
 
-### Later planned releases
+### v1.21.0 — mq-hal operator layer readiness
 
-* [ ] v1.21.0 — Next stack automation increment.
+Goal: keep `mq-agent` as the control-plane truth producer and make its
+operator-facing outputs stable enough for `mq-hal` to become the daily
+operator layer.
+
+`mq-agent` should produce the truth. `mq-hal` should show the truth.
+`mqobsidian` should remember the truth.
+
+* [ ] Stable JSON outputs for the surfaces `mq-hal` should read:
+  `mq-agent stack cockpit --json`, `mq-agent stack brain-gate --json`,
+  `mq-agent run --stack --json`, `mq-agent stack release-check --json`, and
+  `mq-agent dashboard --json`
+* [ ] Contract tests for the fields needed by `mq-hal stack`,
+  `mq-hal brain-status`, `mq-hal release-status`, and `mq-hal next-action`
+* [ ] `mq-agent → mq-hal` read-contract documentation, including that `mq-hal`
+  must not own gates or write flows
+* [ ] Compact `next_action` contract section covering source command,
+  severity, suggested route and whether approval is required
+* [ ] Defer stack-loop audit history until the `mq-hal` operator layer can
+  display current truth cleanly
+* [ ] Register `mq_hal_operator_contract.v1` in `.mq/repo-contract.json`
 
 ---
 

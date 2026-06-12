@@ -24,5 +24,5 @@
     "autonomous_stack_loop.v1",
     "mq_stack_loop_plan.v1"
   ],
-  "next_focus": "v1.21.0 — Next stack automation increment"
+  "next_focus": "v1.21.0 — mq-hal operator layer readiness"
 }
