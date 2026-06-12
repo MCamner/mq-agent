@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.19.0 — Operator dashboard (in progress)
-Next:    v1.20.0 — Autonomous stack
+v1.20.0 — Autonomous stack (in progress)
+Next:    Harden controlled stack loops
 ```
 
 Completed foundation:
@@ -79,8 +79,8 @@ Completed foundation:
 | v1.16.0 | Runtime consolidation                        | Done    |
 | v1.17.0 | Ollama runtime                               | Done    |
 | v1.18.0 | Memory engine                                | Done    |
-| v1.19.0 | Operator dashboard                           | In progress |
-| v1.20.0 | Autonomous stack                             | Planned |
+| v1.19.0 | Operator dashboard                           | Done    |
+| v1.20.0 | Autonomous stack                             | In progress |
 
 ---
 
@@ -149,6 +149,20 @@ profiles and operator-visible status.
 * [x] Full test suite and stack gates before PR
 
 ## Planned
+
+### v1.20.0 — Autonomous stack
+
+Goal: move from dashboards to controlled stack loops without allowing
+unsupervised writes.
+
+* [x] `mq-agent stack loop` — read-only loop preview from the operator
+  dashboard next action
+* [x] `mq-agent stack loop --json` — machine-readable plan for future
+  orchestration
+* [x] Non-dry-run loop execution is blocked until explicit contracts and
+  rollback behaviour exist
+* [ ] Add approved execution only after loop contracts and rollback behaviour
+  are documented
 
 ### v1.19.0 — Operator dashboard
 

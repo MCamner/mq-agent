@@ -3807,6 +3807,39 @@ def stack_run_cmd(
         raise typer.Exit(1)
 
 
+@stack_app.command("loop")
+def stack_loop_cmd(
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Plan only; autonomous execution is not enabled yet")] = True,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Reserved for future controlled execution")] = False,
+    max_iterations: Annotated[int, typer.Option("--max-iterations", help="Bounded loop count for the plan")] = 1,
+):
+    """Plan the v1.20 controlled autonomous stack loop.
+
+    Read-only preview: observes the operator dashboard and maps the current
+    next action to a safe planned command when one is available.
+    """
+    from mq_agent.tools.stack_loop import stack_loop as _stack_loop
+
+    with console.status("[cyan]Planning stack loop...[/cyan]"):
+        raw = _stack_loop(dry_run=dry_run, approve=approve, max_iterations=max_iterations)
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        return
+
+    console.print()
+    console.rule("[bold]mq-stack Loop Plan[/bold]")
+    console.print()
+    console.print(f"  Decision: [bold]{data['decision']}[/bold]   Next: [bold]{data['next_action']}[/bold]")
+    if data.get("blocked"):
+        console.print(f"  [yellow]Blocked:[/yellow] {data['blocker']}")
+    console.print()
+    for step in data["steps"]:
+        console.print(f"  • [bold]{step['name']}[/bold] — {step['detail']}")
+
+
 @stack_app.command("brain-gate")
 def stack_brain_gate_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,

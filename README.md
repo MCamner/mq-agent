@@ -162,6 +162,7 @@ mq-agent learn status              # Check mq-mcp learn system
 mq-agent learn search <query>      # Search learned review patterns
 mq-agent learn explain <pattern>   # Fetch pattern explanation
 mq-agent dashboard                  # Operator snapshot: stack, brain, Ollama, contracts
+mq-agent stack loop                 # Controlled autonomous stack loop preview
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json

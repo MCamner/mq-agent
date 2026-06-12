@@ -1,7 +1,7 @@
 # mq-agent Roadmap
 
-v1.19.0 — Operator dashboard. In progress.
-Next: v1.20.0 — Autonomous stack.
+v1.20.0 — Autonomous stack. In progress.
+Next: harden controlled stack loops.
 
 ## Current status
 
@@ -20,8 +20,8 @@ All phases complete through v1.18.0. v1.19.0 is next.
 | v1.16.0 | Runtime consolidation | Done |
 | v1.17.0 | Ollama runtime | Done |
 | v1.18.0 | Memory engine | Done |
-| v1.19.0 | Operator dashboard | In progress |
-| v1.20.0 | Autonomous stack | Planned |
+| v1.19.0 | Operator dashboard | Done |
+| v1.20.0 | Autonomous stack | In progress |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -102,7 +102,10 @@ not just a write target for exports.
 * [x] Add refresh-oriented TUI panels for stack, release, brain and models.
 * [x] Add operator dashboard reference documentation.
 * [x] Add dashboard documentation to the GitHub Pages index.
-* [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
+* [x] v1.20.0 — Autonomous stack foundation: `mq-agent stack loop`
+  read-only preview for controlled stack loops.
+* [ ] Add approved execution only after explicit loop contracts and rollback
+  behaviour are documented.
 
 ## v1.15.0 — Brain-integrated stack workflow
 
