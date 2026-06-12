@@ -84,7 +84,7 @@ Completed foundation:
 
 ---
 
-## Completed
+## Recently Completed
 
 ### v1.16.0 — Runtime consolidation
 
