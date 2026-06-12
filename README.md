@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.15.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.16.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -246,6 +246,14 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.16.0 status
+
+- [x] `mq-agent stack run` — one runtime gate for repo-signal, mq-mcp, Ollama, brain export rendering and release readiness
+- [x] `mq-agent run --stack` — canonical root alias for the stack runtime pipeline
+- [x] Runtime output supports `--json` and `--markdown`
+- [x] `docs/MQ_CONTROL_PLANE.md` — system map for signal, review, learn, memory and release
+- [x] v1.17.0 set as next focus: Ollama runtime
 
 ## v1.15.0 status
 

@@ -216,6 +216,7 @@ def run(
     approve: Annotated[bool, typer.Option("--approve", help="Execute the command")] = False,
     stack: Annotated[bool, typer.Option("--stack", help="Run the canonical stack runtime pipeline")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    markdown: Annotated[bool, typer.Option("--markdown", help="Render --stack runtime result as Markdown")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Write stack truth export when combined with --approve and --stack")] = False,
     ci: Annotated[bool, typer.Option("--ci", help="CI mode for --stack runtime gates")] = False,
 ):
@@ -223,13 +224,19 @@ def run(
     from mq_agent.tools.shell_tools import run_command
 
     if stack:
-        from mq_agent.tools.stack_runtime import stack_run as _stack_run
+        from mq_agent.tools.stack_runtime import (
+            render_stack_run_markdown,
+            stack_run as _stack_run,
+        )
 
         with console.status("[cyan]Running stack runtime...[/cyan]"):
             raw = _stack_run(dry_run=dry_run, brain=brain, ci=ci, approve=approve)
         data = json.loads(raw)
         if json_out:
             typer.echo(raw)
+            raise typer.Exit(0 if data["overall"] == "PASS" else 1)
+        if markdown:
+            typer.echo(render_stack_run_markdown(data))
             raise typer.Exit(0 if data["overall"] == "PASS" else 1)
         _print_stack_runtime(data)
         raise typer.Exit(0 if data["overall"] == "PASS" else 1)
@@ -242,8 +249,8 @@ def run(
         console.print(f"[blue][dry-run][/blue] Would run: [bold]{command}[/bold]")
         return
 
-    if json_out or brain or ci:
-        console.print("[red]--json, --brain and --ci are only valid with [bold]--stack[/bold].[/red]")
+    if json_out or markdown or brain or ci:
+        console.print("[red]--json, --markdown, --brain and --ci are only valid with [bold]--stack[/bold].[/red]")
         raise typer.Exit(1)
 
     if not approve:
@@ -3493,6 +3500,7 @@ def _print_stack_runtime(data: dict[str, Any]) -> None:
 def stack_run_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    markdown: Annotated[bool, typer.Option("--markdown", help="Render the runtime result as Markdown")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Write the stack truth export when combined with --approve")] = False,
     ci: Annotated[bool, typer.Option("--ci", help="CI mode: skip repos missing from the workspace in release gates")] = False,
     approve: Annotated[bool, typer.Option("--approve", help="Allow write steps requested by --brain")] = False,
@@ -3503,7 +3511,10 @@ def stack_run_cmd(
     readiness in one operator-facing pass. Read-only by default; `--brain`
     writes the truth export only when `--approve` is also supplied.
     """
-    from mq_agent.tools.stack_runtime import stack_run as _stack_run
+    from mq_agent.tools.stack_runtime import (
+        render_stack_run_markdown,
+        stack_run as _stack_run,
+    )
 
     with console.status("[cyan]Running stack runtime...[/cyan]"):
         raw = _stack_run(dry_run=dry_run, brain=brain, ci=ci, approve=approve)
@@ -3511,6 +3522,10 @@ def stack_run_cmd(
 
     if json_out:
         typer.echo(raw)
+        raise typer.Exit(0 if data["overall"] == "PASS" else 1)
+
+    if markdown:
+        typer.echo(render_stack_run_markdown(data))
         raise typer.Exit(0 if data["overall"] == "PASS" else 1)
 
     _print_stack_runtime(data)

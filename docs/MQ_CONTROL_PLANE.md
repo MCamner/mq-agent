@@ -70,13 +70,15 @@ paired with `--approve`.
 ```bash
 mq-agent stack run --dry-run
 mq-agent stack run --json
+mq-agent stack run --markdown
 mq-agent stack run --brain --approve
 mq-agent stack run --ci
 ```
 
-## Target Pipeline
+## Canonical Pipeline
 
-The v1.16 consolidation target is one operator flow:
+The v1.16 consolidation defines one operator flow. `stack run` includes this
+pipeline in both JSON and Markdown output:
 
 ```text
 discover

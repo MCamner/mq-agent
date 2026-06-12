@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 from mq_agent.main import app
 from mq_agent.tools import stack_run as stack_run_registered
-from mq_agent.tools.stack_runtime import stack_run
+from mq_agent.tools.stack_runtime import render_stack_run_markdown, stack_run
 
 runner = CliRunner()
 
@@ -53,6 +53,9 @@ class TestStackRunTool:
         assert [s["name"] for s in data["steps"]] == [
             "repo-signal", "mq-mcp", "ollama", "brain export", "release",
         ]
+        assert [s["name"] for s in data["pipeline"]] == [
+            "discover", "repo-signal", "review", "learn", "truth-export", "release", "dashboard",
+        ]
         assert data["writes_enabled"] is False
 
     def test_brain_without_approve_does_not_write(self):
@@ -75,6 +78,15 @@ class TestStackRunTool:
             data = json.loads(stack_run())
         assert data["overall"] == "FAIL"
         assert data["next_action"] == "NO-GO — mq-agent: dirty tree"
+
+    def test_markdown_renderer_includes_pipeline_and_checks(self):
+        p1, p2, p3, p4 = _patches()
+        with p1, p2, p3, p4:
+            data = json.loads(stack_run(dry_run=True))
+        markdown = render_stack_run_markdown(data)
+        assert "# MQ Stack Runtime" in markdown
+        assert "| discover | mq-agent | runtime |" in markdown
+        assert "| repo-signal | PASS | available |" in markdown
 
 
 class TestStackRunCli:
@@ -101,6 +113,14 @@ class TestStackRunCli:
         assert result.exit_code == 1
         assert json.loads(result.output)["overall"] == "FAIL"
 
+    def test_markdown_output_exits_zero_when_pass(self):
+        p1, p2, p3, p4 = _patches()
+        with p1, p2, p3, p4:
+            result = runner.invoke(app, ["stack", "run", "--dry-run", "--markdown"])
+        assert result.exit_code == 0
+        assert "# MQ Stack Runtime" in result.output
+        assert "## Pipeline" in result.output
+
     def test_root_run_stack_alias_json(self):
         p1, p2, p3, p4 = _patches()
         with p1, p2, p3, p4:
@@ -109,6 +129,13 @@ class TestStackRunCli:
         data = json.loads(result.output)
         assert data["overall"] == "PASS"
         assert data["dry_run"] is True
+
+    def test_root_run_stack_alias_markdown(self):
+        p1, p2, p3, p4 = _patches()
+        with p1, p2, p3, p4:
+            result = runner.invoke(app, ["run", "--stack", "--dry-run", "--markdown"])
+        assert result.exit_code == 0
+        assert "# MQ Stack Runtime" in result.output
 
     def test_root_run_without_command_explains_stack_alias(self):
         result = runner.invoke(app, ["run"])

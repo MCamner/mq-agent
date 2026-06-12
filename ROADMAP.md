@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.15.0 — brain-integrated stack workflow. Released.
-Next: v1.16.0 — Runtime consolidation.
+v1.16.0 — Runtime consolidation. Complete.
+Next: v1.17.0 — Ollama runtime.
 
 ## Current status
 
-All phases complete through v1.15.0.
+All phases complete through v1.16.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ All phases complete through v1.15.0.
 | v1.13.0 | mqobsidian stack truth export | Done |
 | v1.14.0 | Stack release orchestration | Done |
 | v1.15.0 | Brain-integrated stack workflow | Done |
-| v1.16.0 | Runtime consolidation | Planned |
+| v1.16.0 | Runtime consolidation | Done |
 | v1.17.0 | Ollama runtime | Planned |
 | v1.18.0 | Memory engine | Planned |
 | v1.19.0 | Operator dashboard | Planned |
@@ -39,13 +39,14 @@ ollama → reasons
 mq-hal → presents
 ```
 
-* [ ] Consolidate overlapping entrypoints where `signal`, `review`, `learn`,
-  and `truth-export` duplicate the same operator flow.
-* [ ] Define one canonical orchestration pipeline:
-  inspect → review → extract → learn → truth-export → release.
+* [x] Consolidate overlapping entrypoints by making `mq-agent run --stack`
+  the canonical root runtime while keeping `signal`, `review`, `learn`, and
+  `truth-export` as focused escape hatches.
+* [x] Define one canonical orchestration pipeline in runtime output:
+  discover → repo-signal → review → learn → truth-export → release → dashboard.
 * [x] Add `mq-agent stack run` as the first stack runtime surface with
-  `--dry-run`, `--json`, `--brain`, `--ci`, and `--approve`; expose it from
-  the canonical root surface as `mq-agent run --stack`.
+  `--dry-run`, `--json`, `--markdown`, `--brain`, `--ci`, and `--approve`;
+  expose it from the canonical root surface as `mq-agent run --stack`.
 * [x] Add `docs/MQ_CONTROL_PLANE.md` — one system map for signal, review,
   learn, memory and release.
 

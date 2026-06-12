@@ -7,6 +7,16 @@ import subprocess
 from datetime import UTC, datetime
 from typing import Any
 
+PIPELINE_STAGES: list[dict[str, str]] = [
+    {"name": "discover", "owner": "mq-agent", "status": "runtime"},
+    {"name": "repo-signal", "owner": "repo-signal", "status": "runtime"},
+    {"name": "review", "owner": "mq-mcp", "status": "delegated"},
+    {"name": "learn", "owner": "mq-mcp", "status": "delegated"},
+    {"name": "truth-export", "owner": "mq-agent → mqobsidian", "status": "runtime"},
+    {"name": "release", "owner": "mq-agent", "status": "runtime"},
+    {"name": "dashboard", "owner": "mq-agent → mq-hal", "status": "planned"},
+]
+
 
 def _step(name: str, ok: bool, detail: str, **extra: Any) -> dict[str, Any]:
     entry: dict[str, Any] = {
@@ -128,7 +138,50 @@ def stack_run(
         "brain": brain,
         "approved": approve,
         "writes_enabled": write_brain,
+        "pipeline": PIPELINE_STAGES,
         "steps": steps,
         "next_action": failed[0].get("hint", failed[0]["detail"]) if failed else "all green",
         "checked_at": datetime.now(UTC).isoformat(),
     }, indent=2, default=str)
+
+
+def render_stack_run_markdown(data: dict[str, Any]) -> str:
+    """Render a stack runtime result as Markdown."""
+    lines = [
+        "# MQ Stack Runtime",
+        "",
+        f"Checked: `{data.get('checked_at', '')}`",
+        f"Overall: **{data.get('overall', 'UNKNOWN')}**",
+        f"Mode: `{data.get('mode', 'local')}`",
+        f"Dry-run: `{str(data.get('dry_run', False)).lower()}`",
+        f"Writes enabled: `{str(data.get('writes_enabled', False)).lower()}`",
+        "",
+        "## Pipeline",
+        "",
+        "| Stage | Owner | Status |",
+        "|---|---|---|",
+    ]
+    for stage in data.get("pipeline", []):
+        lines.append(
+            f"| {stage.get('name', '')} | {stage.get('owner', '')} | {stage.get('status', '')} |"
+        )
+
+    lines.extend([
+        "",
+        "## Runtime Checks",
+        "",
+        "| Check | Status | Detail |",
+        "|---|---|---|",
+    ])
+    for step in data.get("steps", []):
+        detail = str(step.get("detail", "")).replace("|", "\\|")
+        lines.append(f"| {step.get('name', '')} | {step.get('status', '')} | {detail} |")
+
+    lines.extend([
+        "",
+        "## Next Action",
+        "",
+        str(data.get("next_action", "")),
+        "",
+    ])
+    return "\n".join(lines)
