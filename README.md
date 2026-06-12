@@ -236,6 +236,7 @@ uv run pytest tests/ -v
 - [Command surface](docs/COMMAND_SURFACE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [MQ control plane](docs/MQ_CONTROL_PLANE.md)
+- [Memory engine](docs/MEMORY_ENGINE.md)
 - [Safety contract](docs/SAFETY_CONTRACT.md)
 - [Ollama-backed learn extraction](docs/LEARN_OLLAMA.md)
 - [mq ecosystem](docs/MQ_ECOSYSTEM.md)
@@ -246,6 +247,14 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.18.0 status
+
+- [x] `mq-agent memory ingest` — local mqobsidian Markdown index
+- [x] `mq-agent memory query` / `memory search-vault` — read-only vault search
+- [x] `mq-agent memory summarize` — section summary across truth, reviews, learn, releases, architecture and decisions
+- [x] `mq-agent memory link` — read-only link candidates between notes
+- [x] `docs/MEMORY_ENGINE.md`
 
 ## v1.17.0 status
 

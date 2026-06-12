@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.17.0 — Ollama runtime. Done.
-Next: v1.18.0 — Memory engine.
+v1.18.0 — Memory engine. In progress.
+Next: v1.19.0 — Operator dashboard.
 
 ## Current status
 
-All phases complete through v1.17.0. v1.18.0 is next.
+All phases complete through v1.17.0. v1.18.0 is active.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ All phases complete through v1.17.0. v1.18.0 is next.
 | v1.15.0 | Brain-integrated stack workflow | Done |
 | v1.16.0 | Runtime consolidation | Done |
 | v1.17.0 | Ollama runtime | Done |
-| v1.18.0 | Memory engine | Planned |
+| v1.18.0 | Memory engine | In progress |
 | v1.19.0 | Operator dashboard | Planned |
 | v1.20.0 | Autonomous stack | Planned |
 
@@ -76,7 +76,25 @@ memory
 
 ## Planned after v1.17.0
 
-* [ ] v1.18.0 — Memory engine: ingest, search, summarize, and link memory.
+## v1.18.0 — Memory engine
+
+Goal: make mqobsidian usable as a local long-term memory engine from mq-agent,
+not just a write target for exports.
+
+* [x] Add `mq-agent memory ingest` for a read-only Markdown index across
+  truth, reviews, learn, releases, architecture, decisions and stack runs.
+* [x] Add `mq-agent memory query` / `memory search-vault` for local vault
+  search without requiring mq-mcp or a vector store.
+* [x] Add `mq-agent memory summarize` for section-level note, word and tag
+  summaries.
+* [x] Add `mq-agent memory link` for read-only link candidates between notes.
+* [x] Register `memory_engine.v1` in the repo contract.
+* [x] Add `docs/MEMORY_ENGINE.md`.
+* [ ] Decide whether v1.18.0 should add write-backed links or keep link writes
+  for a later explicit approval flow.
+
+## Planned after v1.18.0
+
 * [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
   Ollama, repos, and contracts.
 * [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.

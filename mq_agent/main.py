@@ -1850,6 +1850,125 @@ def run_tool(
         console.print(Panel(str(result), title=f"[bold]{tool} ({spec.source})[/bold]"))
 
 
+# ── memory engine ──────────────────────────────────────────────────────────
+
+@memory_app.command("ingest")
+def memory_ingest_cmd(
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Scan mqobsidian memory notes into a local read-only index."""
+    from mq_agent.tools.memory_engine import memory_ingest
+
+    data = json.loads(memory_ingest(vault))
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["status"] == "OK" else 1)
+
+    if data["status"] != "OK":
+        console.print(f"[red]Vault not found:[/red] {data['vault']}")
+        raise typer.Exit(1)
+
+    table = Table(title="mqobsidian memory ingest", show_header=True, header_style="bold")
+    table.add_column("Section")
+    table.add_column("Notes", justify="right")
+    for section, count in data["summary"]["sections"].items():
+        table.add_row(section, str(count))
+    console.print(table)
+    console.print(f"[green]OK[/green] {data['summary']['total_notes']} notes indexed from {data['vault']}")
+
+
+@memory_app.command("query")
+@memory_app.command("search-vault")
+def memory_query_cmd(
+    query: Annotated[str, typer.Argument(help="Search query")],
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path")] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=50)] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Search mqobsidian memory notes. Alias: search-vault."""
+    from mq_agent.tools.memory_engine import memory_search
+
+    data = json.loads(memory_search(query, vault, limit=limit))
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["status"] == "OK" else 1)
+
+    if data["status"] != "OK":
+        console.print(f"[red]Vault not found:[/red] {data['vault']}")
+        raise typer.Exit(1)
+    if not data["results"]:
+        console.print(Panel(f"No mqobsidian memory results for: [bold]{query}[/bold]", border_style="dim"))
+        return
+
+    table = Table(title=f"mqobsidian memory: {query}", show_header=True, header_style="bold")
+    table.add_column("Score", justify="right")
+    table.add_column("Section")
+    table.add_column("Note")
+    table.add_column("Excerpt")
+    for item in data["results"]:
+        table.add_row(str(item["score"]), item["section"], item["path"], item["excerpt"][:100])
+    console.print(table)
+
+
+@memory_app.command("summarize")
+def memory_summarize_cmd(
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Summarize mqobsidian memory by section."""
+    from mq_agent.tools.memory_engine import memory_summarize
+
+    data = json.loads(memory_summarize(vault))
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["status"] == "OK" else 1)
+
+    if data["status"] != "OK":
+        console.print(f"[red]Vault not found:[/red] {data['vault']}")
+        raise typer.Exit(1)
+
+    table = Table(title="mqobsidian memory summary", show_header=True, header_style="bold")
+    table.add_column("Section")
+    table.add_column("Notes", justify="right")
+    table.add_column("Words", justify="right")
+    table.add_column("Top tags")
+    for section, entry in data["sections"].items():
+        table.add_row(section, str(entry["notes"]), str(entry["words"]), ", ".join(entry["top_tags"][:5]))
+    console.print(table)
+
+
+@memory_app.command("link")
+def memory_link_cmd(
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path")] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=50)] = 20,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Infer read-only link candidates between mqobsidian notes."""
+    from mq_agent.tools.memory_engine import memory_link
+
+    data = json.loads(memory_link(vault, limit=limit))
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["status"] == "OK" else 1)
+
+    if data["status"] != "OK":
+        console.print(f"[red]Vault not found:[/red] {data['vault']}")
+        raise typer.Exit(1)
+    if not data["links"]:
+        console.print(Panel("No link candidates found.", border_style="dim"))
+        return
+
+    table = Table(title="mqobsidian memory link candidates", show_header=True, header_style="bold")
+    table.add_column("Score", justify="right")
+    table.add_column("Source")
+    table.add_column("Target")
+    table.add_column("Shared tags")
+    for item in data["links"]:
+        table.add_row(str(item["score"]), item["source"], item["target"], ", ".join(item["shared_tags"]))
+    console.print(table)
+
+
 # ── memory status ──────────────────────────────────────────────────────────
 
 @memory_app.command("status")

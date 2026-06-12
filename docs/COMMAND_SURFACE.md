@@ -84,8 +84,17 @@ local review heuristics.
 
 ## Memory Commands
 
+mqobsidian memory engine commands are local and read-only. They do not require
+OpenAI, Ollama or mq-mcp.
+
 | Command | Needs vector store | Notes |
 |---|---:|---|
+| `mq-agent memory ingest` | no | Scan mqobsidian Markdown notes into a local index |
+| `mq-agent memory ingest --json` | no | Machine-readable mqobsidian memory index |
+| `mq-agent memory query <query>` | no | Search mqobsidian memory notes |
+| `mq-agent memory search-vault <query>` | no | Alias for mqobsidian memory search |
+| `mq-agent memory summarize` | no | Summarize mqobsidian memory by section |
+| `mq-agent memory link` | no | Report read-only link candidates between notes |
 | `mq-agent memory status` | no | Reports vector store ID and repo-signal availability |
 | `mq-agent memory status --json` | no | Machine-readable status output |
 | `mq-agent memory doctor` | no | Diagnose environment with actionable fixes |

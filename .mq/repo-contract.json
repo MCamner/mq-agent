@@ -18,7 +18,8 @@
     "vault_structure.v1",
     "brain_gate.v1",
     "stack_runtime.v1",
-    "model_runtime.v1"
+    "model_runtime.v1",
+    "memory_engine.v1"
   ],
   "next_focus": "v1.18.0 — Memory engine"
 }

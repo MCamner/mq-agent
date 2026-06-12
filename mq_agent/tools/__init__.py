@@ -21,6 +21,7 @@ from .image_tools import (
     image_version,
 )
 from .mcp_bridge import mcp_call
+from .memory_engine import memory_ingest, memory_link, memory_search, memory_summarize
 from .model_runtime import bench_model, current_model, list_ollama_models, switch_model
 from .repo_tools import find_files, list_files, read_file, repo_summary, run_task_tool, write_file
 from .shell_tools import run_command, which
@@ -91,6 +92,11 @@ TOOL_REGISTRY: dict[str, Callable] = {
     "image_compare": image_compare,
     # MCP
     "mcp_call": mcp_call,
+    # mqobsidian memory engine
+    "memory_ingest": memory_ingest,
+    "memory_search": memory_search,
+    "memory_summarize": memory_summarize,
+    "memory_link": memory_link,
     # Ollama model runtime
     "models_list": list_ollama_models,
     "models_current": current_model,

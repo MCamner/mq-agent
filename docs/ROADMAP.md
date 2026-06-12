@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.17.0 — Ollama runtime (done)
-Next:    v1.18.0 — Memory engine
+v1.18.0 — Memory engine (active)
+Next:    v1.19.0 — Operator dashboard
 ```
 
 Completed foundation:
@@ -78,7 +78,7 @@ Completed foundation:
 | v1.15.0 | Brain-integrated stack workflow              | Done    |
 | v1.16.0 | Runtime consolidation                        | Done    |
 | v1.17.0 | Ollama runtime                               | Done    |
-| v1.18.0 | Memory engine                                | Planned |
+| v1.18.0 | Memory engine                                | In progress |
 | v1.19.0 | Operator dashboard                           | Planned |
 | v1.20.0 | Autonomous stack                             | Planned |
 
@@ -115,6 +115,22 @@ mq-hal → presents
 
 ## Active
 
+### v1.18.0 — Memory engine
+
+Goal: make mqobsidian usable as a local long-term memory engine from mq-agent,
+not just a write target for exports.
+
+* [x] `mq-agent memory ingest` — read-only Markdown index across truth,
+  reviews, learn, releases, architecture, decisions and stack runs
+* [x] `mq-agent memory query` / `memory search-vault` — local vault search
+  without mq-mcp or vector-store dependencies
+* [x] `mq-agent memory summarize` — section-level note, word and tag summary
+* [x] `mq-agent memory link` — read-only link candidates between notes
+* [x] `memory_engine.v1` registered in `.mq/repo-contract.json`
+* [x] `docs/MEMORY_ENGINE.md`
+* [ ] Decide whether v1.18.0 should add write-backed links or keep link writes
+  for a later explicit approval flow
+
 ### v1.17.0 — Ollama runtime
 
 Goal: make Ollama a first-class runtime dependency with explicit model
@@ -136,7 +152,6 @@ profiles and operator-visible status.
 
 ### Later planned releases
 
-* [ ] v1.18.0 — Memory engine: ingest, search, summarize, and link memory.
 * [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
   Ollama, repos, and contracts.
 * [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
