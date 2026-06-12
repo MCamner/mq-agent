@@ -164,13 +164,13 @@ class MCPBridge:
     # ── review orchestration helpers ───────────────────────────────────────
 
     def review_file(self, path: str, flags: dict[str, Any]) -> Any:
-        return self.call_tool("review_file", {"path": path, **flags})
+        return self.call_tool("review_file", {"relative_path": path, **flags})
 
     def review_diff(self, flags: dict[str, Any]) -> Any:
         return self.call_tool("review_diff", flags)
 
     def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
-        return self.call_tool("review_repo", {"path": path, **flags})
+        return self.call_tool("review_repo", flags)
 
 
 class MultiMCPBridge:
@@ -251,7 +251,7 @@ class MultiMCPBridge:
         selected = self._select_review_tool("review_file", "risk_review_file", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, {"path": path, **flags})
+        return self._call_required_tool(selected, {"relative_path": path, **flags})
 
     def review_diff(self, flags: dict[str, Any]) -> Any:
         selected = self._select_review_tool("review_diff", "risk_review_diff", bool(flags.get("risk")))
@@ -263,7 +263,7 @@ class MultiMCPBridge:
         selected = self._select_review_tool("review_repo", "risk_review_repo", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, {"path": path, **flags})
+        return self._call_required_tool(selected, flags)
 
     def search_semantic_memory(self, query: str) -> Any:
         """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""

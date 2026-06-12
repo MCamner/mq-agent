@@ -197,7 +197,7 @@ def test_mcp_bridge_review_helpers_call_expected_tools():
 
     assert call.call_args_list[0].args == (
         "review_file",
-        {"path": "README.md", "security": False, "architecture": False, "risk": False},
+        {"relative_path": "README.md", "security": False, "architecture": False, "risk": False},
     )
     assert call.call_args_list[1].args == (
         "review_diff",
@@ -205,7 +205,7 @@ def test_mcp_bridge_review_helpers_call_expected_tools():
     )
     assert call.call_args_list[2].args == (
         "review_repo",
-        {"path": ".", "security": False, "architecture": True, "risk": False},
+        {"security": False, "architecture": True, "risk": False},
     )
 
 
