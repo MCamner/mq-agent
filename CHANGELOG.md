@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.17.0] — 2026-06-12
+
 ### Added
 
 * `mq-agent models` — first-class Ollama runtime surface with `list`,

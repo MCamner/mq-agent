@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -17,7 +17,8 @@
     "flag_contract.v1",
     "vault_structure.v1",
     "brain_gate.v1",
-    "stack_runtime.v1"
+    "stack_runtime.v1",
+    "model_runtime.v1"
   ],
-  "next_focus": "v1.17.0 — Ollama runtime"
+  "next_focus": "v1.18.0 — Memory engine"
 }

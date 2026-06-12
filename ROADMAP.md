@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.17.0 — Ollama runtime. In progress.
+v1.17.0 — Ollama runtime. Done.
 Next: v1.18.0 — Memory engine.
 
 ## Current status
 
-All phases complete through v1.16.0. v1.17.0 is active.
+All phases complete through v1.17.0. v1.18.0 is next.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ All phases complete through v1.16.0. v1.17.0 is active.
 | v1.14.0 | Stack release orchestration | Done |
 | v1.15.0 | Brain-integrated stack workflow | Done |
 | v1.16.0 | Runtime consolidation | Done |
-| v1.17.0 | Ollama runtime | In progress |
+| v1.17.0 | Ollama runtime | Done |
 | v1.18.0 | Memory engine | Planned |
 | v1.19.0 | Operator dashboard | Planned |
 | v1.20.0 | Autonomous stack | Planned |
@@ -62,8 +62,8 @@ profiles instead of incidental learn-backend support.
   `~/.mq-agent/models.json`.
 * [x] Add `mq-agent models bench` for a small local model smoke test.
 * [x] Surface active model profile in `mq-agent stack run` Ollama checks.
-* [ ] Add release docs/status sync for v1.17.0.
-* [ ] Run full suite and release gates before PR.
+* [x] Add release docs/status sync for v1.17.0.
+* [x] Run full suite and release gates before PR.
 
 Default profiles:
 
