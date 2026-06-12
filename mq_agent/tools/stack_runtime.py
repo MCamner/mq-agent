@@ -54,16 +54,26 @@ def _mcp_step(bridge: Any) -> dict[str, Any]:
 
 
 def _ollama_step(bridge: Any) -> dict[str, Any]:
+    from mq_agent.tools.model_runtime import current_model
+
+    active = current_model()
     status = bridge.ollama_learn_status()
     if isinstance(status, dict):
         ok = bool(status.get("ok", True)) and not status.get("error")
         detail = status.get("detail") or status.get("model") or status.get("status") or "available"
-        return _step("ollama", ok, str(detail), payload=status)
+        payload = {"active": active, "status": status}
+        return _step("ollama", ok, str(detail), payload=payload)
     if status is not None:
-        return _step("ollama", True, str(status))
+        return _step("ollama", True, str(status), payload={"active": active})
 
     if not shutil.which("ollama"):
-        return _step("ollama", False, "ollama CLI not found", hint="install or start Ollama")
+        return _step(
+            "ollama",
+            False,
+            "ollama CLI not found",
+            hint="install or start Ollama",
+            payload={"active": active},
+        )
 
     try:
         result = subprocess.run(
@@ -74,12 +84,13 @@ def _ollama_step(bridge: Any) -> dict[str, Any]:
             check=False,
         )
     except Exception as exc:
-        return _step("ollama", False, f"ollama check failed: {exc}")
+        return _step("ollama", False, f"ollama check failed: {exc}", payload={"active": active})
 
     if result.returncode == 0:
-        return _step("ollama", True, "ollama CLI reachable")
+        detail = f"ollama CLI reachable; active {active['profile']} → {active['model']}"
+        return _step("ollama", True, detail, payload={"active": active})
     detail = (result.stderr or result.stdout or "ollama list failed").strip()
-    return _step("ollama", False, detail)
+    return _step("ollama", False, detail, payload={"active": active})
 
 
 def _brain_export_step(write: bool) -> dict[str, Any]:

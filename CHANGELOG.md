@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+* `mq-agent models` — first-class Ollama runtime surface with `list`,
+  `current`, `switch`, and `bench`.
+* `~/.mq-agent/models.json` model profiles for `fast`, `review`, `planner`,
+  and `memory`; `models switch` requires `--approve` before writing config.
+* `mq-agent stack run` now includes the active model profile in the Ollama
+  runtime check payload.
+
 ## [v1.16.0] — 2026-06-11
 
 ### Added

@@ -123,10 +123,10 @@ to feed later reviews and stack runs.
 
 ## Model Direction
 
-Ollama should become a first-class runtime dependency rather than an incidental
+Ollama is becoming a first-class runtime dependency rather than an incidental
 learn backend.
 
-Planned model profiles:
+Model profiles:
 
 ```text
 fast
@@ -141,6 +141,15 @@ Example mapping:
 fast → qwen
 review → gpt
 memory → mq-learn
+```
+
+Runtime surface:
+
+```bash
+mq-agent models list
+mq-agent models current
+mq-agent models switch qwen3 --profile review --approve
+mq-agent models bench
 ```
 
 ## Dashboard Direction

@@ -59,6 +59,9 @@ app.add_typer(b2_app, name="b2")
 stack_app = typer.Typer(help="mq-stack repo inventory, status, and Obsidian export.")
 app.add_typer(stack_app, name="stack")
 
+models_app = typer.Typer(help="Ollama model runtime commands.")
+app.add_typer(models_app, name="models")
+
 console = Console()
 
 
@@ -2066,6 +2069,106 @@ def memory_doctor_cmd(
 
     if not report.healthy:
         raise typer.Exit(1)
+
+
+# ── Ollama model runtime ──────────────────────────────────────────────────
+
+@models_app.command("list")
+def models_list_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List locally available Ollama models."""
+    from mq_agent.tools.model_runtime import list_ollama_models
+
+    data = list_ollama_models()
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["ok"] else 1)
+
+    if not data["ok"]:
+        console.print(f"[red]✗[/red] {data['detail']}")
+        hint = data.get("hint")
+        if hint:
+            console.print(f"[yellow]next:[/yellow] {hint}")
+        raise typer.Exit(1)
+
+    table = Table(title="Ollama Models")
+    table.add_column("Model")
+    for model in data["models"]:
+        table.add_row(model)
+    console.print(table)
+
+
+@models_app.command("current")
+def models_current_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show the active model profile."""
+    from mq_agent.tools.model_runtime import current_model
+
+    data = current_model()
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    table = Table(title="Active Model")
+    table.add_column("Profile")
+    table.add_column("Model")
+    table.add_column("Config")
+    table.add_row(str(data["profile"]), str(data["model"]), str(data["config_path"]))
+    console.print(table)
+
+
+@models_app.command("switch")
+def models_switch_cmd(
+    target: Annotated[str, typer.Argument(help="Profile or model name")],
+    profile: Annotated[str | None, typer.Option("--profile", help="Assign model to this profile")] = None,
+    approve: Annotated[bool, typer.Option("--approve", help="Write ~/.mq-agent/models.json")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Switch the active profile, or assign a model to a profile."""
+    from mq_agent.tools.model_runtime import switch_model
+
+    data = switch_model(target, profile=profile, approve=approve)
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    if not approve:
+        console.print(
+            f"[blue]dry-run:[/blue] Would switch [bold]{data['profile']}[/bold] "
+            f"to [bold]{data['model']}[/bold]."
+        )
+        console.print("Add [bold]--approve[/bold] to write the models config.")
+        return
+
+    console.print(
+        f"[green]✓[/green] Active model: [bold]{data['profile']}[/bold] "
+        f"→ [bold]{data['model']}[/bold]"
+    )
+    console.print(f"Config: {data['config_path']}")
+
+
+@models_app.command("bench")
+def models_bench_cmd(
+    model: Annotated[str | None, typer.Argument(help="Model name; defaults to active model")] = None,
+    prompt: Annotated[str, typer.Option("--prompt", help="Benchmark prompt")] = "Reply with OK.",
+    timeout: Annotated[int, typer.Option("--timeout", help="Ollama timeout in seconds")] = 30,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run a tiny local Ollama benchmark prompt."""
+    from mq_agent.tools.model_runtime import bench_model
+
+    data = bench_model(model, prompt=prompt, timeout=timeout)
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["ok"] else 1)
+
+    if data["ok"]:
+        console.print(f"[green]✓[/green] {data['model']}: {data['output']}")
+        return
+    console.print(f"[red]✗[/red] {data['model']}: {data['output'] or data.get('detail', 'benchmark failed')}")
+    raise typer.Exit(1)
 
 
 # ── task list ──────────────────────────────────────────────────────────────

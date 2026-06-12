@@ -22,6 +22,10 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent fix-ci` | suggest | yes | Diagnose CI failures |
 | `mq-agent run "cmd" --approve` | execute | no | Run a shell command safely |
 | `mq-agent run --stack` | read-only | no | Run the canonical stack runtime pipeline |
+| `mq-agent models current` | read-only | no | Show active Ollama model profile |
+| `mq-agent models list` | read-only | no | List local Ollama models |
+| `mq-agent models switch <model> --profile <profile> --approve` | execute | no | Write model profile config |
+| `mq-agent models bench [model]` | read-only | no | Run a small local Ollama benchmark |
 | `mq-agent tui` | read-only | no | Launch Textual dashboard |
 
 ## MCP commands

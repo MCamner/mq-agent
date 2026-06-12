@@ -98,6 +98,23 @@ local review heuristics.
 | `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 
+## Model Commands
+
+Ollama model runtime commands. Config writes go to `~/.mq-agent/models.json`
+and require `--approve`.
+
+| Command | Writes | Notes |
+|---|---:|---|
+| `mq-agent models list` | no | List local Ollama models |
+| `mq-agent models list --json` | no | Machine-readable Ollama inventory |
+| `mq-agent models current` | no | Show active profile, model and config path |
+| `mq-agent models current --json` | no | Machine-readable active model state |
+| `mq-agent models switch <profile>` | no | Dry-run profile switch preview |
+| `mq-agent models switch <model> --profile <profile>` | no | Dry-run profile assignment preview |
+| `mq-agent models switch <model> --profile <profile> --approve` | yes | Write model profile config |
+| `mq-agent models bench [model]` | no | Run a tiny local Ollama smoke benchmark |
+| `mq-agent models bench [model] --json` | no | Machine-readable benchmark result |
+
 ## Brain Commands
 
 Direct mqobsidian vault commands. All writes are Class C and require `--approve`.
