@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.18.0 — Memory engine. In progress.
+v1.18.0 — Memory engine. Done.
 Next: v1.19.0 — Operator dashboard.
 
 ## Current status
 
-All phases complete through v1.17.0. v1.18.0 is active.
+All phases complete through v1.18.0. v1.19.0 is next.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ All phases complete through v1.17.0. v1.18.0 is active.
 | v1.15.0 | Brain-integrated stack workflow | Done |
 | v1.16.0 | Runtime consolidation | Done |
 | v1.17.0 | Ollama runtime | Done |
-| v1.18.0 | Memory engine | In progress |
+| v1.18.0 | Memory engine | Done |
 | v1.19.0 | Operator dashboard | Planned |
 | v1.20.0 | Autonomous stack | Planned |
 
@@ -90,8 +90,8 @@ not just a write target for exports.
 * [x] Add `mq-agent memory link` for read-only link candidates between notes.
 * [x] Register `memory_engine.v1` in the repo contract.
 * [x] Add `docs/MEMORY_ENGINE.md`.
-* [ ] Decide whether v1.18.0 should add write-backed links or keep link writes
-  for a later explicit approval flow.
+* [x] Keep write-backed links out of v1.18.0 and defer them to a later
+  explicit approval flow.
 
 ## Planned after v1.18.0
 

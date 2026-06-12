@@ -13,7 +13,7 @@ surface.
 Current project phase:
 
 ```text
-v1.18.0 — Memory engine (active)
+v1.18.0 — Memory engine (done)
 Next:    v1.19.0 — Operator dashboard
 ```
 
@@ -78,7 +78,7 @@ Completed foundation:
 | v1.15.0 | Brain-integrated stack workflow              | Done    |
 | v1.16.0 | Runtime consolidation                        | Done    |
 | v1.17.0 | Ollama runtime                               | Done    |
-| v1.18.0 | Memory engine                                | In progress |
+| v1.18.0 | Memory engine                                | Done    |
 | v1.19.0 | Operator dashboard                           | Planned |
 | v1.20.0 | Autonomous stack                             | Planned |
 
@@ -113,7 +113,7 @@ mq-hal → presents
 * [x] Add `docs/MQ_CONTROL_PLANE.md` — one system map for signal, review,
   learn, memory and release.
 
-## Active
+## Completed
 
 ### v1.18.0 — Memory engine
 
@@ -128,8 +128,8 @@ not just a write target for exports.
 * [x] `mq-agent memory link` — read-only link candidates between notes
 * [x] `memory_engine.v1` registered in `.mq/repo-contract.json`
 * [x] `docs/MEMORY_ENGINE.md`
-* [ ] Decide whether v1.18.0 should add write-backed links or keep link writes
-  for a later explicit approval flow
+* [x] Keep write-backed links out of v1.18.0 and defer them to a later
+  explicit approval flow
 
 ### v1.17.0 — Ollama runtime
 

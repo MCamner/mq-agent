@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.17.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.18.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -255,6 +255,7 @@ uv run pytest tests/ -v
 - [x] `mq-agent memory summarize` — section summary across truth, reviews, learn, releases, architecture and decisions
 - [x] `mq-agent memory link` — read-only link candidates between notes
 - [x] `docs/MEMORY_ENGINE.md`
+- [x] Write-backed links deferred to a later explicit approval flow
 
 ## v1.17.0 status
 
