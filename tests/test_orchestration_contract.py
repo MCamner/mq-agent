@@ -22,7 +22,7 @@ from mq_agent.core.swarm import AgentManifest
 from mq_agent.core.task_runner import StepResult
 from mq_agent.main import app
 from mq_agent.tools import TOOL_REGISTRY, tool_names
-from mq_agent.tui.app import COMMANDS
+from mq_agent.tui.app import COMMANDS, command_for_item_id
 
 runner = CliRunner()
 
@@ -97,6 +97,15 @@ def test_tui_command_list_keeps_core_commands():
         "mcp tools",
     }
     assert expected.issubset(commands)
+
+
+def test_tui_sidebar_item_ids_map_to_commands():
+    release_check_idx = next(i for i, (_, command) in enumerate(COMMANDS) if command == "release-check")
+
+    assert command_for_item_id(f"cmd-{release_check_idx}") == "release-check"
+    assert command_for_item_id("cmd-x") is None
+    assert command_for_item_id("cmd-999") is None
+    assert command_for_item_id(None) is None
 
 
 # --- Shape contracts (locked before v0.9.0 consolidation) ---
