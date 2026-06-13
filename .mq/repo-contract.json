@@ -10,6 +10,7 @@
     "release_gate.v1",
     "release_notes.v1",
     "contract_gate.v1",
+    "skills_gate.v1",
     "ci_stack_gate.v1",
     "stack_truth_export.v1",
     "stack_release.v1",

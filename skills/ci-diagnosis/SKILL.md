@@ -5,8 +5,34 @@ description: Use when CI is failing. Diagnoses test, lint, and type check failur
 
 # CI Diagnosis
 
-Goal:
 Identify the root cause of CI failures and generate concrete, safe fix steps.
+
+## When to use
+
+- A GitHub Actions run is red and the cause is unknown
+- Tests, lint, or type checks pass locally but fail in CI
+- A workflow change broke the pipeline
+
+## When not to use
+
+- Pre-release validation when CI is green — use `release-readiness`
+- Stack-wide CI gates (`stack contract-check` failures) — use `stack-operations`
+- General code quality questions — use `repo-audit`
+
+## Evals
+
+### Should trigger
+
+- "CI is failing on main, find out why"
+- "pytest passes locally but fails in Actions"
+- "the workflow broke after the dependency bump"
+- "fix the red pipeline"
+
+### Should not trigger
+
+- "is the repo ready to release?" → use `release-readiness`
+- "the stack contract gate is failing" → use `stack-operations`
+- "audit test coverage" → use `repo-audit`
 
 Always inspect:
 

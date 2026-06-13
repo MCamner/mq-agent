@@ -5,8 +5,33 @@ description: Use when analyzing images, screenshots, or comparing visual assets.
 
 # Visual Analysis
 
-Goal:
 Run structured visual reasoning on one or more images using mq-image-analyze.
+
+## When to use
+
+- Analyzing an image, screenshot, or visual asset
+- Comparing two images for visual drift
+- Reviewing a UI screenshot for accessibility or layout issues
+- Building a reverse prompt from an image
+
+## When not to use
+
+- Polishing terminal output that merely looks bad in a screenshot — describe the issue to `repo-audit` or the relevant repo skill
+- Image generation — mq-image-analyze only analyzes
+
+## Evals
+
+### Should trigger
+
+- "what's in this screenshot?"
+- "compare these two UI states"
+- "check this screenshot for accessibility problems"
+- "build a generation prompt from this image"
+
+### Should not trigger
+
+- "generate an image of X" → not supported by mq-image-analyze
+- "the CLI output is ugly" → terminal polish, not image analysis
 
 Always inspect:
 

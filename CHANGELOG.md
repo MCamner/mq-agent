@@ -9,6 +9,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* `stack-operations` skill — owns the stack suite (sweep, report, alert,
+  history, cockpit, gates, release pipeline, loop, brain-gate, truth-export)
+  and the `.mq/repo-contract.json` contract rules; the surface had no skill
+  owner since v1.6.
+* `scripts/check-skills.sh` — validates skill frontmatter, cross-references,
+  referenced paths, and the generated SKILLS.md table; wired into
+  `release-check.sh`. `--fix` regenerates the table.
+* `mq-agent stack skills-check` — cross-repo skill consistency gate. Runs each
+  stack repo's `scripts/check-skills.sh`; DRIFT/BLOCKED fail the gate, REVIEW
+  (skills without a validator) does not. Supports `--json` and `--ci`. New
+  `skills_gate.v1` contract.
+* Evals and When to use / When not to use sections in every skill.
+
+### Changed
+
+* `release-readiness` skill rebuilt around the actual gates: `release-check.sh`,
+  `mq-agent stack contract-check`, `stack release-notes`, and the orchestrated
+  `stack release` pipeline.
+* SKILLS.md converted to the stack-standard generated table format; the stale
+  "future `mq-agent review`" claim replaced with the shipped
+  `mq-agent review file/diff/repo` commands.
+
 ## [v1.18.0] — 2026-06-12
 
 ### Added

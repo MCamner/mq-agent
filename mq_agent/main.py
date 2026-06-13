@@ -3619,6 +3619,56 @@ def stack_contract_check_cmd(
         raise typer.Exit(1)
 
 
+@stack_app.command("skills-check")
+def stack_skills_check_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    ci: Annotated[bool, typer.Option("--ci", help="CI mode: skip repos missing from the workspace")] = False,
+):
+    """Validate skill consistency across every mq-stack repo.
+
+    Runs each repo's scripts/check-skills.sh (frontmatter, skill
+    cross-references, referenced paths, SKILLS.md sync). No API key required.
+    Exits 1 if any repo is DRIFT (skills inconsistent) or BLOCKED.
+    With --ci, repos missing from the workspace are SKIPPED.
+    """
+    from mq_agent.tools.stack_tools import stack_skills_check as _check
+
+    with console.status("[cyan]Checking skills across the stack...[/cyan]"):
+        raw = _check(ci=ci)
+
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        raise typer.Exit(0 if data["overall"] == "READY" else 1)
+
+    _STATUS = {
+        "READY":   "[green]READY[/green]",
+        "REVIEW":  "[yellow]REVIEW[/yellow]",
+        "DRIFT":   "[red]DRIFT[/red]",
+        "BLOCKED": "[bold red]BLOCKED[/bold red]",
+        "SKIPPED": "[dim]SKIPPED[/dim]",
+    }
+
+    console.print()
+    console.rule("[bold]MQ Stack Skills Gate[/bold]")
+    console.print()
+
+    for e in data["repos"]:
+        status_str = _STATUS.get(e["status"], e["status"])
+        reason = f"  [dim]{e['reason']}[/dim]" if e.get("reason") else ""
+        console.print(f"  {e['name']:<20} {status_str}{reason}")
+
+    console.print()
+    if data["overall"] == "READY":
+        console.print("[bold green]✓ Stack skills: READY[/bold green]")
+    else:
+        console.print("[bold red]✗ Stack skills: NOT READY[/bold red]")
+        for r in data.get("reasons", []):
+            console.print(f"  [red]→[/red] {r}")
+        raise typer.Exit(1)
+
+
 # ── stack release ──────────────────────────────────────────────────────────
 
 @stack_app.command("release")

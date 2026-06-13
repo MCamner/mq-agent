@@ -275,6 +275,14 @@ Exits 0 only when all repos are READY or REVIEW. Exits 1 on BLOCKED or DRIFT.
 Status levels: `READY` → `REVIEW` (uncommitted changes) → `DRIFT` (version mismatch) → `BLOCKED` (missing file/field).
 In CI mode only: `SKIPPED` (repo not present in the CI workspace; never fails the gate).
 
+| Command | Notes |
+|---|---|
+| `mq-agent stack skills-check` | Run each repo's `scripts/check-skills.sh` (frontmatter, cross-refs, paths, SKILLS.md sync) |
+| `mq-agent stack skills-check --json` | Machine-readable; exits 1 on NOT READY |
+| `mq-agent stack skills-check --ci` | CI mode; missing repos SKIPPED instead of BLOCKED |
+
+Status levels: `READY` (check passed) → `REVIEW` (skills present without a `check-skills.sh` validator) → `DRIFT` (check-skills.sh failed) → `BLOCKED` (repo or checker unavailable). Only `DRIFT` and `BLOCKED` fail the gate; `REVIEW` and `SKIPPED` do not.
+
 Both gates run automatically in `.github/workflows/mq-stack-gate.yml` on every
 pull request and push to `main`.
 

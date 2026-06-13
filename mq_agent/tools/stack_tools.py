@@ -397,6 +397,78 @@ def stack_contract_check(ci: bool = False) -> str:
     }, indent=2)
 
 
+def _skills_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
+    """Run a repo's scripts/check-skills.sh and classify the result.
+
+    Status meanings:
+      READY    — check-skills.sh ran and passed
+      DRIFT    — check-skills.sh ran and failed (skills are inconsistent)
+      REVIEW   — skills/ exists but no scripts/check-skills.sh validator
+      SKIPPED  — no skills/ directory, or repo absent in CI workspace
+      BLOCKED  — repo not found locally / check-skills.sh crashed
+    """
+    path = _expand(entry["path"])
+    if not path.exists():
+        if ci:
+            ci_path = _ci_repo_path(entry)
+            if ci_path is None:
+                return {"name": entry["name"], "status": "SKIPPED", "reason": "not present in CI workspace"}
+            path = ci_path
+        else:
+            return {"name": entry["name"], "status": "BLOCKED", "reason": "repo not found locally"}
+
+    if not (path / "skills").is_dir():
+        return {"name": entry["name"], "status": "SKIPPED", "reason": "no skills/ directory"}
+
+    checker = path / "scripts" / "check-skills.sh"
+    if not checker.exists():
+        return {"name": entry["name"], "status": "REVIEW", "reason": "skills/ present without scripts/check-skills.sh"}
+
+    try:
+        proc = subprocess.run(
+            ["bash", str(checker)],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        return {"name": entry["name"], "status": "BLOCKED", "reason": "check-skills.sh timed out"}
+    except Exception as exc:
+        return {"name": entry["name"], "status": "BLOCKED", "reason": f"check-skills.sh error: {exc}"}
+
+    if proc.returncode == 0:
+        return {"name": entry["name"], "status": "READY", "reason": ""}
+
+    # Surface the first FAIL line as the reason; fall back to the last output line.
+    output = (proc.stdout + proc.stderr).strip().splitlines()
+    fail_lines = [ln.strip() for ln in output if ln.strip().startswith("FAIL:")]
+    reason = (fail_lines[0] if fail_lines else (output[-1] if output else "check-skills.sh failed"))
+    return {"name": entry["name"], "status": "DRIFT", "reason": reason}
+
+
+def stack_skills_check(ci: bool = False) -> str:
+    """Cross-repo skill consistency check for all mq-stack repos.
+
+    Runs each repo's scripts/check-skills.sh (frontmatter, cross-references,
+    referenced paths, and SKILLS.md sync). No API key required. The gate fails
+    on DRIFT (a repo's skills are inconsistent) or BLOCKED (repo or checker
+    unavailable locally). REVIEW (skills without a validator) and SKIPPED do
+    not fail the gate.
+    Returns JSON with per-repo status (READY/REVIEW/DRIFT/BLOCKED/SKIPPED) and overall verdict.
+    """
+    entries = [_skills_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    has_failure = any(e["status"] in ("BLOCKED", "DRIFT") for e in entries)
+    reasons = [f"{e['name']}: {e['reason']}" for e in entries if e["status"] in ("BLOCKED", "DRIFT")]
+    return json.dumps({
+        "overall": "READY" if not has_failure else "NOT READY",
+        "mode": "ci" if ci else "local",
+        "reasons": reasons,
+        "repos": entries,
+        "checked_at": datetime.now(UTC).isoformat(),
+    }, indent=2)
+
+
 def stack_export(output_path: str = "") -> str:
     """Generate and write the mq-stack truth snapshot to mqobsidian.
 
