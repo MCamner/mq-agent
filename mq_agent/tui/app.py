@@ -203,6 +203,8 @@ class MQAgentApp(App):
         log.write_line("Select a command from the sidebar and press [bold]Enter[/bold].")
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.item is None:
+            return
         command = command_for_item_id(event.item.id)
         if command:
             self.selected_command = command
