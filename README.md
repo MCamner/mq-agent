@@ -161,6 +161,10 @@ mq-agent review file <path> --architecture-image docs/arch.png
 mq-agent learn status              # Check mq-mcp learn system
 mq-agent learn search <query>      # Search learned review patterns
 mq-agent learn explain <pattern>   # Fetch pattern explanation
+mq-agent dashboard                  # Operator snapshot: stack, brain, Ollama, contracts
+mq-agent stack loop                 # Controlled autonomous stack loop
+mq-agent stack loop --execute --approve
+mqlaunch agent → 19                 # Manual stack loop plan from the menu
 mq-agent tui                       # Launch Textual dashboard
 
 # All commands support --dry-run and --json
@@ -256,6 +260,11 @@ uv run pytest tests/ -v
 - [x] `mq-agent memory link` — read-only link candidates between notes
 - [x] `docs/MEMORY_ENGINE.md`
 - [x] Write-backed links deferred to a later explicit approval flow
+
+## v1.19.0 status
+
+- [x] `mq-agent dashboard` — read-only operator snapshot for stack health, contracts, mqobsidian truth freshness and Ollama profile status
+- [x] `mq-agent tui` — starts with the same operator snapshot before command execution
 
 ## v1.17.0 status
 
@@ -441,7 +450,7 @@ uv run pytest tests/ -v
 - [x] `mq-agent tools --describe <name>` — tool metadata and safety class
 - [x] `mq-agent run-tool <tool>` — MCP tool through safety gates
 - [x] MCP safety classes: read-only / write-capable / subprocess / dangerous / unknown
-- [x] mqlaunch bridge — 12-item agent menu + 6 direct prompt commands
+- [x] mqlaunch bridge — 19-item agent menu + 6 direct prompt commands
 - [x] `scripts/smoke-mqlaunch.sh` — verifies `mqlaunch agent ...` reaches mq-agent
 - [x] `docs/MQLAUNCH_INTEGRATION.md` — bridge architecture and usage
 - [x] `docs/COMMAND_SURFACE.md` — single source of truth for command counts

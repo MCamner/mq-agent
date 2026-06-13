@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/mq_stack_loop_plan.schema.json",
+  "title": "MQ Stack Loop Plan",
+  "description": "Controlled contract for stack loop planning and approved one-step execution.",
+  "type": "object",
+  "required": [
+    "contract",
+    "overall",
+    "mode",
+    "approved",
+    "writes_enabled",
+    "max_iterations",
+    "dashboard_overall",
+    "next_action",
+    "decision",
+    "steps",
+    "blocked",
+    "blocker",
+    "execution_result",
+    "checked_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "type": "object",
+      "required": [
+        "schema",
+        "execution",
+        "approval_required_for_writes",
+        "writes_require_execute",
+        "allowed_actions",
+        "rollback_required"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "mq_stack_loop_plan.v1" },
+        "execution": { "const": "controlled" },
+        "approval_required_for_writes": { "const": true },
+        "writes_require_execute": { "const": true },
+        "allowed_actions": {
+          "type": "array",
+          "items": { "enum": ["truth-export", "stack-release"] }
+        },
+        "rollback_required": { "const": true }
+      }
+    },
+    "execution_result": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "ok": { "type": "boolean" },
+        "action": { "enum": ["truth-export", "stack-release"] },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "overall": { "const": "PLAN" },
+    "mode": { "enum": ["dry-run", "blocked", "idle", "approved-execution"] },
+    "approved": { "type": "boolean" },
+    "writes_enabled": { "type": "boolean" },
+    "max_iterations": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "dashboard_overall": { "type": ["string", "null"] },
+    "next_action": { "type": "string" },
+    "decision": { "enum": ["idle", "preview", "manual"] },
+    "steps": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "detail"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string" },
+          "detail": { "type": "string" },
+          "decision": { "enum": ["idle", "preview", "manual"] },
+          "next_action": { "type": "string" },
+          "writes": { "type": "boolean" }
+        }
+      }
+    },
+    "blocked": { "type": "boolean" },
+    "blocker": { "type": ["string", "null"] },
+    "checked_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -7,6 +7,33 @@ description: Use when adding or changing mq-agent workflows that route review, r
 
 Use this skill when mq-agent coordinates review workflows backed by mq-mcp.
 
+## When to use
+
+- Adding or changing `mq-agent review` (file/diff/repo) workflows
+- Routing risk, security, or architecture cognition to mq-mcp tools
+- Debugging orchestration failures between mq-agent and mq-mcp
+
+## When not to use
+
+- Changing the review engine itself (contracts, severity, memory) — mq-mcp's `review-runtime-maintainer`
+- Stack gates and sweeps — use `stack-operations`
+- CI failure diagnosis — use `ci-diagnosis`
+
+## Evals
+
+### Should trigger
+
+- "mq-agent review diff should support --json"
+- "route the security pass through mq-mcp"
+- "review orchestration fails when mq-mcp is down"
+- "add dry-run to the review pipeline"
+
+### Should not trigger
+
+- "severity parsing is wrong" → mq-mcp's `review-runtime-maintainer`
+- "stack sweep scoring is off" → use `stack-operations`
+- "CI is red" → use `ci-diagnosis`
+
 ## Boundary
 
 mq-agent owns orchestration, session state, CLI/TUI presentation, dry-run planning, model-selection policy and execution pipelines.

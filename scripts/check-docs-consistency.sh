@@ -123,13 +123,13 @@ for stale in \
   fi
 done
 
-if grep -q "12-item agent menu + 6 direct prompt commands" "$ROOT/README.md"; then
+if grep -q "19-item agent menu + 6 direct prompt commands" "$ROOT/README.md"; then
   ok "README.md has canonical mqlaunch count"
 else
   fail "README.md missing canonical mqlaunch count"
 fi
 
-if grep -q "12-item agent menu + 6 prompt commands" "$ROOT/docs/MQ_ECOSYSTEM.md"; then
+if grep -q "19-item agent menu + 6 prompt commands" "$ROOT/docs/MQ_ECOSYSTEM.md"; then
   ok "MQ_ECOSYSTEM.md has canonical mqlaunch count"
 else
   fail "MQ_ECOSYSTEM.md missing canonical mqlaunch count"
@@ -142,7 +142,7 @@ else
 fi
 
 for required in \
-  "The mqlaunch agent menu has exactly 12 items." \
+  "The mqlaunch agent menu has exactly 19 items." \
   "exposes 6 direct subcommands plus the menu entrypoint." \
   "exposes exactly 6 direct prompt commands." \
   "scripts/smoke-mqlaunch.sh"; do

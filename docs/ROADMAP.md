@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.18.0 — Memory engine (done)
-Next:    v1.19.0 — Operator dashboard
+v1.20.0 — Autonomous stack (done)
+Next:    v1.21.0 — mq-hal operator layer readiness
 ```
 
 Completed foundation:
@@ -79,12 +79,13 @@ Completed foundation:
 | v1.16.0 | Runtime consolidation                        | Done    |
 | v1.17.0 | Ollama runtime                               | Done    |
 | v1.18.0 | Memory engine                                | Done    |
-| v1.19.0 | Operator dashboard                           | Planned |
-| v1.20.0 | Autonomous stack                             | Planned |
+| v1.19.0 | Operator dashboard                           | Done    |
+| v1.20.0 | Autonomous stack                             | Done    |
+| v1.21.0 | mq-hal operator layer readiness              | Planned |
 
 ---
 
-## Completed
+## Recently Completed
 
 ### v1.16.0 — Runtime consolidation
 
@@ -150,11 +151,59 @@ profiles and operator-visible status.
 
 ## Planned
 
-### Later planned releases
+### v1.20.0 — Autonomous stack
 
-* [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
-  Ollama, repos, and contracts.
-* [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
+Goal: move from dashboards to controlled stack loops without allowing
+unsupervised writes.
+
+* [x] `mq-agent stack loop` — controlled loop plan from the operator
+  dashboard next action
+* [x] `mq-agent stack loop --json` — machine-readable plan for
+  orchestration
+* [x] Non-approved loop execution is blocked until explicit approval is passed
+* [x] `mq_stack_loop_plan.v1` schema documents the controlled loop contract
+* [x] Command-specific rollback behaviour is documented and tested
+* [x] mqlaunch menu entry runs the manual loop plan
+* [x] Add approved execution for allowlisted `truth-export` and
+  `stack-release` actions
+
+### v1.19.0 — Operator dashboard
+
+Goal: make stack operations visible from one operator surface before moving
+toward controlled autonomous loops.
+
+* [x] `mq-agent dashboard` — read-only snapshot for stack health, release
+  readiness, mqobsidian truth freshness, Ollama profile status, repos and
+  contracts
+* [x] `mq-agent dashboard --json` — machine-readable operator state
+* [x] `mq-agent tui` — starts with the same operator snapshot before command
+  execution
+* [x] Add refresh-oriented TUI panels for stack, release, brain and models
+* [x] Add operator dashboard reference documentation
+* [x] Add dashboard documentation to the GitHub Pages index
+
+### v1.21.0 — mq-hal operator layer readiness
+
+Goal: keep `mq-agent` as the control-plane truth producer and make its
+operator-facing outputs stable enough for `mq-hal` to become the daily
+operator layer.
+
+`mq-agent` should produce the truth. `mq-hal` should show the truth.
+`mqobsidian` should remember the truth.
+
+* [ ] Stable JSON outputs for the surfaces `mq-hal` should read:
+  `mq-agent stack cockpit --json`, `mq-agent stack brain-gate --json`,
+  `mq-agent run --stack --json`, `mq-agent stack release-check --json`, and
+  `mq-agent dashboard --json`
+* [ ] Contract tests for the fields needed by `mq-hal stack`,
+  `mq-hal brain-status`, `mq-hal release-status`, and `mq-hal next-action`
+* [ ] `mq-agent → mq-hal` read-contract documentation, including that `mq-hal`
+  must not own gates or write flows
+* [ ] Compact `next_action` contract section covering source command,
+  severity, suggested route and whether approval is required
+* [ ] Defer stack-loop audit history until the `mq-hal` operator layer can
+  display current truth cleanly
+* [ ] Register `mq_hal_operator_contract.v1` in `.mq/repo-contract.json`
 
 ---
 

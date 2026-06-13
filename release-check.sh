@@ -61,6 +61,16 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# Skills consistency
+echo ""
+echo "--- Skills consistency ---"
+if bash "$ROOT/scripts/check-skills.sh" > /dev/null 2>&1; then
+  ok "check-skills.sh"
+else
+  bash "$ROOT/scripts/check-skills.sh" || true
+  ERRORS=$((ERRORS + 1))
+fi
+
 # mqlaunch integration smoke
 echo ""
 echo "--- mqlaunch smoke ---"

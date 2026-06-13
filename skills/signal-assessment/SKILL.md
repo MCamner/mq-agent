@@ -5,8 +5,34 @@ description: Use when scoring a repository's README quality, publish readiness, 
 
 # Signal Assessment
 
-Goal:
 Run a full repo-signal assessment and generate an actionable AI improvement plan.
+
+## When to use
+
+- Scoring a repository's README quality or publish readiness
+- Generating a prioritized improvement plan backed by repo-signal
+- Verifying score improvements after README/docs changes
+
+## When not to use
+
+- General structural audit without scoring — use `repo-audit`
+- Multi-repo health sweeps — use `stack-operations` (`mq-agent stack sweep`)
+- Release validation — use `release-readiness`
+
+## Evals
+
+### Should trigger
+
+- "score this repo's README"
+- "how publish-ready is this repo?"
+- "generate an improvement plan from repo-signal"
+- "did the README score improve after my changes?"
+
+### Should not trigger
+
+- "audit the repo structure" → use `repo-audit`
+- "sweep all MQ repos" → use `stack-operations`
+- "is it ready to tag?" → use `release-readiness`
 
 Always inspect:
 

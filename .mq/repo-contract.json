@@ -10,6 +10,7 @@
     "release_gate.v1",
     "release_notes.v1",
     "contract_gate.v1",
+    "skills_gate.v1",
     "ci_stack_gate.v1",
     "stack_truth_export.v1",
     "stack_release.v1",
@@ -19,7 +20,10 @@
     "brain_gate.v1",
     "stack_runtime.v1",
     "model_runtime.v1",
-    "memory_engine.v1"
+    "memory_engine.v1",
+    "operator_dashboard.v1",
+    "autonomous_stack_loop.v1",
+    "mq_stack_loop_plan.v1"
   ],
-  "next_focus": "v1.19.0 — Operator dashboard"
+  "next_focus": "v1.21.0 — mq-hal operator layer readiness"
 }

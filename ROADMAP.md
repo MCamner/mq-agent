@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.18.0 — Memory engine. Done.
-Next: v1.19.0 — Operator dashboard.
+v1.20.0 — Autonomous stack. Done.
+Next: v1.21.0 — mq-hal operator layer readiness.
 
 ## Current status
 
-All phases complete through v1.18.0. v1.19.0 is next.
+All phases complete through v1.20.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -20,8 +20,9 @@ All phases complete through v1.18.0. v1.19.0 is next.
 | v1.16.0 | Runtime consolidation | Done |
 | v1.17.0 | Ollama runtime | Done |
 | v1.18.0 | Memory engine | Done |
-| v1.19.0 | Operator dashboard | Planned |
-| v1.20.0 | Autonomous stack | Planned |
+| v1.19.0 | Operator dashboard | Done |
+| v1.20.0 | Autonomous stack | Done |
+| v1.21.0 | mq-hal operator layer readiness | Planned |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -95,9 +96,42 @@ not just a write target for exports.
 
 ## Planned after v1.18.0
 
-* [ ] v1.19.0 — Operator dashboard: TUI for stack health, release, brain,
-  Ollama, repos, and contracts.
-* [ ] v1.20.0 — Autonomous stack: tighter contracts and controlled stack loops.
+* [x] v1.19.0 — Operator dashboard foundation: `mq-agent dashboard`
+  read-only snapshot for stack health, release, brain, Ollama, repos and
+  contracts.
+* [x] TUI startup now shows the operator snapshot before command execution.
+* [x] Add refresh-oriented TUI panels for stack, release, brain and models.
+* [x] Add operator dashboard reference documentation.
+* [x] Add dashboard documentation to the GitHub Pages index.
+* [x] v1.20.0 — Autonomous stack foundation: `mq-agent stack loop`
+  controlled planning and approved one-step execution.
+* [x] Add explicit loop contract schema and rollback behaviour documentation.
+* [x] Add mqlaunch menu entry for manual `mq-agent stack loop` planning.
+* [x] Add approved execution after command-specific rollback behaviour is
+  implemented and tested.
+
+## v1.21.0 — mq-hal operator layer readiness
+
+Goal: keep `mq-agent` as the control-plane truth producer and make its
+operator-facing outputs stable enough for `mq-hal` to become the daily
+operator layer.
+
+`mq-agent` should produce the truth. `mq-hal` should show the truth.
+`mqobsidian` should remember the truth.
+
+* [ ] Lock stable JSON outputs for the surfaces `mq-hal` should read:
+  `mq-agent stack cockpit --json`, `mq-agent stack brain-gate --json`,
+  `mq-agent run --stack --json`, `mq-agent stack release-check --json`, and
+  `mq-agent dashboard --json`.
+* [ ] Add or update contract tests for the fields needed by `mq-hal stack`,
+  `mq-hal brain-status`, `mq-hal release-status`, and `mq-hal next-action`.
+* [ ] Document the `mq-agent → mq-hal` read contract, including that `mq-hal`
+  must not own gates or write flows.
+* [ ] Add a compact `next_action` contract section covering source command,
+  severity, suggested route and whether approval is required.
+* [ ] Keep stack-loop audit history deferred until the `mq-hal` operator layer
+  can display current truth cleanly.
+* [ ] Register `mq_hal_operator_contract.v1` in the repo contract.
 
 ## v1.15.0 — Brain-integrated stack workflow
 

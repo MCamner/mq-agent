@@ -275,6 +275,14 @@ Exits 0 only when all repos are READY or REVIEW. Exits 1 on BLOCKED or DRIFT.
 Status levels: `READY` → `REVIEW` (uncommitted changes) → `DRIFT` (version mismatch) → `BLOCKED` (missing file/field).
 In CI mode only: `SKIPPED` (repo not present in the CI workspace; never fails the gate).
 
+| Command | Notes |
+|---|---|
+| `mq-agent stack skills-check` | Run each repo's `scripts/check-skills.sh` (frontmatter, cross-refs, paths, SKILLS.md sync) |
+| `mq-agent stack skills-check --json` | Machine-readable; exits 1 on NOT READY |
+| `mq-agent stack skills-check --ci` | CI mode; missing repos SKIPPED instead of BLOCKED |
+
+Status levels: `READY` (check passed) → `REVIEW` (skills present without a `check-skills.sh` validator) → `DRIFT` (check-skills.sh failed) → `BLOCKED` (repo or checker unavailable). Only `DRIFT` and `BLOCKED` fail the gate; `REVIEW` and `SKIPPED` do not.
+
 Both gates run automatically in `.github/workflows/mq-stack-gate.yml` on every
 pull request and push to `main`.
 
@@ -328,7 +336,7 @@ NO-GO. See `docs/BRAIN_GATE.md`.
 
 ## mqlaunch Agent Menu
 
-The mqlaunch agent menu has exactly 12 items.
+The mqlaunch agent menu has exactly 19 items.
 
 | Menu item | Runs |
 |---:|---|
@@ -344,6 +352,13 @@ The mqlaunch agent menu has exactly 12 items.
 | 10 | `mq-agent tui` |
 | 11 | `mq-agent mcp status` |
 | 12 | `mq-agent mcp tools` |
+| 13 | start mq-mcp server |
+| 14 | stop mq-mcp server |
+| 15 | `mq-agent review repo . --brain` |
+| 16 | promote learn pattern to mqobsidian |
+| 17 | demo flow |
+| 18 | `mq-agent stack sweep --brain` |
+| 19 | `mq-agent stack loop` |
 
 ## mqlaunch Direct Command Surface
 
