@@ -19,8 +19,31 @@ Use this skill when the user asks to:
 - implement a feature or fix
 - review repo quality or readiness
 - prepare release, docs, README, Wiki, or GitHub Pages updates
-- use `repo-signal` output as context for AI work
+- use repo-signal report output as context for AI work
 - decide what Codex should inspect before acting
+
+## When not to use
+
+- Structured read-only audit with a verifier loop — use `repo-audit`
+- README/publish scoring — use `signal-assessment`
+- Multi-repo stack health or gates — use `stack-operations`
+- Release validation — use `release-readiness`
+
+## Evals
+
+### Should trigger
+
+- "explain how this repo is structured before I change it"
+- "ground your plan in this repo's conventions"
+- "what should I inspect before implementing this feature?"
+- "work repo-first on this task"
+
+### Should not trigger
+
+- "give me a structured audit of this repo" → use `repo-audit`
+- "score the README" → use `signal-assessment`
+- "check health across all MQ repos" → use `stack-operations`
+- "is it ready to release?" → use `release-readiness`
 
 ## Core rule
 
