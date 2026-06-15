@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mcamner.github.io/mq-mcp/contracts/release_gate_v2.schema.json",
+  "title": "MQ Release Gate v2 Result",
+  "type": "object",
+  "required": ["repo", "target", "status", "score", "blockers", "warnings", "next_actions"],
+  "properties": {
+    "repo": { "type": "string", "minLength": 1 },
+    "target": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["pass", "warning", "blocked"] },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "message", "blocker"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["pass", "warning", "blocked"] },
+          "message": { "type": "string" },
+          "blocker": { "type": "boolean" },
+          "next_action": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
