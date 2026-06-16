@@ -90,12 +90,17 @@ One compact paragraph (hot mission/status first, index state as fallback).
 - **A (done):** manual, testable `agent-views rebuild` with this contract.
 - **B (done):** run once for real → `mq-agent` is the canonical owner; the
   vault-local prototype generator is retired.
-- **C (in progress):** trigger rebuild where source changes.
+- **C (done):** trigger rebuild where source changes, and guard against drift.
   - Stack-wide opt-in flag — `mq-agent stack truth-export --rebuild-views` —
     never default.
   - Surgical single-system trigger — `mq-agent agent-views rebuild --system
     <system>` — wired as the last step of the `mq-hot-refresh` /
     `mq-index-refresh` flows in mqobsidian, so a view is refreshed exactly where
     its `hot.md` / `index.md` source was just rewritten.
-  - A background watcher / making rebuild default comes later, only once the
-    card shape and idempotency have proven useful in practice.
+  - Drift guard — `mq-agent agent-views check [--system <system>]` — rebuilds in
+    dry-run, writes nothing, and exits non-zero if any view is stale vs its
+    source (CI-friendly). This is the precondition for ever defaulting the
+    rebuild on: drift is now detectable, not silent.
+  - **Deliberately not built:** a background watcher / daemon. The trigger is
+    explicit (skill flows + the drift check), keeping the system deterministic
+    and idempotent with no long-running process to own.
