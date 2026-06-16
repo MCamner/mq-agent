@@ -3198,11 +3198,14 @@ def stack_export_cmd(
     output: Annotated[str, typer.Option("--output", "-o", help="Output path (default: dated note under mqobsidian/memory/stack-truth/)")] = "",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    rebuild_views: Annotated[bool, typer.Option("--rebuild-views", help="Also rebuild agent views after export (opt-in, off by default)")] = False,
 ):
     """Write the mq-stack truth snapshot (contract + release gates) to mqobsidian.
 
     Primary name: `stack truth-export`. `stack export` is kept as a
-    backwards-compatible alias — both run the same export.
+    backwards-compatible alias — both run the same export. Pass
+    ``--rebuild-views`` to refresh agent views at the end of the workflow
+    (opt-in — see docs/AGENT_VIEW_CONTRACT.md phase C).
     """
     from mq_agent.tools.stack_tools import stack_export
     from mq_agent.tools.stack_truth import stack_truth_export
@@ -3212,17 +3215,39 @@ def stack_export_cmd(
 
     if json_out:
         result = stack_truth_export(output_path=output, write=not dry_run)
+        if rebuild_views:
+            from mq_agent.tools.agent_views import rebuild_agent_views
+
+            result["agent_views"] = rebuild_agent_views(dry_run=dry_run)
         typer.echo(json.dumps(result, indent=2, default=str))
         return
 
     if dry_run:
         console.print(f"[blue][dry-run][/blue] Would write to: {dest}")
+        if rebuild_views:
+            _print_rebuild_views(dry_run=True)
         return
 
     with console.status("[cyan]Collecting stack truth...[/cyan]"):
         msg = stack_export(output_path=output)
 
     console.print(f"[green]{msg}[/green]")
+    if rebuild_views:
+        _print_rebuild_views(dry_run=False)
+
+
+def _print_rebuild_views(dry_run: bool) -> None:
+    """Rebuild agent views and print a one-line summary (used by workflow hooks)."""
+    from mq_agent.tools.agent_views import rebuild_agent_views
+
+    report = rebuild_agent_views(dry_run=dry_run)
+    tag = "[blue](dry-run)[/blue] " if dry_run else ""
+    written = report["views_written"] + report["views_updated"]
+    verb = "would refresh" if dry_run else "refreshed"
+    detail = ", ".join(written) if written else "nothing changed"
+    console.print(f"{tag}agent views {verb}: {detail}")
+    for err in report["errors"]:
+        console.print(f"[bold red]agent-views error:[/bold red] {err}")
 
 
 @stack_app.command("sweep")

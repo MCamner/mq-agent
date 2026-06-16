@@ -184,3 +184,81 @@ class TestTruthExportCli:
         assert result.exit_code == 0
         written = list((tmp_path / "stack-truth").glob("*-mq-stack-truth.md"))
         assert len(written) == 1
+
+
+# ── CLI: opt-in --rebuild-views hook (phase C) ──────────────────────────────
+
+class TestTruthExportRebuildViews:
+    _FAKE_REPORT = {
+        "views_written": ["mq-mcp"],
+        "views_updated": ["mq-agent"],
+        "views_unchanged": [],
+        "views_skipped_no_source": [],
+        "errors": [],
+    }
+
+    def _patches(self):
+        return (
+            patch("mq_agent.tools.stack_tools.stack_contract_check", return_value=json.dumps(_contract_payload())),
+            patch("mq_agent.tools.stack_tools.stack_release_check", return_value=json.dumps(_release_payload())),
+        )
+
+    def test_without_flag_does_not_rebuild(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2, patch("mq_agent.tools.agent_views.rebuild_agent_views") as mock_rebuild:
+            result = CliRunner().invoke(app, ["stack", "truth-export", "--output", str(output)])
+        assert result.exit_code == 0
+        mock_rebuild.assert_not_called()
+
+    def test_flag_rebuilds_after_export(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2, patch(
+            "mq_agent.tools.agent_views.rebuild_agent_views", return_value=self._FAKE_REPORT
+        ) as mock_rebuild:
+            result = CliRunner().invoke(
+                app, ["stack", "truth-export", "--output", str(output), "--rebuild-views"]
+            )
+        assert result.exit_code == 0
+        mock_rebuild.assert_called_once()
+        assert mock_rebuild.call_args.kwargs["dry_run"] is False
+        assert "agent views refreshed" in result.output
+        assert "mq-mcp" in result.output
+
+    def test_flag_dry_run_does_not_write_views(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        with patch(
+            "mq_agent.tools.agent_views.rebuild_agent_views", return_value=self._FAKE_REPORT
+        ) as mock_rebuild:
+            result = CliRunner().invoke(
+                app, ["stack", "truth-export", "--dry-run", "--rebuild-views"]
+            )
+        assert result.exit_code == 0
+        mock_rebuild.assert_called_once()
+        assert mock_rebuild.call_args.kwargs["dry_run"] is True
+        assert "dry-run" in result.output
+
+    def test_flag_json_includes_agent_views(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        output = tmp_path / "truth.md"
+        p1, p2 = self._patches()
+        with p1, p2, patch(
+            "mq_agent.tools.agent_views.rebuild_agent_views", return_value=self._FAKE_REPORT
+        ):
+            result = CliRunner().invoke(
+                app, ["stack", "truth-export", "--output", str(output), "--rebuild-views", "--json"]
+            )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["agent_views"]["views_written"] == ["mq-mcp"]
