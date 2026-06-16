@@ -59,6 +59,9 @@ app.add_typer(b2_app, name="b2")
 stack_app = typer.Typer(help="mq-stack repo inventory, status, and Obsidian export.")
 app.add_typer(stack_app, name="stack")
 
+agent_views_app = typer.Typer(help="Build compressed agent-view read cards in the mqobsidian vault.")
+app.add_typer(agent_views_app, name="agent-views")
+
 models_app = typer.Typer(help="Ollama model runtime commands.")
 app.add_typer(models_app, name="models")
 
@@ -2110,51 +2113,52 @@ def memory_refresh_cmd(
     console.print("[bold green]✓ Semantic memory refreshed[/bold green]")
 
 
-# ── memory regenerate-views ──────────────────────────────────────────────────
+# ── agent-views rebuild ──────────────────────────────────────────────────────
 
-@memory_app.command("regenerate-views")
-def memory_regenerate_views_cmd(
+@agent_views_app.command("rebuild")
+def agent_views_rebuild_cmd(
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would change without writing")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """Regenerate compressed agent views from each system's hot.md + index.md.
+    """Rebuild compressed agent views from each system's hot.md + index.md.
 
     Writes ``memory/learn/agent/<system>.md`` (read-order step 0). Pure
     extraction — never edits the curated hot.md/index.md source, and only writes
     inside the agent-views directory. Skips systems with no hot.md/index.md.
+    See docs/AGENT_VIEW_CONTRACT.md.
     """
-    from mq_agent.tools.agent_views import regenerate_agent_views
+    from mq_agent.tools.agent_views import rebuild_agent_views
 
     vault_path = Path(vault).expanduser() if vault else None
-    result = regenerate_agent_views(vault=vault_path, dry_run=dry_run)
+    report = rebuild_agent_views(vault=vault_path, dry_run=dry_run)
 
     if json_out:
-        typer.echo(json.dumps(result, indent=2, default=str))
-        raise typer.Exit(1 if result.get("error") or result.get("refused") else 0)
-
-    if result.get("error"):
-        console.print(f"[bold red]{result['error']}[/bold red]")
-        raise typer.Exit(1)
+        typer.echo(json.dumps(report, indent=2, default=str))
+        raise typer.Exit(1 if report["errors"] else 0)
 
     tag = "[blue](dry-run)[/blue] " if dry_run else ""
-    verb = "Would regenerate" if dry_run else "Regenerated"
     console.rule("[bold]agent views[/bold]")
-    console.print(f"{tag}vault: {result['vault']}")
-    if result["written"]:
-        console.print(f"[green]{verb}:[/green] " + ", ".join(result["written"]))
-    if result["unchanged"]:
-        console.print(f"[dim]unchanged:[/dim] " + ", ".join(result["unchanged"]))
-    for s in result["skipped"]:
-        console.print(f"[yellow]skip {s['system']}[/yellow] ({s['reason']})")
-    for r in result["refused"]:
-        console.print(f"[bold red]refused {r['system']}[/bold red] (unsafe path: {r['path']})")
+    console.print(f"{tag}vault: {report['vault']}")
+    written, updated = report["views_written"], report["views_updated"]
+    verb = "Would write" if dry_run else "Wrote"
+    if written:
+        console.print(f"[green]{verb}:[/green] " + ", ".join(written))
+    if updated:
+        console.print(f"[green]{'Would update' if dry_run else 'Updated'}:[/green] " + ", ".join(updated))
+    if report["views_unchanged"]:
+        console.print("[dim]unchanged:[/dim] " + ", ".join(report["views_unchanged"]))
+    for name in report["views_skipped_no_source"]:
+        console.print(f"[yellow]skip {name}[/yellow] (no hot.md/index.md to compress)")
+    for err in report["errors"]:
+        console.print(f"[bold red]error:[/bold red] {err}")
     console.print(
-        f"\nwritten: {len(result['written'])}  "
-        f"unchanged: {len(result['unchanged'])}  "
-        f"skipped: {len(result['skipped'])}"
+        f"\nchecked: {report['repos_checked']}  "
+        f"written: {len(written)}  updated: {len(updated)}  "
+        f"unchanged: {len(report['views_unchanged'])}  "
+        f"skipped: {len(report['views_skipped_no_source'])}"
     )
-    if result["refused"]:
+    if report["errors"]:
         raise typer.Exit(1)
 
 
