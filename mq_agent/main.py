@@ -2118,6 +2118,7 @@ def memory_refresh_cmd(
 @agent_views_app.command("rebuild")
 def agent_views_rebuild_cmd(
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    system: Annotated[str, typer.Option("--system", help="Rebuild only this system's view (default: all)")] = "",
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would change without writing")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
@@ -2126,12 +2127,14 @@ def agent_views_rebuild_cmd(
     Writes ``memory/learn/agent/<system>.md`` (read-order step 0). Pure
     extraction — never edits the curated hot.md/index.md source, and only writes
     inside the agent-views directory. Skips systems with no hot.md/index.md.
+    With ``--system`` rebuilds only that one system (the surgical trigger a
+    hot/index refresh runs after editing a single system).
     See docs/AGENT_VIEW_CONTRACT.md.
     """
     from mq_agent.tools.agent_views import rebuild_agent_views
 
     vault_path = Path(vault).expanduser() if vault else None
-    report = rebuild_agent_views(vault=vault_path, dry_run=dry_run)
+    report = rebuild_agent_views(vault=vault_path, dry_run=dry_run, system=system or None)
 
     if json_out:
         typer.echo(json.dumps(report, indent=2, default=str))

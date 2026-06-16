@@ -213,10 +213,17 @@ def _build_view(vault: Path, system: str) -> str | None:
 
 # ── orchestration ────────────────────────────────────────────────────────────
 
-def rebuild_agent_views(vault: Path | None = None, dry_run: bool = False) -> dict[str, Any]:
-    """Rebuild every system's agent view under ``<vault>/memory/learn/agent/``.
+def rebuild_agent_views(
+    vault: Path | None = None,
+    dry_run: bool = False,
+    system: str | None = None,
+) -> dict[str, Any]:
+    """Rebuild agent views under ``<vault>/memory/learn/agent/``.
 
-    Writes only when content differs (idempotent). Returns a structured report.
+    With ``system`` set, rebuild only that one system's view (the surgical
+    trigger a hot/index-writing flow uses after editing a single system);
+    otherwise rebuild every system. Writes only when content differs
+    (idempotent). Returns a structured report.
     """
     vault = (vault or default_vault()).resolve()
     out_dir = (vault / "memory" / "learn" / "agent").resolve()
@@ -226,6 +233,7 @@ def rebuild_agent_views(vault: Path | None = None, dry_run: bool = False) -> dic
         "vault": str(vault),
         "output_dir": str(out_dir),
         "dry_run": dry_run,
+        "system": system,
         "repos_checked": 0,
         "views_written": [],
         "views_updated": [],
@@ -238,10 +246,19 @@ def rebuild_agent_views(vault: Path | None = None, dry_run: bool = False) -> dic
         report["errors"].append(f"no systems/ directory under vault: {systems_dir}")
         return report
 
+    if system is not None and not (systems_dir / system).is_dir():
+        report["errors"].append(f"unknown system (no systems/{system}/): {systems_dir / system}")
+        return report
+
     if not dry_run:
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    for sysdir in sorted(p for p in systems_dir.iterdir() if p.is_dir()):
+    candidates = (
+        [systems_dir / system]
+        if system is not None
+        else sorted(p for p in systems_dir.iterdir() if p.is_dir())
+    )
+    for sysdir in candidates:
         name = sysdir.name
         report["repos_checked"] += 1
         view = _build_view(vault, name)
