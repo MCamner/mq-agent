@@ -192,7 +192,7 @@ def _render(vault: Path, system: str, sources: dict[str, str]) -> str | None:
         lines += ["## Active priorities", ""] + [f"- {p}" for p in sections["priorities"]] + [""]
     lines += ["## Current blockers", ""] + [f"- {b}" for b in sections["blockers"]] + [""]
     if sections["lessons"]:
-        lines += ["## Relevant lessons", ""] + [f"- {l}" for l in sections["lessons"]] + [""]
+        lines += ["## Relevant lessons", ""] + [f"- {item}" for item in sections["lessons"]] + [""]
     read_next = _read_next(vault, system)
     if read_next:
         lines += ["## Read next", ""] + [f"- {r}" for r in read_next] + [""]
