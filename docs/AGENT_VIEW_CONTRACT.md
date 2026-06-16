@@ -88,7 +88,9 @@ One compact paragraph (hot mission/status first, index state as fallback).
 ## Phasing
 
 - **A (done):** manual, testable `agent-views rebuild` with this contract.
-- **B:** run once for real → `mq-agent` becomes canonical owner; retire any
-  vault-local prototype generator.
-- **C:** later — trigger rebuild on note change or at workflow end, once the
+- **B (done):** run once for real → `mq-agent` is the canonical owner; the
+  vault-local prototype generator is retired.
+- **C (in progress):** trigger rebuild at workflow end. First increment is an
+  **opt-in** flag — `mq-agent stack truth-export --rebuild-views` — never
+  default. A background watcher / making it default comes later, only once the
   card shape and idempotency have proven useful in practice.
