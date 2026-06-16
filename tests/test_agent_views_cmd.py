@@ -159,3 +159,45 @@ def test_cli_dry_run_human_output(tmp_path):
     assert "dry-run" in res.output
     assert "mq-mcp" in res.output
     assert "skip mq-hal" in res.output
+
+
+# ── --system: surgical single-system rebuild (phase C trigger) ───────────────
+
+def test_system_rebuilds_only_that_system(tmp_path):
+    vault = _make_vault(tmp_path)
+    report = rebuild_agent_views(vault=vault, system="mq-mcp")
+    assert report["system"] == "mq-mcp"
+    assert report["repos_checked"] == 1
+    assert report["views_written"] == ["mq-mcp"]
+    # only the targeted view is written; siblings are left untouched
+    agent_dir = vault / "memory" / "learn" / "agent"
+    assert (agent_dir / "mq-mcp.md").exists()
+    assert not (agent_dir / "mq-ums.md").exists()
+
+
+def test_system_unknown_reports_error_and_writes_nothing(tmp_path):
+    vault = _make_vault(tmp_path)
+    report = rebuild_agent_views(vault=vault, system="does-not-exist")
+    assert report["errors"]
+    assert report["repos_checked"] == 0
+    assert report["views_written"] == []
+    assert not (vault / "memory" / "learn" / "agent" / "does-not-exist.md").exists()
+
+
+def test_system_no_source_is_skipped_not_errored(tmp_path):
+    vault = _make_vault(tmp_path)
+    report = rebuild_agent_views(vault=vault, system="mq-hal")
+    assert report["errors"] == []
+    assert report["views_skipped_no_source"] == ["mq-hal"]
+    assert report["views_written"] == []
+
+
+def test_cli_system_option(tmp_path):
+    vault = _make_vault(tmp_path)
+    res = runner.invoke(
+        app, ["agent-views", "rebuild", "--vault", str(vault), "--system", "mq-mcp", "--json"]
+    )
+    assert res.exit_code == 0
+    data = json.loads(res.stdout)
+    assert data["system"] == "mq-mcp"
+    assert data["views_written"] == ["mq-mcp"]

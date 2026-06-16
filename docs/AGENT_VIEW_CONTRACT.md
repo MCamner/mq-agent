@@ -11,7 +11,7 @@ the result and stays a pure memory layer.
 
 ## Location
 
-```
+```text
 source:  <vault>/systems/<system>/hot.md
          <vault>/systems/<system>/index.md
          <vault>/memory/learn/repos/<system>.md   (lessons, optional)
@@ -90,7 +90,12 @@ One compact paragraph (hot mission/status first, index state as fallback).
 - **A (done):** manual, testable `agent-views rebuild` with this contract.
 - **B (done):** run once for real → `mq-agent` is the canonical owner; the
   vault-local prototype generator is retired.
-- **C (in progress):** trigger rebuild at workflow end. First increment is an
-  **opt-in** flag — `mq-agent stack truth-export --rebuild-views` — never
-  default. A background watcher / making it default comes later, only once the
-  card shape and idempotency have proven useful in practice.
+- **C (in progress):** trigger rebuild where source changes.
+  - Stack-wide opt-in flag — `mq-agent stack truth-export --rebuild-views` —
+    never default.
+  - Surgical single-system trigger — `mq-agent agent-views rebuild --system
+    <system>` — wired as the last step of the `mq-hot-refresh` /
+    `mq-index-refresh` flows in mqobsidian, so a view is refreshed exactly where
+    its `hot.md` / `index.md` source was just rewritten.
+  - A background watcher / making rebuild default comes later, only once the
+    card shape and idempotency have proven useful in practice.
