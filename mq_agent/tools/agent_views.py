@@ -111,7 +111,11 @@ def _blockers(hot: str, index: str) -> list[str]:
     )
     # dedup, preserve order
     seen: set[str] = set()
-    out = [i for i in items if not (i in seen or seen.add(i))]
+    out: list[str] = []
+    for i in items:
+        if i not in seen:
+            seen.add(i)
+            out.append(i)
     return out[:MAX_BLOCKERS] if out else ["none"]
 
 
@@ -142,29 +146,25 @@ def _read_next(vault: Path, system: str) -> list[str]:
 
 # ── rendering ────────────────────────────────────────────────────────────────
 
-def _body_word_count(sections: dict[str, Any]) -> int:
-    chunks: list[str] = [sections["state"]]
-    for key in ("priorities", "blockers", "lessons"):
-        chunks.extend(sections[key])
+def _body_word_count(state: str, priorities: list[str], blockers: list[str], lessons: list[str]) -> int:
+    chunks = [state, *priorities, *blockers, *lessons]
     return sum(len(c.split()) for c in chunks)
 
 
 def _render(vault: Path, system: str, sources: dict[str, str]) -> str | None:
     hot, index = sources.get("hot", ""), sources.get("index", "")
-    sections = {
-        "state": _state(hot, index),
-        "priorities": _priorities(hot, index),
-        "blockers": _blockers(hot, index),
-        "lessons": _lessons(vault, system),
-    }
-    if not sections["state"] and not sections["priorities"]:
+    state = _state(hot, index)
+    priorities = _priorities(hot, index)
+    blockers = _blockers(hot, index)
+    lessons = _lessons(vault, system)
+    if not state and not priorities:
         return None  # nothing meaningful to compress
 
     # Soft word budget: shed lowest-value content first (lessons, then priorities tail).
-    while _body_word_count(sections) > WORD_BUDGET and sections["lessons"]:
-        sections["lessons"].pop()
-    while _body_word_count(sections) > WORD_BUDGET and len(sections["priorities"]) > 2:
-        sections["priorities"].pop()
+    while _body_word_count(state, priorities, blockers, lessons) > WORD_BUDGET and lessons:
+        lessons.pop()
+    while _body_word_count(state, priorities, blockers, lessons) > WORD_BUDGET and len(priorities) > 2:
+        priorities.pop()
 
     src_list = [f"systems/{system}/{k}.md" for k in sources]
     if (vault / "memory" / "learn" / "repos" / f"{system}.md").exists():
@@ -186,13 +186,13 @@ def _render(vault: Path, system: str, sources: dict[str, str]) -> str | None:
         "edit by hand; re-run `mq-agent agent-views rebuild`.",
         "",
     ]
-    if sections["state"]:
-        lines += ["## Current state", "", sections["state"], ""]
-    if sections["priorities"]:
-        lines += ["## Active priorities", ""] + [f"- {p}" for p in sections["priorities"]] + [""]
-    lines += ["## Current blockers", ""] + [f"- {b}" for b in sections["blockers"]] + [""]
-    if sections["lessons"]:
-        lines += ["## Relevant lessons", ""] + [f"- {item}" for item in sections["lessons"]] + [""]
+    if state:
+        lines += ["## Current state", "", state, ""]
+    if priorities:
+        lines += ["## Active priorities", ""] + [f"- {p}" for p in priorities] + [""]
+    lines += ["## Current blockers", ""] + [f"- {b}" for b in blockers] + [""]
+    if lessons:
+        lines += ["## Relevant lessons", ""] + [f"- {item}" for item in lessons] + [""]
     read_next = _read_next(vault, system)
     if read_next:
         lines += ["## Read next", ""] + [f"- {r}" for r in read_next] + [""]
