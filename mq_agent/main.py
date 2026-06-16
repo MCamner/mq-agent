@@ -2110,6 +2110,54 @@ def memory_refresh_cmd(
     console.print("[bold green]✓ Semantic memory refreshed[/bold green]")
 
 
+# ── memory regenerate-views ──────────────────────────────────────────────────
+
+@memory_app.command("regenerate-views")
+def memory_regenerate_views_cmd(
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would change without writing")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Regenerate compressed agent views from each system's hot.md + index.md.
+
+    Writes ``memory/learn/agent/<system>.md`` (read-order step 0). Pure
+    extraction — never edits the curated hot.md/index.md source, and only writes
+    inside the agent-views directory. Skips systems with no hot.md/index.md.
+    """
+    from mq_agent.tools.agent_views import regenerate_agent_views
+
+    vault_path = Path(vault).expanduser() if vault else None
+    result = regenerate_agent_views(vault=vault_path, dry_run=dry_run)
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, default=str))
+        raise typer.Exit(1 if result.get("error") or result.get("refused") else 0)
+
+    if result.get("error"):
+        console.print(f"[bold red]{result['error']}[/bold red]")
+        raise typer.Exit(1)
+
+    tag = "[blue](dry-run)[/blue] " if dry_run else ""
+    verb = "Would regenerate" if dry_run else "Regenerated"
+    console.rule("[bold]agent views[/bold]")
+    console.print(f"{tag}vault: {result['vault']}")
+    if result["written"]:
+        console.print(f"[green]{verb}:[/green] " + ", ".join(result["written"]))
+    if result["unchanged"]:
+        console.print(f"[dim]unchanged:[/dim] " + ", ".join(result["unchanged"]))
+    for s in result["skipped"]:
+        console.print(f"[yellow]skip {s['system']}[/yellow] ({s['reason']})")
+    for r in result["refused"]:
+        console.print(f"[bold red]refused {r['system']}[/bold red] (unsafe path: {r['path']})")
+    console.print(
+        f"\nwritten: {len(result['written'])}  "
+        f"unchanged: {len(result['unchanged'])}  "
+        f"skipped: {len(result['skipped'])}"
+    )
+    if result["refused"]:
+        raise typer.Exit(1)
+
+
 # ── memory search ──────────────────────────────────────────────────────────
 
 @memory_app.command("search")
