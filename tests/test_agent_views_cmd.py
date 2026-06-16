@@ -201,3 +201,58 @@ def test_cli_system_option(tmp_path):
     data = json.loads(res.stdout)
     assert data["system"] == "mq-mcp"
     assert data["views_written"] == ["mq-mcp"]
+
+
+# ── check: drift guard (phase C capstone) ────────────────────────────────────
+
+def test_check_reports_stale_when_views_missing(tmp_path):
+    vault = _make_vault(tmp_path)  # nothing built yet → every buildable view is stale
+    res = runner.invoke(app, ["agent-views", "check", "--vault", str(vault), "--json"])
+    assert res.exit_code == 1  # drift → non-zero
+    data = json.loads(res.stdout)
+    assert sorted(data["stale"]) == ["mq-mcp", "mq-ums"]
+    assert data["fresh"] == []
+    # check never writes
+    assert not (vault / "memory" / "learn" / "agent" / "mq-mcp.md").exists()
+
+
+def test_check_passes_after_rebuild(tmp_path):
+    vault = _make_vault(tmp_path)
+    rebuild_agent_views(vault=vault)  # bring views in sync
+    res = runner.invoke(app, ["agent-views", "check", "--vault", str(vault), "--json"])
+    assert res.exit_code == 0
+    data = json.loads(res.stdout)
+    assert data["stale"] == []
+    assert sorted(data["fresh"]) == ["mq-mcp", "mq-ums"]
+
+
+def test_check_detects_source_edit_as_drift(tmp_path):
+    vault = _make_vault(tmp_path)
+    rebuild_agent_views(vault=vault)
+    # edit a source after the view was built → that view is now stale
+    hot = vault / "systems" / "mq-mcp" / "hot.md"
+    hot.write_text(
+        "---\ntype: hot-cache\n---\n\n## Current mission\nPivoted to a new target.\n",
+        encoding="utf-8",
+    )
+    res = runner.invoke(app, ["agent-views", "check", "--vault", str(vault), "--system", "mq-mcp", "--json"])
+    assert res.exit_code == 1
+    data = json.loads(res.stdout)
+    assert data["stale"] == ["mq-mcp"]
+
+
+def test_check_unknown_system_errors(tmp_path):
+    vault = _make_vault(tmp_path)
+    res = runner.invoke(app, ["agent-views", "check", "--vault", str(vault), "--system", "nope", "--json"])
+    assert res.exit_code == 1
+    data = json.loads(res.stdout)
+    assert data["errors"]
+    assert data["stale"] == []
+
+
+def test_check_human_output_in_sync(tmp_path):
+    vault = _make_vault(tmp_path)
+    rebuild_agent_views(vault=vault)
+    res = runner.invoke(app, ["agent-views", "check", "--vault", str(vault)])
+    assert res.exit_code == 0
+    assert "in sync" in res.output

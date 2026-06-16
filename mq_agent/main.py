@@ -2165,6 +2165,60 @@ def agent_views_rebuild_cmd(
         raise typer.Exit(1)
 
 
+# ── agent-views check (drift guard) ──────────────────────────────────────────
+
+@agent_views_app.command("check")
+def agent_views_check_cmd(
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    system: Annotated[str, typer.Option("--system", help="Check only this system's view (default: all)")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Report agent views that are stale vs their hot.md/index.md source.
+
+    Drift guard: rebuilds in dry-run and flags any view that would be written or
+    updated. Writes nothing; exits non-zero if any view is stale or errored
+    (CI-friendly). This is what makes the per-system trigger trustworthy — and
+    the precondition for ever defaulting the rebuild on.
+    See docs/AGENT_VIEW_CONTRACT.md.
+    """
+    from mq_agent.tools.agent_views import rebuild_agent_views
+
+    vault_path = Path(vault).expanduser() if vault else None
+    report = rebuild_agent_views(vault=vault_path, dry_run=True, system=system or None)
+    stale = report["views_written"] + report["views_updated"]
+    drifted = bool(stale) or bool(report["errors"])
+
+    if json_out:
+        typer.echo(json.dumps(
+            {
+                "vault": report["vault"],
+                "system": report["system"],
+                "stale": stale,
+                "fresh": report["views_unchanged"],
+                "skipped_no_source": report["views_skipped_no_source"],
+                "errors": report["errors"],
+            },
+            indent=2,
+            default=str,
+        ))
+        raise typer.Exit(1 if drifted else 0)
+
+    console.rule("[bold]agent views — drift check[/bold]")
+    console.print(f"vault: {report['vault']}")
+    if stale:
+        console.print("[bold red]stale:[/bold red] " + ", ".join(stale))
+        console.print("[dim]run `mq-agent agent-views rebuild` to refresh.[/dim]")
+    if report["views_unchanged"]:
+        console.print("[green]fresh:[/green] " + ", ".join(report["views_unchanged"]))
+    for name in report["views_skipped_no_source"]:
+        console.print(f"[yellow]skip {name}[/yellow] (no hot.md/index.md to compress)")
+    for err in report["errors"]:
+        console.print(f"[bold red]error:[/bold red] {err}")
+    if not drifted:
+        console.print("\n[bold green]all views in sync with source.[/bold green]")
+    raise typer.Exit(1 if drifted else 0)
+
+
 # ── memory search ──────────────────────────────────────────────────────────
 
 @memory_app.command("search")
