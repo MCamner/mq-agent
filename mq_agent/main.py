@@ -514,6 +514,7 @@ def _is_error_result(result: Any) -> bool:
             "mq-mcp is not reachable",
             "Tool ",
             "httpx not installed",
+            "review_repo failed:",
         ))
     return False
 
