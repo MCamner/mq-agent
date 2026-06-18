@@ -13,6 +13,18 @@ except ImportError:
 MCP_START_HINT = "Start mq-mcp with:\n  mq-agent mcp start"
 
 
+def _review_repo_args(path: str | None, flags: dict[str, Any]) -> dict[str, Any]:
+    """Build review_repo args, forwarding an explicit repo path to mq-mcp.
+
+    A real path becomes repo_path so mq-mcp reviews that repo. The bare default
+    ('.', empty, or None) is omitted so mq-mcp keeps its self-review behavior.
+    """
+    args = dict(flags)
+    if path and path not in (".", "./"):
+        args["repo_path"] = path
+    return args
+
+
 def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
     """Return the default MCP server for known MQ ecosystem tool families."""
     lower = tool_name.lower()
@@ -170,7 +182,7 @@ class MCPBridge:
         return self.call_tool("review_diff", flags)
 
     def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
-        return self.call_tool("review_repo", flags)
+        return self.call_tool("review_repo", _review_repo_args(path, flags))
 
 
 class MultiMCPBridge:
@@ -263,7 +275,7 @@ class MultiMCPBridge:
         selected = self._select_review_tool("review_repo", "risk_review_repo", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, flags)
+        return self._call_required_tool(selected, _review_repo_args(path, flags))
 
     def search_semantic_memory(self, query: str) -> Any:
         """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""
