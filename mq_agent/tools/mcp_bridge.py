@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 try:
@@ -16,12 +17,14 @@ MCP_START_HINT = "Start mq-mcp with:\n  mq-agent mcp start"
 def _review_repo_args(path: str | None, flags: dict[str, Any]) -> dict[str, Any]:
     """Build review_repo args, forwarding an explicit repo path to mq-mcp.
 
-    A real path becomes repo_path so mq-mcp reviews that repo. The bare default
-    ('.', empty, or None) is omitted so mq-mcp keeps its self-review behavior.
+    A real path becomes repo_path, resolved to an absolute path against the
+    caller's cwd so relative inputs (e.g. ../repo-signal) target the right repo
+    rather than resolving against mq-mcp's own root. The bare default ('.',
+    empty, or None) is omitted so mq-mcp keeps its self-review behavior.
     """
     args = dict(flags)
     if path and path not in (".", "./"):
-        args["repo_path"] = path
+        args["repo_path"] = str(Path(path).expanduser().resolve())
     return args
 
 
