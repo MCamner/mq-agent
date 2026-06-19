@@ -27,7 +27,7 @@ class FakeReviewBridge:
             "connections": [],
         }
 
-    def review_file(self, path: str, flags: dict[str, Any]) -> dict[str, Any]:
+    def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None) -> dict[str, Any]:
         self.calls.append(("review_file", path, flags))
         return {
             "ok": True,
@@ -161,7 +161,7 @@ def test_review_repo_json_invokes_mcp_bridge():
 
 def test_review_missing_mq_mcp_tool_returns_clear_error():
     class MissingToolBridge:
-        def review_file(self, path: str, flags: dict[str, bool]) -> dict[str, object]:
+        def review_file(self, path: str, flags: dict[str, bool], repo_path: str | None = None) -> dict[str, object]:
             return {
                 "ok": False,
                 "error": "mq-mcp tool 'review_file' is not available.",

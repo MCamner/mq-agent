@@ -14,18 +14,22 @@ except ImportError:
 MCP_START_HINT = "Start mq-mcp with:\n  mq-agent mcp start"
 
 
-def _review_repo_args(path: str | None, flags: dict[str, Any]) -> dict[str, Any]:
-    """Build review_repo args, forwarding an explicit repo path to mq-mcp.
+def _add_repo_path(args: dict[str, Any], repo_path: str | None) -> dict[str, Any]:
+    """Return args with repo_path added when a real external repo is given.
 
-    A real path becomes repo_path, resolved to an absolute path against the
-    caller's cwd so relative inputs (e.g. ../repo-signal) target the right repo
-    rather than resolving against mq-mcp's own root. The bare default ('.',
-    empty, or None) is omitted so mq-mcp keeps its self-review behavior.
+    A real path is resolved to an absolute path against the caller's cwd so
+    relative inputs (e.g. ../repo-signal) target the right repo rather than
+    resolving against mq-mcp's own root. The bare default ('.', empty, or None)
+    is omitted so mq-mcp keeps its self / default-repo behavior.
     """
-    args = dict(flags)
-    if path and path not in (".", "./"):
-        args["repo_path"] = str(Path(path).expanduser().resolve())
+    if repo_path and repo_path not in (".", "./"):
+        return {**args, "repo_path": str(Path(repo_path).expanduser().resolve())}
     return args
+
+
+def _review_repo_args(path: str | None, flags: dict[str, Any]) -> dict[str, Any]:
+    """Build review_repo args, forwarding an explicit repo path to mq-mcp."""
+    return _add_repo_path(dict(flags), path)
 
 
 def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
@@ -178,8 +182,8 @@ class MCPBridge:
 
     # ── review orchestration helpers ───────────────────────────────────────
 
-    def review_file(self, path: str, flags: dict[str, Any]) -> Any:
-        return self.call_tool("review_file", {"relative_path": path, **flags})
+    def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None) -> Any:
+        return self.call_tool("review_file", _add_repo_path({"relative_path": path, **flags}, repo_path))
 
     def review_diff(self, flags: dict[str, Any]) -> Any:
         return self.call_tool("review_diff", flags)
@@ -262,11 +266,11 @@ class MultiMCPBridge:
             "hint": "Upgrade mq-mcp to a version that exposes risk review tools.",
         }
 
-    def review_file(self, path: str, flags: dict[str, Any]) -> Any:
+    def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None) -> Any:
         selected = self._select_review_tool("review_file", "risk_review_file", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, {"relative_path": path, **flags})
+        return self._call_required_tool(selected, _add_repo_path({"relative_path": path, **flags}, repo_path))
 
     def review_diff(self, flags: dict[str, Any]) -> Any:
         selected = self._select_review_tool("review_diff", "risk_review_diff", bool(flags.get("risk")))
@@ -308,22 +312,22 @@ class MultiMCPBridge:
         """Fetch a detailed explanation of a learned pattern by ID."""
         return self._call_required_tool("explain_learned_pattern", {"id": pattern_id})
 
-    def learn_extract_from_last_review(self, relative_path: str) -> Any:
+    def learn_extract_from_last_review(self, relative_path: str, repo_path: str | None = None) -> Any:
         """Dry-run extraction of a learn candidate from the last review for a file."""
         return self._call_required_tool(
             "learn_extract_from_last_review",
-            {"relative_path": relative_path},
+            _add_repo_path({"relative_path": relative_path}, repo_path),
         )
 
     def learn_record(self, relative_path: str) -> Any:
         """Store the extracted learn candidate for a file as a learned pattern (Class C write)."""
         return self._call_required_tool("record_learning", {"relative_path": relative_path})
 
-    def learn_from_review(self, relative_path: str, task: str = "", risk: str = "low") -> Any:
+    def learn_from_review(self, relative_path: str, task: str = "", risk: str = "low", repo_path: str | None = None) -> Any:
         """Create a learning record from the last review findings for a file (Class C write)."""
         return self._call_required_tool(
             "learn_from_review",
-            {"relative_path": relative_path, "task": task, "risk": risk},
+            _add_repo_path({"relative_path": relative_path, "task": task, "risk": risk}, repo_path),
         )
 
     def learn_from_diff(self, task: str, lesson: str, risk: str = "low", validation: str = "") -> Any:

@@ -614,6 +614,7 @@ def review_file_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -621,7 +622,8 @@ def review_file_cmd(
     if dry_run:
         enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
-        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{' ' + flag_str if flag_str else ''}[/bold]")
+        repo_str = f" repo_path={repo}" if repo else ""
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{repo_str}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
             console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
         return
@@ -632,7 +634,7 @@ def review_file_cmd(
     if _is_error_result(flags):
         _run_review("review file", flags, json_out)
         return
-    result = bridge.review_file(path, flags)
+    result = bridge.review_file(path, flags, repo_path=repo)
     _run_review("review file", result, json_out, bridge=bridge)
     if brain and not _is_error_result(result):
         _brain_record_review(bridge, path, result)
@@ -832,20 +834,22 @@ def learn_explain_cmd(
 @learn_app.command("extract-review")
 def learn_extract_review_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path to extract a learn candidate from.")],
+    repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record learn candidate to mqobsidian")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Dry-run extraction of a learn candidate from the last review for a file. Read-only."""
     if dry_run:
-        console.print(f"[blue]dry-run:[/blue] Would call: [bold]mq-mcp learn_extract_from_last_review {path}[/bold]")
+        repo_str = f" repo_path={repo}" if repo else ""
+        console.print(f"[blue]dry-run:[/blue] Would call: [bold]mq-mcp learn_extract_from_last_review {path}{repo_str}[/bold]")
         if brain:
             console.print("[blue]dry-run:[/blue] With --brain: would write a learn note to mqobsidian")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    result = bridge.learn_extract_from_last_review(path)
+    result = bridge.learn_extract_from_last_review(path, repo_path=repo)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -874,22 +878,24 @@ def learn_extract_review_cmd(
 @learn_app.command("review-flow")
 def learn_review_flow_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path")],
+    repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record learn candidate to mqobsidian")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review a file then extract a dry-run learn candidate in one pass. Read-only."""
     if dry_run:
-        console.print(f"[blue]dry-run:[/blue] Would call: [bold]mq-mcp review_file {path}[/bold]")
-        console.print(f"[blue]dry-run:[/blue] Then: [bold]mq-mcp learn_extract_from_last_review {path}[/bold]")
+        repo_str = f" repo_path={repo}" if repo else ""
+        console.print(f"[blue]dry-run:[/blue] Would call: [bold]mq-mcp review_file {path}{repo_str}[/bold]")
+        console.print(f"[blue]dry-run:[/blue] Then: [bold]mq-mcp learn_extract_from_last_review {path}{repo_str}[/bold]")
         if brain:
             console.print("[blue]dry-run:[/blue] With --brain: would write a learn note to mqobsidian")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    review_result = bridge.review_file(path, {})
-    extract_result = bridge.learn_extract_from_last_review(path)
+    review_result = bridge.review_file(path, {}, repo_path=repo)
+    extract_result = bridge.learn_extract_from_last_review(path, repo_path=repo)
 
     if json_out:
         combined = {"path": path, "review": review_result, "extract": extract_result}
@@ -1021,14 +1027,16 @@ def learn_from_review_cmd(
     path: Annotated[str, typer.Argument(help="Repo-relative file path")],
     task: Annotated[str, typer.Option("--task", "-t", help="What was being worked on")] = "",
     risk: Annotated[str, typer.Option("--risk", help="low | medium | high")] = "low",
+    repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     approve: Annotated[bool, typer.Option("--approve", help="Allow write to mq-mcp learn layer")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Create a learning record from the last review for a file. Class C write — requires --approve."""
     if dry_run:
+        repo_str = f" repo_path={repo}" if repo else ""
         console.print(
-            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp learn_from_review relative_path={path}"
+            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp learn_from_review relative_path={path}{repo_str}"
             f"{' task=' + task if task else ''} risk={risk}[/bold]"
         )
         return
@@ -1042,7 +1050,7 @@ def learn_from_review_cmd(
 
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    result = MultiMCPBridge().learn_from_review(path, task=task, risk=risk)
+    result = MultiMCPBridge().learn_from_review(path, task=task, risk=risk, repo_path=repo)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
