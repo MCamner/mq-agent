@@ -102,8 +102,8 @@ def test_review_flow_calls_bridge_with_path():
         MockBridge.return_value.learn_extract_from_last_review.return_value = _EXTRACT_RESULT
         runner.invoke(app, ["learn", "review-flow", "some/path.py"])
 
-    MockBridge.return_value.review_file.assert_called_once_with("some/path.py", {})
-    MockBridge.return_value.learn_extract_from_last_review.assert_called_once_with("some/path.py")
+    MockBridge.return_value.review_file.assert_called_once_with("some/path.py", {}, repo_path=None)
+    MockBridge.return_value.learn_extract_from_last_review.assert_called_once_with("some/path.py", repo_path=None)
 
 
 def test_review_flow_brain_calls_brain_record_learning():

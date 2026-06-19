@@ -85,7 +85,7 @@ def test_learn_extract_review_calls_bridge_with_path():
         MockBridge.return_value.learn_extract_from_last_review.return_value = _MCP_TEXT_RESULT
         runner.invoke(app, ["learn", "extract-review", "some/path.py"])
 
-    MockBridge.return_value.learn_extract_from_last_review.assert_called_once_with("some/path.py")
+    MockBridge.return_value.learn_extract_from_last_review.assert_called_once_with("some/path.py", repo_path=None)
 
 
 def test_learn_extract_review_brain_calls_brain_record_learning():
