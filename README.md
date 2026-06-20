@@ -32,6 +32,22 @@ flowchart TD
 Screenshots/gallery: the GitHub Pages demo page shows the current command
 surface and release proof.
 
+## Agent entrypoints
+
+This README is the human-facing canonical project document and is intentionally
+complete. Agents should not use it as their first-read surface — read the thin,
+instructional entrypoints instead:
+
+- `AGENTS.md` — Codex entrypoint (MQ memory read-order)
+- `CLAUDE.md` — Claude Code entrypoint (MQ memory read-order)
+- `.mq/context/task-pack.md` — task-specific, generated context
+- `.mq/context/hot.md` — compact current state
+
+How agents should read MQ memory — read order, truth boundary, and token
+budgets — is defined by the `mqobsidian` context contract: see `mqobsidian`
+`docs/CONTEXT_CONTRACT.md` and `docs/TOKEN_BUDGET.md`. `mqobsidian` owns the
+contract; `mq-agent` is a consumer.
+
 ## Why
 
 Most AI coding tools either wrap a model around shell commands or hide execution behind a chat UI.
