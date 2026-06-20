@@ -148,6 +148,34 @@ class TestStackReleaseCheck:
         assert "blockers" in entry
         assert "warnings" in entry
 
+    def test_json_cli_contract_fields(self, fake_repo, monkeypatch):
+        import mq_agent.tools.stack_tools as stack_tools
+
+        monkeypatch.setattr(
+            stack_tools,
+            "MQ_STACK_REPOS",
+            [{"name": "fake", "path": str(fake_repo), "role": "test"}],
+        )
+        result = runner.invoke(app, ["stack", "release-check", "--json"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert set(data) >= {"overall", "mode", "repos"}
+        assert data["overall"] == "GO"
+        assert data["mode"] == "local"
+        assert len(data["repos"]) == 1
+        assert set(data["repos"][0]) >= {
+            "name",
+            "exists",
+            "go",
+            "version",
+            "branch",
+            "dirty",
+            "on_main",
+            "blockers",
+            "warnings",
+        }
+
     def test_release_entry_clean_repo_is_go(self, fake_repo):
         from mq_agent.tools.stack_tools import _release_entry
         entry = _release_entry({"name": "fake", "path": str(fake_repo)})

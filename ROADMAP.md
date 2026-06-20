@@ -123,15 +123,15 @@ operator layer.
   `mq-agent stack cockpit --json`, `mq-agent stack brain-gate --json`,
   `mq-agent run --stack --json`, `mq-agent stack release-check --json`, and
   `mq-agent dashboard --json`.
-* [ ] Add or update contract tests for the fields needed by `mq-hal stack`,
+* [x] Add or update contract tests for the fields needed by `mq-hal stack`,
   `mq-hal brain-status`, `mq-hal release-status`, and `mq-hal next-action`.
-* [ ] Document the `mq-agent → mq-hal` read contract, including that `mq-hal`
+* [x] Document the `mq-agent → mq-hal` read contract, including that `mq-hal`
   must not own gates or write flows.
-* [ ] Add a compact `next_action` contract section covering source command,
+* [x] Add a compact `next_action` contract section covering source command,
   severity, suggested route and whether approval is required.
 * [ ] Keep stack-loop audit history deferred until the `mq-hal` operator layer
   can display current truth cleanly.
-* [ ] Register `mq_hal_operator_contract.v1` in the repo contract.
+* [x] Register `mq_hal_operator_contract.v1` in the repo contract.
 
 ## v1.15.0 — Brain-integrated stack workflow
 

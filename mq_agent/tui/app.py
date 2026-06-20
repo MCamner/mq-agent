@@ -82,7 +82,17 @@ Screen {
 
 #dashboard {
     height: auto;
+    padding: 0;
     margin-bottom: 1;
+}
+
+.dashboard-row {
+    height: auto;
+    margin-bottom: 1;
+}
+
+.dashboard-row-last {
+    margin-bottom: 0;
 }
 
 .panel {
@@ -99,8 +109,8 @@ Screen {
 }
 
 #log {
-    height: 8;
-    min-height: 8;
+    height: 18;
+    min-height: 18;
 }
 
 ListView {
@@ -181,10 +191,10 @@ class MQAgentApp(App):
             with ScrollableContainer(id="output"):
                 yield Log(id="log", highlight=True)
                 with Vertical(id="dashboard"):
-                    with Horizontal():
+                    with Horizontal(classes="dashboard-row"):
                         yield Static("", id="panel-stack", classes="panel")
                         yield Static("", id="panel-brain", classes="panel")
-                    with Horizontal():
+                    with Horizontal(classes="dashboard-row dashboard-row-last"):
                         yield Static("", id="panel-ollama", classes="panel")
                         yield Static("", id="panel-next", classes="panel")
         yield Static(self._status_text(), id="status-bar")

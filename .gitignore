@@ -28,3 +28,11 @@ settings.local.json
 # Logs
 *.log
 logs/
+
+# Local agent scaffolding (generated; may contain machine-specific paths — keep local-only)
+# Productize later via a sanitized PR ($MQ_OBSIDIAN_DIR / placeholders), not as-is.
+.mq/context/
+/AGENTS.md
+/CLAUDE.md
+templates/AGENTS.md
+templates/CLAUDE.md
