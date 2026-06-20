@@ -106,6 +106,7 @@ OpenAI, Ollama or mq-mcp.
 | `mq-agent memory search <query> --json` | yes | Raw mq-mcp JSON result |
 | `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
+| `mq-agent context export --repo <repo> --output-root <dir>` | no | Export compact `.mq/context/` snapshot from mqobsidian context cards |
 
 ## Model Commands
 

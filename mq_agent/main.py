@@ -62,6 +62,9 @@ app.add_typer(stack_app, name="stack")
 agent_views_app = typer.Typer(help="Build compressed agent-view read cards in the mqobsidian vault.")
 app.add_typer(agent_views_app, name="agent-views")
 
+context_app = typer.Typer(help="Export compact repo-local .mq/context snapshots.")
+app.add_typer(context_app, name="context")
+
 models_app = typer.Typer(help="Ollama model runtime commands.")
 app.add_typer(models_app, name="models")
 
@@ -2226,6 +2229,67 @@ def agent_views_check_cmd(
     if not drifted:
         console.print("\n[bold green]all views in sync with source.[/bold green]")
     raise typer.Exit(1 if drifted else 0)
+
+
+# ── context export ───────────────────────────────────────────────────────────
+
+@context_app.command("export")
+def context_export_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo name to export")] = "",
+    all_repos: Annotated[bool, typer.Option("--all", help="Export all core MQ repos")] = False,
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    output_root: Annotated[str, typer.Option("--output-root", help="Repo root containing <repo>/ directories (default: ~)")] = "",
+    target: Annotated[str, typer.Option("--target", help="Compatibility flag for roadmap command shape: codex, claude, or both")] = "both",
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be written without writing")] = False,
+    clean: Annotated[bool, typer.Option("--clean", help="Replace existing generated context directory before writing")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Export small `.mq/context/` snapshots from mqobsidian context cards.
+
+    This is Phase 4 orchestration: mqobsidian owns the card content; mq-agent
+    selects repos and writes repo-local context files. Use `--output-root` for
+    staging/tests before writing into real sibling repos.
+    """
+    from mq_agent.tools.context_export import CORE_MQ_REPOS, export_repo_contexts
+
+    if target not in {"codex", "claude", "both"}:
+        console.print("[bold red]target must be codex, claude, or both[/bold red]")
+        raise typer.Exit(2)
+    if all_repos and repo:
+        console.print("[bold red]Use either --repo or --all, not both.[/bold red]")
+        raise typer.Exit(2)
+    if not all_repos and not repo:
+        console.print("[bold red]Provide --repo or --all.[/bold red]")
+        raise typer.Exit(2)
+
+    repos = CORE_MQ_REPOS if all_repos else [repo]
+    report = export_repo_contexts(
+        repos=repos,
+        vault=Path(vault).expanduser() if vault else None,
+        output_root=Path(output_root).expanduser() if output_root else None,
+        dry_run=dry_run,
+        clean=clean,
+    )
+    report["target"] = target
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        raise typer.Exit(1 if report["errors"] else 0)
+
+    tag = "[blue](dry-run)[/blue] " if dry_run else ""
+    console.rule("[bold]context export[/bold]")
+    console.print(f"{tag}target: {target}")
+    for item in report["results"]:
+        changed = item["would_write"] if dry_run else item["written"]
+        console.print(f"[bold]{item['repo']}[/bold] -> {item['context_dir']}")
+        if changed:
+            console.print(f"  {'would write' if dry_run else 'wrote'}: {len(changed)} file(s)")
+        if item["unchanged"]:
+            console.print(f"  unchanged: {len(item['unchanged'])} file(s)")
+    for err in report["errors"]:
+        console.print(f"[bold red]error:[/bold red] {err}")
+    if report["errors"]:
+        raise typer.Exit(1)
 
 
 # ── memory search ──────────────────────────────────────────────────────────
