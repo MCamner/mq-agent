@@ -22,6 +22,8 @@ mq-agent tui                # Textual dashboard with refreshable operator panels
 
 The dashboard does not mutate repos, write brain notes or switch model profiles.
 Use the reported `next_action` to choose the next command.
+Machine-readable output also includes `next_action_contract` for `mq-hal`
+operator routing.
 
 ## TUI
 

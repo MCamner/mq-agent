@@ -14,6 +14,22 @@ def _count_by(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
     return counts
 
 
+def _dashboard_action_contract(
+    text: str,
+    *,
+    severity: str,
+    suggested_route: str,
+    requires_approval: bool,
+) -> dict[str, Any]:
+    return {
+        "text": text,
+        "source_command": "mq-agent dashboard",
+        "severity": severity,
+        "suggested_route": suggested_route,
+        "requires_approval": requires_approval,
+    }
+
+
 def operator_dashboard() -> str:
     """Return a read-only operator snapshot for stack, brain, Ollama and contracts."""
     from mq_agent.tools.model_runtime import current_model, list_ollama_models
@@ -42,21 +58,50 @@ def operator_dashboard() -> str:
         cockpit_action = cockpit.get("next_action")
         if cockpit_action and cockpit_action != "all green":
             next_action = cockpit_action
+            next_action_contract = cockpit.get("next_action_contract")
         else:
             first = actionable[0]
             next_action = f"{first.get('repo')}: {first.get('next_action')}"
+            next_action_contract = {
+                **first.get("next_action_contract", {}),
+                "text": next_action,
+            } if first.get("next_action_contract") else _dashboard_action_contract(
+                next_action,
+                severity="attention",
+                suggested_route="mq-agent stack cockpit",
+                requires_approval=True,
+            )
     elif not brain_ready:
         next_action = f"run stack truth-export — brain note is {brain_status}"
+        next_action_contract = _dashboard_action_contract(
+            next_action,
+            severity="attention",
+            suggested_route="mq-agent stack truth-export",
+            requires_approval=True,
+        )
     elif not ollama_ok:
         next_action = inventory.get("hint") or inventory.get("detail") or "check Ollama runtime"
+        next_action_contract = _dashboard_action_contract(
+            next_action,
+            severity="attention",
+            suggested_route="ollama runtime",
+            requires_approval=False,
+        )
     else:
         next_action = "all green"
+        next_action_contract = _dashboard_action_contract(
+            next_action,
+            severity="info",
+            suggested_route="none",
+            requires_approval=False,
+        )
 
     overall = "READY" if stack_ready and brain_ready and ollama_ok else "ATTENTION"
 
     return json.dumps({
         "overall": overall,
         "next_action": next_action,
+        "next_action_contract": next_action_contract,
         "stack": {
             "gate": cockpit.get("overall_gate"),
             "contract": cockpit.get("overall_contract"),
@@ -85,6 +130,7 @@ def operator_dashboard() -> str:
                 "contract": r.get("contract"),
                 "gate": r.get("gate"),
                 "next_action": r.get("next_action"),
+                "next_action_contract": r.get("next_action_contract"),
             }
             for r in repos
         ],
