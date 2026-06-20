@@ -1,0 +1,46 @@
+<!--
+Generated from mqobsidian agent-entrypoint templates.
+
+Ownership model:
+- mqobsidian owns the contract, templates, schemas, and generators.
+- this repo owns this committed agent surface once published.
+
+Paths use the portable $MQ_OBSIDIAN_DIR placeholder; resolve it to your local
+mqobsidian checkout. Regenerate with:
+  MQ_OBSIDIAN_DIR=<path-to-mqobsidian> \
+    python3 "$MQ_OBSIDIAN_DIR"/scripts/generate-agents-md.py --repo mq-agent --out AGENTS.md
+-->
+
+# AGENTS.md
+
+This repo is part of the MQ stack.
+
+These instructions add MQ memory read-order rules. They do not replace
+repo-specific build, test, safety, or release instructions.
+
+## Read First
+
+For work related to `mq-agent`:
+
+1. Read `.mq/context/task-pack.md` if it exists and matches the task.
+2. Read `.mq/context/repo-card.md` if it exists.
+3. Read `.mq/context/integration-map.md` if it exists.
+4. Read `$MQ_OBSIDIAN_DIR/memory/learn/agent/mq-agent.md` if it exists.
+5. Read `$MQ_OBSIDIAN_DIR/systems/mq-agent/hot.md` if it exists.
+6. Read `$MQ_OBSIDIAN_DIR/systems/mq-agent/index.md` if it exists.
+
+Stop reading as soon as the task is grounded.
+
+## Rules
+
+- Do not duplicate logic owned by another MQ repo.
+- Prefer JSON contracts over free-text coupling.
+- Keep repo boundaries explicit.
+- Use `mqobsidian` only as durable memory, not runtime truth.
+- Verify current code behavior, tests, contracts, and CLI behavior in this repo.
+
+## Durable Memory
+
+MQ-stack memory lives in `mqobsidian`.
+
+Use generated context packs before reading large docs.

@@ -29,10 +29,9 @@ settings.local.json
 *.log
 logs/
 
-# Local agent scaffolding (generated; may contain machine-specific paths — keep local-only)
-# Productize later via a sanitized PR ($MQ_OBSIDIAN_DIR / placeholders), not as-is.
-.mq/context/
-/AGENTS.md
-/CLAUDE.md
+# Ephemeral / unsanitized agent scaffolding (keep local-only).
+# Committed agent surfaces (AGENTS.md, CLAUDE.md, .mq/context/* cards) are owned and
+# tracked by this repo; only the per-task pack and the stray template copies stay local.
+.mq/context/task-pack.md
 templates/AGENTS.md
 templates/CLAUDE.md

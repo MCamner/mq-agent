@@ -40,8 +40,9 @@ instructional entrypoints instead:
 
 - `AGENTS.md` — Codex entrypoint (MQ memory read-order)
 - `CLAUDE.md` — Claude Code entrypoint (MQ memory read-order)
-- `.mq/context/task-pack.md` — task-specific, generated context
-- `.mq/context/hot.md` — compact current state
+- `.mq/context/repo-card.md` — repo identity, role, owns / does-not-own
+- `.mq/context/integration-map.md` — reads-from / writes-to / use-when
+- `.mq/context/task-pack.md` — task-specific context, generated per task (not committed)
 
 How agents should read MQ memory — read order, truth boundary, and token
 budgets — is defined by the `mqobsidian` context contract: see `mqobsidian`
@@ -497,7 +498,7 @@ $ mq-agent memory status
 │ status:       missing-vector-store                                           │
 │ vector store: (not set — export OPENAI_VECTOR_STORE_ID)                      │
 │ repo-signal:  available                                                      │
-│ repo:         /Users/mansys/mq-agent                                         │
+│ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 $ mq-agent memory build .
@@ -509,7 +510,7 @@ $ mq-agent memory doctor
 │ ✗ OPENAI_VECTOR_STORE_ID: (not set)                              │
 │   fix: export OPENAI_VECTOR_STORE_ID=vs_...                      │
 │ ✓ repo-signal: available                                         │
-│ ✓ repo path: /Users/mansys/mq-agent                              │
+│ ✓ repo path: /path/to/mq-agent                                   │
 ╰──────────────────────────────────────────────────────────────────╯
 ```
 
