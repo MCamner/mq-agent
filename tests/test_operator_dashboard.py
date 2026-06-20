@@ -26,6 +26,14 @@ def _fake_cockpit() -> str:
                 "contract": "READY",
                 "gate": "GO",
                 "next_action": "up to date",
+                "next_action_contract": {
+                    "text": "up to date",
+                    "source_command": "mq-agent stack cockpit",
+                    "severity": "info",
+                    "suggested_route": "none",
+                    "requires_approval": False,
+                    "repo": "mq-agent",
+                },
             },
             {
                 "repo": "mq-mcp",
@@ -36,6 +44,14 @@ def _fake_cockpit() -> str:
                 "contract": "READY",
                 "gate": "GO",
                 "next_action": "commit or stash uncommitted changes",
+                "next_action_contract": {
+                    "text": "commit or stash uncommitted changes",
+                    "source_command": "mq-agent stack cockpit",
+                    "severity": "attention",
+                    "suggested_route": "git hygiene",
+                    "requires_approval": True,
+                    "repo": "mq-mcp",
+                },
             },
         ],
         "checked_at": "2026-06-12T00:00:00+00:00",
@@ -83,6 +99,9 @@ def test_operator_dashboard_summarizes_stack_brain_ollama_and_contracts(monkeypa
     assert data["ollama"]["profile"] == "review"
     assert data["contracts"]["READY"] == 2
     assert data["next_action"].startswith("mq-mcp:")
+    assert data["next_action_contract"]["source_command"] == "mq-agent stack cockpit"
+    assert data["next_action_contract"]["suggested_route"] == "git hygiene"
+    assert data["next_action_contract"]["requires_approval"] is True
 
 
 def test_operator_dashboard_surfaces_ollama_when_stack_is_clean(monkeypatch):
@@ -98,6 +117,13 @@ def test_operator_dashboard_surfaces_ollama_when_stack_is_clean(monkeypatch):
     assert data["overall"] == "ATTENTION"
     assert data["ollama"]["ok"] is False
     assert data["next_action"] == "install or start Ollama"
+    assert data["next_action_contract"] == {
+        "text": "install or start Ollama",
+        "source_command": "mq-agent dashboard",
+        "severity": "attention",
+        "suggested_route": "ollama runtime",
+        "requires_approval": False,
+    }
 
 
 def test_dashboard_cli_json(monkeypatch):
