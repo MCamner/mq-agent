@@ -86,6 +86,14 @@ class TestCockpitEntries:
         assert row["gate"] == "GO"
         assert row["unreleased"] == 0
         assert row["next_action"] == "up to date"
+        assert row["next_action_contract"] == {
+            "text": "up to date",
+            "source_command": "mq-agent stack cockpit",
+            "severity": "info",
+            "suggested_route": "none",
+            "requires_approval": False,
+            "repo": "mq-agent",
+        }
 
     def test_missing_repo_suggests_clone(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
@@ -95,12 +103,18 @@ class TestCockpitEntries:
         row = _cockpit()["repos"][0]
         assert row["exists"] is False
         assert row["next_action"] == "clone repo locally"
+        assert row["next_action_contract"]["source_command"] == "mq-agent stack cockpit"
+        assert row["next_action_contract"]["severity"] == "blocked"
+        assert row["next_action_contract"]["suggested_route"] == "git clone"
+        assert row["next_action_contract"]["requires_approval"] is True
 
     def test_dirty_repo_suggests_commit(self, stack_repo):
         (stack_repo / "wip.txt").write_text("wip\n")
         row = _cockpit()["repos"][0]
         assert row["dirty"] is True
         assert "commit or stash" in row["next_action"]
+        assert row["next_action_contract"]["suggested_route"] == "git hygiene"
+        assert row["next_action_contract"]["requires_approval"] is True
 
     def test_contract_drift_wins_over_dirty(self, stack_repo):
         contract = stack_repo / ".mq" / "repo-contract.json"
@@ -144,15 +158,26 @@ class TestStackSummary:
         assert data["overall_gate"] == "GO"
         assert data["overall_contract"] == "READY"
         assert data["next_action"] == "all green"
+        assert data["next_action_contract"]["severity"] == "info"
+        assert data["next_action_contract"]["requires_approval"] is False
 
     def test_missing_truth_note_suggests_export(self, stack_repo):
         data = _cockpit()
         assert data["next_action"] == "run stack truth-export — brain note is none"
+        assert data["next_action_contract"] == {
+            "text": "run stack truth-export — brain note is none",
+            "source_command": "mq-agent stack cockpit",
+            "severity": "attention",
+            "suggested_route": "mq-agent stack truth-export",
+            "requires_approval": True,
+        }
 
     def test_pending_repo_drives_next_action(self, stack_repo):
         (stack_repo / "wip.txt").write_text("wip\n")
         data = _cockpit()
         assert data["next_action"].startswith("mq-agent:")
+        assert data["next_action_contract"]["repo"] == "mq-agent"
+        assert data["next_action_contract"]["text"].startswith("mq-agent:")
         assert data["overall_gate"] == "GO"  # dirty is a warning, not a blocker
 
     def test_cockpit_is_read_only(self, stack_repo):
@@ -182,6 +207,8 @@ class TestStackCockpitCli:
         data = json.loads(result.output)
         assert data["overall_gate"] == "GO"
         assert data["repos"][0]["repo"] == "mq-agent"
+        assert "next_action_contract" in data
+        assert "next_action_contract" in data["repos"][0]
 
     def test_registered_in_tool_registry(self):
         from mq_agent.tools import TOOL_REGISTRY
