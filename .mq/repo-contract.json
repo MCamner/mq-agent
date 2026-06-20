@@ -23,7 +23,8 @@
     "memory_engine.v1",
     "operator_dashboard.v1",
     "autonomous_stack_loop.v1",
-    "mq_stack_loop_plan.v1"
+    "mq_stack_loop_plan.v1",
+    "mq_hal_operator_contract.v1"
   ],
   "next_focus": "v1.21.0 — mq-hal operator layer readiness"
 }

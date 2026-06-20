@@ -139,6 +139,15 @@ class TestCli:
         data = json.loads(result.output)
         assert data["overall"] == "GO"
         assert len(data["checks"]) == 5
+        assert set(data) >= {"overall", "checks", "next_action", "checked_at"}
+        assert {c["name"] for c in data["checks"]} == {
+            "contract-check",
+            "release-check",
+            "truth-export",
+            "vault-structure",
+            "brain-review",
+        }
+        assert all(set(c) >= {"name", "status", "detail"} for c in data["checks"])
 
     def test_json_no_go_exits_1(self):
         with _gate(contract=json.dumps({"overall": "BLOCKED", "reasons": []})):
