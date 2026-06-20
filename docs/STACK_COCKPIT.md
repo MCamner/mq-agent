@@ -59,12 +59,38 @@ The stack-level `next_action` is the first repo that is not up to date; when
 every repo is clean it falls back to truth-note freshness (`run stack
 truth-export` when stale or missing), and finally `all green`.
 
+`next_action` is the human-readable label. JSON output also includes
+`next_action_contract` for `mq-hal` and other operator clients:
+
+```json
+{
+  "text": "mq-agent: commit or stash uncommitted changes",
+  "source_command": "mq-agent stack cockpit",
+  "severity": "attention",
+  "suggested_route": "git hygiene",
+  "requires_approval": true,
+  "repo": "mq-agent"
+}
+```
+
+The contract fields are stable:
+
+| Field | Meaning |
+| --- | --- |
+| `text` | Display text matching the human `next_action` |
+| `source_command` | mq-agent command that produced the recommendation |
+| `severity` | `info`, `attention` or `blocked` |
+| `suggested_route` | Operator route or command family to show |
+| `requires_approval` | Whether the route can mutate state or needs operator approval |
+| `repo` | Optional repo slug when the action is repo-specific |
+
 ---
 
 ## JSON output
 
 ```bash
 mq-agent stack cockpit --json | jq '{overall_gate, overall_contract, next_action}'
+mq-agent stack cockpit --json | jq '.next_action_contract'
 mq-agent stack cockpit --json | jq '.repos[] | {repo, version, gate, next_action}'
 ```
 
