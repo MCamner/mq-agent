@@ -2292,6 +2292,68 @@ def context_export_cmd(
         raise typer.Exit(1)
 
 
+# ── context pack (task-specific, Phase 5) ──────────────────────────────────────
+
+@context_app.command("pack")
+def context_pack_cmd(
+    task: Annotated[str, typer.Argument(help="Short task description")],
+    repo: Annotated[str, typer.Option("--repo", help="Primary repo for the task")] = "",
+    relevant_repo: Annotated[list[str], typer.Option("--relevant-repo", help="Extra relevant repo (repeatable)")] = [],
+    relevant_file: Annotated[list[str], typer.Option("--relevant-file", help="Extra relevant file/doc path (repeatable)")] = [],
+    note: Annotated[list[str], typer.Option("--note", help="Extra operator note (repeatable)")] = [],
+    target: Annotated[str, typer.Option("--target", help="codex, claude, or both")] = "both",
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs, used to detect .codegraph/ (default: ~)")] = "",
+    codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto (source-heavy only), on, or off")] = "auto",
+    output: Annotated[str, typer.Option("--output", "--out", help="Write the pack here instead of stdout")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Generate a small task-specific `context-pack.v1` pack from mqobsidian cards.
+
+    Phase 5 orchestration: mqobsidian owns the durable cards and the pack
+    contract; mq-agent selects the relevant repos, cards, and do-not-read
+    guidance for one task and adds an optional CodeGraph source-intelligence
+    hint when the task is source-structure heavy.
+    """
+    from mq_agent.tools.context_pack import build_task_pack, write_task_pack
+
+    if target not in {"codex", "claude", "both"}:
+        console.print("[bold red]target must be codex, claude, or both[/bold red]")
+        raise typer.Exit(2)
+    if codegraph not in {"auto", "on", "off"}:
+        console.print("[bold red]codegraph must be auto, on, or off[/bold red]")
+        raise typer.Exit(2)
+
+    result = build_task_pack(
+        task,
+        target=target,
+        repo=repo or None,
+        relevant_repos=relevant_repo,
+        relevant_files=relevant_file,
+        notes=note,
+        vault=Path(vault).expanduser() if vault else None,
+        repos_root=Path(repos_root).expanduser() if repos_root else None,
+        codegraph=codegraph,
+    )
+
+    if output:
+        path = write_task_pack(result["content"], Path(output))
+        result["written"] = str(path)
+
+    if json_out:
+        payload = {k: v for k, v in result.items() if k != "content"}
+        typer.echo(json.dumps(payload, indent=2, default=str))
+        raise typer.Exit(0)
+
+    if output:
+        console.rule("[bold]context pack[/bold]")
+        console.print(f"wrote: {result['written']} ({result['line_count']} lines)")
+        console.print(f"repos: {', '.join(result['relevant_repos']) or 'none'}")
+        console.print(f"codegraph hint: {'yes' if result['codegraph_applied'] else 'no'}")
+    else:
+        typer.echo(result["content"])
+
+
 # ── memory search ──────────────────────────────────────────────────────────
 
 @memory_app.command("search")
