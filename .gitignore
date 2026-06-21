@@ -35,3 +35,4 @@ logs/
 .mq/context/task-pack.md
 templates/AGENTS.md
 templates/CLAUDE.md
+.codegraph/
