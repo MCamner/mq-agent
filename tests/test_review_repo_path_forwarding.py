@@ -80,10 +80,10 @@ def test_mcpbridge_review_repo_self_review_when_no_path():
 
 # C. Dry-run shows the target repo path.
 def test_review_repo_dry_run_shows_target_path():
-    result = runner.invoke(app, ["review", "repo", "/Users/mansys/repo-signal", "--dry-run"])
+    result = runner.invoke(app, ["review", "repo", "/tmp/repo-signal", "--dry-run"])
     assert result.exit_code == 0
     assert "review_repo" in result.output
-    assert "/Users/mansys/repo-signal" in result.output
+    assert "/tmp/repo-signal" in result.output
 
 
 # D. mq-mcp path-validation error is surfaced, not masked, and not recorded.

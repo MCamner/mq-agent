@@ -83,18 +83,18 @@ def test_multibridge_learn_from_review_no_repo_omits_path():
 
 # CLI dry-runs surface the target repo path.
 def test_cli_review_file_dry_run_shows_repo():
-    r = runner.invoke(app, ["review", "file", "tools/x.py", "--repo", "/Users/mansys/repo-signal", "--dry-run"])
+    r = runner.invoke(app, ["review", "file", "tools/x.py", "--repo", "/tmp/repo-signal", "--dry-run"])
     assert r.exit_code == 0
-    assert "repo_path=/Users/mansys/repo-signal" in r.output
+    assert "repo_path=/tmp/repo-signal" in r.output
 
 
 def test_cli_learn_from_review_dry_run_shows_repo():
-    r = runner.invoke(app, ["learn", "from-review", "tools/x.py", "--repo", "/Users/mansys/repo-signal", "--dry-run"])
+    r = runner.invoke(app, ["learn", "from-review", "tools/x.py", "--repo", "/tmp/repo-signal", "--dry-run"])
     assert r.exit_code == 0
-    assert "repo_path=/Users/mansys/repo-signal" in r.output
+    assert "repo_path=/tmp/repo-signal" in r.output
 
 
 def test_cli_learn_extract_dry_run_shows_repo():
-    r = runner.invoke(app, ["learn", "extract-review", "tools/x.py", "--repo", "/Users/mansys/mq-hal", "--dry-run"])
+    r = runner.invoke(app, ["learn", "extract-review", "tools/x.py", "--repo", "/tmp/mq-hal", "--dry-run"])
     assert r.exit_code == 0
-    assert "repo_path=/Users/mansys/mq-hal" in r.output
+    assert "repo_path=/tmp/mq-hal" in r.output

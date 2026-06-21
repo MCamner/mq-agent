@@ -12,7 +12,7 @@ skills/repo-aware/SKILL.md
 Canonical Codex fallback:
 
 ```text
-/Users/mansys/.codex/skills/repo-aware/SKILL.md
+~/.codex/skills/repo-aware/SKILL.md
 ```
 
 First read the primary skill completely. If it is missing, read the canonical
