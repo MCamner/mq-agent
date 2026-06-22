@@ -26,3 +26,13 @@ For cross-repo work:
 4. Only then inspect source files.
 
 Do not expand scope unless the task requires it.
+
+## MQ Skills
+
+Claude Code reads repo-local skills from `.claude/skills/`. Route by task:
+
+- `mq-writing-plans` — before multi-step changes.
+- `mq-worktree-safe` — before risky branch/worktree flows.
+- `mq-subagent-driven-development` — for task/review loops.
+- `mq-interactive-command-design` — for CLI/TUI/approval flows.
+- `mq-secrets-public-safe` — before publishing, commit, or PR.

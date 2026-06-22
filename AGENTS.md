@@ -44,3 +44,13 @@ Stop reading as soon as the task is grounded.
 MQ-stack memory lives in `mqobsidian`.
 
 Use generated context packs before reading large docs.
+
+## MQ Skills
+
+Codex reads repo-local skills from `.agents/skills/`. Route by task:
+
+- `mq-writing-plans` — before multi-step changes.
+- `mq-worktree-safe` — before risky branch/worktree flows.
+- `mq-subagent-driven-development` — for task/review loops.
+- `mq-interactive-command-design` — for CLI/TUI/approval flows.
+- `mq-secrets-public-safe` — before publishing, commit, or PR.
