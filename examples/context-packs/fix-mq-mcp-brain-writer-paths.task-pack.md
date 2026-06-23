@@ -28,9 +28,9 @@ summary: Minimum context needed for: fix mq-mcp brain writer paths
 * `.codegraph/` is present in `mq-mcp`; ask CodeGraph for callers/impact before broad grep.
 * Use CodeGraph for source structure only; use mqobsidian cards/packs for durable memory and repo boundaries.
 
-## Do not read first
+## Exclusions
 
-* unrelated UMS docs
-* old release notes
-* full repo README files
-* raw or unsanitized logs
+* `irrelevant` — unrelated UMS docs
+* `irrelevant` — old release notes
+* `irrelevant` — full repo README files
+* `irrelevant` — raw or unsanitized logs

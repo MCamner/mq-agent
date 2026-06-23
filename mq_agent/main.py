@@ -2301,6 +2301,7 @@ def context_pack_cmd(
     relevant_repo: Annotated[list[str], typer.Option("--relevant-repo", help="Extra relevant repo (repeatable)")] = [],
     relevant_file: Annotated[list[str], typer.Option("--relevant-file", help="Extra relevant file/doc path (repeatable)")] = [],
     note: Annotated[list[str], typer.Option("--note", help="Extra operator note (repeatable)")] = [],
+    exclude: Annotated[list[str], typer.Option("--exclude", help="Negative context as `kind:item[:reason]` where kind is forbidden|fallback|irrelevant (repeatable)")] = [],
     target: Annotated[str, typer.Option("--target", help="codex, claude, or both")] = "both",
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
     repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs, used to detect .codegraph/ (default: ~)")] = "",
@@ -2315,7 +2316,7 @@ def context_pack_cmd(
     guidance for one task and adds an optional CodeGraph source-intelligence
     hint when the task is source-structure heavy.
     """
-    from mq_agent.tools.context_pack import build_task_pack, write_task_pack
+    from mq_agent.tools.context_pack import EXCLUSION_KINDS, build_task_pack, write_task_pack
 
     if target not in {"codex", "claude", "both"}:
         console.print("[bold red]target must be codex, claude, or both[/bold red]")
@@ -2324,6 +2325,21 @@ def context_pack_cmd(
         console.print("[bold red]codegraph must be auto, on, or off[/bold red]")
         raise typer.Exit(2)
 
+    parsed_exclusions: list[dict[str, str]] = []
+    for raw in exclude:
+        kind, _, rest = raw.partition(":")
+        kind = kind.strip()
+        if kind not in EXCLUSION_KINDS or not rest.strip():
+            console.print(
+                f"[bold red]--exclude must be `kind:item[:reason]` with kind in "
+                f"{', '.join(EXCLUSION_KINDS)} (got: {raw!r})[/bold red]"
+            )
+            raise typer.Exit(2)
+        item, _, reason = rest.partition(":")
+        parsed_exclusions.append(
+            {"kind": kind, "item": item.strip(), "reason": reason.strip()}
+        )
+
     result = build_task_pack(
         task,
         target=target,
@@ -2331,6 +2347,7 @@ def context_pack_cmd(
         relevant_repos=relevant_repo,
         relevant_files=relevant_file,
         notes=note,
+        exclusions=parsed_exclusions,
         vault=Path(vault).expanduser() if vault else None,
         repos_root=Path(repos_root).expanduser() if repos_root else None,
         codegraph=codegraph,

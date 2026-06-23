@@ -69,6 +69,14 @@ def test_source_heavy_heuristic():
     assert not task_is_source_heavy("write release notes for v1.4")
 
 
+def _write_card(vault: Path, repo: str, *, frontmatter_extra: str = "") -> None:
+    cards = vault / "memory" / "context-cards"
+    cards.mkdir(parents=True, exist_ok=True)
+    card = CARD.replace("repo: mq-mcp", f"repo: {repo}{frontmatter_extra}")
+    card = card.replace("Context Card: mq-mcp", f"Context Card: {repo}")
+    (cards / f"{repo}-card.md").write_text(card, encoding="utf-8")
+
+
 def test_pack_selects_card_and_do_not_read(tmp_path):
     vault = _vault(tmp_path)
     result = build_task_pack(
@@ -82,12 +90,79 @@ def test_pack_selects_card_and_do_not_read(tmp_path):
     assert "schema: context-pack.v1" in content
     assert "mqobsidian/memory/context-cards/mq-mcp-card.md" in content
     assert "mq-mcp/.mq/context/repo-card.md" in content
-    # do-not-read guidance is pulled from the card
-    assert "full repo README files" in content
-    assert "old release notes" in content
+    # card "avoid" guidance now renders as structured `irrelevant` exclusions
+    assert "## Exclusions" in content
+    assert "`irrelevant` — full repo README files" in content
+    assert "`irrelevant` — old release notes" in content
     # source-heavy task -> CodeGraph hint present, but conditional (no index on disk)
     assert result["codegraph_applied"]
     assert "If `.codegraph/` exists" in content
+
+
+def test_structured_exclusions_render_with_kinds(tmp_path):
+    vault = _vault(tmp_path)
+    result = build_task_pack(
+        "fix mq-mcp brain writer paths",
+        repo="mq-mcp",
+        vault=vault,
+        repos_root=tmp_path,
+        exclusions=[
+            {"item": "mq-ums", "kind": "forbidden", "reason": "unrelated repo"},
+            {"item": "archived notes", "kind": "fallback"},
+        ],
+    )
+    content = result["content"]
+    assert "`forbidden` — mq-ums: unrelated repo" in content
+    assert "`fallback` — archived notes" in content
+    # severity ordering: forbidden before fallback before irrelevant
+    kinds = [e["kind"] for e in result["exclusions"]]
+    assert kinds == sorted(kinds, key=["forbidden", "fallback", "irrelevant"].index)
+
+
+def test_do_not_read_is_backward_compatible(tmp_path):
+    vault = _vault(tmp_path)
+    result = build_task_pack(
+        "fix mq-mcp brain writer paths",
+        repo="mq-mcp",
+        vault=vault,
+        repos_root=tmp_path,
+        do_not_read=["legacy avoid item"],
+    )
+    assert "`irrelevant` — legacy avoid item" in result["content"]
+    assert {"item": "legacy avoid item", "kind": "irrelevant", "reason": ""} in result["exclusions"]
+
+
+def test_local_card_is_withheld_from_pack(tmp_path):
+    vault = _vault(tmp_path)
+    _write_card(vault, "mq-local", frontmatter_extra="\npublishability: local-rich")
+    result = build_task_pack(
+        "fix mq-local internals",
+        repo="mq-local",
+        vault=vault,
+        repos_root=tmp_path,
+    )
+    # not pulled into the selected cards / files, recorded as a forbidden exclusion
+    assert "mq-local-card.md" not in [c for c in result["cards"]]
+    forbidden = [e for e in result["exclusions"] if e["kind"] == "forbidden"]
+    assert any("local-rich" in e["reason"] for e in forbidden)
+    assert "mqobsidian/memory/context-cards/mq-local-card.md" not in result["content"].split("## Exclusions")[0]
+
+
+def test_archived_card_demoted_to_fallback(tmp_path):
+    vault = _vault(tmp_path)
+    _write_card(vault, "mq-old", frontmatter_extra="\nfreshness: archived")
+    result = build_task_pack("touch mq-old", repo="mq-old", vault=vault, repos_root=tmp_path)
+    assert result["cards"] == []  # archived card not selected
+    assert any(e["kind"] == "fallback" and "archived" in e["reason"] for e in result["exclusions"])
+
+
+def test_stale_card_kept_but_flagged(tmp_path):
+    vault = _vault(tmp_path)
+    _write_card(vault, "mq-stale", frontmatter_extra="\nfreshness: stale")
+    result = build_task_pack("touch mq-stale", repo="mq-stale", vault=vault, repos_root=tmp_path)
+    assert any("mq-stale-card.md" in c for c in result["cards"])  # still selected
+    assert "is stale; verify" in result["content"]
+    assert result["card_metadata"]["mq-stale"]["freshness"] == "stale"
 
 
 def test_pack_stays_within_budget(tmp_path):
@@ -145,6 +220,37 @@ def test_cli_pack_json_to_stdout(tmp_path):
     assert data["relevant_repos"] == ["mq-mcp"]
     assert data["codegraph_applied"] is True
     assert "content" not in data
+
+
+def test_cli_pack_exclude_option(tmp_path):
+    vault = _vault(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "context", "pack", "fix mq-mcp brain writer paths",
+            "--repo", "mq-mcp",
+            "--vault", str(vault),
+            "--repos-root", str(tmp_path),
+            "--exclude", "forbidden:mq-ums:unrelated repo",
+            "--exclude", "fallback:old logs",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "`forbidden` — mq-ums: unrelated repo" in result.stdout
+    assert "`fallback` — old logs" in result.stdout
+
+
+def test_cli_pack_exclude_rejects_bad_kind(tmp_path):
+    vault = _vault(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "context", "pack", "fix mq-mcp brain writer paths",
+            "--repo", "mq-mcp", "--vault", str(vault), "--repos-root", str(tmp_path),
+            "--exclude", "bogus:item",
+        ],
+    )
+    assert result.exit_code == 2
 
 
 def test_cli_pack_writes_file(tmp_path):

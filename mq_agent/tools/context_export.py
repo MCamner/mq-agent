@@ -70,6 +70,27 @@ def default_vault() -> Path:
     return Path(env).expanduser().resolve() if env else DEFAULT_VAULT_DIR
 
 
+def parse_frontmatter(text: str) -> dict[str, str]:
+    """Parse a simple `key: value` YAML frontmatter block into a flat dict.
+
+    Tolerant by design: missing or malformed frontmatter yields `{}` rather than
+    raising, because callers (pack selection) treat block-level metadata as
+    optional hints, not hard requirements.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    data: dict[str, str] = {}
+    for raw_line in lines[1:]:
+        if raw_line.strip() == "---":
+            break
+        key, separator, value = raw_line.partition(":")
+        if not separator:
+            continue
+        data[key.strip()] = value.strip()
+    return data
+
+
 def _section_body(text: str, heading: str) -> str:
     marker = f"## {heading}"
     lines = text.splitlines()
