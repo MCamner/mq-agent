@@ -21,7 +21,23 @@ from mq_agent.tools.context_export import (
     DEFAULT_REPOS_ROOT,
     _section_items,
     default_vault,
+    parse_frontmatter,
 )
+
+# context-pack.v1 exclusion kinds (mqobsidian owns the contract). `forbidden`
+# blocks are never pulled in; `fallback` blocks are read only if the context
+# above is insufficient; `irrelevant` blocks are simply not needed.
+EXCLUSION_KINDS = ("forbidden", "fallback", "irrelevant")
+
+# Block-level metadata (context-card.v1, Phase 11b). mq-agent is the consumer:
+# it bounds and ranks card selection from these values; the values live in the
+# vault, the selection logic lives here.
+#
+# A card must never be pulled into a task pack — which lands as a public-safe
+# artifact in a target repo — when its publishability/scope marks it local-only.
+# That mirrors the mqobsidian publish boundary, machine-checked at selection.
+NON_PUBLISHABLE_PUBLISHABILITY = {"local-rich"}
+NON_PUBLISHABLE_SCOPE = {"local-only"}
 
 # Signals that a task is about source-code structure, where CodeGraph
 # (callers/callees, impact, code-flow, symbol search) beats broad grep/read.
@@ -133,6 +149,56 @@ def _codegraph_notes(
     ]
 
 
+def _coerce_exclusion(raw: Any) -> dict[str, str] | None:
+    """Normalize one exclusion into `{item, kind, reason}`; drop unusable input.
+
+    Accepts either a structured `{item, kind, reason?}` mapping or a bare string
+    (legacy `do_not_read` / card-avoid item), which maps to kind `irrelevant`.
+    Unknown kinds fall back to `irrelevant` so a producer typo degrades to the
+    safe-but-soft kind instead of emitting an off-contract value.
+    """
+    if isinstance(raw, str):
+        item = raw.strip()
+        return {"item": item, "kind": "irrelevant", "reason": ""} if item else None
+    if isinstance(raw, dict):
+        item = str(raw.get("item", "")).strip()
+        if not item:
+            return None
+        kind = str(raw.get("kind", "irrelevant")).strip()
+        if kind not in EXCLUSION_KINDS:
+            kind = "irrelevant"
+        return {"item": item, "kind": kind, "reason": str(raw.get("reason", "")).strip()}
+    return None
+
+
+def _merge_exclusions(*groups: list[Any]) -> list[dict[str, str]]:
+    """Coerce, dedupe (by kind+item, first reason wins), order by kind severity."""
+    seen: set[tuple[str, str]] = set()
+    collected: list[dict[str, str]] = []
+    for group in groups:
+        for raw in group:
+            entry = _coerce_exclusion(raw)
+            if entry is None:
+                continue
+            key = (entry["kind"], entry["item"])
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append(entry)
+    order = {kind: rank for rank, kind in enumerate(EXCLUSION_KINDS)}
+    return sorted(collected, key=lambda e: order[e["kind"]])
+
+
+def _exclusion_lines(exclusions: list[dict[str, str]]) -> str:
+    if not exclusions:
+        return "* Broad repo scans unless the pack proves insufficient"
+    lines: list[str] = []
+    for entry in exclusions:
+        reason = f": {entry['reason']}" if entry["reason"] else ""
+        lines.append(f"* `{entry['kind']}` — {entry['item']}{reason}")
+    return "\n".join(lines)
+
+
 def build_task_pack(
     task: str,
     *,
@@ -142,6 +208,7 @@ def build_task_pack(
     relevant_files: list[str] | None = None,
     relevant_decisions: list[str] | None = None,
     notes: list[str] | None = None,
+    exclusions: list[Any] | None = None,
     do_not_read: list[str] | None = None,
     summary: str | None = None,
     vault: Path | None = None,
@@ -150,6 +217,15 @@ def build_task_pack(
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     """Select context for `task` and render a `context-pack.v1` Markdown pack.
+
+    Block-level card metadata (`freshness`/`scope`/`publishability`, Phase 11b)
+    bounds and ranks selection: a card marked local-only/local-rich never enters
+    the pack (publish boundary), an archived card is demoted to a `fallback`
+    exclusion, and a stale card is kept but flagged in Notes.
+
+    Negative context is emitted as structured `exclusions` (Phase 11a). The
+    legacy `do_not_read` list is still accepted for backward compatibility and
+    is folded in as kind `irrelevant`; prefer passing `exclusions` directly.
 
     Returns a dict with the rendered `content`, the selection it made, and
     whether a CodeGraph hint was applied. Pure: writing is the caller's job.
@@ -160,18 +236,55 @@ def build_task_pack(
     repos = select_relevant_repos(task, repo, list(relevant_repos or []))
 
     files = list(relevant_files or [])
-    avoid = list(do_not_read or [])
+    avoid: list[str] = list(do_not_read or [])
+    auto_exclusions: list[dict[str, str]] = []
+    stale_notes: list[str] = []
     cards: list[str] = []
+    card_metadata: dict[str, dict[str, str]] = {}
     for r in repos:
         found = _card_text(vault, r)
         if not found:
             continue
         card_path, card_text = found
         try:
-            rel = card_path.relative_to(vault)
-            cards.append(f"{vault.name}/{rel}")
+            ref = f"{vault.name}/{card_path.relative_to(vault)}"
         except ValueError:
-            cards.append(str(card_path))
+            ref = str(card_path)
+
+        meta = parse_frontmatter(card_text)
+        freshness = meta.get("freshness", "")
+        scope = meta.get("scope", "")
+        publishability = meta.get("publishability", "")
+        card_metadata[r] = {
+            "freshness": freshness,
+            "scope": scope,
+            "publishability": publishability,
+        }
+
+        # Publish-boundary gate: a local-only/local-rich card must not travel
+        # into the pack. Record why it was withheld, then skip it entirely.
+        if publishability in NON_PUBLISHABLE_PUBLISHABILITY or scope in NON_PUBLISHABLE_SCOPE:
+            mark = publishability or scope
+            auto_exclusions.append({
+                "item": ref,
+                "kind": "forbidden",
+                "reason": f"card is {mark}; not publishable into a task pack",
+            })
+            continue
+
+        # Freshness gate: archived cards drop to a fallback read; stale cards
+        # stay selected but are flagged so the reader verifies before relying.
+        if freshness == "archived":
+            auto_exclusions.append({
+                "item": ref,
+                "kind": "fallback",
+                "reason": "card is archived; read only if the context above is insufficient",
+            })
+            continue
+        if freshness == "stale":
+            stale_notes.append(f"Card `{ref}` is stale; verify against the repo before relying on it.")
+
+        cards.append(ref)
         avoid.extend(_section_items(card_text, "Avoid reading unless needed"))
     # Point at the primary repo's exported compact card first.
     if repos:
@@ -185,12 +298,18 @@ def build_task_pack(
 
     note_items = list(notes or [])
     note_items.append("Prefer the mqobsidian cards above before broad repo scans.")
+    note_items.extend(stale_notes)
     note_items.extend(_codegraph_notes(task, repos, repos_root, codegraph))
+
+    pack_exclusions = _merge_exclusions(
+        list(exclusions or []),
+        auto_exclusions,
+        avoid,
+    )
 
     files = _dedupe(files)
     decisions = _dedupe(decisions)
     note_items = _dedupe(note_items)
-    avoid = _dedupe(avoid)
 
     pack_summary = summary or f"Minimum context needed for: {task}"
     generated = generated_at or datetime.now(timezone.utc).replace(
@@ -225,9 +344,9 @@ summary: {pack_summary}
 
 {_bullet_lines(note_items, "Keep the task pack focused on the current change")}
 
-## Do not read first
+## Exclusions
 
-{_bullet_lines(avoid, "Broad repo scans unless the pack proves insufficient")}
+{_exclusion_lines(pack_exclusions)}
 """
 
     return {
@@ -236,6 +355,8 @@ summary: {pack_summary}
         "repo": repo_line,
         "relevant_repos": repos,
         "cards": cards,
+        "card_metadata": card_metadata,
+        "exclusions": pack_exclusions,
         "codegraph_applied": bool(_codegraph_notes(task, repos, repos_root, codegraph)),
         "line_count": len(content.splitlines()),
         "content": content,

@@ -17,15 +17,30 @@ Given a task, the command:
 2. **Pulls the mqobsidian context cards** for those repos and points at them
    (`mqobsidian/memory/context-cards/<repo>-card.md`) plus each repo's exported
    `.mq/context/repo-card.md`.
-3. **Derives do-not-read guidance** from each card's *Avoid reading unless needed*
-   section, so the pack actively steers away from broad first reads.
-4. **Adds an optional CodeGraph hint** when the task is source-structure heavy
+3. **Emits structured exclusions** (`context-pack.v1` Phase 11a) — a card's
+   *Avoid reading unless needed* items and any `--exclude`/legacy `do_not_read`
+   entries render under `## Exclusions` tagged `forbidden` / `fallback` /
+   `irrelevant`, so the pack steers away from broad first reads with intent, not
+   just a flat list.
+4. **Bounds selection by block metadata** (`context-card.v1` Phase 11b) — when a
+   card carries `freshness` / `scope` / `publishability`, mq-agent uses them:
+   a `local-rich`/`local-only` card is withheld from the pack and recorded as a
+   `forbidden` exclusion (publish boundary, machine-checked); an `archived` card
+   drops to a `fallback` exclusion; a `stale` card is kept but flagged in Notes.
+   Cards without metadata behave exactly as before (treated as current /
+   public-safe).
+5. **Adds an optional CodeGraph hint** when the task is source-structure heavy
    (callers / impact / refactor / rename / trace / symbol / fix …). The hint
    names the real index when `.codegraph/` exists in the target repo, and is a
    plain conditional otherwise. Doc-shaped tasks (readme / roadmap / changelog)
    never get a CodeGraph mention.
 
-The output is the existing `context-pack.v1` shape — no new schema.
+The output is the `context-pack.v1` shape. Phase 11 added the optional
+`exclusions` array (structured negative context) and the optional
+`freshness`/`scope`/`publishability` card fields it consumes — both defined and
+versioned by mqobsidian; mq-agent is the producer/consumer, not the schema
+owner. `do_not_read` remains accepted for backward compatibility and folds into
+`exclusions` as kind `irrelevant`.
 
 ## Usage
 
@@ -37,9 +52,9 @@ mq-agent context pack "trace callers of store_learn_record" \
 mq-agent context pack "..." --repo mq-mcp --json   # machine-readable selection
 ```
 
-Flags: `--repo`, `--relevant-repo`, `--relevant-file`, `--note`, `--target`
-(`codex|claude|both`), `--vault`, `--repos-root`, `--codegraph` (`auto|on|off`),
-`--out`, `--json`.
+Flags: `--repo`, `--relevant-repo`, `--relevant-file`, `--note`, `--exclude`
+(`kind:item[:reason]`, repeatable), `--target` (`codex|claude|both`), `--vault`,
+`--repos-root`, `--codegraph` (`auto|on|off`), `--out`, `--json`.
 
 A worked example pack is in
 [`examples/context-packs/fix-mq-mcp-brain-writer-paths.task-pack.md`](../examples/context-packs/fix-mq-mcp-brain-writer-paths.task-pack.md).
