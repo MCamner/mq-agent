@@ -1,0 +1,39 @@
+{
+  "template": "release-ready",
+  "task": "Assess release readiness without releasing: status, repo-signal, selftest, release-check.",
+  "max_steps": 4,
+  "steps": [
+    {
+      "id": "status",
+      "name": "Repository status",
+      "tool": "git_status",
+      "depends_on": [],
+      "condition": "always",
+      "approval": "none"
+    },
+    {
+      "id": "signal",
+      "name": "repo-signal readiness",
+      "tool": "repo_signal_status",
+      "depends_on": ["status"],
+      "condition": "all_deps_passed",
+      "approval": "none"
+    },
+    {
+      "id": "selftest",
+      "name": "Run selftest",
+      "tool": "run_mqlaunch_selftest",
+      "depends_on": ["signal"],
+      "condition": "all_deps_passed",
+      "approval": "plan"
+    },
+    {
+      "id": "release_check",
+      "name": "Run release-check",
+      "tool": "run_mqlaunch_release_check",
+      "depends_on": ["selftest"],
+      "condition": "all_deps_passed",
+      "approval": "plan"
+    }
+  ]
+}

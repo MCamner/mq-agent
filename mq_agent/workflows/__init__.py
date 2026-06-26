@@ -42,6 +42,13 @@ from .state import (
     touch,
 )
 from .storage import WorkflowStore, default_workflows_dir
+from .templates import (
+    ALLOWED_TOOLS,
+    TemplateError,
+    instantiate,
+    list_templates,
+    load_template,
+)
 
 __all__ = [
     "DEFAULT_MAX_STEPS",
@@ -69,4 +76,10 @@ __all__ = [
     # Phase 2 — storage
     "WorkflowStore",
     "default_workflows_dir",
+    # Phase 3 — templates
+    "ALLOWED_TOOLS",
+    "TemplateError",
+    "instantiate",
+    "list_templates",
+    "load_template",
 ]

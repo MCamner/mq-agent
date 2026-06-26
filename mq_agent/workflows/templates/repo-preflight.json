@@ -1,0 +1,31 @@
+{
+  "template": "repo-preflight",
+  "task": "Verify repository readiness: doctor, then selftest, then release-check.",
+  "max_steps": 3,
+  "steps": [
+    {
+      "id": "doctor",
+      "name": "Run mqlaunch doctor",
+      "tool": "run_mqlaunch_doctor",
+      "depends_on": [],
+      "condition": "always",
+      "approval": "plan"
+    },
+    {
+      "id": "selftest",
+      "name": "Run mqlaunch selftest",
+      "tool": "run_mqlaunch_selftest",
+      "depends_on": ["doctor"],
+      "condition": "all_deps_passed",
+      "approval": "plan"
+    },
+    {
+      "id": "release_check",
+      "name": "Run mqlaunch release-check",
+      "tool": "run_mqlaunch_release_check",
+      "depends_on": ["selftest"],
+      "condition": "all_deps_passed",
+      "approval": "plan"
+    }
+  ]
+}
