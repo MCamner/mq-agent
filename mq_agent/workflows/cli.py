@@ -76,11 +76,25 @@ def _print_summary(run, json_output: bool) -> None:
         typer.echo(f"  [{mark}] {s['id']}  {s.get('summary') or ''}".rstrip())
 
 
+def _make_plan_approver(json_output: bool, yes: bool):
+    """Return a plan-approval callback that prompts unless --yes was given."""
+    def _approve(summary: str) -> bool:
+        if yes:
+            return True
+        if json_output:
+            return False  # never block on a prompt in JSON mode
+        typer.echo("\n" + summary + "\n")
+        return typer.confirm("Approve this plan?", default=False)
+
+    return _approve
+
+
 @workflow_app.command("run")
 def run_cmd(
     template: str = typer.Argument(..., help="Template name, e.g. repo-preflight."),
     repo: str = typer.Option(..., "--repo", help="Target repository path."),
     json_output: bool = typer.Option(False, "--json", help="Emit the summary as JSON."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Approve the plan without prompting."),
 ) -> None:
     """Instantiate, persist and execute a workflow against REPO (read-only)."""
     store = WorkflowStore()
@@ -100,7 +114,11 @@ def run_cmd(
 
     if not json_output:
         typer.echo(f"Workflow: {template}  repo: {repo}  ({total} steps)  run: {run_id}")
-    Runner(store, on_step=_progress if not json_output else None).run(run)
+    Runner(
+        store,
+        plan_approver=_make_plan_approver(json_output, yes),
+        on_step=_progress if not json_output else None,
+    ).run(run)
     _print_summary(run, json_output)
     raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
 
@@ -133,6 +151,7 @@ def status_cmd(
 def resume_cmd(
     run_id: str = typer.Argument(..., help="Run id of a paused or failed run."),
     json_output: bool = typer.Option(False, "--json"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Approve the plan without prompting."),
 ) -> None:
     """Resume a paused or failed run from where it stopped."""
     store = WorkflowStore()
@@ -143,7 +162,7 @@ def resume_cmd(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
     store.save_run(run)
-    Runner(store).run(run)
+    Runner(store, plan_approver=_make_plan_approver(json_output, yes)).run(run)
     _print_summary(run, json_output)
     raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
 

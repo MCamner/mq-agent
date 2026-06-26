@@ -15,27 +15,30 @@ Tool execution is injected (``ToolExecutor``) so the runner is testable without 
 live mq-mcp server. The default executor calls mq-mcp over the local bridge.
 Selection resolves dependencies first (a step is considered only once all its
 dependencies are terminal), then the condition decides run-vs-skip.
+
+Phase 6: the per-step allow/deny gate now comes from machine-readable tool
+policy fetched from mq-mcp (PolicyProvider), not a hardcoded allowlist. Policy
+is snapshotted into run state at start; on resume, policy drift stops the run.
+A plan-approval gate runs once before execution when any step needs it.
 """
 from __future__ import annotations
 
 import os
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from . import conditions
 from .evaluator import normalize_result
 from .models import (
-    FORBIDDEN_TOOLS,
-    StepApproval,
     StepStatus,
     WorkflowPlan,
     WorkflowStep,
     WorkflowStatus,
 )
+from .policy import PolicyProvider, diff_policies
 from .state import WorkflowRun, touch
 from .storage import WorkflowStore
-from .templates import ALLOWED_TOOLS
 
 #: Runner-level hard cap on executed steps, independent of the plan's max_steps.
 RUNNER_MAX_STEPS = 6
@@ -49,8 +52,6 @@ _TERMINAL_STEP = frozenset(
         StepStatus.CANCELLED,
     }
 )
-#: Approval levels that imply mutation — forbidden in the read-only runner.
-_MUTATING = frozenset({StepApproval.STEP, StepApproval.FORBIDDEN})
 
 
 class ToolExecutor(Protocol):
@@ -85,6 +86,8 @@ class Runner:
         step_timeout: float = DEFAULT_STEP_TIMEOUT,
         max_steps: int = RUNNER_MAX_STEPS,
         stop_on_failure: bool = True,
+        policy_provider: PolicyProvider | None = None,
+        plan_approver: Callable[[str], bool] | None = None,
         on_step: Any = None,
     ) -> None:
         self.store = store
@@ -93,13 +96,56 @@ class Runner:
         self.max_steps = max_steps
         # v1 fixes this to True; the parameter exists for later phases/tests.
         self.stop_on_failure = stop_on_failure
+        self.policy_provider = policy_provider or PolicyProvider()
+        # Plan-approval hook: receives a side-effect summary, returns approve y/n.
+        # Default auto-approves (programmatic/trusted callers); the CLI prompts.
+        self._plan_approver = plan_approver or (lambda summary: True)
         # Optional callback(step) for surfacing progress; defaults to no-op.
         self._on_step = on_step or (lambda step: None)
+        # Per-step policy decisions for the current run (set in run()).
+        self._policy_decisions: dict[str, Any] = {}
+        # Runner-level failure reason (e.g. policy drift, step cap), if any.
+        self._fail_reason: str | None = None
 
     # -- public ---------------------------------------------------------
 
     def run(self, run: WorkflowRun) -> WorkflowRun:
         """Execute the run from its current state. Persists after every change."""
+        # 1. Fetch tool policy BEFORE doing anything (deny/allow source of truth).
+        current = self.policy_provider.load()
+        plan_tools = {s.tool for s in run.plan.steps}
+
+        # 2. Policy snapshot + drift guard. A fresh run snapshots policy; a
+        #    resumed run (snapshot already present) stops if policy drifted.
+        if run.policy_snapshot is not None:
+            drift = diff_policies(run.policy_snapshot, current, plan_tools)
+            if drift:
+                self._fail(
+                    run, None,
+                    f"tool policy changed during paused run: {', '.join(drift)}",
+                )
+                self._finalize(run)
+                return run
+        elif self.policy_provider.source == "policy":
+            run.policy_snapshot = {t: current[t] for t in plan_tools if t in current}
+
+        # 3. Per-step decisions (computed once, recorded for observability).
+        decisions = {
+            s.id: self.policy_provider.decide(s, read_only=True)
+            for s in run.plan.steps
+        }
+        self._policy_decisions = decisions
+
+        # 4. Plan-approval gate: ask once if any runnable step needs it.
+        if self._needs_plan_approval(run.plan, decisions):
+            if not self._plan_approver(self._approval_summary(run.plan, decisions)):
+                run.plan.status = WorkflowStatus.AWAITING_APPROVAL
+                run.pid = None
+                run.summary = self._summarize(run.plan, approved=False)
+                touch(run)
+                self.store.save_run(run)
+                return run
+
         run.plan.status = WorkflowStatus.RUNNING
         run.pid = os.getpid()
         self.store.save_run(run)
@@ -116,10 +162,14 @@ class Runner:
                 self.store.save_run(run)
                 continue
 
-            # Policy check happens BEFORE any tool call.
-            violation = self._verify_policy(step)
-            if violation is not None:
-                self._fail(run, step, violation)
+            # Policy gate happens BEFORE any tool call — no execution without it.
+            decision = decisions[step.id]
+            if not decision.allowed:
+                self._fail(run, step, f"policy denied: {decision.reason}")
+                break
+            # Never auto re-run a step the policy marks not retry-safe.
+            if step.attempt > 0 and not self.policy_provider.retry_safe(step.tool):
+                self._fail(run, step, f"{step.tool!r} is not retry-safe; manual rerun required")
                 break
 
             self._execute_step(run, step)
@@ -130,6 +180,10 @@ class Runner:
                 self.store.save_run(run)
                 break
 
+        self._finalize(run)
+        return run
+
+    def _finalize(self, run: WorkflowRun) -> None:
         if run.plan.status is WorkflowStatus.RUNNING:
             failed = any(s.status is StepStatus.FAILED for s in run.plan.steps)
             run.plan.status = (
@@ -138,7 +192,6 @@ class Runner:
         run.pid = None
         run.summary = self._summarize(run.plan)
         self.store.save_run(run)
-        return run
 
     # -- selection / policy --------------------------------------------
 
@@ -152,15 +205,26 @@ class Runner:
                 return step
         return None
 
-    def _verify_policy(self, step: WorkflowStep) -> str | None:
-        """Return a violation message, or ``None`` if the step may run."""
-        if step.tool in FORBIDDEN_TOOLS:
-            return f"tool {step.tool!r} is forbidden (shell_exec)"
-        if step.tool not in ALLOWED_TOOLS:
-            return f"unknown tool {step.tool!r} is not in the workflow allowlist"
-        if step.approval in _MUTATING:
-            return f"mutation (approval={step.approval.value!r}) is forbidden in the read-only runner"
-        return None
+    def _needs_plan_approval(self, plan: WorkflowPlan, decisions: dict) -> bool:
+        """True if any allowed step requires plan-level (or stricter) approval."""
+        return any(
+            decisions[s.id].allowed and decisions[s.id].approval != "none"
+            for s in plan.steps
+        )
+
+    def _approval_summary(self, plan: WorkflowPlan, decisions: dict) -> str:
+        """Human-readable plan-approval prompt body listing side effects."""
+        lines = [
+            f"Workflow: {plan.template}",
+            f"Repository: {plan.repo}",
+            "",
+        ]
+        for i, step in enumerate(plan.steps, 1):
+            d = decisions[step.id]
+            note = "denied: " + d.reason if not d.allowed else f"approval={d.approval}"
+            lines.append(f"{i}. {step.name}  [{step.tool}]  {note}")
+        lines += ["", "No files will be changed. No commits, pushes or releases."]
+        return "\n".join(lines)
 
     # -- execution ------------------------------------------------------
 
@@ -191,6 +255,7 @@ class Runner:
         self.store.save_run(run)  # persist AFTER the call
 
     def _fail(self, run: WorkflowRun, step: WorkflowStep | None, message: str) -> None:
+        self._fail_reason = message
         if step is not None:
             step.status = StepStatus.FAILED
             step.error = message
@@ -202,7 +267,7 @@ class Runner:
 
     # -- summary --------------------------------------------------------
 
-    def _summarize(self, plan: WorkflowPlan) -> dict[str, Any]:
+    def _summarize(self, plan: WorkflowPlan, *, approved: bool = True) -> dict[str, Any]:
         steps = [
             {
                 "id": s.id,
@@ -213,11 +278,19 @@ class Runner:
             for s in plan.steps
         ]
         passed = sum(1 for s in plan.steps if s.status is StepStatus.PASSED)
+        decisions = getattr(self, "_policy_decisions", {})
         return {
             "ok": plan.status is WorkflowStatus.COMPLETED,
             "status": plan.status.value,
             "passed": passed,
             "total": len(plan.steps),
             "current_step": plan.current_step,
+            "error": self._fail_reason,
             "steps": steps,
+            "policy": {
+                "source": self.policy_provider.source,
+                "error": self.policy_provider.error,
+                "plan_approved": approved,
+                "decisions": [d.to_dict() for d in decisions.values()],
+            },
         }

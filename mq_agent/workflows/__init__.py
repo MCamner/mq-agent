@@ -51,6 +51,7 @@ from .templates import (
 )
 from . import conditions
 from .evaluator import normalize_result
+from .policy import PolicyDecision, PolicyProvider, diff_policies
 from .runner import (
     DEFAULT_STEP_TIMEOUT,
     RUNNER_MAX_STEPS,
@@ -97,4 +98,8 @@ __all__ = [
     "MCPBridgeExecutor",
     "RUNNER_MAX_STEPS",
     "DEFAULT_STEP_TIMEOUT",
+    # Phase 6 — policy gates
+    "PolicyProvider",
+    "PolicyDecision",
+    "diff_policies",
 ]
