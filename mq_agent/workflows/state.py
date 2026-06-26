@@ -69,6 +69,9 @@ class WorkflowRun(BaseModel):
     pid: int | None = None
     #: Closing summary written by the runner when the run finishes (Phase 4).
     summary: dict[str, Any] | None = None
+    #: Tool-policy snapshot captured at run start (Phase 6); used to detect
+    #: policy drift across a pause/resume. Empty when running on fallback policy.
+    policy_snapshot: dict[str, Any] | None = None
     plan: WorkflowPlan
 
     # Convenience pass-throughs --------------------------------------------
