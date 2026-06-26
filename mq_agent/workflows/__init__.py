@@ -49,6 +49,14 @@ from .templates import (
     list_templates,
     load_template,
 )
+from . import conditions
+from .evaluator import normalize_result
+from .runner import (
+    DEFAULT_STEP_TIMEOUT,
+    RUNNER_MAX_STEPS,
+    MCPBridgeExecutor,
+    Runner,
+)
 
 __all__ = [
     "DEFAULT_MAX_STEPS",
@@ -82,4 +90,11 @@ __all__ = [
     "instantiate",
     "list_templates",
     "load_template",
+    # Phase 4 — runner
+    "conditions",
+    "normalize_result",
+    "Runner",
+    "MCPBridgeExecutor",
+    "RUNNER_MAX_STEPS",
+    "DEFAULT_STEP_TIMEOUT",
 ]
