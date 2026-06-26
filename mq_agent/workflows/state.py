@@ -67,6 +67,8 @@ class WorkflowRun(BaseModel):
     updated_at: datetime
     #: PID of the process that last set the run ``running``; ``None`` otherwise.
     pid: int | None = None
+    #: Closing summary written by the runner when the run finishes (Phase 4).
+    summary: dict[str, Any] | None = None
     plan: WorkflowPlan
 
     # Convenience pass-throughs --------------------------------------------
