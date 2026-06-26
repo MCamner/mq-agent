@@ -1,9 +1,11 @@
 """mq-agent workflow orchestration package.
 
-Phase 1 (this PR) ships the **workflow contract only**: schema, data models and
-validation. There is intentionally no runner, no tool execution, no state
-storage, no approvals and no adaptive planning here yet — those land in later
-phases (see ``docs/roadmap-workflow-orchestration.md``).
+Phase 1 ships the **workflow contract**: schema, data models and validation.
+Phase 2 adds **local workflow state**: the ``WorkflowRun`` envelope, pure state
+transitions (pause/resume/cancel, dead-process reconciliation, sanitization) and
+filesystem persistence (``WorkflowStore``). There is intentionally still no
+runner, no tool execution, no approvals and no adaptive planning here — those
+land in later phases (see ``docs/roadmap-workflow-orchestration.md``).
 
 Ownership boundary this package sits inside:
 
@@ -27,6 +29,19 @@ from .models import (
     WorkflowStep,
     validate_plan,
 )
+from .state import (
+    WorkflowRun,
+    WorkflowStateError,
+    cancel,
+    new_run,
+    pause,
+    reconcile_dead_process,
+    resume,
+    sanitize_result,
+    sanitize_run,
+    touch,
+)
+from .storage import WorkflowStore, default_workflows_dir
 
 __all__ = [
     "DEFAULT_MAX_STEPS",
@@ -40,4 +55,18 @@ __all__ = [
     "WorkflowStatus",
     "WorkflowStep",
     "validate_plan",
+    # Phase 2 — state
+    "WorkflowRun",
+    "WorkflowStateError",
+    "new_run",
+    "touch",
+    "pause",
+    "resume",
+    "cancel",
+    "reconcile_dead_process",
+    "sanitize_result",
+    "sanitize_run",
+    # Phase 2 — storage
+    "WorkflowStore",
+    "default_workflows_dir",
 ]
