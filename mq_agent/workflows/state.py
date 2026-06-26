@@ -133,14 +133,19 @@ def pause(run: WorkflowRun) -> WorkflowRun:
 def resume(run: WorkflowRun) -> WorkflowRun:
     """Resume a paused or failed run.
 
+    Only a ``paused`` or ``failed`` run can be resumed — resuming a ``running``
+    or ``planned`` run would reset steps outside a real resume path.
+
     Passed steps are preserved. Failed/in-flight *non-mutating* steps are reset
     to ``pending`` so the runner can pick them up again; mutating steps are left
     as-is and never re-run automatically. A cancelled run cannot be resumed.
     """
     if run.plan.status is WorkflowStatus.CANCELLED:
         raise WorkflowStateError("a cancelled run cannot be resumed; start a new run")
-    if run.plan.status is WorkflowStatus.COMPLETED:
-        raise WorkflowStateError("a completed run has nothing to resume")
+    if run.plan.status not in (WorkflowStatus.PAUSED, WorkflowStatus.FAILED):
+        raise WorkflowStateError(
+            f"only paused or failed runs can be resumed, not {run.plan.status.value!r}"
+        )
 
     for step in run.plan.steps:
         if step.status is StepStatus.PASSED:
@@ -155,6 +160,10 @@ def resume(run: WorkflowRun) -> WorkflowRun:
             step.status = StepStatus.PENDING
             step.error = None
 
+    # Clear any stale owning pid; a runner re-claims the run when it starts
+    # executing. Otherwise a dead pid left over from before would let
+    # reconcile_dead_process immediately re-pause the just-resumed run on load.
+    run.pid = None
     run.plan.status = WorkflowStatus.RUNNING
     return touch(run)
 
@@ -248,8 +257,17 @@ def sanitize_result(value: Any) -> Any:
 
 
 def sanitize_run(run: WorkflowRun) -> WorkflowRun:
-    """Sanitize every step result in-place before the run is persisted."""
+    """Sanitize every step's args, result and error in-place before persisting.
+
+    Secrets can ride in tool ``args`` (e.g. a token passed as an argument) and in
+    ``error`` (secret-bearing stderr), not only in ``result`` — all three are
+    sanitized. Note: redaction is key-name based; value-pattern redaction of
+    secrets embedded in free-text strings is a tracked follow-up.
+    """
     for step in run.plan.steps:
+        step.args = sanitize_result(step.args)
         if step.result is not None:
             step.result = sanitize_result(step.result)
+        if step.error is not None:
+            step.error = sanitize_result(step.error)
     return run

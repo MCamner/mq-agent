@@ -49,6 +49,16 @@ def _atomic_write_json(path: Path, payload: dict) -> None:
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp_name, path)
+        # Durability: fsync the containing directory so the rename itself
+        # survives a crash on filesystems that require it.
+        try:
+            dir_fd = os.open(str(path.parent), os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass
     except BaseException:
         # Best-effort cleanup; never leave a stray temp file on failure.
         try:

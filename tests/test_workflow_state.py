@@ -118,6 +118,29 @@ def test_completed_run_cannot_be_resumed():
         resume(run)
 
 
+@pytest.mark.parametrize("status", ["planned", "running", "awaiting_approval"])
+def test_resume_rejected_unless_paused_or_failed(status):
+    run = _run(status=status, steps=[_step("s1", status="failed")])
+    with pytest.raises(WorkflowStateError):
+        resume(run)
+    # the failed step must not have been silently reset
+    assert run.plan.steps[0].status is StepStatus.FAILED
+
+
+def test_resume_allows_failed_run():
+    run = _run(status="failed", steps=[_step("s1", status="failed")])
+    resume(run)
+    assert run.status is WorkflowStatus.RUNNING
+    assert run.plan.steps[0].status is StepStatus.PENDING
+
+
+def test_resume_clears_stale_pid():
+    run = _run(status="paused")
+    run.pid = 2**31 - 1  # stale dead pid from before the pause
+    resume(run)
+    assert run.pid is None  # runner re-claims later; no immediate re-pause on load
+
+
 def test_cancel_marks_non_terminal_steps_cancelled():
     steps = [
         _step("s1", status="passed"),
@@ -193,3 +216,25 @@ def test_sanitize_truncates_oversized_strings():
     out = sanitize_result({"stdout": big})
     assert out["stdout"].endswith("…[truncated]")
     assert len(out["stdout"]) < len(big)
+
+
+def test_sanitize_run_covers_args_result_and_error():
+    from mq_agent.workflows import sanitize_run
+
+    steps = [
+        _step(
+            "s1",
+            status="failed",
+            args={"token": "sk-LEAK-ARG", "path": "/tmp/x"},
+            result={"api_key": "sk-LEAK-RESULT", "code": "PASS"},
+            error="x" * 5000,
+        )
+    ]
+    run = _run(steps=steps)
+    sanitize_run(run)
+    step = run.plan.steps[0]
+    assert step.args["token"] == "***redacted***"
+    assert step.args["path"] == "/tmp/x"
+    assert step.result["api_key"] == "***redacted***"
+    assert step.result["code"] == "PASS"
+    assert step.error.endswith("…[truncated]")
