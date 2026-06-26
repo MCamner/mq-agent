@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/workflow-plan.v1.json",
+  "title": "MQ Workflow Plan v1",
+  "description": "Declarative contract for a multi-step workflow plan orchestrated by mq-agent. This schema locks the SHAPE of a workflow plan. It does not execute anything. Plan files are not the truth about live runtime; they describe intended structure only. Enforcement (uniqueness, dependency existence, cycle detection) lives in mq_agent/workflows/models.py because JSON Schema cannot express cross-reference or graph constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "template",
+    "task",
+    "repo",
+    "status",
+    "current_step",
+    "max_steps",
+    "max_replans",
+    "steps"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq-workflow-plan.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "template": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "awaiting_approval",
+        "running",
+        "paused",
+        "failed",
+        "cancelled",
+        "completed"
+      ]
+    },
+    "current_step": {
+      "type": ["string", "null"]
+    },
+    "max_steps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 6
+    },
+    "max_replans": {
+      "type": "integer",
+      "const": 0
+    },
+    "steps": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "tool",
+        "args",
+        "depends_on",
+        "condition",
+        "approval",
+        "status",
+        "attempt",
+        "result",
+        "error"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "const": "shell_exec" }
+        },
+        "args": {
+          "type": "object"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "condition": {
+          "type": "string",
+          "enum": ["always", "all_deps_passed"],
+          "default": "always"
+        },
+        "approval": {
+          "type": "string",
+          "enum": ["none", "plan", "step", "forbidden"],
+          "default": "none"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "blocked",
+            "awaiting_approval",
+            "running",
+            "passed",
+            "failed",
+            "skipped",
+            "cancelled"
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "result": {
+          "type": ["object", "null"]
+        },
+        "error": {
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}
