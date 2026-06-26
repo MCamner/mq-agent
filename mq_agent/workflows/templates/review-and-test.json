@@ -1,0 +1,31 @@
+{
+  "template": "review-and-test",
+  "task": "Review the working diff and run tests. Review is advisory and never blocks tests.",
+  "max_steps": 3,
+  "steps": [
+    {
+      "id": "diff",
+      "name": "Capture git diff",
+      "tool": "git_diff",
+      "depends_on": [],
+      "condition": "always",
+      "approval": "none"
+    },
+    {
+      "id": "review",
+      "name": "Review the diff (advisory)",
+      "tool": "review_diff",
+      "depends_on": ["diff"],
+      "condition": "all_deps_passed",
+      "approval": "none"
+    },
+    {
+      "id": "tests",
+      "name": "Run tests",
+      "tool": "run_tests",
+      "depends_on": ["diff"],
+      "condition": "all_deps_passed",
+      "approval": "plan"
+    }
+  ]
+}

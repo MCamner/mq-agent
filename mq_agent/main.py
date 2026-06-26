@@ -21,6 +21,7 @@ from mq_agent.cli.render import (
     print_tool_spec,
 )
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
+from mq_agent.workflows.cli import workflow_app
 
 load_dotenv(Path.home() / "mq-agent" / ".env", override=False)
 load_dotenv(Path(".env"), override=False)
@@ -58,6 +59,8 @@ app.add_typer(b2_app, name="b2")
 
 stack_app = typer.Typer(help="mq-stack repo inventory, status, and Obsidian export.")
 app.add_typer(stack_app, name="stack")
+
+app.add_typer(workflow_app, name="workflow")
 
 agent_views_app = typer.Typer(help="Build compressed agent-view read cards in the mqobsidian vault.")
 app.add_typer(agent_views_app, name="agent-views")
