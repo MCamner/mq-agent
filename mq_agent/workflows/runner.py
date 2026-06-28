@@ -27,6 +27,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
+from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from . import conditions
@@ -74,6 +75,11 @@ class MCPBridgeExecutor:
         payload = dict(args)
         # Repo-scoped tools expect a repo_path; harmless for tools that ignore it.
         payload.setdefault("repo_path", repo)
+        # Some mq-mcp tools (e.g. run_tests) key off the registered repo NAME, not
+        # a path; mq-mcp's known_local_repos() registers repos by directory
+        # basename, so repo_name = basename(repo) resolves exactly. Tools that
+        # don't take repo_name ignore it (same as repo_path above).
+        payload.setdefault("repo_name", Path(repo).name)
         return self._bridge.call_tool(tool, payload)
 
 
