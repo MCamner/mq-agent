@@ -17,7 +17,7 @@ v1 invariants locked by this contract:
   * depends_on only references existing step ids
   * the dependency graph is acyclic
   * 1 <= max_steps <= 10 (default 6); len(steps) <= max_steps and <= 10
-  * max_replans == 0
+  * max_replans in {0, 1}  (Phase 10: a run may adapt at most once)
   * tool names are non-empty and never "shell_exec"
 """
 from __future__ import annotations
@@ -147,9 +147,11 @@ class WorkflowPlan(BaseModel):
 
     @field_validator("max_replans")
     @classmethod
-    def _no_replans_in_v1(cls, value: int) -> int:
-        if value != 0:
-            raise ValueError("max_replans must be 0 in v1")
+    def _replans_within_cap(cls, value: int) -> int:
+        # Phase 10: limited adaptive planning allows a single replan. The hard
+        # cap stays 1 — a run may adapt at most once, never an open loop.
+        if value not in (0, 1):
+            raise ValueError("max_replans must be 0 or 1")
         return value
 
     @model_validator(mode="after")

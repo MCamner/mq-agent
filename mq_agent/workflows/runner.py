@@ -29,6 +29,7 @@ from concurrent.futures import TimeoutError as FuturesTimeout
 from typing import Any, Callable, Protocol
 
 from . import conditions
+from .adapter import Replanner, apply_replan, validate_replan
 from .evaluator import normalize_result
 from .models import (
     StepStatus,
@@ -89,6 +90,7 @@ class Runner:
         policy_provider: PolicyProvider | None = None,
         plan_approver: Callable[[str], bool] | None = None,
         on_step: Any = None,
+        replanner: Replanner | None = None,
     ) -> None:
         self.store = store
         self.executor = executor or MCPBridgeExecutor()
@@ -97,6 +99,10 @@ class Runner:
         # v1 fixes this to True; the parameter exists for later phases/tests.
         self.stop_on_failure = stop_on_failure
         self.policy_provider = policy_provider or PolicyProvider()
+        # Phase 10: optional adaptive replanner. None = static plan (Phase 6).
+        self._replanner = replanner
+        # Applied/denied adaptive moves, surfaced in the run summary.
+        self._replan_log: list[dict[str, Any]] = []
         # Plan-approval hook: receives a side-effect summary, returns approve y/n.
         # Default auto-approves (programmatic/trusted callers); the CLI prompts.
         self._plan_approver = plan_approver or (lambda summary: True)
@@ -162,6 +168,11 @@ class Runner:
                 self.store.save_run(run)
                 continue
 
+            # A step added by an adaptive move has no precomputed decision yet —
+            # gate it through the same policy path before it can run.
+            if step.id not in decisions:
+                decisions[step.id] = self.policy_provider.decide(step, read_only=True)
+
             # Policy gate happens BEFORE any tool call — no execution without it.
             decision = decisions[step.id]
             if not decision.allowed:
@@ -180,8 +191,46 @@ class Runner:
                 self.store.save_run(run)
                 break
 
+            # Phase 10: offer the replanner one bounded, validated adaptation.
+            self._maybe_replan(run, step, decisions)
+
         self._finalize(run)
         return run
+
+    # -- adaptive planning (Phase 10) -----------------------------------
+
+    def _maybe_replan(
+        self, run: WorkflowRun, last_step: WorkflowStep, decisions: dict
+    ) -> None:
+        """Ask the replanner for one move; validate and apply it if safe.
+
+        No-op without a replanner (Phase 6 behavior). Every proposal passes the
+        central ``validate_replan`` gate before ``apply_replan``; a denied
+        proposal is recorded and ignored. A newly added step is gated by the same
+        per-step policy decision the loop enforces.
+        """
+        if self._replanner is None or run.replans_used >= run.plan.max_replans:
+            return
+        proposal = self._replanner.propose(run, run.plan, last_step)
+        if proposal is None:
+            return
+        decision = validate_replan(
+            proposal, run.plan, run, policy_provider=self.policy_provider
+        )
+        if not decision.allowed:
+            self._replan_log.append(
+                {"move": proposal.move.value, "applied": False, "reason": decision.reason}
+            )
+            return
+        apply_replan(proposal, run.plan, run)
+        # An added step needs its own policy decision before the loop runs it.
+        for step in run.plan.steps:
+            if step.id not in decisions:
+                decisions[step.id] = self.policy_provider.decide(step, read_only=True)
+        self._replan_log.append(
+            {"move": proposal.move.value, "applied": True, "reason": proposal.reason}
+        )
+        self.store.save_run(run)
 
     def _finalize(self, run: WorkflowRun) -> None:
         if run.plan.status is WorkflowStatus.RUNNING:
@@ -287,6 +336,11 @@ class Runner:
             "current_step": plan.current_step,
             "error": self._fail_reason,
             "steps": steps,
+            "adaptive": {
+                "max_replans": plan.max_replans,
+                "replans_used": sum(1 for m in self._replan_log if m.get("applied")),
+                "moves": list(self._replan_log),
+            },
             "policy": {
                 "source": self.policy_provider.source,
                 "error": self.policy_provider.error,

@@ -58,6 +58,16 @@ from .runner import (
     MCPBridgeExecutor,
     Runner,
 )
+from .adapter import (
+    DIAGNOSTIC_TOOLS,
+    DefaultReplanner,
+    ReplanDecision,
+    ReplanMove,
+    ReplanProposal,
+    Replanner,
+    apply_replan,
+    validate_replan,
+)
 
 __all__ = [
     "DEFAULT_MAX_STEPS",
@@ -102,4 +112,13 @@ __all__ = [
     "PolicyProvider",
     "PolicyDecision",
     "diff_policies",
+    # Phase 10 — limited adaptive planning
+    "DIAGNOSTIC_TOOLS",
+    "DefaultReplanner",
+    "ReplanDecision",
+    "ReplanMove",
+    "ReplanProposal",
+    "Replanner",
+    "apply_replan",
+    "validate_replan",
 ]
