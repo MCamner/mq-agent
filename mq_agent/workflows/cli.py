@@ -8,9 +8,11 @@ typer (no TUI), so it stays importable and testable on its own.
 from __future__ import annotations
 
 import json
+import os
 
 import typer
 
+from .observation import emit_observation
 from .runner import Runner
 from .state import WorkflowStateError, new_run
 from .state import resume as resume_state
@@ -76,6 +78,26 @@ def _print_summary(run, json_output: bool) -> None:
         typer.echo(f"  [{mark}] {s['id']}  {s.get('summary') or ''}".rstrip())
 
 
+def _default_observer():
+    """Return an observer that emits a workflow observation, or None if opted out.
+
+    Real runs emit a sanitized ``workflow-observation.v1`` record to mqobsidian's
+    local inbox so usage evidence accumulates. Best-effort and opt-out via
+    ``MQ_WORKFLOW_OBSERVE=0``; emission never affects the run.
+    """
+    if os.environ.get("MQ_WORKFLOW_OBSERVE") == "0":
+        return None
+
+    def _observe(run, meta) -> None:
+        emit_observation(
+            run,
+            duration_ms=meta.get("duration_ms"),
+            approval_count=meta.get("approval_count", 0),
+        )
+
+    return _observe
+
+
 def _make_plan_approver(json_output: bool, yes: bool):
     """Return a plan-approval callback that prompts unless --yes was given."""
     def _approve(summary: str) -> bool:
@@ -118,6 +140,7 @@ def run_cmd(
         store,
         plan_approver=_make_plan_approver(json_output, yes),
         on_step=_progress if not json_output else None,
+        observer=_default_observer(),
     ).run(run)
     _print_summary(run, json_output)
     raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)

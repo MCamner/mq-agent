@@ -24,6 +24,7 @@ A plan-approval gate runs once before execution when any step needs it.
 from __future__ import annotations
 
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from typing import Any, Callable, Protocol
@@ -91,6 +92,7 @@ class Runner:
         plan_approver: Callable[[str], bool] | None = None,
         on_step: Any = None,
         replanner: Replanner | None = None,
+        observer: Callable[[WorkflowRun, dict[str, Any]], None] | None = None,
     ) -> None:
         self.store = store
         self.executor = executor or MCPBridgeExecutor()
@@ -112,11 +114,17 @@ class Runner:
         self._policy_decisions: dict[str, Any] = {}
         # Runner-level failure reason (e.g. policy drift, step cap), if any.
         self._fail_reason: str | None = None
+        # Optional observation emitter (run, meta) -> None; default no emission.
+        self._observer = observer
+        # Wall-clock start (set in run()) and approvals taken, for the observation.
+        self._start: float | None = None
+        self._approval_count = 0
 
     # -- public ---------------------------------------------------------
 
     def run(self, run: WorkflowRun) -> WorkflowRun:
         """Execute the run from its current state. Persists after every change."""
+        self._start = time.monotonic()
         # 1. Fetch tool policy BEFORE doing anything (deny/allow source of truth).
         current = self.policy_provider.load()
         plan_tools = {s.tool for s in run.plan.steps}
@@ -151,6 +159,8 @@ class Runner:
                 touch(run)
                 self.store.save_run(run)
                 return run
+            # Plan was approved once — record it for the observation metrics.
+            self._approval_count = 1
 
         run.plan.status = WorkflowStatus.RUNNING
         run.pid = os.getpid()
@@ -241,6 +251,25 @@ class Runner:
         run.pid = None
         run.summary = self._summarize(run.plan)
         self.store.save_run(run)
+        self._observe(run)
+
+    def _observe(self, run: WorkflowRun) -> None:
+        """Hand a terminal run to the observer (e.g. emit an observation).
+
+        No-op without an observer. The observer is responsible for being
+        best-effort; it runs after state is persisted so emission can never
+        affect the run's recorded outcome.
+        """
+        if self._observer is None:
+            return
+        if run.plan.status not in (
+            WorkflowStatus.COMPLETED, WorkflowStatus.FAILED, WorkflowStatus.CANCELLED
+        ):
+            return
+        duration_ms = (time.monotonic() - self._start) * 1000 if self._start else None
+        self._observer(
+            run, {"duration_ms": duration_ms, "approval_count": self._approval_count}
+        )
 
     # -- selection / policy --------------------------------------------
 

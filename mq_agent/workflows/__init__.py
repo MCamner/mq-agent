@@ -68,6 +68,11 @@ from .adapter import (
     apply_replan,
     validate_replan,
 )
+from .observation import (
+    build_observation,
+    emit_observation,
+    inbox_path,
+)
 
 __all__ = [
     "DEFAULT_MAX_STEPS",
@@ -121,4 +126,8 @@ __all__ = [
     "Replanner",
     "apply_replan",
     "validate_replan",
+    # Observation emission (mq-agent -> Phase 9 surface)
+    "build_observation",
+    "emit_observation",
+    "inbox_path",
 ]
