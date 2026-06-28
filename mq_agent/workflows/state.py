@@ -72,6 +72,10 @@ class WorkflowRun(BaseModel):
     #: Tool-policy snapshot captured at run start (Phase 6); used to detect
     #: policy drift across a pause/resume. Empty when running on fallback policy.
     policy_snapshot: dict[str, Any] | None = None
+    #: Number of adaptive replans applied so far (Phase 10). Capped by the plan's
+    #: ``max_replans`` (0 or 1); persists across pause/resume so the single
+    #: replan budget can never be reset by resuming.
+    replans_used: int = 0
     plan: WorkflowPlan
 
     # Convenience pass-throughs --------------------------------------------

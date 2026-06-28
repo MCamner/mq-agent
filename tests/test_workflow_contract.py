@@ -164,9 +164,11 @@ def test_step_count_exceeding_max_steps_rejected():
         validate_plan(_plan(steps=steps, max_steps=2))
 
 
-def test_nonzero_max_replans_rejected():
+def test_max_replans_one_allowed_but_two_rejected():
+    # Phase 10: a single adaptive replan is allowed; the cap stays 1.
+    validate_plan(_plan(max_replans=1))
     with pytest.raises(ValidationError):
-        validate_plan(_plan(max_replans=1))
+        validate_plan(_plan(max_replans=2))
 
 
 def test_empty_tool_name_rejected():

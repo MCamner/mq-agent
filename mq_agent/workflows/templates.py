@@ -70,12 +70,16 @@ def _check_tools(steps: list[dict]) -> None:
         )
 
 
-def instantiate(name: str, repo: str, run_id: str) -> WorkflowPlan:
+def instantiate(name: str, repo: str, run_id: str, *, max_replans: int = 0) -> WorkflowPlan:
     """Build a validated ``WorkflowPlan`` from a template for ``repo``.
 
     Does not persist or execute anything. Raises ``TemplateError`` for an
     unknown template or a disallowed tool, and ``pydantic.ValidationError`` if
     the resulting plan violates the v1 contract.
+
+    ``max_replans`` defaults to 0 (non-adaptive). A caller may opt a run into
+    Phase 10 limited adaptive planning by passing ``max_replans=1``; the value
+    is capped at 1 by the plan contract.
     """
     raw = load_template(name)
     steps = raw["steps"]
@@ -89,7 +93,7 @@ def instantiate(name: str, repo: str, run_id: str) -> WorkflowPlan:
         "status": "planned",
         "current_step": None,
         "max_steps": raw.get("max_steps", DEFAULT_MAX_STEPS),
-        "max_replans": 0,
+        "max_replans": max_replans,
         "steps": steps,
     }
     return validate_plan(plan)

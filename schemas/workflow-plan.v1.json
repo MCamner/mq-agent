@@ -60,7 +60,8 @@
     },
     "max_replans": {
       "type": "integer",
-      "const": 0
+      "minimum": 0,
+      "maximum": 1
     },
     "steps": {
       "type": "array",
