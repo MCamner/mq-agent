@@ -1981,6 +1981,64 @@ def memory_emit_cochange_cmd(
     console.print(f"[green]OK[/green] emitted co-change observation -> {path}")
 
 
+@memory_app.command("inbox-cochange")
+def memory_inbox_cochange_cmd(
+    repo: Annotated[str, typer.Argument(help="Path to the repo to analyze")],
+    file: Annotated[str, typer.Argument(help="File to find co-change clusters for")],
+    window: Annotated[int, typer.Option("--window", help="Commits to scan")] = 300,
+    min_confidence: Annotated[float, typer.Option("--min-confidence", help="Cluster confidence gate (weak-signal intake)")] = 0.05,
+    min_support: Annotated[int, typer.Option("--min-support", help="Min co-change count")] = 2,
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Write nothing; show what would happen")] = False,
+    no_writeback: Annotated[bool, typer.Option("--no-writeback", help="Score but do not write learn files")] = False,
+):
+    """Operator-triggered co-change intake: emit → score → writeback → status.
+
+    Runs the autonomous learning loop end-to-end for one file, but only when you ask
+    (not auto-after-workflow). mq-agent orchestrates; Bridget/CG-2 is evidence source;
+    mqobsidian owns scoring/writeback/status (invoked via its own local-only CLI).
+    """
+    from mq_agent.memory.inbox_pipeline import run_pipeline
+
+    result = run_pipeline(
+        repo, file,
+        window=window, min_confidence=min_confidence, min_support=min_support,
+        vault=vault, dry_run=dry_run, no_writeback=no_writeback,
+    )
+
+    mode = "  (dry-run — nothing written)" if dry_run else ""
+    console.print(f"[bold]MQ memory co-change intake[/bold]{mode}")
+    console.print(f"vault: {result['vault']}")
+    console.print()
+
+    ev = result["evidence"]
+    if ev["found"]:
+        console.print(f"1. Bridget/CG-2 evidence: [green]found[/green] run_id {ev['run_id'] or '—'}")
+    else:
+        console.print("1. Bridget/CG-2 evidence: [yellow]none[/yellow] (co-change unavailable)")
+
+    emit = result["emit"]
+    colors = {"emitted": "green", "would-emit": "cyan", "skipped": "yellow", "error": "red"}
+    color = colors.get(emit["status"], "white")
+    detail = emit["path"] or emit["detail"]
+    console.print(f"2. mq-agent observation: [{color}]{emit['status']}[/{color}] {detail}")
+
+    def _stage(n: int, label: str, stage: dict) -> None:
+        if stage.get("skipped"):
+            console.print(f"{n}. {label}: [yellow]skipped[/yellow] ({stage['skipped']})")
+            return
+        tag = "[green]ok[/green]" if stage["ok"] else f"[red]failed rc={stage['rc']}[/red]"
+        console.print(f"{n}. {label}: {tag}")
+        for line in (stage["stdout"] or stage["stderr"]).splitlines():
+            console.print(f"     {line}")
+
+    _stage(3, "mqobsidian scoring", result["score"])
+    _stage(4, "learn-writeback", result["writeback"])
+    _stage(5, "memory status", result["status"])
+
+    raise typer.Exit(0 if result["ok"] else 1)
+
+
 @memory_app.command("query")
 @memory_app.command("search-vault")
 def memory_query_cmd(
