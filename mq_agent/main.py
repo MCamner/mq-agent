@@ -1948,6 +1948,39 @@ def memory_ingest_cmd(
     console.print(f"[green]OK[/green] {data['summary']['total_notes']} notes indexed from {data['vault']}")
 
 
+@memory_app.command("emit-cochange")
+def memory_emit_cochange_cmd(
+    repo: Annotated[str, typer.Argument(help="Path to the repo to analyze")],
+    file: Annotated[str, typer.Argument(help="File to find co-change clusters for")],
+    window: Annotated[int, typer.Option("--window", help="Commits to scan")] = 300,
+    min_confidence: Annotated[float, typer.Option("--min-confidence", help="Cluster confidence gate (weak-signal intake; default low)")] = 0.05,
+    min_support: Annotated[int, typer.Option("--min-support", help="Min co-change count")] = 2,
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path")] = None,
+):
+    """Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence.
+
+    mq-agent is the producer; Bridget/CG-2 is the evidence source. Writes nothing
+    when no co-change cluster clears the gate. mqobsidian scores and promotes.
+    """
+    from mq_agent.memory.cochange_observation import emit_cochange
+
+    path = emit_cochange(
+        repo,
+        file,
+        window=window,
+        min_confidence=min_confidence,
+        min_support=min_support,
+        vault=Path(vault).expanduser() if vault else None,
+    )
+    if path is None:
+        console.print(
+            "[yellow]No co-change cluster strong enough to emit[/yellow] "
+            "(or co-change unavailable)."
+        )
+        raise typer.Exit(0)
+    console.print(f"[green]OK[/green] emitted co-change observation -> {path}")
+
+
 @memory_app.command("query")
 @memory_app.command("search-vault")
 def memory_query_cmd(
