@@ -9,7 +9,6 @@ best-effort emission. No real Bridget, no network — the runner is faked.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from mq_agent.memory.cochange_observation import (
     EVIDENCE_SOURCE,
