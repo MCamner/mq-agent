@@ -2039,6 +2039,68 @@ def memory_inbox_cochange_cmd(
     raise typer.Exit(0 if result["ok"] else 1)
 
 
+def _print_delegated(title: str, result: dict) -> None:
+    """Render a delegated mqobsidian-CLI result. mq-agent orchestrates; the body is the
+    sub-CLI's own output, verbatim."""
+    tag = "[green]ok[/green]" if result["ok"] else f"[red]failed rc={result['rc']}[/red]"
+    console.print(f"[bold]{title}[/bold] {tag}")
+    console.print(f"vault: {result['vault']}")
+    for line in (result["stdout"] or result["stderr"]).splitlines():
+        console.print(f"  {line}")
+
+
+@memory_app.command("review-status")
+def memory_review_status_cmd(
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")] = None,
+):
+    """Show the mqobsidian scoring review state: tier tally + held review queues (read-only).
+
+    Delegates to mqobsidian's local-only CLI; mq-agent stays the orchestrator so mqlaunch
+    never reaches mqobsidian directly.
+    """
+    from mq_agent.memory.inbox_pipeline import run_review_status
+
+    result = run_review_status(vault=vault)
+    _print_delegated("MQ memory review status", result)
+    raise typer.Exit(0 if result["ok"] else 1)
+
+
+@memory_app.command("promote-from-review")
+def memory_promote_from_review_cmd(
+    memory_id: Annotated[str, typer.Argument(help="memory_id held in the promotion-review queue")],
+    apply: Annotated[bool, typer.Option("--apply", help="Persist the promotion (default: dry-run)")] = False,
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")] = None,
+):
+    """Approve a held promotion-review memory → promote it (co-change never auto-promotes).
+
+    Appends a promotion-event + directive snapshot via mqobsidian's CLI. Dry-run by default.
+    """
+    from mq_agent.memory.inbox_pipeline import run_promote_from_review
+
+    result = run_promote_from_review(memory_id, apply=apply, vault=vault)
+    _print_delegated("MQ memory promote-from-review", result)
+    raise typer.Exit(0 if result["ok"] else 1)
+
+
+@memory_app.command("resolve-supersede")
+def memory_resolve_supersede_cmd(
+    memory_id: Annotated[str, typer.Argument(help="memory_id with an open supersede proposal")],
+    accept: Annotated[bool, typer.Option("--accept", help="Adopt the new directive as authoritative")] = False,
+    reject: Annotated[bool, typer.Option("--reject", help="Keep the promoted directive; dismiss the conflict")] = False,
+    apply: Annotated[bool, typer.Option("--apply", help="Persist the resolution (default: dry-run)")] = False,
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")] = None,
+):
+    """Accept or reject a deep-conflict supersede proposal (exactly one of --accept/--reject)."""
+    if accept == reject:
+        console.print("[red]error:[/red] pass exactly one of --accept or --reject")
+        raise typer.Exit(2)
+    from mq_agent.memory.inbox_pipeline import run_resolve_supersede
+
+    result = run_resolve_supersede(memory_id, accept=accept, apply=apply, vault=vault)
+    _print_delegated("MQ memory resolve-supersede", result)
+    raise typer.Exit(0 if result["ok"] else 1)
+
+
 @memory_app.command("query")
 @memory_app.command("search-vault")
 def memory_query_cmd(
