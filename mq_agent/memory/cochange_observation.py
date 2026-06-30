@@ -68,9 +68,16 @@ def run_cochange(
     seam — tests pass a fake runner instead.
     """
     project = _mq_mcp_dir(mq_mcp_dir) / "mq-mcp"
+    # Pass an ABSOLUTE target. bridge.py must run from the mq-mcp project (so it
+    # can spawn server.py), so `uv --directory` makes cwd the mq-mcp project, NOT
+    # `repo`. Bridget resolves the analyzed repo from the target file's git
+    # toplevel — a *relative* target would resolve against the wrong repo (the
+    # mq-mcp project), silently yielding an empty/false "no cluster". An absolute
+    # path resolves to the correct repo regardless of cwd.
+    target_arg = str(Path(repo).expanduser() / target)
     cmd = [
         "uv", "--directory", str(project), "run", "python", "bridge.py",
-        "--co-change", target, "--window", str(window), "--json",
+        "--co-change", target_arg, "--window", str(window), "--json",
     ]
     try:
         result = subprocess.run(
@@ -121,20 +128,24 @@ def build_observation(
     top = strong[0]
     confidence = max(0.0, min(1.0, float(top["confidence"])))
     cluster = [r["path"] for r in strong]
-    repo = cochange_json.get("repo") or Path(target).parts[0]
+    # Prefer Bridget's repo-relative target for human-facing text + keys, so an
+    # absolute input path (passed to fix repo resolution in run_cochange) never
+    # leaks into the stored record.
+    rel_target = cochange_json.get("target") or target
+    repo = cochange_json.get("repo") or Path(rel_target).parts[0]
     run_id = cochange_json.get("run_id", "")
     now = datetime.now(timezone.utc)
 
     return {
         "schema": SCHEMA_ID,
-        "id": f"mo-cochange-{_slug(target)}-{now.strftime('%Y%m%dT%H%M%SZ')}",
+        "id": f"mo-cochange-{_slug(rel_target)}-{now.strftime('%Y%m%dT%H%M%SZ')}",
         "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "producer": PRODUCER,
         "repository": Path(repo).name or repo,
         "workflow": "co-change",
         "title": "Co-change cluster detected",
         "observation": (
-            f"When touching {target}, also check: {', '.join(cluster)} "
+            f"When touching {rel_target}, also check: {', '.join(cluster)} "
             "— they tend to change together."
         ),
         "category": "pattern",
@@ -150,7 +161,7 @@ def build_observation(
             }
         ],
         "tags": ["co-change", "codegraph", "bridget"],
-        "proposed_memory_key": f"cochange-{_slug(target)}",
+        "proposed_memory_key": f"cochange-{_slug(rel_target)}",
     }
 
 
