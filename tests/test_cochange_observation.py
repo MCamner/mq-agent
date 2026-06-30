@@ -73,6 +73,19 @@ def test_build_observation_repository_is_basename():
     assert rec["repository"] == "mq-mcp"  # never an absolute path
 
 
+def test_build_observation_uses_repo_relative_target_from_evidence():
+    # Even when the caller passes an ABSOLUTE path (run_cochange does this so
+    # Bridget resolves the right repo), the stored record uses Bridget's
+    # repo-relative `target` — no absolute path leaks into text or keys.
+    rec = build_observation(_cochange_json(), "/Users/x/repos/mq-mcp/mq-mcp/bridge.py")
+    assert rec is not None
+    assert "/Users/x/" not in rec["observation"]
+    assert "/Users/x/" not in rec["proposed_memory_key"]
+    assert "/Users/x/" not in rec["id"]
+    assert rec["proposed_memory_key"] == "cochange-mq-mcp-bridge-py"
+    assert "mq-mcp/bridge.py" in rec["observation"]
+
+
 def test_build_observation_empty_rows_returns_none():
     assert build_observation(_cochange_json(rows=[]), "mq-mcp/bridge.py") is None
 
@@ -118,6 +131,29 @@ def test_emit_cochange_below_gate_writes_nothing(tmp_path):
 
     assert emit_cochange("/r", "f.py", runner=weak_runner, vault=tmp_path) is None
     assert not observations_inbox(tmp_path).exists()
+
+
+def test_run_cochange_passes_absolute_target(monkeypatch):
+    # The --co-change argument must be an absolute path (repo/target), so Bridget
+    # resolves the analyzed repo correctly despite `uv --directory` forcing cwd to
+    # the mq-mcp project. A relative target would silently analyze the wrong repo.
+    from mq_agent.memory import cochange_observation as co
+
+    captured: dict = {}
+
+    class _Result:
+        returncode = 0
+        stdout = json.dumps({"repo": "macos-scripts", "target": "terminal/menu.sh", "rows": []})
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return _Result()
+
+    monkeypatch.setattr(co.subprocess, "run", fake_run)
+    co.run_cochange("/repos/macos-scripts", "terminal/menu.sh", mq_mcp_dir="/m")
+    cmd = captured["cmd"]
+    target_arg = cmd[cmd.index("--co-change") + 1]
+    assert target_arg == "/repos/macos-scripts/terminal/menu.sh"
 
 
 def test_emit_observation_best_effort_on_bad_vault(tmp_path):
