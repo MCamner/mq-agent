@@ -144,3 +144,37 @@ def run_pipeline(
         "evidence": evidence, "emit": emit,
         "score": score, "writeback": writeback, "status": status, "ok": ok,
     }
+
+
+# --- review / resolution surface -------------------------------------------------
+# Lets an operator inspect the scoring review state and ACTION the two human-review
+# queues (promotion-review, superseding) while preserving the boundary: mqlaunch ->
+# mq-agent (orchestrator) -> mqobsidian's local-only CLI. These are EXPLICIT delegators
+# (one per verb), deliberately NOT a generic "pass any mqobsidian command through".
+
+
+def run_review_status(*, vault: str | Path | None = None,
+                      cli_runner: Callable[..., tuple[int, str, str]] = run_mqobsidian_cli) -> dict:
+    """Delegate to mqobsidian `status` — tier tally + held review queues (read-only)."""
+    v = resolve_vault(vault)
+    return {"vault": str(v), **_cli_stage(cli_runner, v, ["status"])}
+
+
+def run_promote_from_review(memory_id: str, *, apply: bool = False, vault: str | Path | None = None,
+                            cli_runner: Callable[..., tuple[int, str, str]] = run_mqobsidian_cli) -> dict:
+    """Delegate to mqobsidian `promote-from-review <id>` — approve a held promotion
+    proposal (dry-run unless ``apply``). Co-change never auto-promotes; this lands it."""
+    v = resolve_vault(vault)
+    args = ["promote-from-review", memory_id, *(["--apply"] if apply else [])]
+    return {"vault": str(v), **_cli_stage(cli_runner, v, args)}
+
+
+def run_resolve_supersede(memory_id: str, *, accept: bool, apply: bool = False,
+                          vault: str | Path | None = None,
+                          cli_runner: Callable[..., tuple[int, str, str]] = run_mqobsidian_cli) -> dict:
+    """Delegate to mqobsidian `resolve-supersede <id> --accept|--reject` — action a deep
+    conflict (dry-run unless ``apply``)."""
+    v = resolve_vault(vault)
+    args = ["resolve-supersede", memory_id, "--accept" if accept else "--reject",
+            *(["--apply"] if apply else [])]
+    return {"vault": str(v), **_cli_stage(cli_runner, v, args)}

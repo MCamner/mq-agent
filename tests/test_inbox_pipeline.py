@@ -126,3 +126,45 @@ def test_cli_command_wires_and_degrades_gracefully(tmp_path):
     assert "MQ memory co-change intake" in result.output
     assert "Bridget/CG-2 evidence" in result.output
     assert "mqobsidian scoring" in result.output
+
+
+# --- review / resolution surface (explicit mqobsidian delegators) ----------
+
+def test_review_status_delegates_status(tmp_path):
+    cli = _RecordingCLI()
+    res = ip.run_review_status(vault=tmp_path, cli_runner=cli)
+    assert cli.calls == [["status"]] and res["ok"] is True
+
+
+def test_promote_from_review_dry_run_by_default(tmp_path):
+    cli = _RecordingCLI()
+    ip.run_promote_from_review("cochange-x", vault=tmp_path, cli_runner=cli)
+    assert cli.calls == [["promote-from-review", "cochange-x"]]  # no --apply
+
+
+def test_promote_from_review_apply_passes_flag(tmp_path):
+    cli = _RecordingCLI()
+    ip.run_promote_from_review("cochange-x", apply=True, vault=tmp_path, cli_runner=cli)
+    assert cli.calls == [["promote-from-review", "cochange-x", "--apply"]]
+
+
+def test_resolve_supersede_accept_and_reject(tmp_path):
+    cli = _RecordingCLI()
+    ip.run_resolve_supersede("gen-x", accept=True, apply=True, vault=tmp_path, cli_runner=cli)
+    ip.run_resolve_supersede("gen-x", accept=False, vault=tmp_path, cli_runner=cli)
+    assert cli.calls == [
+        ["resolve-supersede", "gen-x", "--accept", "--apply"],
+        ["resolve-supersede", "gen-x", "--reject"],
+    ]
+
+
+def test_resolve_supersede_requires_exactly_one_mode(tmp_path):
+    # Neither --accept nor --reject → exit 2, no delegation.
+    result = runner.invoke(app, ["memory", "resolve-supersede", "gen-x", "--vault", str(tmp_path)])
+    assert result.exit_code == 2 and "exactly one of --accept or --reject" in result.output
+
+
+def test_review_cli_commands_degrade_gracefully(tmp_path):
+    # tmp vault has no memory_cli.py → reported as failed rc=127, no crash.
+    r = runner.invoke(app, ["memory", "review-status", "--vault", str(tmp_path)])
+    assert "MQ memory review status" in r.output and "failed rc=127" in r.output
