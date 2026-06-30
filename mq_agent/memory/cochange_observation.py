@@ -41,6 +41,16 @@ _DEFAULT_MIN_CONFIDENCE = 0.05
 _DEFAULT_MIN_SUPPORT = 2
 _COCHANGE_TIMEOUT = 30
 
+# The EMISSION floor (above) is deliberately permissive. The CLUSTER-MEMBERSHIP floor
+# is SEPARATE and stricter, so the "also check: …" list stays the genuine co-changers
+# rather than every weak correlation that merely cleared intake. A path joins the
+# cluster only if it clears max(absolute floor, fraction of the strongest co-changer),
+# and the list is capped — empirically real clusters are a handful of strong rows
+# (top-row confidence ~0.3–0.87), trailed by a long tail of noise.
+_CLUSTER_FLOOR_ABS = 0.10
+_CLUSTER_FLOOR_REL = 0.33
+_CLUSTER_MAX = 5
+
 
 def observations_inbox(vault: Path | None = None) -> Path:
     """Local-only inbox for mq-agent memory observations."""
@@ -117,6 +127,8 @@ def build_observation(
     keys are produced (additionalProperties:false).
     """
     rows = cochange_json.get("rows") or []
+    # Emission gate (permissive intake floor): emit only when the STRONGEST co-changer
+    # clears min_confidence + min_support. This decides *whether* to emit, not cluster size.
     strong = [
         r for r in rows
         if float(r.get("confidence", 0)) >= min_confidence
@@ -124,10 +136,19 @@ def build_observation(
     ]
     if not strong:
         return None
+    strong.sort(key=lambda r: float(r.get("confidence", 0)), reverse=True)
 
     top = strong[0]
     confidence = max(0.0, min(1.0, float(top["confidence"])))
-    cluster = [r["path"] for r in strong]
+    # Cluster membership: the top co-changer always belongs (it's why we emit); others
+    # join only above the stricter, top-relative floor, and the list is capped.
+    cluster_floor = max(_CLUSTER_FLOOR_ABS, _CLUSTER_FLOOR_REL * confidence)
+    cluster = [top["path"]]
+    for r in strong[1:]:
+        if len(cluster) >= _CLUSTER_MAX:
+            break
+        if float(r.get("confidence", 0)) >= cluster_floor:
+            cluster.append(r["path"])
     # Prefer Bridget's repo-relative target for human-facing text + keys, so an
     # absolute input path (passed to fix repo resolution in run_cochange) never
     # leaks into the stored record.

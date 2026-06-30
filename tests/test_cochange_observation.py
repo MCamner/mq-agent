@@ -102,6 +102,38 @@ def test_build_observation_confidence_clamped():
     assert rec is not None and rec["confidence"] == 1.0
 
 
+def test_cluster_excludes_weak_co_changers_below_relative_floor():
+    # Emission floor (0.05) is permissive, but cluster membership uses the stricter
+    # max(0.10, 0.33*top). With top=0.6 the floor is ~0.198: 0.30 stays, 0.08 is dropped
+    # even though it cleared the 0.05 intake floor.
+    rows = [
+        {"path": "strong.py", "count": 20, "base": 33, "confidence": 0.6},
+        {"path": "mid.py", "count": 10, "base": 33, "confidence": 0.30},
+        {"path": "weak.py", "count": 3, "base": 33, "confidence": 0.08},
+    ]
+    rec = build_observation(_cochange_json(rows=rows), "mq-mcp/bridge.py")
+    assert rec is not None
+    assert "strong.py" in rec["observation"] and "mid.py" in rec["observation"]
+    assert "weak.py" not in rec["observation"]  # cleared intake, below cluster floor
+
+
+def test_cluster_always_includes_top_even_when_weak():
+    # A single weak-but-emittable top co-changer (0.07 > 0.05 intake) must still appear —
+    # it is the reason we emit, so the cluster is never empty.
+    rows = [{"path": "lonely.py", "count": 2, "base": 28, "confidence": 0.07}]
+    rec = build_observation(_cochange_json(rows=rows), "mq-mcp/bridge.py")
+    assert rec is not None and "lonely.py" in rec["observation"]
+
+
+def test_cluster_capped_to_top_five():
+    rows = [{"path": f"f{i}.py", "count": 30 - i, "base": 33, "confidence": 0.9 - i * 0.02}
+            for i in range(10)]  # ten strong co-changers, all well above the floor
+    rec = build_observation(_cochange_json(rows=rows), "mq-mcp/bridge.py")
+    assert rec is not None
+    listed = [f"f{i}.py" for i in range(10) if f"f{i}.py" in rec["observation"]]
+    assert len(listed) == 5  # capped at the top five
+
+
 # --- emit -------------------------------------------------------------------
 
 
