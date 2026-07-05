@@ -133,6 +133,33 @@ operator layer.
   can display current truth cleanly.
 * [x] Register `mq_hal_operator_contract.v1` in the repo contract.
 
+## v1.22.0 — Inbox ranking and promotion orchestration
+
+Goal: make `mq-agent` the owned execution layer for inbox analysis, ranking,
+and review-gated promotion, reading truth from `mqobsidian` exports and never
+taking over truth ownership or shell runtime.
+
+`mq-agent` runs the workflow. `mqobsidian` owns the schema and remembers the
+result. `mqlaunch` stays a thin delegate surface.
+
+* [ ] Add `mq-agent obsidian inbox list` / `inbox read` over canonical
+  `mqobsidian` inbox exports (read-only).
+* [ ] Add `mq-agent obsidian inbox rank`: score candidates against the
+  canonical ranking fields, merging evidence across sources.
+* [ ] Add a review-needed vs auto-promotable classification flow using the
+  `mqobsidian` promotion-state model.
+* [ ] Add `mq-agent obsidian promote --dry-run` and `--confirm`, plus
+  `reject/defer` and `rollback/deprecate` flows.
+* [ ] Require traceable source evidence before any promotion; keep mutation
+  paths explicit and review-gated.
+* [ ] Validate expected `mqobsidian` manifests/views before workflow
+  execution; fail safely on stale, missing, or drifted truth surfaces.
+* [ ] Accept `repo-signal` readiness and `mq-mcp` review outputs as evidence
+  inputs without moving truth ownership out of `mqobsidian`.
+* [ ] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
+  delegate to; keep ranking and promotion logic out of shell.
+* [ ] Register `inbox_promotion_orchestration.v1` in the repo contract.
+
 ## v1.15.0 — Brain-integrated stack workflow
 
 Goal: make mq-agent the stable conductor of the full loop —
