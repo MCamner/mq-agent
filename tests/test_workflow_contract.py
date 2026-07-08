@@ -28,7 +28,7 @@ SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "workflow-plan.v
 
 
 def _step(step_id: str, *, tool: str = "run_mqlaunch_doctor", depends_on=None, **over):
-    step = {
+    step: dict[str, object] = {
         "id": step_id,
         "name": f"Step {step_id}",
         "tool": tool,

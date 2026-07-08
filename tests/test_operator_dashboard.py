@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from importlib import import_module
+from typing import Any
 
 
 def _fake_cockpit() -> str:
@@ -162,7 +163,7 @@ def test_registered_in_tool_registry():
 def test_tui_dashboard_panel_text_is_compact():
     from mq_agent.tui.app import dashboard_panel_text
 
-    data = {
+    data: dict[str, Any] = {
         "overall": "ATTENTION",
         "next_action": "mq-agent: commit or stash uncommitted changes",
         "stack": {

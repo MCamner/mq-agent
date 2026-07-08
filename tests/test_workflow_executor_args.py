@@ -7,6 +7,8 @@ args always win (setdefault).
 """
 from __future__ import annotations
 
+from typing import Any, cast
+
 from mq_agent.workflows.runner import MCPBridgeExecutor
 
 
@@ -21,7 +23,7 @@ class _RecordingBridge:
 
 def _executor():
     ex = MCPBridgeExecutor.__new__(MCPBridgeExecutor)  # skip real bridge construction
-    ex._bridge = _RecordingBridge()
+    ex._bridge = cast(Any, _RecordingBridge())
     return ex
 
 

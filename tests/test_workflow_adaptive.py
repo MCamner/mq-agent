@@ -275,6 +275,7 @@ def test_runner_applies_one_safe_move(store):
     assert ex.calls == ["git_status"]  # second git_status was skipped, not run
     assert run.plan.steps[1].status is StepStatus.SKIPPED
     assert run.replans_used == 1
+    assert run.summary is not None
     assert run.summary["adaptive"]["replans_used"] == 1
 
 

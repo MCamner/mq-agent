@@ -141,6 +141,7 @@ def test_timeout_marks_step_failed(store):
     run = new_run(_plan([_step("doctor", "run_mqlaunch_doctor")]))
     _runner(store, ex, step_timeout=0.05).run(run)
     assert run.plan.steps[0].status is StepStatus.FAILED
+    assert run.plan.steps[0].result is not None
     assert run.plan.steps[0].result["code"] == "TIMEOUT"
 
 
@@ -206,6 +207,7 @@ def test_plan_approval_denied_blocks_execution(store):
     Runner(store, ex, policy_provider=_provider(), plan_approver=lambda s: False).run(run)
     assert ex.calls == []
     assert run.status is WorkflowStatus.AWAITING_APPROVAL
+    assert run.summary is not None
     assert run.summary["policy"]["plan_approved"] is False
 
 

@@ -185,11 +185,15 @@ def test_runner_emits_through_real_emitter(tmp_path, monkeypatch):
     store = WorkflowStore(base_dir=tmp_path / "wf")
     plan = _plan([_step("a", "git_status")])
     run = new_run(plan)
+
+    def observer(r, meta) -> None:
+        emit_observation(
+            r, duration_ms=meta["duration_ms"], approval_count=meta["approval_count"]
+        )
+
     Runner(
         store, FakeExecutor(), policy_provider=_provider("git_status"),
-        observer=lambda r, meta: emit_observation(
-            r, duration_ms=meta["duration_ms"], approval_count=meta["approval_count"]
-        ),
+        observer=observer,
     ).run(run)
     rec = json.loads(inbox_path().read_text(encoding="utf-8").strip())
     assert rec["tool_sequence"] == ["git_status"]
@@ -204,7 +208,7 @@ def test_record_matches_mqobsidian_schema_if_present():
     if not schema_file.exists():
         return  # skip silently when the vault isn't checked out
     try:
-        from jsonschema import Draft202012Validator
+        from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
     except ImportError:
         return
     schema = json.loads(schema_file.read_text(encoding="utf-8"))
