@@ -32,7 +32,7 @@ Do not expand scope unless the task requires it.
 Claude Code auto-loads skills from `.claude/skills/`; see **MQ Skills** in
 AGENTS.md for routing.
 
-# GOVERNOR — mansys/mcamner
+## GOVERNOR — mansys/mcamner
 <!-- Skriven av Fable 5, 2026-07-07. Klistras in i ~/.claude/CLAUDE.md eller per repo. -->
 
 ## Kommunikation

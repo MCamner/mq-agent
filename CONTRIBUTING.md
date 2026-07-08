@@ -69,7 +69,7 @@ mypy mq_agent/ --ignore-missing-imports
 
 ## Commit style
 
-```
+```text
 feat: add X
 fix: correct Y
 docs: update Z
