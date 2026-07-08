@@ -193,4 +193,5 @@ def test_emit_observation_best_effort_on_bad_vault(tmp_path):
     bad = tmp_path / "not-a-dir"
     bad.write_text("x", encoding="utf-8")
     rec = build_observation(_cochange_json(), "mq-mcp/bridge.py")
+    assert rec is not None
     assert emit_observation(rec, vault=bad) is None

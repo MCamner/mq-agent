@@ -191,4 +191,5 @@ def test_policy_drift_stops_resumed_run(tmp_path):
     Runner(store, ex2, policy_provider=p2).run(run)
     assert run.status is WorkflowStatus.FAILED
     assert ex2.calls == []  # never executed after detecting drift
+    assert run.summary is not None
     assert "policy changed" in (run.summary.get("error") or "")

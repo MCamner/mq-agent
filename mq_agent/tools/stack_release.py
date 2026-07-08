@@ -274,7 +274,7 @@ def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
     committed = True
     record("commit", "done", f"release: {tag}")
 
-    ok, out = _run_git(["tag", tag], path)
+    ok, out = _run_git(["tag", "-a", tag, "-m", f"release: {tag}"], path)
     if not ok:
         return abort("tag", out)
     record("tag", "done", tag)

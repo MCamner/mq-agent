@@ -23,6 +23,8 @@ def _make_repo(tmp_path: Path, name: str = "mq-agent") -> Path:
     _git(["init", "-b", "main"], repo)
     _git(["config", "user.email", "test@example.com"], repo)
     _git(["config", "user.name", "Test"], repo)
+    _git(["config", "commit.gpgSign", "false"], repo)
+    _git(["config", "tag.gpgSign", "false"], repo)
 
     (repo / "VERSION").write_text("1.0.0\n")
     (repo / "README.md").write_text(f"# {name}\n")
