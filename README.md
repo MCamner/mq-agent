@@ -32,6 +32,12 @@ flowchart TD
 Screenshots/gallery: the GitHub Pages demo page shows the current command
 surface and release proof.
 
+## MQ stack architecture
+
+`mq-agent` orchestrates; the whole-stack architecture and memory loop are
+documented in mqobsidian (source of truth):
+[docs/architecture/mq-stack.md](https://github.com/MCamner/mqobsidian/blob/main/docs/architecture/mq-stack.md).
+
 ## Agent entrypoints
 
 This README is the human-facing canonical project document and is intentionally
