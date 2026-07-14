@@ -2462,6 +2462,7 @@ def context_pack_cmd(
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
     repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs, used to detect .codegraph/ (default: ~)")] = "",
     codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto (source-heavy only), on, or off")] = "auto",
+    symbol: Annotated[list[str], typer.Option("--symbol", help="Named symbol for a CodeGraph callers/impact query (repeatable)")] = [],
     output: Annotated[str, typer.Option("--output", "--out", help="Write the pack here instead of stdout")] = "",
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
@@ -2507,6 +2508,7 @@ def context_pack_cmd(
         vault=Path(vault).expanduser() if vault else None,
         repos_root=Path(repos_root).expanduser() if repos_root else None,
         codegraph=codegraph,
+        codegraph_symbols=symbol,
     )
 
     if output:

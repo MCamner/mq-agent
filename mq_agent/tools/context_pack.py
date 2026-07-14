@@ -18,7 +18,6 @@ from typing import Any
 
 from mq_agent.tools.context_export import (
     CORE_MQ_REPOS,
-    DEFAULT_REPOS_ROOT,
     _section_items,
     default_vault,
     parse_frontmatter,
@@ -113,40 +112,88 @@ def _card_text(vault: Path, repo: str) -> tuple[Path, str] | None:
     return None
 
 
-def _has_codegraph(repo: str, repos_root: Path) -> bool:
-    return (repos_root / repo / ".codegraph").is_dir()
-
-
 def _bullet_lines(items: list[str], fallback: str) -> str:
     if not items:
         return f"* {fallback}"
     return "\n".join(f"* {item}" for item in items)
 
 
-def _codegraph_notes(
+# Source extensions CodeGraph can index; a `node` query only makes sense for
+# these. Shell/PowerShell are unsupported upstream. Kept in sync with
+# mqobsidian/scripts/generate-context-pack.py.
+SOURCE_EXTS = (".py", ".js", ".ts", ".tsx", ".jsx")
+
+# Hard cap so CodeGraph guidance can never become a token sink in the pack.
+MAX_CODEGRAPH_QUERIES = 5
+
+
+def _sanitize_query(task: str) -> str:
+    return " ".join(task.split()).replace('"', "'")[:80]
+
+
+def _repo_relative(path: str, repo: str) -> str:
+    prefix = f"{repo}/"
+    while path.startswith(prefix):
+        path = path[len(prefix):]
+    return path
+
+
+def build_codegraph_queries(
     task: str,
     repos: list[str],
-    repos_root: Path,
+    relevant_files: list[str],
+    symbols: list[str],
     mode: str,
 ) -> list[str]:
-    """Optional CodeGraph guidance. mode is auto (heuristic) / on / off."""
+    """Concrete, bounded, copy-pasteable CodeGraph commands for a source task.
+
+    `mode` is auto (heuristic) / on / off. Empty when suppressed, doc-shaped, or
+    when no target repo is known — so a documentation pack carries no CodeGraph
+    noise. Every query passes an explicit `-p <repo>` project path, and the list
+    is capped at `MAX_CODEGRAPH_QUERIES` so it can never become a token sink.
+    Mirrors the mqobsidian-side generator so both ends produce the same queries.
+    """
     if mode == "off":
         return []
     if mode == "auto" and not task_is_source_heavy(task):
         return []
+    target = repos[0] if repos else None
+    if not target:
+        return []
 
-    target = next((r for r in repos if _has_codegraph(r, repos_root)), None)
-    if target:
-        where = f"`.codegraph/` is present in `{target}`; ask CodeGraph"
-    else:
-        primary = repos[0] if repos else None
-        scope = f" in `{primary}`" if primary else ""
-        where = f"If `.codegraph/` exists{scope}, ask CodeGraph"
-    return [
-        f"{where} for callers/impact before broad grep.",
-        "Use CodeGraph for source structure only; use mqobsidian cards/packs for "
-        "durable memory and repo boundaries.",
-    ]
+    queries = [f'codegraph explore "{_sanitize_query(task)}" -p {target} --max-files 8']
+    for symbol in symbols:
+        symbol = symbol.strip()
+        if not symbol:
+            continue
+        queries.append(f"codegraph callers {symbol} -p {target} -l 20")
+        queries.append(f"codegraph impact {symbol} -p {target} -d 2")
+    for path in relevant_files:
+        if path.split("/", 1)[0] == target and path.lower().endswith(SOURCE_EXTS):
+            queries.append(f"codegraph node {_repo_relative(path, target)} -p {target}")
+
+    bounded: list[str] = []
+    for query in queries:
+        if query not in bounded:
+            bounded.append(query)
+        if len(bounded) >= MAX_CODEGRAPH_QUERIES:
+            break
+    return bounded
+
+
+def _codegraph_section(queries: list[str]) -> str:
+    """Render the optional `## CodeGraph queries` section, or empty when none."""
+    if not queries:
+        return ""
+    body = "\n".join(queries)
+    return (
+        "\n## CodeGraph queries\n\n"
+        "Bounded source-structure queries for this task; run from your MQ repos "
+        "root. Fall back to targeted source reads if the index is missing, "
+        "unsupported (shell/PowerShell), locked, or stale. CodeGraph never "
+        "replaces source tests or CLI verification.\n\n"
+        f"```bash\n{body}\n```\n"
+    )
 
 
 def _coerce_exclusion(raw: Any) -> dict[str, str] | None:
@@ -214,6 +261,7 @@ def build_task_pack(
     vault: Path | None = None,
     repos_root: Path | None = None,
     codegraph: str = "auto",
+    codegraph_symbols: list[str] | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     """Select context for `task` and render a `context-pack.v1` Markdown pack.
@@ -231,7 +279,6 @@ def build_task_pack(
     whether a CodeGraph hint was applied. Pure: writing is the caller's job.
     """
     vault = (vault or default_vault()).expanduser().resolve()
-    repos_root = (repos_root or DEFAULT_REPOS_ROOT).expanduser().resolve()
 
     repos = select_relevant_repos(task, repo, list(relevant_repos or []))
 
@@ -299,7 +346,10 @@ def build_task_pack(
     note_items = list(notes or [])
     note_items.append("Prefer the mqobsidian cards above before broad repo scans.")
     note_items.extend(stale_notes)
-    note_items.extend(_codegraph_notes(task, repos, repos_root, codegraph))
+
+    codegraph_queries = build_codegraph_queries(
+        task, repos, list(relevant_files or []), list(codegraph_symbols or []), codegraph
+    )
 
     pack_exclusions = _merge_exclusions(
         list(exclusions or []),
@@ -343,7 +393,7 @@ summary: {pack_summary}
 ## Notes
 
 {_bullet_lines(note_items, "Keep the task pack focused on the current change")}
-
+{_codegraph_section(codegraph_queries)}
 ## Exclusions
 
 {_exclusion_lines(pack_exclusions)}
@@ -357,7 +407,8 @@ summary: {pack_summary}
         "cards": cards,
         "card_metadata": card_metadata,
         "exclusions": pack_exclusions,
-        "codegraph_applied": bool(_codegraph_notes(task, repos, repos_root, codegraph)),
+        "codegraph_applied": bool(codegraph_queries),
+        "codegraph_queries": codegraph_queries,
         "line_count": len(content.splitlines()),
         "content": content,
     }

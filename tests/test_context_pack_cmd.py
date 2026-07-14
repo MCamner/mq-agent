@@ -94,9 +94,10 @@ def test_pack_selects_card_and_do_not_read(tmp_path):
     assert "## Exclusions" in content
     assert "`irrelevant` — full repo README files" in content
     assert "`irrelevant` — old release notes" in content
-    # source-heavy task -> CodeGraph hint present, but conditional (no index on disk)
+    # source-heavy task -> concrete, bounded CodeGraph queries with explicit -p
     assert result["codegraph_applied"]
-    assert "If `.codegraph/` exists" in content
+    assert "## CodeGraph queries" in content
+    assert 'codegraph explore "fix mq-mcp brain writer paths" -p mq-mcp --max-files 8' in content
 
 
 def test_structured_exclusions_render_with_kinds(tmp_path):
@@ -184,9 +185,8 @@ def test_non_source_task_omits_codegraph(tmp_path):
     assert ".codegraph" not in result["content"]
 
 
-def test_codegraph_on_names_present_index(tmp_path):
+def test_codegraph_on_forces_queries_on_non_source_task(tmp_path):
     vault = _vault(tmp_path)
-    (tmp_path / "mq-mcp" / ".codegraph").mkdir(parents=True)
     result = build_task_pack(
         "summarize mq-mcp ownership",  # non-source task, but forced on
         repo="mq-mcp",
@@ -195,7 +195,44 @@ def test_codegraph_on_names_present_index(tmp_path):
         codegraph="on",
     )
     assert result["codegraph_applied"]
-    assert "`.codegraph/` is present in `mq-mcp`" in result["content"]
+    assert "## CodeGraph queries" in result["content"]
+    assert "codegraph explore" in result["content"]
+    assert "-p mq-mcp" in result["content"]
+
+
+def test_codegraph_queries_are_bounded_and_scoped(tmp_path):
+    vault = _vault(tmp_path)
+    result = build_task_pack(
+        "trace callers of store_learn_record",
+        repo="mq-mcp",
+        vault=vault,
+        repos_root=tmp_path,
+        relevant_files=["mq-mcp/runtime/memory/obsidian_writer.py"],
+        codegraph_symbols=["store_learn_record"],
+    )
+    queries = result["codegraph_queries"]
+    assert queries  # source-heavy -> emitted
+    assert len(queries) <= 5  # bounded, never a token sink
+    # every query passes an explicit project path
+    assert all(" -p mq-mcp" in q for q in queries)
+    # named symbol -> callers + impact; source file -> repo-relative node query
+    assert any(q.startswith("codegraph callers store_learn_record") for q in queries)
+    assert any(q.startswith("codegraph impact store_learn_record") for q in queries)
+    assert "codegraph node runtime/memory/obsidian_writer.py -p mq-mcp" in queries
+
+
+def test_codegraph_off_emits_no_queries(tmp_path):
+    vault = _vault(tmp_path)
+    result = build_task_pack(
+        "trace callers of store_learn_record",  # source-heavy
+        repo="mq-mcp",
+        vault=vault,
+        repos_root=tmp_path,
+        codegraph="off",
+    )
+    assert result["codegraph_queries"] == []
+    assert not result["codegraph_applied"]
+    assert "## CodeGraph queries" not in result["content"]
 
 
 def test_cli_pack_json_to_stdout(tmp_path):
