@@ -547,10 +547,13 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-- send stack gate results to the brain (`--brain`)
-- keep mq-agent orchestration-only
-- keep review logic, learn extraction, memory and risk reasoning in mq-mcp
-- improve mq ecosystem integrations without adding hidden autonomy
+v1.21.0 — mq-hal operator layer readiness — is next. v1.22.0 — inbox
+ranking and promotion orchestration — is queued after it and remains planned,
+not shipped.
+
+Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
+mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
+delegation surface.
 
 ## Notes
 
