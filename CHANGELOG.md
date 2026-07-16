@@ -9,11 +9,59 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.21.0] — 2026-07-16
+
+Covers the v1.19.0 operator dashboard, v1.20.0 autonomous stack, and v1.21.0
+mq-hal operator readiness milestones, which were implemented but never
+released — the package stayed on 1.18.0 while the roadmap moved to v1.21.
+
 ### Added
+
+#### Operator contracts (v1.21.0)
 
 * Stable additive JSON Schemas for the five mq-hal operator read surfaces.
 * Approved stack-loop executions append compact `mq_stack_loop_audit.v1`
   records for read-only display by mq-hal.
+* `mq_hal_operator_contract.v1` in the repo contract, plus the documented
+  `mq-agent → mq-hal` read contract and `next_action` section.
+
+#### Operator dashboard and autonomous stack (v1.19.0, v1.20.0)
+
+* `mq-agent dashboard` — read-only snapshot of stack health, release, brain,
+  Ollama, repos and contracts, with refresh-oriented TUI panels.
+* `mq-agent stack loop` — controlled planning and approved one-step execution
+  with command-specific rollback.
+* `next-action` contract propagated through cockpit and dashboard.
+
+#### Workflow engine
+
+* `workflow-plan.v1` contract, local workflow state and storage, three fixed
+  templates and a workflow CLI.
+* Read-only runner with conditions, result normalization, policy-based gates,
+  and limited adaptive planning.
+* `workflow-observation.v1` emitted after runs.
+
+#### Co-change memory loop
+
+* `memory-observation.v1` co-change observation emitter.
+* `mq-agent memory inbox-cochange` — operator-triggered co-change inbox
+  pipeline, with the cluster floor separated from the emission floor.
+* Explicit review/resolution surface for the memory loop.
+
+#### Context and agent surfaces
+
+* Task-specific context packs (`mq-agent context pack`), Phase 11 exclusions
+  and block metadata, and concrete CodeGraph queries.
+* Repo-local context snapshot export.
+* Published mq-agent agent entrypoints and compressed agent-view cards, with a
+  drift-check guard and per-system rebuild triggers.
+
+#### mqobsidian inbox (v1.22.0 groundwork)
+
+* Read-only reads of canonical mqobsidian inbox exports through the single
+  `exports/truth-export-index.json` entrypoint.
+
+#### Skills
 
 * `stack-operations` skill — owns the stack suite (sweep, report, alert,
   history, cockpit, gates, release pipeline, loop, brain-gate, truth-export)
@@ -36,6 +84,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 * SKILLS.md converted to the stack-standard generated table format; the stale
   "future `mq-agent review`" claim replaced with the shipped
   `mq-agent review file/diff/repo` commands.
+* `mq-agent learn` and `review` forward the repo path for cross-repo review and
+  learn extraction.
+
+### Fixed
+
+* Stack-loop tests no longer write real audit records into the operator's
+  `~/.mq-agent/stack-loop-history.jsonl`. The test ran an approved execution
+  without isolating `MQ_AGENT_STATE_DIR`, so every suite run appended a
+  fabricated `stack-release` entry that `mq-hal history` rendered as a genuine
+  release.
+* Co-change resolves the repo correctly for relative target paths.
+* The workflow runner injects `repo_name` so `run_tests` resolves.
+* Review forwards the repo path through the bridge to mq-mcp `review_repo`.
 
 ## [v1.18.0] — 2026-06-12
 

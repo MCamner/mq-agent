@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.18.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.21.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -274,6 +274,20 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.21.0 status
+
+- [x] Stable versioned JSON payloads for the five surfaces `mq-hal` reads: `stack cockpit`, `stack brain-gate`, `run --stack`, `stack release-check`, `dashboard`
+- [x] Contract tests for the fields `mq-hal stack`, `brain-status`, `release-status` and `next-action` depend on
+- [x] `mq_hal_operator_contract.v1` in the repo contract, plus the documented `mq-agent → mq-hal` read contract
+- [x] `mq_stack_loop_audit.v1` — approved stack-loop executions append one audit record for read-only display by `mq-hal`
+- [x] `mq-agent obsidian` reads canonical mqobsidian inbox exports (v1.22.0 groundwork)
+
+## v1.20.0 status
+
+- [x] `mq-agent stack loop` — controlled planning and approved one-step execution
+- [x] Explicit loop contract schema and documented rollback behaviour
+- [x] mqlaunch menu entry for manual `mq-agent stack loop` planning
 
 ## v1.18.0 status
 
