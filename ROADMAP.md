@@ -24,6 +24,7 @@ All phases complete through v1.21.0.
 | v1.20.0 | Autonomous stack | Done |
 | v1.21.0 | mq-hal operator layer readiness | Done |
 | v1.22.0 | Inbox ranking and promotion orchestration | Planned |
+| v1.23.0 | Cross-repo release automation | Planned |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -160,6 +161,78 @@ result. `mqlaunch` stays a thin delegate surface.
 * [ ] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
   delegate to; keep ranking and promotion logic out of shell.
 * [ ] Register `inbox_promotion_orchestration.v1` in the repo contract.
+
+## v1.23.0 — Cross-repo release automation
+
+Goal: automate the MQ release workflow across repos while preserving repo
+ownership boundaries, branch protection, and review gates.
+
+Release automation should coordinate:
+
+* `mq-agent` as the orchestration and contract authority
+* `repo-signal` for readiness and release gate scoring
+* `mqobsidian` for durable truth and release manifest exports
+* `mq-mcp` for local test/review orchestration and machine-readable output
+* `mq-hal` for operator visibility and next-action guidance
+
+### v1.23.0 checklist
+
+* [ ] Add `mq-agent release plan` to generate a repo-aware release plan from
+  current `CHANGELOG.md`, `VERSION`, and `repo-signal` readiness output.
+  * This plan should list repos, next version, blockers, and proposed branch
+    or PR flow.
+* [ ] Add `mq-agent release prepare --repo <name>` for single-repo release
+  preparation.
+  * Validate `CHANGELOG.md` contains the planned version.
+  * Validate `README.md` version badge matches `VERSION`.
+  * Validate `repo-signal` readiness and `mq-mcp` review pass status.
+  * Update `VERSION`, README badge, and release section in one atomic step.
+* [ ] Add `mq-agent release execute --repo <name>` to commit, tag, and push.
+  * For non-protected repos, push directly to the release branch.
+  * For protected repos, create a `chore/release-v<version>` branch and push
+    the changes there.
+  * Optionally support `--create-pr` to open the branch as a PR.
+* [ ] Add `mq-agent release sync` to align branch protection requirements with
+  actual repo rule state.
+  * Detect repos needing PR-based flow vs direct push.
+  * Use protected repo workflow rules to choose whether to open a PR.
+* [ ] Add `mq-agent release gate --json` as a machine-readable release gate
+  step for CI and `mq-hal`.
+  * Output should include `repository`, `version`, `blocked`, `blockers`, and
+    `evidence`.
+* [ ] Add `repo-signal readiness --format json` compatibility for release
+  automation.
+* [ ] Add `mqobsidian release manifest` export for each planned release.
+  * Include repo version, changelog heading, branch/PR target, and gate status.
+* [ ] Add `mq-hal release-status` and `mq-hal next-action` to show pending
+  releases and which repos need PR creation, review, or merge.
+* [ ] Add a `docs/STACK_RELEASE.md` update section describing the new cross-repo
+  release workflow and PR gating behavior.
+
+### Why this is the next big automation
+
+1. Release automation is the highest-leverage workflow because it spans all
+   repos and is currently the biggest source of manual coordination.
+2. It preserves the existing architecture: `mq-agent` remains the orchestrator,
+   `mqobsidian` remains the durable memory, `repo-signal` remains the gate,
+   `mq-mcp` remains the runtime/assertion engine, and `mq-hal` remains the
+   operator UI.
+3. It reduces human error by turning `Unreleased`/version mismatch/changelog
+   drift into deterministic validation and release branch creation.
+4. It gives the operator layer an observable workflow rather than a hidden,
+   manual sequence of commits and tags.
+
+### Success criteria
+
+* `mq-agent release plan` shows all repos and planned next versions.
+* `mq-agent release prepare --repo <name>` passes only if the repo is ready.
+* `mq-agent release execute --repo <name>` either pushes a release branch or
+  opens a PR when required.
+* `mq-hal release-status` shows a coherent release pipeline state for all
+  MQ repos.
+* Protected repos no longer require manual branch selection for release.
+* Release notes and truth exports are generated consistently after each
+  successful release.
 
 ## v1.15.0 — Brain-integrated stack workflow
 
