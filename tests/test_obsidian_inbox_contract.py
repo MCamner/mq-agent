@@ -17,7 +17,7 @@ def _write_bundle(root: Path, *, age: int = 0, drift: str | None = None,
     exports = root / "exports"
     exports.mkdir()
     stamp = (NOW - timedelta(seconds=age)).isoformat().replace("+00:00", "Z")
-    specs = {
+    specs: dict[str, tuple[str, str, dict[str, object]]] = {
         "inbox": ("inbox-manifest.v1", "inbox.json", {"items": [{"id": "m-1", "source": "test", "state": "candidate", "first_seen": stamp, "last_seen": stamp}]}),
         "scores": ("memory-score-manifest.v1", "scores.json", {"scores": {"m-1": {"schema": "memory-score.v1", "memory_id": "m-1", "timestamp": stamp, "status": "candidate", "score": 1}}}),
         "evidence": ("memory-evidence-manifest.v1", "evidence.json", {"evidence": {"ref-1": {"ref": "ref-1", "producer": "test", "schema_id": "test.v1", "observed_at": stamp, "summary": "verified"}}}),
@@ -31,7 +31,8 @@ def _write_bundle(root: Path, *, age: int = 0, drift: str | None = None,
     }
     surfaces = []
     for key, (schema, name, body) in specs.items():
-        document = {"schema": schema, "source": "mqobsidian-export", "generated_at": stamp, **body}
+        document: dict[str, object] = {"schema": schema, "source": "mqobsidian-export", "generated_at": stamp}
+        document.update(body)
         (exports / name).write_text(json.dumps(document), encoding="utf-8")
         surfaces.append({
             "key": key,
@@ -46,7 +47,10 @@ def _write_bundle(root: Path, *, age: int = 0, drift: str | None = None,
 
 def test_list_and_read_use_only_canonical_entrypoint(tmp_path: Path) -> None:
     _write_bundle(tmp_path)
-    clock = lambda: NOW
+
+    def clock() -> datetime:
+        return NOW
+
     listing = ip.list_inbox_candidates(vault=tmp_path, now=clock)
     assert listing["count"] == 1 and listing["candidates"][0]["id"] == "m-1"
     found = ip.read_inbox_candidate("m-1", vault=tmp_path, now=clock)
