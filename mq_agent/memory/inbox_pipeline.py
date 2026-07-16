@@ -34,7 +34,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Callable, Mapping, TypeGuard
 
 from ..workflows.observation import default_vault
 from .cochange_observation import (
@@ -73,7 +73,8 @@ class ExportContractError(ValueError):
     """Canonical mqobsidian export discovery failed closed."""
 
 
-def _non_negative_number(value: object) -> bool:
+def _non_negative_number(value: object) -> TypeGuard[float]:
+    """True for a real JSON number >= 0. `bool` is an int in Python and is not one."""
     return not isinstance(value, bool) and isinstance(value, (int, float)) and value >= 0
 
 
@@ -266,14 +267,19 @@ BUCKETS = ("inbox", "review-needed", "auto-promotable")
 _RANK_FACTORS = ("frequency", "source_count", "confidence", "recency", "usage_score", "manual_boost")
 
 
+def _mapping(value: object) -> Mapping:
+    """A Mapping, or an empty one. Missing owner data never becomes a guess."""
+    return value if isinstance(value, Mapping) else {}
+
+
 def _weighted(factors: Mapping, weights: Mapping) -> tuple[float, dict[str, float]]:
     """Policy-weighted sum. A factor the record omits contributes nothing."""
     contributions: dict[str, float] = {}
     for name in _RANK_FACTORS:
-        value = factors.get(name)
-        if not _non_negative_number(value):
-            value = 0.0
-        contributions[name] = round(float(value) * float(weights.get(name, 0.0)), 6)
+        raw = factors.get(name)
+        value = float(raw) if _non_negative_number(raw) else 0.0
+        weight = weights.get(name)
+        contributions[name] = round(value * (float(weight) if _non_negative_number(weight) else 0.0), 6)
     return round(sum(contributions.values()), 6), contributions
 
 
@@ -318,22 +324,24 @@ def _rank_one(item: Mapping, scores: Mapping, published: Mapping, policy: Mappin
     score = scores.get(memory_id)
     provenance, reasons = _provenance(item, published)
 
+    factors: Mapping = {}
     if not isinstance(score, Mapping):
         # Never guess a score: an inbox item with no score record is a broken
         # join, and is reported as one.
-        factors: Mapping = {}
         reasons.append("missing-score-record")
     else:
-        factors = score.get("factors") if isinstance(score.get("factors"), Mapping) else {}
+        declared = score.get("factors")
+        if isinstance(declared, Mapping):
+            factors = declared
 
-    ranked, contributions = _weighted(factors, policy["weights"])
-    supporting = sum(1 for name in _RANK_FACTORS if _non_negative_number(factors.get(name))
-                     and float(factors[name]) > 0)
+    ranked, contributions = _weighted(factors, _mapping(policy["weights"]))
+    supporting = sum(1 for name in _RANK_FACTORS
+                     if _non_negative_number(factors.get(name)) and factors[name] > 0)
     if supporting < policy["min_supporting_factors"]:
         reasons.append("insufficient-supporting-factors")
 
-    feedback = score.get("feedback") if isinstance(score, Mapping) else None
-    negative = feedback.get("negative") if isinstance(feedback, Mapping) else 0
+    feedback = _mapping(score.get("feedback")) if isinstance(score, Mapping) else {}
+    negative = feedback.get("negative")
     if policy["block_negative_feedback"] and _non_negative_number(negative) and negative > 0:
         reasons.append("negative-feedback")
 
