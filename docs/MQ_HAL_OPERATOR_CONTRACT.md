@@ -16,6 +16,20 @@ show the truth from `mq-agent` and route the operator to the right command.
 | `mq-hal release-status` | `mq-agent stack release-check --json` |
 | `mq-hal next-action` | `next_action_contract` from cockpit or dashboard |
 
+Each top-level payload has a stable schema identifier:
+
+| Surface | Schema |
+| --- | --- |
+| cockpit | `mq_stack_cockpit.v1` |
+| brain gate | `mq_brain_gate.v1` |
+| stack runtime | `mq_stack_runtime.v1` |
+| release check | `mq_stack_release_check.v1` |
+| operator dashboard | `mq_operator_dashboard.v1` |
+
+The JSON Schemas live under `schemas/`. Version 1 consumers must tolerate
+unknown fields; adding fields is compatible, while removing or changing a
+required field needs a new schema version.
+
 `mq-agent dashboard --json` is the compact operator snapshot. It includes the
 same `next_action_contract` shape for the top-level action and passes per-repo
 contracts through from cockpit rows.
@@ -71,3 +85,7 @@ Optional fields:
 
 When a route requires approval, `mq-hal` should surface that explicitly before
 launching a mutating command.
+
+`mq-hal history` may also read `stack-loop-history.jsonl` using
+`mq_stack_loop_audit.v1`. `mq-agent` remains the sole writer and owner of that
+audit history; `mq-hal` only filters and renders it.

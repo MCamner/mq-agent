@@ -3898,7 +3898,7 @@ def stack_release_check_cmd(
     With --ci, sibling repos missing from the workspace are skipped instead
     of blocking — only repos that are present (e.g. the CI checkout) gate.
     """
-    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, _release_entry
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, stack_release_check
 
     if dry_run:
         console.print("[blue][dry-run][/blue] Would check:")
@@ -3908,16 +3908,14 @@ def stack_release_check_cmd(
         return
 
     with console.status("[cyan]Checking release readiness...[/cyan]"):
-        entries = [_release_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+        raw = stack_release_check(ci=ci)
+        data = json.loads(raw)
 
-    all_go = all(e.get("go", False) for e in entries)
+    entries = data["repos"]
+    all_go = data["overall"] == "GO"
 
     if json_out:
-        typer.echo(json.dumps({
-            "overall": "GO" if all_go else "NO-GO",
-            "mode": "ci" if ci else "local",
-            "repos": entries,
-        }, indent=2, default=str))
+        typer.echo(raw)
         raise typer.Exit(0 if all_go else 1)
 
     table = Table(title="mq-stack Release Check", show_header=True)

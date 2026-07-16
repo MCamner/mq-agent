@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 BRAIN_REVIEW_TOOLS = ("review_repo", "brain_record_review")
+BRAIN_GATE_SCHEMA = "mq_brain_gate.v1"
 
 
 def _check(name: str, ok: bool, detail: str, hint: str = "") -> dict[str, Any]:
@@ -105,6 +106,7 @@ def brain_release_gate() -> str:
     ]
     failed = [c for c in checks if c["status"] == "FAIL"]
     return json.dumps({
+        "schema": BRAIN_GATE_SCHEMA,
         "overall": "GO" if not failed else "NO-GO",
         "checks": checks,
         "next_action": failed[0].get("hint", failed[0]["detail"]) if failed

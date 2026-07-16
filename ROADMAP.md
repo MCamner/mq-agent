@@ -119,7 +119,7 @@ operator layer.
 `mq-agent` should produce the truth. `mq-hal` should show the truth.
 `mqobsidian` should remember the truth.
 
-* [ ] Lock stable JSON outputs for the surfaces `mq-hal` should read:
+* [x] Lock stable JSON outputs for the surfaces `mq-hal` should read:
   `mq-agent stack cockpit --json`, `mq-agent stack brain-gate --json`,
   `mq-agent run --stack --json`, `mq-agent stack release-check --json`, and
   `mq-agent dashboard --json`.
@@ -129,8 +129,8 @@ operator layer.
   must not own gates or write flows.
 * [x] Add a compact `next_action` contract section covering source command,
   severity, suggested route and whether approval is required.
-* [ ] Keep stack-loop audit history deferred until the `mq-hal` operator layer
-  can display current truth cleanly.
+* [x] Add stack-loop audit history now that the `mq-hal` operator layer can
+  display approved execution attempts cleanly.
 * [x] Register `mq_hal_operator_contract.v1` in the repo contract.
 
 ## v1.22.0 — Inbox ranking and promotion orchestration

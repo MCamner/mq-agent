@@ -13,6 +13,7 @@ from typing import Any
 # Repos that are part of the stack but excluded from contract/release gates
 # (kept in sync with the gate exclusions in stack_tools).
 GATE_EXCLUDED = {"mqobsidian"}
+COCKPIT_SCHEMA = "mq_stack_cockpit.v1"
 
 
 def _truth_note_freshness() -> dict[str, Any]:
@@ -248,6 +249,7 @@ def stack_cockpit() -> str:
         )
 
     return json.dumps({
+        "schema": COCKPIT_SCHEMA,
         "overall_gate": overall_gate,
         "overall_contract": overall_contract,
         "brain_export": truth,

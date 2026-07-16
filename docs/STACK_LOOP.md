@@ -46,3 +46,22 @@ The v1.20 loop has command-specific rollback:
 
 Execution is blocked unless `--approve` is present. Manual next actions remain
 blocked even with approval.
+
+## Audit history
+
+Every approved allowlisted execution attempt appends one JSON Lines record to
+`$MQ_AGENT_STATE_DIR/stack-loop-history.jsonl` (default:
+`~/.mq-agent/stack-loop-history.jsonl`). Both successful and failed attempts
+are recorded with action, outcome and rollback status.
+
+Dry runs, previews, idle decisions and execution blocked before approval do
+not create or modify the audit file. Audit records use
+`mq_stack_loop_audit.v1`; its additive schema is tracked at
+`schemas/mq_stack_loop_audit.schema.json`.
+
+`mq-agent` owns the local audit file and its retention; no automatic pruning is
+performed. Records contain compact operational metadata only—not dashboard
+payloads, command output, tokens, secrets, or raw repository content. If an
+audit append fails, the command preserves and reports the execution result and
+adds an `audit.written=false` error to its JSON response; the operator must
+restore write access or disk capacity before the next approved attempt.

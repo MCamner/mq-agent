@@ -6,6 +6,7 @@ from importlib import import_module
 from pathlib import Path
 
 from typer.testing import CliRunner
+from jsonschema import Draft202012Validator
 
 from mq_agent.main import app
 from mq_agent.tools.stack_loop import LOOP_CONTRACT, stack_loop
@@ -30,7 +31,14 @@ def _patch_dashboard(monkeypatch, payload: str) -> None:
     monkeypatch.setattr(operator_dashboard, "operator_dashboard", lambda: payload)
 
 
-def test_stack_loop_manual_when_next_action_needs_operator(monkeypatch):
+def _audit_path(tmp_path: Path, monkeypatch) -> Path:
+    state = tmp_path / "state"
+    monkeypatch.setenv("MQ_AGENT_STATE_DIR", str(state))
+    return state / "stack-loop-history.jsonl"
+
+
+def test_stack_loop_manual_when_next_action_needs_operator(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
     _patch_dashboard(monkeypatch, _dashboard())
 
     data = json.loads(stack_loop())
@@ -40,6 +48,7 @@ def test_stack_loop_manual_when_next_action_needs_operator(monkeypatch):
     assert data["decision"] == "manual"
     assert data["writes_enabled"] is False
     assert data["steps"][1]["next_action"] == "mq-agent: commit or stash uncommitted changes"
+    assert not audit_path.exists()
 
 
 def test_stack_loop_previews_truth_export(monkeypatch):
@@ -62,13 +71,15 @@ def test_stack_loop_previews_release_command(monkeypatch):
     assert data["steps"][-1]["detail"] == "mq-agent stack release --repo repo-signal"
 
 
-def test_stack_loop_idles_when_dashboard_ready(monkeypatch):
+def test_stack_loop_idles_when_dashboard_ready(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
     _patch_dashboard(monkeypatch, _dashboard("all green", overall="READY"))
 
     data = json.loads(stack_loop())
 
     assert data["decision"] == "idle"
     assert data["next_action"] == "all green"
+    assert not audit_path.exists()
 
 
 def test_stack_loop_blocks_non_dry_run(monkeypatch):
@@ -96,7 +107,18 @@ def test_stack_loop_blocks_execution_without_approval(monkeypatch):
     assert data["steps"][-1]["status"] == "blocked"
 
 
+def test_stack_loop_dry_run_and_unapproved_execution_do_not_write_audit(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
+    _patch_dashboard(monkeypatch, _dashboard("run stack truth-export — brain note is stale"))
+
+    stack_loop()
+    stack_loop(execute=True)
+
+    assert not audit_path.exists()
+
+
 def test_stack_loop_executes_truth_export_with_approval(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
     _patch_dashboard(monkeypatch, _dashboard("run stack truth-export — brain note is stale"))
     stack_loop_module = import_module("mq_agent.tools.stack_loop")
     stack_truth = import_module("mq_agent.tools.stack_truth")
@@ -119,9 +141,15 @@ def test_stack_loop_executes_truth_export_with_approval(monkeypatch, tmp_path):
     assert data["execution_result"]["action"] == "truth-export"
     assert data["steps"][-1]["status"] == "done"
     assert dest.read_text(encoding="utf-8") == "truth\n"
+    record = json.loads(audit_path.read_text(encoding="utf-8").strip())
+    schema = json.loads(Path("schemas/mq_stack_loop_audit.schema.json").read_text())
+    Draft202012Validator(schema).validate(record)
+    assert record["outcome"] == "success"
+    assert record["action"] == "truth-export"
 
 
 def test_stack_loop_failed_truth_export_restores_file(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
     _patch_dashboard(monkeypatch, _dashboard("run stack truth-export — brain note is stale"))
     stack_truth = import_module("mq_agent.tools.stack_truth")
     dest = tmp_path / "truth.md"
@@ -143,6 +171,47 @@ def test_stack_loop_failed_truth_export_restores_file(monkeypatch, tmp_path):
     assert data["execution_result"]["ok"] is False
     assert data["execution_result"]["rollback"]["status"] == "restored"
     assert dest.read_text(encoding="utf-8") == "before\n"
+    record = json.loads(audit_path.read_text(encoding="utf-8").strip())
+    assert record["outcome"] == "failed"
+    assert record["rollback"]["status"] == "restored"
+
+
+def test_stack_loop_surfaces_audit_append_failure_without_hiding_execution(monkeypatch, tmp_path):
+    _audit_path(tmp_path, monkeypatch)
+    _patch_dashboard(monkeypatch, _dashboard("repo-signal: stack release --repo repo-signal"))
+    stack_release = import_module("mq_agent.tools.stack_release")
+    stack_loop_module = import_module("mq_agent.tools.stack_loop")
+    monkeypatch.setattr(
+        stack_release,
+        "stack_release",
+        lambda repo, execute=False: json.dumps({"released": execute, "repo": repo}),
+    )
+    monkeypatch.setattr(stack_loop_module, "_append_audit", lambda record: (_ for _ in ()).throw(OSError("disk full")))
+
+    data = json.loads(stack_loop_module.stack_loop(execute=True, approve=True))
+
+    assert data["execution_result"]["ok"] is True
+    assert data["audit"]["written"] is False
+    assert "disk full" in data["audit"]["error"]
+
+
+def test_stack_loop_audits_raised_execution_failure(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
+    _patch_dashboard(monkeypatch, _dashboard("repo-signal: stack release --repo repo-signal"))
+    stack_loop_module = import_module("mq_agent.tools.stack_loop")
+    monkeypatch.setattr(
+        stack_loop_module,
+        "_execute_action",
+        lambda _action: (_ for _ in ()).throw(RuntimeError("release crashed")),
+    )
+
+    data = json.loads(stack_loop_module.stack_loop(execute=True, approve=True))
+    record = json.loads(audit_path.read_text(encoding="utf-8").strip())
+
+    assert data["blocked"] is True
+    assert data["execution_result"]["error"] == "release crashed"
+    assert record["outcome"] == "failed"
+    assert record["rollback"]["status"] == "unavailable"
 
 
 def test_stack_loop_executes_release_with_delegated_rollback(monkeypatch):

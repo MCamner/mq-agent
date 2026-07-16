@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MQ Operator Dashboard",
+  "type": "object",
+  "required": [
+    "schema",
+    "overall",
+    "next_action",
+    "next_action_contract",
+    "stack",
+    "brain",
+    "ollama",
+    "contracts",
+    "repos",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq_operator_dashboard.v1"
+    },
+    "overall": {
+      "enum": [
+        "READY",
+        "ATTENTION"
+      ]
+    },
+    "next_action": {
+      "type": "string"
+    },
+    "next_action_contract": {
+      "$ref": "#/$defs/action"
+    },
+    "stack": {
+      "type": "object",
+      "required": [
+        "gate",
+        "contract",
+        "repo_count",
+        "actionable_count",
+        "dirty_count",
+        "release_blocked_count"
+      ],
+      "properties": {
+        "gate": {
+          "type": "string"
+        },
+        "contract": {
+          "type": "string"
+        },
+        "repo_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actionable_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dirty_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "release_blocked_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "brain": {
+      "type": "object"
+    },
+    "ollama": {
+      "type": "object"
+    },
+    "contracts": {
+      "type": "object"
+    },
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "repo",
+          "role",
+          "version",
+          "branch",
+          "dirty",
+          "contract",
+          "gate",
+          "next_action",
+          "next_action_contract"
+        ],
+        "properties": {
+          "repo": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "dirty": {
+            "type": "boolean"
+          },
+          "contract": {
+            "type": "string"
+          },
+          "gate": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "next_action_contract": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "required": [
+        "text",
+        "source_command",
+        "severity",
+        "suggested_route",
+        "requires_approval"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "source_command": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "attention",
+            "blocked"
+          ]
+        },
+        "suggested_route": {
+          "type": "string"
+        },
+        "requires_approval": {
+          "type": "boolean"
+        },
+        "repo": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

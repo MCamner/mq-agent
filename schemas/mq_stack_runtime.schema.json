@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MQ Stack Runtime",
+  "type": "object",
+  "required": [
+    "schema",
+    "overall",
+    "mode",
+    "dry_run",
+    "brain",
+    "approved",
+    "writes_enabled",
+    "pipeline",
+    "steps",
+    "next_action",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq_stack_runtime.v1"
+    },
+    "overall": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "local",
+        "ci"
+      ]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "brain": {
+      "type": "boolean"
+    },
+    "approved": {
+      "type": "boolean"
+    },
+    "writes_enabled": {
+      "type": "boolean"
+    },
+    "pipeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "owner",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "runtime",
+              "delegated",
+              "planned"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_action": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

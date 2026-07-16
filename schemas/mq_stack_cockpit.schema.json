@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MQ Stack Cockpit",
+  "type": "object",
+  "required": [
+    "schema",
+    "overall_gate",
+    "overall_contract",
+    "brain_export",
+    "next_action",
+    "next_action_contract",
+    "repos",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq_stack_cockpit.v1"
+    },
+    "overall_gate": {
+      "enum": [
+        "GO",
+        "NO-GO"
+      ]
+    },
+    "overall_contract": {
+      "enum": [
+        "READY",
+        "NOT READY"
+      ]
+    },
+    "brain_export": {
+      "type": "object"
+    },
+    "next_action": {
+      "type": "string"
+    },
+    "next_action_contract": {
+      "$ref": "#/$defs/action"
+    },
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "repo",
+          "role",
+          "exists",
+          "version",
+          "branch",
+          "dirty",
+          "contract",
+          "gate",
+          "next_action",
+          "next_action_contract"
+        ],
+        "properties": {
+          "repo": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "dirty": {
+            "type": "boolean"
+          },
+          "contract": {
+            "type": "string"
+          },
+          "gate": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "next_action_contract": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "required": [
+        "text",
+        "source_command",
+        "severity",
+        "suggested_route",
+        "requires_approval"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "source_command": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "attention",
+            "blocked"
+          ]
+        },
+        "suggested_route": {
+          "type": "string"
+        },
+        "requires_approval": {
+          "type": "boolean"
+        },
+        "repo": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
