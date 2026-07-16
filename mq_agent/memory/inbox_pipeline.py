@@ -55,7 +55,7 @@ _SURFACE_SCHEMAS = {
     "evidence": "memory-evidence-manifest.v1",
     "promotion-policy": "promotion-policy.v1",
 }
-_REQUIRED_FIELDS = {
+_REQUIRED_FIELDS: dict[str, dict[str, type | tuple[type, ...]]] = {
     "truth-export-index.v1": {"schema": str, "source": str, "generated_at": str, "surfaces": list},
     "inbox-manifest.v1": {"schema": str, "source": str, "generated_at": str, "items": list},
     "memory-score-manifest.v1": {"schema": str, "source": str, "generated_at": str, "scores": dict},
@@ -210,7 +210,10 @@ def load_canonical_exports(
         except ExportContractError as exc:
             raise ExportContractError(f"invalid {key} surface: {exc}") from exc
         documents[key] = document
-        generated[key] = document.get("generated_at") or entry.get("generated_at")
+        stamp = document.get("generated_at") or entry.get("generated_at")
+        if not isinstance(stamp, str):
+            raise ExportContractError(f"missing generated_at for {key}")
+        generated[key] = stamp
 
     policy = documents["promotion-policy"]
     max_age = policy.get("max_manifest_age_seconds")
