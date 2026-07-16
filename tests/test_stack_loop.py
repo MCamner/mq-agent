@@ -5,6 +5,7 @@ import json
 from importlib import import_module
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 from jsonschema import Draft202012Validator
 
@@ -29,6 +30,17 @@ def _dashboard(next_action: str = "mq-agent: commit or stash uncommitted changes
 def _patch_dashboard(monkeypatch, payload: str) -> None:
     operator_dashboard = import_module("mq_agent.tools.operator_dashboard")
     monkeypatch.setattr(operator_dashboard, "operator_dashboard", lambda: payload)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_audit_state(monkeypatch, tmp_path):
+    """Keep audit history out of the operator's real ~/.mq-agent.
+
+    Approved execution appends to $MQ_AGENT_STATE_DIR unconditionally, so a
+    test that executes without calling _audit_path() would write a real record
+    into the operator's history and still pass.
+    """
+    monkeypatch.setenv("MQ_AGENT_STATE_DIR", str(tmp_path / "state"))
 
 
 def _audit_path(tmp_path: Path, monkeypatch) -> Path:
@@ -214,7 +226,8 @@ def test_stack_loop_audits_raised_execution_failure(monkeypatch, tmp_path):
     assert record["rollback"]["status"] == "unavailable"
 
 
-def test_stack_loop_executes_release_with_delegated_rollback(monkeypatch):
+def test_stack_loop_executes_release_with_delegated_rollback(monkeypatch, tmp_path):
+    audit_path = _audit_path(tmp_path, monkeypatch)
     _patch_dashboard(monkeypatch, _dashboard("repo-signal: stack release --repo repo-signal"))
     stack_release = import_module("mq_agent.tools.stack_release")
 
@@ -229,6 +242,11 @@ def test_stack_loop_executes_release_with_delegated_rollback(monkeypatch):
     assert data["execution_result"]["ok"] is True
     assert data["execution_result"]["action"] == "stack-release"
     assert data["execution_result"]["rollback"]["status"] == "delegated"
+
+    record = json.loads(audit_path.read_text(encoding="utf-8").strip())
+    assert record["action"] == "stack-release"
+    assert record["repo"] == "repo-signal"
+    assert record["outcome"] == "success"
 
 
 def test_stack_loop_cli_json(monkeypatch):
