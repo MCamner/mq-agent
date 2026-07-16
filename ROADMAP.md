@@ -200,6 +200,12 @@ Release automation should coordinate:
   step for CI and `mq-hal`.
   * Output should include `repository`, `version`, `blocked`, `blockers`, and
     `evidence`.
+* [ ] Add `mq-agent release-check --codegraph` to automatically validate
+  release workflow impact when `.codegraph/` is available.
+  * Auto-query callers/impact for `mq-agent stack release-check`, `stack
+    release`, and release-related release orchestration files.
+  * Include `codegraph_applied`, `codegraph_queries`, and `codegraph_findings`
+    in JSON output.
 * [ ] Add `repo-signal readiness --format json` compatibility for release
   automation.
 * [ ] Add `mqobsidian release manifest` export for each planned release.
