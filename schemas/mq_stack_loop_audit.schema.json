@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/mq_stack_loop_audit.schema.json",
+  "title": "MQ Stack Loop Audit",
+  "description": "Append-only audit record for one approved stack loop execution attempt. Written only after an approved, allowlisted execution; dry-run, preview, idle, and unapproved calls write nothing.",
+  "type": "object",
+  "required": [
+    "schema",
+    "recorded_at",
+    "source_schema",
+    "approved",
+    "decision",
+    "dashboard_overall",
+    "next_action",
+    "action",
+    "outcome",
+    "execution_ok",
+    "rollback"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "mq_stack_loop_audit.v1" },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "source_schema": { "const": "mq_stack_loop_plan.v1" },
+    "approved": { "const": true },
+    "decision": { "const": "preview" },
+    "dashboard_overall": { "type": "string" },
+    "next_action": { "type": "string" },
+    "action": { "enum": ["truth-export", "stack-release"] },
+    "outcome": { "enum": ["success", "failed"] },
+    "execution_ok": { "type": "boolean" },
+    "rollback": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": true,
+      "properties": {
+        "status": { "type": "string" },
+        "strategy": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+    "repo": { "type": "string" }
+  }
+}

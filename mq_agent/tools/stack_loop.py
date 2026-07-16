@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,58 @@ LOOP_CONTRACT: dict[str, Any] = {
     "allowed_actions": ["truth-export", "stack-release"],
     "rollback_required": True,
 }
+
+AUDIT_SCHEMA = "mq_stack_loop_audit.v1"
+AUDIT_FILE = "stack-loop-history.jsonl"
+
+
+def state_dir() -> Path:
+    """Resolve the local state directory for audit history."""
+    override = os.environ.get("MQ_AGENT_STATE_DIR", "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".mq-agent"
+
+
+def _audit_record(
+    *,
+    dashboard_overall: Any,
+    next_action: str,
+    decision: str,
+    execution_result: dict[str, Any],
+) -> dict[str, Any]:
+    """Build one audit record for an approved execution attempt."""
+    rollback = execution_result.get("rollback")
+    ok = bool(execution_result.get("ok"))
+    record: dict[str, Any] = {
+        "schema": AUDIT_SCHEMA,
+        "recorded_at": datetime.now(UTC).isoformat(),
+        "source_schema": LOOP_CONTRACT["schema"],
+        "approved": True,
+        "decision": decision,
+        "dashboard_overall": str(dashboard_overall or "UNKNOWN"),
+        "next_action": next_action,
+        "action": str(execution_result.get("action") or ""),
+        "outcome": "success" if ok else "failed",
+        "execution_ok": ok,
+        "rollback": rollback if isinstance(rollback, dict) else {"status": "unknown"},
+    }
+    repo = execution_result.get("repo")
+    if isinstance(repo, str) and repo:
+        record["repo"] = repo
+    return record
+
+
+def _append_audit(record: dict[str, Any]) -> dict[str, Any]:
+    """Append one audit record. Never raises into the execution result."""
+    path = state_dir() / AUDIT_FILE
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, default=str) + "\n")
+    except OSError as exc:
+        return {"recorded": False, "path": str(path), "error": str(exc)}
+    return {"recorded": True, "path": str(path)}
 
 
 def _planned_action(next_action: str) -> dict[str, Any] | None:
@@ -146,6 +199,7 @@ def stack_loop(
     blocked = False
     blocker = None
     mode = "dry-run"
+    audit: dict[str, Any] | None = None
 
     if requested_execution:
         mode = "approved-execution" if approve else "blocked"
@@ -164,6 +218,12 @@ def stack_loop(
                 mode = "blocked"
                 blocked = True
                 blocker = str(execution_result.get("error") or "controlled execution failed")
+            audit = _append_audit(_audit_record(
+                dashboard_overall=dashboard.get("overall"),
+                next_action=next_action,
+                decision=decision,
+                execution_result=execution_result,
+            ))
 
     steps: list[dict[str, Any]] = [
         {
@@ -218,5 +278,6 @@ def stack_loop(
         "blocked": blocked,
         "blocker": blocker,
         "execution_result": execution_result,
+        "audit": audit,
         "checked_at": datetime.now(UTC).isoformat(),
     }, indent=2, default=str)

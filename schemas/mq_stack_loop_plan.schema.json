@@ -18,6 +18,7 @@
     "blocked",
     "blocker",
     "execution_result",
+    "audit",
     "checked_at"
   ],
   "additionalProperties": false,
@@ -55,6 +56,17 @@
           "type": "object",
           "additionalProperties": true
         }
+      }
+    },
+    "audit": {
+      "description": "Audit persistence outcome for an approved execution; null when nothing was written. See mq_stack_loop_audit.schema.json for the record itself.",
+      "type": ["object", "null"],
+      "required": ["recorded"],
+      "additionalProperties": false,
+      "properties": {
+        "recorded": { "type": "boolean" },
+        "path": { "type": "string" },
+        "error": { "type": "string" }
       }
     },
     "overall": { "const": "PLAN" },
