@@ -547,8 +547,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.21.0 — mq-hal operator layer readiness — is next. v1.22.0 — inbox
-ranking and promotion orchestration — is queued after it and remains planned,
+v1.21.0 — mq-hal operator layer readiness — is complete. v1.22.0 — inbox
+ranking and promotion orchestration — is the next focus and remains planned,
 not shipped.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
