@@ -16,6 +16,7 @@ PIPELINE_STAGES: list[dict[str, str]] = [
     {"name": "release", "owner": "mq-agent", "status": "runtime"},
     {"name": "dashboard", "owner": "mq-agent → mq-hal", "status": "planned"},
 ]
+STACK_RUNTIME_SCHEMA = "mq_stack_runtime.v1"
 
 
 def _step(name: str, ok: bool, detail: str, **extra: Any) -> dict[str, Any]:
@@ -143,6 +144,7 @@ def stack_run(
     ]
     failed = [step for step in steps if step["status"] == "FAIL"]
     return json.dumps({
+        "schema": STACK_RUNTIME_SCHEMA,
         "overall": "PASS" if not failed else "FAIL",
         "mode": "ci" if ci else "local",
         "dry_run": dry_run,

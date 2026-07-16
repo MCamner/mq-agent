@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MQ Stack Loop Audit",
+  "type": "object",
+  "required": [
+    "schema",
+    "recorded_at",
+    "source_schema",
+    "approved",
+    "decision",
+    "dashboard_overall",
+    "next_action",
+    "action",
+    "outcome",
+    "execution_ok",
+    "rollback"
+  ],
+  "properties": {
+    "schema": {"const": "mq_stack_loop_audit.v1"},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "source_schema": {"const": "mq_stack_loop_plan.v1"},
+    "approved": {"const": true},
+    "decision": {"enum": ["preview"]},
+    "dashboard_overall": {"type": "string"},
+    "next_action": {"type": "string"},
+    "action": {"enum": ["truth-export", "stack-release"]},
+    "repo": {"type": "string"},
+    "outcome": {"enum": ["success", "failed"]},
+    "execution_ok": {"type": "boolean"},
+    "rollback": {"type": "object"}
+  },
+  "additionalProperties": true
+}

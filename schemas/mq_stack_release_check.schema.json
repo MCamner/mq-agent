@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MQ Stack Release Check",
+  "type": "object",
+  "required": [
+    "schema",
+    "overall",
+    "mode",
+    "blocked",
+    "warned",
+    "repos",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq_stack_release_check.v1"
+    },
+    "overall": {
+      "enum": [
+        "GO",
+        "NO-GO"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "local",
+        "ci"
+      ]
+    },
+    "blocked": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warned": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "exists",
+          "go",
+          "blockers",
+          "warnings"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "go": {
+            "type": "boolean"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

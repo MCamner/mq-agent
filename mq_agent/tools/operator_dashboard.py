@@ -5,6 +5,8 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+OPERATOR_DASHBOARD_SCHEMA = "mq_operator_dashboard.v1"
+
 
 def _count_by(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
     counts: dict[str, int] = {}
@@ -99,6 +101,7 @@ def operator_dashboard() -> str:
     overall = "READY" if stack_ready and brain_ready and ollama_ok else "ATTENTION"
 
     return json.dumps({
+        "schema": OPERATOR_DASHBOARD_SCHEMA,
         "overall": overall,
         "next_action": next_action,
         "next_action_contract": next_action_contract,

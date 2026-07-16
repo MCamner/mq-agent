@@ -237,6 +237,10 @@ local clones and git history only. No AI calls unless `--brain` or `--decide` is
 | `mq-agent stack history --diff` | Score delta between two most recent sweeps |
 | `mq-agent stack history --json` | Machine-readable history |
 
+Approved `mq-agent stack loop --execute --approve` attempts are also appended
+to `$MQ_AGENT_STATE_DIR/stack-loop-history.jsonl` (default `~/.mq-agent`). The
+loop-audit file is write-free for dry-run, preview, idle and unapproved modes.
+
 ### Stack alert
 
 Exits 0 when no alerts, exits 1 when alerts are found — CI-friendly.

@@ -19,6 +19,7 @@ MQ_STACK_REPOS: list[dict[str, str]] = [
 ]
 
 OBSIDIAN_STATUS = Path.home() / "mqobsidian" / "mq-stack" / "05_RELEASE_STATUS.md"
+STACK_RELEASE_CHECK_SCHEMA = "mq_stack_release_check.v1"
 
 
 def _expand(path: str) -> Path:
@@ -186,7 +187,13 @@ def _release_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
                 }
             path = ci_path
         else:
-            return {"name": entry["name"], "exists": False, "go": False, "blockers": ["repo not found"]}
+            return {
+                "name": entry["name"],
+                "exists": False,
+                "go": False,
+                "blockers": ["repo not found"],
+                "warnings": [],
+            }
 
     version = _version(path)
     branch = _git(["branch", "--show-current"], path)
@@ -268,6 +275,7 @@ def stack_release_check(ci: bool = False) -> str:
     blocked = [e["name"] for e in entries if not e.get("go", False)]
     warned = [e["name"] for e in entries if e.get("warnings")]
     return json.dumps({
+        "schema": STACK_RELEASE_CHECK_SCHEMA,
         "overall": "GO" if all_go else "NO-GO",
         "mode": "ci" if ci else "local",
         "blocked": blocked,

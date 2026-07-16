@@ -11,6 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* Stable additive JSON Schemas for the five mq-hal operator read surfaces.
+* Approved stack-loop executions append compact `mq_stack_loop_audit.v1`
+  records for read-only display by mq-hal.
+
 * `stack-operations` skill — owns the stack suite (sweep, report, alert,
   history, cockpit, gates, release pipeline, loop, brain-gate, truth-export)
   and the `.mq/repo-contract.json` contract rules; the surface had no skill

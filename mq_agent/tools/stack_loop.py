@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,20 @@ LOOP_CONTRACT: dict[str, Any] = {
     "allowed_actions": ["truth-export", "stack-release"],
     "rollback_required": True,
 }
+STACK_LOOP_AUDIT_SCHEMA = "mq_stack_loop_audit.v1"
+
+
+def _audit_path() -> Path:
+    state_dir = Path(os.environ.get("MQ_AGENT_STATE_DIR", Path.home() / ".mq-agent")).expanduser()
+    return state_dir / "stack-loop-history.jsonl"
+
+
+def _append_audit(record: dict[str, Any]) -> Path:
+    path = _audit_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, default=str) + "\n")
+    return path
 
 
 def _planned_action(next_action: str) -> dict[str, Any] | None:
@@ -132,6 +147,7 @@ def stack_loop(
     bounded_iterations = max(1, min(max_iterations, 5))
     requested_execution = execute or not dry_run
     execution_result: dict[str, Any] | None = None
+    audit: dict[str, Any] | None = None
 
     if dashboard.get("overall") == "READY":
         decision = "idle"
@@ -159,11 +175,40 @@ def stack_loop(
             mode = "blocked"
             blocker = "next action is not allowlisted for controlled execution"
         else:
-            execution_result = _execute_action(action)
+            try:
+                execution_result = _execute_action(action)
+            except Exception as exc:
+                execution_result = {
+                    "ok": False,
+                    "action": action["action"],
+                    "error": str(exc),
+                    "rollback": {"status": "unavailable"},
+                }
             if not execution_result.get("ok"):
                 mode = "blocked"
                 blocked = True
                 blocker = str(execution_result.get("error") or "controlled execution failed")
+
+            record = {
+                "schema": STACK_LOOP_AUDIT_SCHEMA,
+                "recorded_at": datetime.now(UTC).isoformat(),
+                "source_schema": LOOP_CONTRACT["schema"],
+                "approved": True,
+                "decision": decision,
+                "dashboard_overall": str(dashboard.get("overall") or "unknown"),
+                "next_action": next_action,
+                "action": action["action"],
+                "outcome": "success" if execution_result.get("ok") else "failed",
+                "execution_ok": bool(execution_result.get("ok")),
+                "rollback": execution_result.get("rollback") or {},
+            }
+            if action.get("repo"):
+                record["repo"] = action["repo"]
+            try:
+                path = _append_audit(record)
+                audit = {"written": True, "path": str(path), "schema": STACK_LOOP_AUDIT_SCHEMA}
+            except OSError as exc:
+                audit = {"written": False, "schema": STACK_LOOP_AUDIT_SCHEMA, "error": str(exc)}
 
     steps: list[dict[str, Any]] = [
         {
@@ -218,5 +263,6 @@ def stack_loop(
         "blocked": blocked,
         "blocker": blocker,
         "execution_result": execution_result,
+        "audit": audit,
         "checked_at": datetime.now(UTC).isoformat(),
     }, indent=2, default=str)

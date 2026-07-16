@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MQ Brain Gate",
+  "type": "object",
+  "required": [
+    "schema",
+    "overall",
+    "checks",
+    "next_action",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq_brain_gate.v1"
+    },
+    "overall": {
+      "enum": [
+        "GO",
+        "NO-GO"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_action": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}
