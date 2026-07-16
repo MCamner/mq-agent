@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.20.0 — Autonomous stack. Done.
-Next: v1.21.0 — mq-hal operator layer readiness.
+v1.21.0 — mq-hal operator layer readiness. Done.
+Next: v1.22.0 — Inbox ranking and promotion orchestration.
 
 ## Current status
 
-All phases complete through v1.20.0.
+All phases complete through v1.21.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -22,7 +22,8 @@ All phases complete through v1.20.0.
 | v1.18.0 | Memory engine | Done |
 | v1.19.0 | Operator dashboard | Done |
 | v1.20.0 | Autonomous stack | Done |
-| v1.21.0 | mq-hal operator layer readiness | Planned |
+| v1.21.0 | mq-hal operator layer readiness | Done |
+| v1.22.0 | Inbox ranking and promotion orchestration | Planned |
 
 ## v1.16.0 — Runtime consolidation
 
