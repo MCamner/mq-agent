@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/inbox_promotion_orchestration.v1.json",
+  "title": "MQ Inbox Promotion Orchestration v1",
+  "description": "The ranked promotion inbox mq-agent produces from mqobsidian's canonical exports. This schema locks the SHAPE of a ranking result; it is not truth about memory state. mqobsidian owns the candidates, the scores, the evidence, and the policy weights/thresholds echoed in `policy`; mq-agent owns only the join, the weighted formula, and the bucket routing. A `bucket` of `auto-promotable` means eligible for operator approval — never an unattended write. Ranking is deterministic: the same exports always produce the same document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "source",
+    "generated_at",
+    "policy",
+    "counts",
+    "candidates"
+  ],
+  "properties": {
+    "schema": {
+      "const": "inbox_promotion_orchestration.v1",
+      "description": "Schema discriminator. Consumers must match this exact value before trusting the shape."
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The producer identity of the inbox surface this ranking was computed from. Carried through from mqobsidian; mq-agent does not mint a new source identity for derived output."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the underlying inbox surface was materialized — NOT when the ranking ran. Ranking is a pure function of the exports, so the export's timestamp is the meaningful freshness signal."
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_threshold",
+        "auto_threshold",
+        "min_supporting_factors",
+        "block_negative_feedback",
+        "weights"
+      ],
+      "description": "The owner policy this ranking was computed under, echoed so a result is explainable without re-reading the vault. Informational only: mqobsidian remains the sole authority for these values.",
+      "properties": {
+        "review_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Ranked score at or above which a candidate reaches review-needed."
+        },
+        "auto_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Ranked score at or above which a candidate is eligible for approval (auto-promotable), absent any review reason."
+        },
+        "min_supporting_factors": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many factors must be non-zero before support counts as broad rather than single-signal."
+        },
+        "block_negative_feedback": {
+          "type": "boolean",
+          "description": "When true, any negative feedback bars a candidate from the auto path."
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frequency",
+            "source_count",
+            "confidence",
+            "recency",
+            "usage_score",
+            "manual_boost"
+          ],
+          "description": "Per-factor weights applied to the score record's factors.",
+          "properties": {
+            "frequency": { "type": "number", "minimum": 0 },
+            "source_count": { "type": "number", "minimum": 0 },
+            "confidence": { "type": "number", "minimum": 0 },
+            "recency": { "type": "number", "minimum": 0 },
+            "usage_score": { "type": "number", "minimum": 0 },
+            "manual_boost": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inbox", "review-needed", "auto-promotable"],
+      "description": "Candidate tally per bucket. The three counts always sum to the length of `candidates`.",
+      "properties": {
+        "inbox": { "type": "integer", "minimum": 0 },
+        "review-needed": { "type": "integer", "minimum": 0 },
+        "auto-promotable": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "description": "Every ranked candidate, ordered by ranked_score descending with memory_id breaking ties.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "memory_id",
+          "state",
+          "bucket",
+          "ranked_score",
+          "contributions",
+          "supporting_factors",
+          "provenance",
+          "review_reasons"
+        ],
+        "properties": {
+          "memory_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The mqobsidian memory this candidate refers to."
+          },
+          "state": {
+            "type": "string",
+            "enum": ["observed", "candidate"],
+            "description": "Promotion state as published by the inbox. Only pre-promotion states appear in an inbox."
+          },
+          "bucket": {
+            "type": "string",
+            "enum": ["inbox", "review-needed", "auto-promotable"],
+            "description": "Routing decision. `auto-promotable` means eligible for approval, never an unattended write. Any review reason bars the auto path."
+          },
+          "ranked_score": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Policy-weighted sum of the factor contributions."
+          },
+          "contributions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "frequency",
+              "source_count",
+              "confidence",
+              "recency",
+              "usage_score",
+              "manual_boost"
+            ],
+            "description": "Per-factor weight*value, so a ranked_score can be explained term by term rather than trusted.",
+            "properties": {
+              "frequency": { "type": "number" },
+              "source_count": { "type": "number" },
+              "confidence": { "type": "number" },
+              "recency": { "type": "number" },
+              "usage_score": { "type": "number" },
+              "manual_boost": { "type": "number" }
+            }
+          },
+          "supporting_factors": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many factors were non-zero, before weighting. Weighting cannot manufacture breadth of support."
+          },
+          "provenance": {
+            "type": "array",
+            "description": "Deduplicated evidence that resolved through memory-evidence-manifest.v1. An opaque or unresolvable ref never appears here.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ref", "producer", "kind", "observed_at"],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The published evidence ref, resolvable in the evidence manifest."
+                },
+                "producer": {
+                  "type": "string",
+                  "description": "Who observed it (e.g. repo-signal, mq-mcp). Evidence sources never own promotion truth."
+                },
+                "kind": { "type": "string" },
+                "observed_at": { "type": "string" }
+              }
+            }
+          },
+          "review_reasons": {
+            "type": "array",
+            "description": "Why this candidate is barred from the auto path, if it is. Reported even when the candidate is too weak to be near the auto path, so a data problem is never hidden behind a low score.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "missing-evidence",
+                "unresolved-evidence",
+                "conflicting-evidence",
+                "insufficient-supporting-factors",
+                "negative-feedback",
+                "missing-score-record"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
