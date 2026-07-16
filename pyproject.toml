@@ -34,6 +34,7 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
     "types-PyYAML>=6.0.0",
+    "types-jsonschema>=4.26.0.20260518",
 ]
 
 [tool.hatch.build.targets.wheel]
