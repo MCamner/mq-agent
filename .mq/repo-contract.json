@@ -30,7 +30,8 @@
     "mq_stack_runtime.v1",
     "mq_stack_release_check.v1",
     "mq_operator_dashboard.v1",
-    "mq_hal_operator_contract.v1"
+    "mq_hal_operator_contract.v1",
+    "inbox_promotion_orchestration.v1"
   ],
   "next_focus": "v1.22.0 — Inbox ranking and promotion orchestration"
 }

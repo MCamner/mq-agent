@@ -108,6 +108,39 @@ OpenAI, Ollama or mq-mcp.
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 | `mq-agent context export --repo <repo> --output-root <dir>` | no | Export compact `.mq/context/` snapshot from mqobsidian context cards |
 
+## Obsidian Inbox Commands
+
+The promotion inbox surface `mqlaunch` delegates to. Reads come from mqobsidian's
+canonical exports through the single entrypoint
+`exports/truth-export-index.json`; there is no raw-vault fallback. Reads fail
+closed on a stale, missing, or drifted truth surface rather than reporting
+whatever is on disk.
+
+Ranking is mq-agent's computation over mqobsidian's policy: the weights and
+thresholds are vault data, the formula and routing are code here. `--json` emits
+`inbox_promotion_orchestration.v1` and nothing else, including on failure, so a
+caller that pipes it can tell a contract error from a crash.
+
+The five transition verbs are explicit — never a generic mqobsidian passthrough.
+Every one previews by default and writes only with `--confirm`.
+`auto-promotable` means eligible for approval, never an unattended write.
+
+| Command | Writes | Needs `--confirm` | Notes |
+|---|---:|---:|---|
+| `mq-agent obsidian inbox list` | no | no | Promotion candidates from the canonical inbox export |
+| `mq-agent obsidian inbox read <id>` | no | no | One candidate; exits 1 when not in the inbox |
+| `mq-agent obsidian inbox rank` | no | no | Policy-weighted ranking and bucket routing |
+| `mq-agent obsidian inbox <cmd> --json` | no | no | `inbox-candidate-list.v1` / `inbox-candidate-read.v1` / `inbox_promotion_orchestration.v1` |
+| `mq-agent obsidian promote <id> --reason R --evidence REF` | via mqobsidian | yes | candidate → promoted; requires traceable published evidence |
+| `mq-agent obsidian reject <id> --reason R` | via mqobsidian | yes | candidate → archived; no durable learn record |
+| `mq-agent obsidian defer <id> --reason R` | via mqobsidian | yes | candidate → observed; no durable learn record |
+| `mq-agent obsidian rollback <id> --reason R` | via mqobsidian | yes | promoted → candidate; removes the generated learn projection |
+| `mq-agent obsidian deprecate <id> --reason R` | via mqobsidian | yes | promoted → deprecated; retains the record |
+
+Writes are delegated: mq-agent passes the operator's intent — id, reason, and
+validated evidence refs — to mqobsidian's own CLI, which owns the state machine,
+the write-ahead journal, and the promotion event. mq-agent never writes memory.
+
 ## Model Commands
 
 Ollama model runtime commands. Config writes go to `~/.mq-agent/models.json`
