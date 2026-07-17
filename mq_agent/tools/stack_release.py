@@ -193,6 +193,54 @@ def plan_stack_release(
     return plan
 
 
+def plan_stack_release_all(bump: str = "patch") -> dict[str, Any]:
+    """Plan a release for every stack repo at once. Read-only — never mutates.
+
+    Wraps `plan_stack_release` per repo and aggregates. A repo with no unreleased
+    commits is reported as `up-to-date`, not `blocked`: the batch releases what
+    is ready and reports what is not, so a healthy stack does not read as failure.
+
+    Execute is deliberately not offered here — a multi-repo apply needs
+    per-repo abort semantics that a single flag cannot express. Release each
+    ready repo with `plan_stack_release` + `execute_stack_release`.
+    """
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS
+
+    repos: list[dict[str, Any]] = []
+    go_count = blocked_count = uptodate_count = 0
+    for entry in MQ_STACK_REPOS:
+        plan = plan_stack_release(entry["name"], bump=bump)
+        blockers = plan.get("blockers", [])
+        if plan.get("go"):
+            state = "ready"
+            go_count += 1
+        elif blockers and all(b.startswith("no unreleased commits") for b in blockers):
+            state = "up-to-date"
+            uptodate_count += 1
+        else:
+            state = "blocked"
+            blocked_count += 1
+        repos.append({
+            "repo": entry["name"],
+            "state": state,
+            "current_version": plan.get("current_version", "?"),
+            "new_version": plan.get("new_version") if state == "ready" else None,
+            "tag": plan.get("tag") if state == "ready" else None,
+            "blockers": blockers if state == "blocked" else [],
+            "warnings": plan.get("warnings", []),
+        })
+    return {
+        "schema": "mq_stack_release_all.v1",
+        "planned_at": datetime.now(UTC).isoformat(),
+        "bump": bump,
+        "repos": repos,
+        "go_count": go_count,
+        "blocked_count": blocked_count,
+        "uptodate_count": uptodate_count,
+        "overall_go": go_count > 0,
+    }
+
+
 def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
     """Execute a GO plan step by step. Aborts on the first failure.
 

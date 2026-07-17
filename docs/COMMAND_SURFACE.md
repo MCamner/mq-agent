@@ -336,6 +336,13 @@ NO-GO or any failed step. See `docs/STACK_RELEASE.md`.
 | `mq-agent stack release --repo <name> --bump minor` | Version bump: patch (default), minor or major |
 | `mq-agent stack release --repo <name> --version X.Y.Z` | Explicit target version |
 | `mq-agent stack release --repo <name> --json` | Machine-readable plan or result |
+| `mq-agent stack release --all` | Dry-run: plan every stack repo at once (ready / blocked / up-to-date); exits 1 if any repo is blocked |
+| `mq-agent stack release --all --json` | Machine-readable multi-repo plan (`mq_stack_release_all.v1`) |
+
+`--all` is dry-run only: it surveys the whole stack and reports which repos are
+ready to release, which are blocked (and why), and which are up-to-date. It does
+not apply anything — release each ready repo with `--repo <name> --execute`, so
+every write stays a single, explicit, per-repo step.
 
 ### Stack cockpit
 
