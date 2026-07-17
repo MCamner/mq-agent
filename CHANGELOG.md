@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.22.0] — 2026-07-17
+
 ### Added
 
 * `mq-agent obsidian inbox list|read|rank` — the promotion inbox surface

@@ -14,7 +14,7 @@ Current project phase:
 
 ```text
 v1.21.0 — mq-hal operator layer readiness (done)
-Next:    v1.22.0 — Inbox ranking and promotion orchestration
+Next:    v1.23.0 — Cross-repo release automation
 ```
 
 Completed foundation:
@@ -82,7 +82,7 @@ Completed foundation:
 | v1.19.0 | Operator dashboard                           | Done    |
 | v1.20.0 | Autonomous stack                             | Done    |
 | v1.21.0 | mq-hal operator layer readiness              | Done    |
-| v1.22.0 | Inbox ranking and promotion orchestration    | Planned |
+| v1.22.0 | Inbox ranking and promotion orchestration    | Done |
 
 ---
 
