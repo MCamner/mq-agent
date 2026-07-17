@@ -34,7 +34,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Callable, Mapping, TypeGuard
 
 from ..workflows.observation import default_vault
 from .cochange_observation import (
@@ -73,7 +73,8 @@ class ExportContractError(ValueError):
     """Canonical mqobsidian export discovery failed closed."""
 
 
-def _non_negative_number(value: object) -> bool:
+def _non_negative_number(value: object) -> TypeGuard[float]:
+    """True for a real JSON number >= 0. `bool` is an int in Python and is not one."""
     return not isinstance(value, bool) and isinstance(value, (int, float)) and value >= 0
 
 
@@ -255,6 +256,156 @@ def read_inbox_candidate(memory_id: str, *, vault: str | Path | None = None,
         "generated_at": listing["generated_at"], "memory_id": memory_id,
         "found": candidate is not None, "candidate": candidate,
     }
+
+
+# --- ranking (v1.22 Task 7) ------------------------------------------------------
+# The formula and the routing are mq-agent code; the weights and thresholds are
+# mqobsidian data, read from promotion-policy.v1. Nothing here is hardcoded.
+
+RANKING_SCHEMA = "inbox_promotion_orchestration.v1"
+BUCKETS = ("inbox", "review-needed", "auto-promotable")
+_RANK_FACTORS = ("frequency", "source_count", "confidence", "recency", "usage_score", "manual_boost")
+
+
+def _mapping(value: object) -> Mapping:
+    """A Mapping, or an empty one. Missing owner data never becomes a guess."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def _weighted(factors: Mapping, weights: Mapping) -> tuple[float, dict[str, float]]:
+    """Policy-weighted sum. A factor the record omits contributes nothing."""
+    contributions: dict[str, float] = {}
+    for name in _RANK_FACTORS:
+        raw = factors.get(name)
+        value = float(raw) if _non_negative_number(raw) else 0.0
+        weight = weights.get(name)
+        contributions[name] = round(value * (float(weight) if _non_negative_number(weight) else 0.0), 6)
+    return round(sum(contributions.values()), 6), contributions
+
+
+def _provenance(item: Mapping, published: Mapping) -> tuple[list[dict], list[str]]:
+    """Resolve the item's refs through the evidence manifest, deduplicated.
+
+    An opaque ref never becomes provenance: evidence is only what mqobsidian
+    actually published. Order follows the inbox, so output stays deterministic.
+    """
+    resolved: list[dict] = []
+    reasons: list[str] = []
+    seen: set[str] = set()
+    refs = [e.get("ref") for e in item.get("evidence", []) if isinstance(e, dict)]
+    for ref in refs:
+        if not isinstance(ref, str) or ref in seen:
+            continue
+        seen.add(ref)
+        record = published.get(ref)
+        if not isinstance(record, Mapping):
+            if "unresolved-evidence" not in reasons:
+                reasons.append("unresolved-evidence")
+            continue
+        candidate_id = record.get("candidate_id")
+        if isinstance(candidate_id, str) and candidate_id != item.get("id"):
+            # The inbox says this ref supports X; the evidence says it supports Y.
+            if "conflicting-evidence" not in reasons:
+                reasons.append("conflicting-evidence")
+            continue
+        resolved.append({
+            "ref": ref,
+            "producer": str(record.get("producer", "")),
+            "kind": str(record.get("kind", "")),
+            "observed_at": str(record.get("observed_at", "")),
+        })
+    if not resolved and "unresolved-evidence" not in reasons and "conflicting-evidence" not in reasons:
+        reasons.append("missing-evidence")
+    return resolved, reasons
+
+
+def _rank_one(item: Mapping, scores: Mapping, published: Mapping, policy: Mapping) -> dict:
+    memory_id = item.get("id")
+    score = scores.get(memory_id)
+    provenance, reasons = _provenance(item, published)
+
+    factors: Mapping = {}
+    if not isinstance(score, Mapping):
+        # Never guess a score: an inbox item with no score record is a broken
+        # join, and is reported as one.
+        reasons.append("missing-score-record")
+    else:
+        declared = score.get("factors")
+        if isinstance(declared, Mapping):
+            factors = declared
+
+    ranked, contributions = _weighted(factors, _mapping(policy["weights"]))
+    supporting = sum(1 for name in _RANK_FACTORS
+                     if _non_negative_number(factors.get(name)) and factors[name] > 0)
+    if supporting < policy["min_supporting_factors"]:
+        reasons.append("insufficient-supporting-factors")
+
+    feedback = _mapping(score.get("feedback")) if isinstance(score, Mapping) else {}
+    negative = feedback.get("negative")
+    if policy["block_negative_feedback"] and _non_negative_number(negative) and negative > 0:
+        reasons.append("negative-feedback")
+
+    if ranked >= policy["auto_threshold"]:
+        bucket = "auto-promotable"
+    elif ranked >= policy["review_threshold"]:
+        bucket = "review-needed"
+    else:
+        bucket = "inbox"
+    # A forced reason can only ever take a candidate *off* the auto path. It
+    # never promotes a weak candidate into review: "auto-promotable" means
+    # eligible for approval, so the only thing worth forcing is ineligibility.
+    if reasons and bucket == "auto-promotable":
+        bucket = "review-needed"
+
+    return {
+        "memory_id": str(memory_id),
+        "state": str(item.get("state", "")),
+        "bucket": bucket,
+        "ranked_score": ranked,
+        "contributions": contributions,
+        "supporting_factors": supporting,
+        "provenance": provenance,
+        "review_reasons": reasons,
+    }
+
+
+def build_ranking(exports: Mapping) -> dict:
+    """Rank canonical exports. Pure: same input, same output, no I/O."""
+    policy = exports["promotion-policy"]
+    items = exports["inbox"].get("items", [])
+    scores = exports["scores"].get("scores", {})
+    published = exports["evidence"].get("evidence", {})
+
+    ranked = [_rank_one(item, scores, published, policy) for item in items
+              if isinstance(item, Mapping)]
+    # Highest first; memory_id breaks ties so the order never depends on dict
+    # iteration or on the order mqobsidian happened to emit.
+    ranked.sort(key=lambda c: (-c["ranked_score"], c["memory_id"]))
+
+    counts = {bucket: 0 for bucket in BUCKETS}
+    for candidate in ranked:
+        counts[candidate["bucket"]] += 1
+
+    return {
+        "schema": RANKING_SCHEMA,
+        "source": exports["inbox"]["source"],
+        "generated_at": exports["inbox"]["generated_at"],
+        "policy": {
+            "review_threshold": policy["review_threshold"],
+            "auto_threshold": policy["auto_threshold"],
+            "min_supporting_factors": policy["min_supporting_factors"],
+            "block_negative_feedback": policy["block_negative_feedback"],
+            "weights": dict(policy["weights"]),
+        },
+        "counts": counts,
+        "candidates": ranked,
+    }
+
+
+def rank_inbox(*, vault: str | Path | None = None,
+               now: Callable[[], datetime] | None = None) -> dict:
+    """Read the canonical bundle and rank it. Fails closed on any contract error."""
+    return build_ranking(load_canonical_exports(vault=vault, now=now))
 
 
 def resolve_vault(vault: str | Path | None = None) -> Path:

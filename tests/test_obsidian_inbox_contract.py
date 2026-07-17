@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from mq_agent.memory import inbox_pipeline as ip
 
@@ -177,3 +178,40 @@ def test_future_dated_surface_is_rejected(tmp_path: Path) -> None:
     path.write_text(json.dumps(payload))
     with pytest.raises(ip.ExportContractError, match="future-dated"):
         ip.load_canonical_exports(vault=tmp_path, now=lambda: NOW)
+
+
+# --- ranking contract (v1.22 Task 7) ----------------------------------------
+
+_RANK_SCHEMA = Path(__file__).resolve().parents[1] / "schemas" / "inbox_promotion_orchestration.v1.json"
+
+
+def _rank_schema() -> dict:
+    return json.loads(_RANK_SCHEMA.read_text(encoding="utf-8"))
+
+
+def test_ranking_schema_is_a_valid_2020_12_schema() -> None:
+    Draft202012Validator.check_schema(_rank_schema())
+
+
+def test_real_ranking_output_validates_against_the_schema(tmp_path: Path) -> None:
+    """Meta-validating the schema proves nothing about the producer. Validate
+    what the producer actually emits, from a real bundle on disk."""
+    _write_bundle(tmp_path)
+    ranking = ip.rank_inbox(vault=tmp_path, now=lambda: NOW)
+    Draft202012Validator(_rank_schema()).validate(ranking)
+    assert ranking["schema"] == ip.RANKING_SCHEMA
+    assert ranking["counts"]["review-needed"] + ranking["counts"]["inbox"] \
+        + ranking["counts"]["auto-promotable"] == len(ranking["candidates"])
+
+
+def test_ranking_fails_closed_on_a_drifted_surface(tmp_path: Path) -> None:
+    """Ranking must inherit discovery's fail-closed behaviour, not bypass it."""
+    _write_bundle(tmp_path, drift="scores")
+    with pytest.raises(ip.ExportContractError, match="drifted"):
+        ip.rank_inbox(vault=tmp_path, now=lambda: NOW)
+
+
+def test_ranking_fails_closed_on_a_stale_bundle(tmp_path: Path) -> None:
+    _write_bundle(tmp_path, age=61)
+    with pytest.raises(ip.ExportContractError, match="stale"):
+        ip.rank_inbox(vault=tmp_path, now=lambda: NOW)
