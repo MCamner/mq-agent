@@ -220,6 +220,27 @@ Release automation should coordinate:
 * [ ] Add a `docs/STACK_RELEASE.md` update section describing the new cross-repo
   release workflow and PR gating behavior.
 
+### Agent context pipeline — Claude/Codex optimization
+
+Goal: make Claude/Codex grounding fast and low-cost by prioritizing compact,
+controlled exports before falling back to the full `mqobsidian` vault.
+
+* [ ] Run `mq-agent agent-views rebuild` as the first prepare step
+  * Explanation: builds `memory/learn/agent/<system>.md` from `hot.md` + `index.md`.
+  * Result: model step‑0 view; small, focused first-read surface.
+* [ ] Export `.mq/context/*` snapshots for relevant repos
+  * Explanation: `mq-agent context export --repo <repo> --output-root <dir>`
+  * Result: repo-local `repo-card.md`, `integration-map.md`, `token-budget.md`, `active-contract.md`.
+* [ ] Prioritize read order in agent workflows
+  * Explanation: prefer `memory/learn/agent` → `.mq/context/*` → full vault as fallback.
+  * Result: reduced token usage, faster grounding, less noise.
+* [ ] Add drift guard in CI/prep
+  * Explanation: `mq-agent agent-views check` fails when views are stale.
+  * Result: CI can refuse runs when generated views are out of sync.
+* [ ] Create a repeatable prepare step (script/CI target)
+  * Explanation: combine rebuild + export into one `prepare-context` step.
+  * Result: deterministic, reproducible context preparation for all agent runs.
+
 ### Why this is the next big automation
 
 1. Release automation is the highest-leverage workflow because it spans all

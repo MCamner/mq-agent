@@ -1,0 +1,23 @@
+name: Markdownlint
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  markdownlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads rules from .markdownlint.json and scope (globs/ignores) from
+      # .markdownlint-cli2.jsonc, so CI matches local `markdownlint-cli2`.
+      - uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: "**/*.md"

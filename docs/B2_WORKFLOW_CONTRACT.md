@@ -16,7 +16,7 @@ to `mq-mcp` (read-only).
 
 ## Workflow: plan → compose → review → output
 
-```
+```text
 topic/context
      │
      ▼
@@ -68,7 +68,7 @@ topic/context
 
 ## CLI surface
 
-```
+```text
 mq-agent b2 run "topic"           # full workflow
 mq-agent b2 run "topic" --route review  # force a specific route
 mq-agent b2 route "topic"         # show routing decision only
@@ -79,7 +79,7 @@ mq-agent b2 history               # recent runs
 
 ## Task-based invocation
 
-```
+```text
 mq-agent task run tasks/b2_workflow.yaml
 ```
 

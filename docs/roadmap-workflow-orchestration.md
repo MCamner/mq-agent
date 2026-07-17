@@ -14,7 +14,7 @@
 
 ## Fixed ownership boundary
 
-```
+```text
 mqlaunch   = operator surface
 mq-agent   = orchestration
 mq-mcp     = execution
@@ -30,7 +30,7 @@ execution in `mqobsidian`.
 
 A bounded, safe workflow engine where:
 
-```
+```text
 mqlaunch → mq-agent workflow → mq-mcp tools
 ```
 
@@ -76,7 +76,7 @@ and docs only.
 
 Files:
 
-```
+```text
 schemas/workflow-plan.v1.json
 docs/WORKFLOW_CONTRACT.md
 mq_agent/workflows/__init__.py
@@ -318,7 +318,7 @@ Do not mix repos in one PR.
 
 ## First real proof-of-concept
 
-```
+```text
 mqlaunch flow repo-preflight /Users/mansys/macos-scripts
 
 [1/3] mqlaunch doctor        PASS

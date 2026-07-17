@@ -34,7 +34,7 @@ Destructive operations (anything matching the patterns below) require either `--
 
 The following patterns are always blocked in `run_command`, regardless of safety mode:
 
-```
+```text
 rm -rf /
 sudo rm -rf
 mkfs
@@ -47,7 +47,7 @@ dd if=
 
 The following tools are permitted in `read-only` mode:
 
-```
+```text
 git_status    git_log       git_diff
 git_branch    git_remote    repo_summary
 list_files    read_file     find_files
@@ -60,7 +60,7 @@ Any tool not on this list is blocked in `read-only` mode.
 
 Operations are flagged as destructive if their description contains any of:
 
-```
+```text
 delete   remove   drop   force push
 git push   publish   deploy   rm -rf   format
 ```
