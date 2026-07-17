@@ -83,6 +83,7 @@ Completed foundation:
 | v1.20.0 | Autonomous stack                             | Done    |
 | v1.21.0 | mq-hal operator layer readiness              | Done    |
 | v1.22.0 | Inbox ranking and promotion orchestration    | Done |
+| v1.23.0 | Cross-repo release automation                | Planned |
 
 ---
 
@@ -237,6 +238,35 @@ result. `mqlaunch` stays a thin delegate surface.
 * [x] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
   delegate to; keep ranking and promotion logic out of shell.
 * [x] Register `inbox_promotion_orchestration.v1` in the repo contract.
+
+---
+
+### v1.23.0 — Cross-repo release automation
+
+Goal: make the correct release path the only path across repos, without
+rebuilding automation that already ships.
+
+Single-repo release automation already exists as `stack release`
+(`plan_stack_release` / `execute_stack_release`): gate → bump → sync-contract →
+changelog → tag → push → truth-export. The full scope, evidence, and the three
+botched off-main tags this reframe came from are recorded in the top-level
+`ROADMAP.md` scoping note (2026-07-17).
+
+* [ ] Converge the two release paths so `.mq/repo-contract.json` cannot drift:
+  each repo's `release.sh` bumps `VERSION` but not the contract, which is how
+  `macos-scripts v1.0.1`, `mq-mcp v2.0.1`, and `repo-signal v1.4.1` shipped
+  drifted. Retire `release.sh` in favour of `stack release`, or share the
+  contract-sync logic.
+* [ ] Add multi-repo orchestration over the existing single-repo primitive;
+  refuse any repo that is dirty, off main, or already tagged at the target.
+* [ ] Enforce on-main releases — a tag cut off a feature branch that never
+  reaches `main` is the failure mode that produced the current drift.
+* [ ] Decide the disposition of the three drifted tags (leave as known-bad, or
+  delete and re-release cleanly). Tag deletion is destructive — operator's call.
+
+Contract gates now catch this drift after the fact across the stack
+(mq-agent#135, mq-hal#15, mq-mcp#45, repo-signal#14, macos-scripts main), but a
+gate does not stop the two-path, tagged-off-main shape that caused it.
 
 ---
 

@@ -245,6 +245,50 @@ Release automation should coordinate:
 * Release notes and truth exports are generated consistently after each
   successful release.
 
+### Scoping note — 2026-07-17
+
+The checklist above predates `stack release`. Before building it, reconcile it
+with what already ships.
+
+**Already built.** `mq_agent/tools/stack_release.py` implements single-repo
+release automation end to end: `plan_stack_release` (gate + clean-tree +
+on-main + unreleased-commits + semver check) and `execute_stack_release`
+(bump-version → sync-contract → update-changelog → commit → tag → push →
+truth-export, with rollback of pre-commit edits on any failed step). The
+planned `mq-agent release plan|prepare|execute` items are largely this under
+new names — building them as specified would duplicate `stack release`, the
+exact consumer-before-producer / duplicate-work pattern this stack has now hit
+four times.
+
+**The real gap this session surfaced.** Each repo also carries its own
+`release.sh`, and that path — not `stack release` — is the one operators used.
+`release.sh` bumps `VERSION` but never `.mq/repo-contract.json`, so three repos
+shipped tags (`macos-scripts v1.0.1`, `mq-mcp v2.0.1`, `repo-signal v1.4.1`)
+with the contract one version behind, each tagged off a feature branch and
+never merged to `main`. The drift stayed invisible because those repos had no
+contract-version gate. Gates now exist across the stack (mq-agent#135,
+mq-hal#15, mq-mcp#45, repo-signal#14, and the pointer check on macos-scripts
+main), so drift fails a repo's own CI instead of mq-agent's stack gate — but a
+gate only catches drift after the fact. It does not stop the two-path,
+tagged-off-main release shape that produced it.
+
+**Recommended reframe.** Point v1.23.0 at making the correct path the only
+path, not at rebuilding the plan/prepare/execute surface:
+
+* [ ] Converge the release paths: either retire each repo's `release.sh` in
+  favour of `stack release`, or make `release.sh` sync `.mq/repo-contract.json`
+  through the same logic, so the contract cannot drift regardless of which path
+  runs.
+* [ ] Add multi-repo orchestration over the existing single-repo primitive
+  (`stack release` is one repo at a time) — refuse any repo that is dirty, off
+  main, or already tagged at the target version.
+* [ ] Enforce on-main releases: a tag cut off a feature branch that never
+  reaches `main` is the failure mode that produced the current drift.
+* [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
+  `v1.4.1`) — leave as known-bad history, or delete and re-release cleanly
+  through `stack release`. Tag deletion is destructive and is the operator's
+  call.
+
 ## v1.15.0 — Brain-integrated stack workflow
 
 Goal: make mq-agent the stable conductor of the full loop —
