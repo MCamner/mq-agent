@@ -13,6 +13,7 @@ from mq_agent.tools.stack_release import (
     bump_version,
     execute_stack_release,
     plan_stack_release,
+    plan_stack_release_all,
     stack_release,
 )
 
@@ -21,7 +22,10 @@ def _git(args: list[str], cwd: Path) -> None:
     subprocess.run(["git"] + args, cwd=cwd, check=True, capture_output=True, text=True)
 
 
-def _make_repo(tmp_path: Path, name: str = "mq-agent", with_remote: bool = False) -> Path:
+def _make_repo(
+    tmp_path: Path, name: str = "mq-agent", with_remote: bool = False,
+    with_unreleased: bool = True,
+) -> Path:
     repo = tmp_path / name
     repo.mkdir()
     _git(["init", "-b", "main"], repo)
@@ -45,9 +49,10 @@ def _make_repo(tmp_path: Path, name: str = "mq-agent", with_remote: bool = False
     _git(["commit", "-m", "initial"], repo)
     _git(["tag", "v1.0.0"], repo)
 
-    (repo / "feature.txt").write_text("new feature\n")
-    _git(["add", "-A"], repo)
-    _git(["commit", "-m", "feat: add feature"], repo)
+    if with_unreleased:
+        (repo / "feature.txt").write_text("new feature\n")
+        _git(["add", "-A"], repo)
+        _git(["commit", "-m", "feat: add feature"], repo)
 
     if with_remote:
         remote = tmp_path / f"{name}-remote.git"
@@ -291,3 +296,120 @@ class TestStackReleaseCli:
         assert result.exit_code == 0
         assert "Released mq-agent v1.0.1" in result.output
         assert (stack_repo / "VERSION").read_text().strip() == "1.0.1"
+
+
+# ── multi-repo plan (v1.23.0) ────────────────────────────────────────────────
+
+def _multi_stack(tmp_path, monkeypatch):
+    """A three-repo stack: one ready, one blocked (dirty), one up-to-date."""
+    ready = _make_repo(tmp_path, name="mq-agent")
+    blocked = _make_repo(tmp_path, name="mq-mcp")
+    (blocked / "dirty.txt").write_text("x\n")  # uncommitted → blocked
+    uptodate = _make_repo(tmp_path, name="repo-signal", with_unreleased=False)
+    entries = [
+        {"name": "mq-agent", "path": str(ready), "role": "test"},
+        {"name": "mq-mcp", "path": str(blocked), "role": "test"},
+        {"name": "repo-signal", "path": str(uptodate), "role": "test"},
+    ]
+    monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", entries)
+    return ready, blocked, uptodate
+
+
+@pytest.fixture
+def multi_stack(tmp_path, monkeypatch):
+    return _multi_stack(tmp_path, monkeypatch)
+
+
+class TestPlanStackReleaseAll:
+    def test_categorizes_every_repo(self, multi_stack):
+        data = plan_stack_release_all()
+        states = {r["repo"]: r["state"] for r in data["repos"]}
+        assert states == {
+            "mq-agent": "ready",
+            "mq-mcp": "blocked",
+            "repo-signal": "up-to-date",
+        }
+
+    def test_counts_and_overall_go(self, multi_stack):
+        data = plan_stack_release_all()
+        assert data["go_count"] == 1
+        assert data["blocked_count"] == 1
+        assert data["uptodate_count"] == 1
+        assert data["overall_go"] is True
+        assert data["schema"] == "mq_stack_release_all.v1"
+
+    def test_ready_repo_carries_target_version(self, multi_stack):
+        data = plan_stack_release_all(bump="minor")
+        ready = next(r for r in data["repos"] if r["repo"] == "mq-agent")
+        assert ready["new_version"] == "1.1.0"
+        assert ready["tag"] == "v1.1.0"
+
+    def test_up_to_date_is_not_blocked(self, multi_stack):
+        data = plan_stack_release_all()
+        uptodate = next(r for r in data["repos"] if r["repo"] == "repo-signal")
+        assert uptodate["state"] == "up-to-date"
+        assert uptodate["blockers"] == []
+        assert uptodate["new_version"] is None
+
+    def test_blocked_repo_reports_reason(self, multi_stack):
+        data = plan_stack_release_all()
+        blocked = next(r for r in data["repos"] if r["repo"] == "mq-mcp")
+        assert any("uncommitted" in b for b in blocked["blockers"])
+
+    def test_overall_go_false_when_nothing_ready(self, tmp_path, monkeypatch):
+        only_uptodate = _make_repo(tmp_path, name="repo-signal", with_unreleased=False)
+        monkeypatch.setattr(
+            stack_tools, "MQ_STACK_REPOS",
+            [{"name": "repo-signal", "path": str(only_uptodate), "role": "test"}],
+        )
+        data = plan_stack_release_all()
+        assert data["go_count"] == 0
+        assert data["overall_go"] is False
+
+
+class TestStackReleaseAllCli:
+    def _invoke(self, args):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        return CliRunner().invoke(app, args)
+
+    def test_all_prints_table_and_exits_1_when_blocked(self, multi_stack):
+        result = self._invoke(["stack", "release", "--all"])
+        assert "mq-agent" in result.output
+        assert "ready" in result.output
+        assert "blocked" in result.output
+        assert result.exit_code == 1  # mq-mcp is blocked
+
+    def test_all_json(self, multi_stack):
+        result = self._invoke(["stack", "release", "--all", "--json"])
+        data = json.loads(result.output)
+        assert data["schema"] == "mq_stack_release_all.v1"
+        assert data["go_count"] == 1
+
+    def test_all_and_repo_are_mutually_exclusive(self, multi_stack):
+        result = self._invoke(["stack", "release", "--all", "--repo", "mq-agent"])
+        assert result.exit_code == 1
+        assert "either" in result.output.lower()
+
+    def test_neither_repo_nor_all_errors(self, stack_repo):
+        result = self._invoke(["stack", "release"])
+        assert result.exit_code == 1
+
+    def test_all_execute_is_rejected(self, multi_stack):
+        result = self._invoke(["stack", "release", "--all", "--execute"])
+        assert result.exit_code == 1
+        assert "--repo" in result.output  # points at the per-repo path
+        # nothing was released
+        for repo in multi_stack:
+            assert (repo / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_all_exits_0_when_nothing_blocked(self, tmp_path, monkeypatch):
+        ready = _make_repo(tmp_path, name="mq-agent")
+        uptodate = _make_repo(tmp_path, name="repo-signal", with_unreleased=False)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
+            {"name": "mq-agent", "path": str(ready), "role": "test"},
+            {"name": "repo-signal", "path": str(uptodate), "role": "test"},
+        ])
+        result = self._invoke(["stack", "release", "--all"])
+        assert result.exit_code == 0

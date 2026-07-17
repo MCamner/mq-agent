@@ -4287,7 +4287,8 @@ def stack_skills_check_cmd(
 
 @stack_app.command("release")
 def stack_release_cmd(
-    repo: Annotated[str, typer.Option("--repo", help="Stack repo to release")],
+    repo: Annotated[str, typer.Option("--repo", help="Stack repo to release")] = "",
+    all_repos: Annotated[bool, typer.Option("--all", help="Plan a release for every stack repo (dry-run only)")] = False,
     bump: Annotated[str, typer.Option("--bump", help="Version bump: patch, minor or major")] = "patch",
     version: Annotated[str, typer.Option("--version", help="Explicit target version (overrides --bump)")] = "",
     execute: Annotated[bool, typer.Option("--execute", help="Apply the release (default is dry-run)")] = False,
@@ -4300,12 +4301,68 @@ def stack_release_cmd(
     run and pre-commit file edits are rolled back. Exits 1 on NO-GO or on a
     failed step. Ends with a stack truth-export so the release lands in
     mqobsidian memory.
+
+    With --all, plans a release for every stack repo at once (dry-run only):
+    each repo is reported as ready, blocked, or up-to-date. Exits 1 if any repo
+    is blocked. Release a ready repo with --repo <name> --execute.
     """
-    from mq_agent.tools.stack_release import BUMP_PARTS, stack_release as _release
+    from mq_agent.tools.stack_release import (
+        BUMP_PARTS,
+        plan_stack_release_all,
+        stack_release as _release,
+    )
 
     if bump not in BUMP_PARTS:
         console.print(f"[red]Invalid --bump {bump!r} — expected one of: {', '.join(BUMP_PARTS)}[/red]")
         raise typer.Exit(1)
+
+    if all_repos and repo:
+        console.print("[bold red]Use either --repo or --all, not both.[/bold red]")
+        raise typer.Exit(1)
+    if not all_repos and not repo:
+        console.print("[bold red]Provide --repo <name> or --all.[/bold red]")
+        raise typer.Exit(1)
+
+    if all_repos:
+        if execute:
+            console.print(
+                "[bold red]--all is dry-run only.[/bold red] "
+                "Release each ready repo with [cyan]--repo <name> --execute[/cyan]."
+            )
+            raise typer.Exit(1)
+        if version:
+            console.print("[bold red]--version applies to a single --repo, not --all.[/bold red]")
+            raise typer.Exit(1)
+        with console.status("[cyan]Planning stack release...[/cyan]"):
+            data = plan_stack_release_all(bump=bump)
+        if json_out:
+            typer.echo(json.dumps(data, indent=2, default=str))
+            raise typer.Exit(1 if data["blocked_count"] else 0)
+        console.print()
+        console.rule("[bold]Stack Release — all repos[/bold]")
+        console.print()
+        console.print(
+            f"[dim]bump {data['bump']}  ·  ready {data['go_count']}  ·  "
+            f"blocked {data['blocked_count']}  ·  up-to-date {data['uptodate_count']}[/dim]"
+        )
+        console.print()
+        for r in data["repos"]:
+            if r["state"] == "ready":
+                console.print(
+                    f"  [green]ready[/green]        {r['repo']:<18} "
+                    f"{r['current_version']} → [bold]{r['new_version']}[/bold]"
+                )
+            elif r["state"] == "up-to-date":
+                console.print(f"  [dim]up-to-date[/dim]   {r['repo']:<18} {r['current_version']}")
+            else:
+                console.print(f"  [red]blocked[/red]      {r['repo']:<18} {r['current_version']}")
+                for b in r["blockers"]:
+                    console.print(f"    [red]→[/red] {b}")
+        console.print(
+            "\n[dim]Release a ready repo with:  "
+            "mq-agent stack release --repo <name> --execute[/dim]"
+        )
+        raise typer.Exit(1 if data["blocked_count"] else 0)
 
     with console.status("[cyan]Planning release...[/cyan]" if not execute else "[cyan]Releasing...[/cyan]"):
         raw = _release(repo, bump=bump, version=version, execute=execute)
