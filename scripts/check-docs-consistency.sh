@@ -48,6 +48,17 @@ else
   fail "docs/index.html missing v${VERSION}"
 fi
 
+# Repo contract — the version surface the whole stack reads. Left ungated, a
+# stale value here fails the stack contract gate rather than this repo's own
+# checks, so the drift surfaces late and somewhere else. mq-hal#15 fixed the
+# same gap after it had already gone out in a release.
+CONTRACT_VER="$(python3 -c "import json; print(json.load(open('$ROOT/.mq/repo-contract.json'))['version'])")"
+if [[ "$CONTRACT_VER" == "$VERSION" ]]; then
+  ok ".mq/repo-contract.json version matches VERSION ($VERSION)"
+else
+  fail ".mq/repo-contract.json version '$CONTRACT_VER' != VERSION '$VERSION'"
+fi
+
 # Source readability guards
 for spec in \
   "README.md:200" \
