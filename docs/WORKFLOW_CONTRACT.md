@@ -39,7 +39,7 @@ approvals, mqlaunch routing, Bridget changes, or adaptive planning.
 
 ## Ownership boundary
 
-```
+```text
 mqlaunch   = operator surface
 mq-agent   = orchestration          <-- this contract lives here
 mq-mcp     = execution
@@ -114,7 +114,7 @@ plan shape.
 
 ### Workflow statuses
 
-```
+```text
 planned
 awaiting_approval
 running
@@ -162,7 +162,7 @@ completed
 
 ### Step statuses
 
-```
+```text
 pending
 blocked
 awaiting_approval
