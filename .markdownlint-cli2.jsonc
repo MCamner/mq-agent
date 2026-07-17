@@ -1,0 +1,16 @@
+{
+  // Rule config lives in .markdownlint.json (shared with the VS Code extension).
+  // This file only scopes which files markdownlint-cli2 and CI lint.
+  "globs": ["**/*.md"],
+  "ignores": [
+    ".venv/**",
+    "node_modules/**",
+    "backups/**",
+    // Agent/skill definitions embed example fences (nested ```), which the
+    // linter mis-pairs. Not hand-written prose.
+    ".claude/**",
+    ".agents/**",
+    // GitHub issue forms intentionally use bold labels and bare fences.
+    ".github/ISSUE_TEMPLATE/**"
+  ]
+}
