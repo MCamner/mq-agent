@@ -62,6 +62,12 @@ app.add_typer(stack_app, name="stack")
 
 app.add_typer(workflow_app, name="workflow")
 
+obsidian_app = typer.Typer(help="Read and action the mqobsidian promotion inbox.")
+app.add_typer(obsidian_app, name="obsidian")
+
+obsidian_inbox_app = typer.Typer(help="Read the canonical mqobsidian promotion inbox (read-only).")
+obsidian_app.add_typer(obsidian_inbox_app, name="inbox")
+
 agent_views_app = typer.Typer(help="Build compressed agent-view read cards in the mqobsidian vault.")
 app.add_typer(agent_views_app, name="agent-views")
 
@@ -2047,6 +2053,172 @@ def _print_delegated(title: str, result: dict) -> None:
     console.print(f"vault: {result['vault']}")
     for line in (result["stdout"] or result["stderr"]).splitlines():
         console.print(f"  {line}")
+
+
+# --- obsidian inbox surface (v1.22 Task 10) --------------------------------------
+# The stable, machine-readable surface mqlaunch delegates to. Ranking and promotion
+# logic stay in mq_agent.memory.inbox_pipeline; these commands only route. The
+# mutations are five named verbs, never a generic passthrough, and every one of
+# them previews unless the operator passes --confirm.
+
+_VAULT_OPT = typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")
+
+
+def _obsidian_read(fn, as_json: bool, title: str):
+    """Run a read against canonical exports, failing closed on any contract error."""
+    from mq_agent.memory.inbox_pipeline import ExportContractError
+
+    try:
+        payload = fn()
+    except ExportContractError as exc:
+        # --json must stay parseable even when failing, or mqlaunch cannot tell a
+        # contract error from a crash.
+        if as_json:
+            console.print_json(json.dumps({"ok": False, "error": str(exc)}))
+        else:
+            console.print(f"[red]error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    if as_json:
+        console.print_json(json.dumps(payload))
+    else:
+        console.print(f"[bold]{title}[/bold]")
+    return payload
+
+
+@obsidian_inbox_app.command("list")
+def obsidian_inbox_list_cmd(
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """List promotion candidates from mqobsidian's canonical inbox export (read-only)."""
+    from mq_agent.memory.inbox_pipeline import list_inbox_candidates
+
+    payload = _obsidian_read(lambda: list_inbox_candidates(vault=vault), as_json, "MQ obsidian inbox")
+    if not as_json:
+        console.print(f"candidates: {payload['count']}")
+        for item in payload["candidates"]:
+            console.print(f"  {item['state']:<10} {item['id']}", soft_wrap=True)
+    raise typer.Exit(0)
+
+
+@obsidian_inbox_app.command("read")
+def obsidian_inbox_read_cmd(
+    memory_id: Annotated[str, typer.Argument(help="Candidate memory_id")],
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Read one promotion candidate. Exits 1 when the candidate is not in the inbox."""
+    from mq_agent.memory.inbox_pipeline import read_inbox_candidate
+
+    payload = _obsidian_read(
+        lambda: read_inbox_candidate(memory_id, vault=vault), as_json, "MQ obsidian inbox read"
+    )
+    if not as_json:
+        console.print(json.dumps(payload["candidate"], indent=2) if payload["found"]
+                      else f"not in inbox: {memory_id}")
+    raise typer.Exit(0 if payload["found"] else 1)
+
+
+@obsidian_inbox_app.command("rank")
+def obsidian_inbox_rank_cmd(
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Rank candidates under mqobsidian's promotion policy (inbox_promotion_orchestration.v1).
+
+    `auto-promotable` means eligible for approval — never an unattended write.
+    """
+    from mq_agent.memory.inbox_pipeline import rank_inbox
+
+    payload = _obsidian_read(lambda: rank_inbox(vault=vault), as_json, "MQ obsidian inbox rank")
+    if not as_json:
+        counts = payload["counts"]
+        console.print(f"inbox: {counts['inbox']}  review-needed: {counts['review-needed']}  "
+                      f"auto-promotable: {counts['auto-promotable']}")
+        for c in payload["candidates"]:
+            reasons = f"  ({', '.join(c['review_reasons'])})" if c["review_reasons"] else ""
+            console.print(f"  {c['ranked_score']:>7}  {c['bucket']:<16} {c['memory_id']}{reasons}",
+                          soft_wrap=True)
+    raise typer.Exit(0)
+
+
+def _obsidian_transition(verb: str, memory_id: str, reason: str, confirm: bool,
+                         vault: str | None, as_json: bool, evidence: list[str] | None = None):
+    """Route one transition verb to its delegator. Preview unless --confirm."""
+    from mq_agent.memory import inbox_pipeline
+
+    fn = getattr(inbox_pipeline, f"run_{verb}")
+    kwargs = {"reason": reason, "apply": confirm, "vault": vault}
+    if evidence is not None:
+        kwargs["evidence"] = evidence
+    result = fn(memory_id, **kwargs)
+    if as_json:
+        console.print_json(json.dumps(result["result"] if result["result"] is not None
+                                      else {"ok": result["ok"], "stderr": result["stderr"]}))
+    else:
+        _print_delegated(f"MQ obsidian {verb}", result)
+    raise typer.Exit(0 if result["ok"] else 1)
+
+
+@obsidian_app.command("promote")
+def obsidian_promote_cmd(
+    memory_id: Annotated[str, typer.Argument(help="Candidate memory_id")],
+    reason: Annotated[str, typer.Option("--reason", help="Why this promotion is justified")],
+    evidence: Annotated[list[str] | None, typer.Option("--evidence", help="Published evidence ref (repeatable)")] = None,
+    confirm: Annotated[bool, typer.Option("--confirm", help="Apply the transition (default: dry-run)")] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Promote a candidate (candidate -> promoted). Requires traceable source evidence."""
+    _obsidian_transition("promote", memory_id, reason, confirm, vault, as_json, evidence or [])
+
+
+@obsidian_app.command("reject")
+def obsidian_reject_cmd(
+    memory_id: Annotated[str, typer.Argument(help="Candidate memory_id")],
+    reason: Annotated[str, typer.Option("--reason", help="Why this candidate is rejected")],
+    confirm: Annotated[bool, typer.Option("--confirm", help="Apply the transition (default: dry-run)")] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Reject a candidate (candidate -> archived). No durable learn record."""
+    _obsidian_transition("reject", memory_id, reason, confirm, vault, as_json)
+
+
+@obsidian_app.command("defer")
+def obsidian_defer_cmd(
+    memory_id: Annotated[str, typer.Argument(help="Candidate memory_id")],
+    reason: Annotated[str, typer.Option("--reason", help="Why this candidate is deferred")],
+    confirm: Annotated[bool, typer.Option("--confirm", help="Apply the transition (default: dry-run)")] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Defer a candidate (candidate -> observed). No durable learn record."""
+    _obsidian_transition("defer", memory_id, reason, confirm, vault, as_json)
+
+
+@obsidian_app.command("rollback")
+def obsidian_rollback_cmd(
+    memory_id: Annotated[str, typer.Argument(help="Promoted memory_id")],
+    reason: Annotated[str, typer.Option("--reason", help="Why this promotion is rolled back")],
+    confirm: Annotated[bool, typer.Option("--confirm", help="Apply the transition (default: dry-run)")] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Roll back a promotion (promoted -> candidate). Removes the generated learn projection."""
+    _obsidian_transition("rollback", memory_id, reason, confirm, vault, as_json)
+
+
+@obsidian_app.command("deprecate")
+def obsidian_deprecate_cmd(
+    memory_id: Annotated[str, typer.Argument(help="Promoted memory_id")],
+    reason: Annotated[str, typer.Option("--reason", help="Why this memory is deprecated")],
+    confirm: Annotated[bool, typer.Option("--confirm", help="Apply the transition (default: dry-run)")] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
+    vault: Annotated[str | None, _VAULT_OPT] = None,
+):
+    """Deprecate a promoted memory (promoted -> deprecated). Retains the record."""
+    _obsidian_transition("deprecate", memory_id, reason, confirm, vault, as_json)
 
 
 @memory_app.command("review-status")

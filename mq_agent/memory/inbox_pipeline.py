@@ -538,3 +538,81 @@ def run_resolve_supersede(memory_id: str, *, accept: bool, apply: bool = False,
     args = ["resolve-supersede", memory_id, "--accept" if accept else "--reject",
             *(["--apply"] if apply else [])]
     return {"vault": str(v), **_cli_stage(cli_runner, v, args)}
+
+
+# --- bounded transition delegators (v1.22 Task 9) --------------------------------
+# One function per mqobsidian transition verb, in the same explicit style as the
+# review delegators above: never a generic "run any mqobsidian command". Only the
+# operator's intent crosses the boundary — id, reason, and validated evidence
+# refs. mqobsidian reads its own scores, policy, and evidence; sending them would
+# make mq-agent a second source of truth.
+
+
+def _run_transition(verb: str, memory_id: str, *, reason: str, apply: bool,
+                    evidence: list[str] | None,
+                    vault: str | Path | None,
+                    cli_runner: Callable[..., tuple[int, str, str]] | None) -> dict:
+    # Resolved here, not bound as a default: a default is evaluated at import, so
+    # the seam would be frozen and a caller that does not pass one explicitly
+    # (the CLI) could never have it substituted.
+    runner = cli_runner or run_mqobsidian_cli
+    v = resolve_vault(vault)
+    args = [verb, memory_id, "--reason", reason]
+    for ref in evidence or []:
+        args += ["--evidence", ref]
+    if apply:
+        args.append("--apply")
+    stage = _cli_stage(runner, v, args)
+    # mqobsidian's transition verbs speak JSON. Parse it for the caller, but never
+    # let unparsable output raise: a crash there is a result to report, not an
+    # exception to swallow the exit code with.
+    try:
+        parsed = json.loads(stage["stdout"]) if stage["stdout"] else None
+    except json.JSONDecodeError:
+        parsed = None
+    return {"vault": str(v), "verb": verb, "result": parsed, **stage}
+
+
+def run_promote(memory_id: str, *, reason: str, evidence: list[str] | None = None,
+                apply: bool = False, vault: str | Path | None = None,
+                cli_runner: Callable[..., tuple[int, str, str]] | None = None) -> dict:
+    """Delegate `promote <id>` — candidate -> promoted. Preview unless ``apply``.
+
+    Evidence refs must already resolve in memory-evidence-manifest.v1; mqobsidian
+    refuses the transition if they do not, so an unresolvable ref cannot become
+    justification here either.
+    """
+    return _run_transition("promote", memory_id, reason=reason, apply=apply,
+                           evidence=evidence, vault=vault, cli_runner=cli_runner)
+
+
+def run_reject(memory_id: str, *, reason: str, apply: bool = False,
+               vault: str | Path | None = None,
+               cli_runner: Callable[..., tuple[int, str, str]] | None = None) -> dict:
+    """Delegate `reject <id>` — candidate -> archived. Preview unless ``apply``."""
+    return _run_transition("reject", memory_id, reason=reason, apply=apply,
+                           evidence=None, vault=vault, cli_runner=cli_runner)
+
+
+def run_defer(memory_id: str, *, reason: str, apply: bool = False,
+              vault: str | Path | None = None,
+              cli_runner: Callable[..., tuple[int, str, str]] | None = None) -> dict:
+    """Delegate `defer <id>` — candidate -> observed. Preview unless ``apply``."""
+    return _run_transition("defer", memory_id, reason=reason, apply=apply,
+                           evidence=None, vault=vault, cli_runner=cli_runner)
+
+
+def run_rollback(memory_id: str, *, reason: str, apply: bool = False,
+                 vault: str | Path | None = None,
+                 cli_runner: Callable[..., tuple[int, str, str]] | None = None) -> dict:
+    """Delegate `rollback <id>` — promoted -> candidate. Preview unless ``apply``."""
+    return _run_transition("rollback", memory_id, reason=reason, apply=apply,
+                           evidence=None, vault=vault, cli_runner=cli_runner)
+
+
+def run_deprecate(memory_id: str, *, reason: str, apply: bool = False,
+                  vault: str | Path | None = None,
+                  cli_runner: Callable[..., tuple[int, str, str]] | None = None) -> dict:
+    """Delegate `deprecate <id>` — promoted -> deprecated. Preview unless ``apply``."""
+    return _run_transition("deprecate", memory_id, reason=reason, apply=apply,
+                           evidence=None, vault=vault, cli_runner=cli_runner)

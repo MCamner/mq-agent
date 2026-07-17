@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from typer.testing import CliRunner
 
 from mq_agent.main import app
@@ -357,3 +359,98 @@ def test_counts_match_the_buckets():
     total = sum(ranking["counts"].values())
     assert total == len(ranking["candidates"])
     assert set(ranking["counts"]) == {"inbox", "review-needed", "auto-promotable"}
+
+
+# --- bounded transition delegators (v1.22 Task 9) ---------------------------
+#
+# One explicit function per mqobsidian verb — never a generic passthrough. These
+# assert the exact argv crossing the boundary, because that argv IS the contract
+# with mqobsidian's CLI; a silent change there is a silent change to what the
+# operator authorised.
+
+_VERBS = ("promote", "reject", "defer", "rollback", "deprecate")
+
+
+class _Recorder:
+    def __init__(self, rc: int = 0, out: str = '{"ok": true}', err: str = ""):
+        self.calls: list[list[str]] = []
+        self._result = (rc, out, err)
+
+    def __call__(self, vault: Path, args: list[str]):
+        self.calls.append(args)
+        return self._result
+
+
+def test_every_verb_previews_by_default():
+    for verb in _VERBS:
+        rec = _Recorder()
+        fn = getattr(ip, f"run_{verb}")
+        result = fn("m-1", reason="because", vault="/tmp/v", cli_runner=rec)
+        assert rec.calls == [[verb, "m-1", "--reason", "because"]], f"{verb}: {rec.calls}"
+        assert "--apply" not in rec.calls[0], f"{verb} must not write without confirmation"
+        assert result["ok"] is True
+
+
+def test_every_verb_applies_only_when_told():
+    for verb in _VERBS:
+        rec = _Recorder()
+        getattr(ip, f"run_{verb}")("m-1", reason="r", apply=True, vault="/tmp/v", cli_runner=rec)
+        assert rec.calls == [[verb, "m-1", "--reason", "r", "--apply"]], f"{verb}: {rec.calls}"
+
+
+def test_promote_passes_validated_evidence_refs():
+    rec = _Recorder()
+    ip.run_promote("m-1", reason="strong", evidence=["observation:o1", "observation:o2"],
+                   vault="/tmp/v", cli_runner=rec)
+    assert rec.calls == [[
+        "promote", "m-1", "--reason", "strong",
+        "--evidence", "observation:o1", "--evidence", "observation:o2",
+    ]]
+
+
+def test_delegators_pass_only_id_reason_and_evidence():
+    """No vault paths, no policy, no scores cross the boundary — mqobsidian
+    reads its own state. The delegator carries the operator's intent, nothing else."""
+    rec = _Recorder()
+    ip.run_promote("m-1", reason="r", evidence=["observation:o1"], vault="/tmp/v", cli_runner=rec)
+    argv = rec.calls[0]
+    assert not any(a.startswith("/") for a in argv), f"leaked a path into argv: {argv}"
+    assert not any(a in {"--out", "--inbox", "--exports", "--learn-dir"} for a in argv)
+
+
+def test_verb_errors_propagate_without_being_swallowed():
+    for verb in _VERBS:
+        rec = _Recorder(rc=1, out="", err="illegal transition")
+        result = getattr(ip, f"run_{verb}")("m-1", reason="r", vault="/tmp/v", cli_runner=rec)
+        assert result["ok"] is False and result["rc"] == 1, f"{verb} swallowed a failure"
+        assert result["stderr"] == "illegal transition"
+
+
+def test_reason_is_required_by_every_verb():
+    for verb in _VERBS:
+        with pytest.raises(TypeError):
+            getattr(ip, f"run_{verb}")("m-1", vault="/tmp/v", cli_runner=_Recorder())
+
+
+def test_only_promote_accepts_evidence():
+    """The other four verbs have no evidence argument to pass by mistake."""
+    for verb in ("reject", "defer", "rollback", "deprecate"):
+        with pytest.raises(TypeError):
+            getattr(ip, f"run_{verb}")("m-1", reason="r", evidence=["x"],
+                                       vault="/tmp/v", cli_runner=_Recorder())
+
+
+def test_json_stdout_is_parsed_for_the_caller():
+    rec = _Recorder(out='{"ok": true, "mode": "preview", "transition": {"verb": "promote"}}')
+    result = ip.run_promote("m-1", reason="r", evidence=["observation:o1"],
+                            vault="/tmp/v", cli_runner=rec)
+    assert result["result"]["transition"]["verb"] == "promote"
+
+
+def test_non_json_stdout_does_not_crash_the_delegator():
+    rec = _Recorder(rc=1, out="Traceback: something exploded")
+    result = ip.run_promote("m-1", reason="r", evidence=["observation:o1"],
+                            vault="/tmp/v", cli_runner=rec)
+    assert result["ok"] is False
+    assert result["result"] is None
+    assert "something exploded" in result["stdout"]
