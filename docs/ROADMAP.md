@@ -236,7 +236,7 @@ result. `mqlaunch` stays a thin delegate surface.
   evidence with an explicit `producer` and `schema_id`.
 * [x] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
   delegate to; keep ranking and promotion logic out of shell.
-* [ ] Register `inbox_promotion_orchestration.v1` in the repo contract.
+* [x] Register `inbox_promotion_orchestration.v1` in the repo contract.
 
 ---
 

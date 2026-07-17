@@ -9,6 +9,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* `mq-agent obsidian inbox list|read|rank` — the promotion inbox surface
+  `mqlaunch` delegates to, read from mqobsidian's canonical exports through the
+  single `truth-export-index.json` entrypoint. No raw-vault fallback; reads fail
+  closed on stale, missing, or drifted truth.
+* `mq-agent obsidian promote|reject|defer|rollback|deprecate` — five explicit
+  transition verbs, never a generic passthrough. Preview by default; `--confirm`
+  applies. Writes are delegated to mqobsidian, which owns the state machine.
+* `schemas/inbox_promotion_orchestration.v1.json` — the ranked-inbox contract,
+  registered in `.mq/repo-contract.json`. Policy weights and thresholds are
+  mqobsidian data; the formula and bucket routing are mq-agent code. Nothing is
+  hardcoded here.
+
+### Notes
+
+* v1.22 Task 8 (generalized evidence adapters) is **blocked by producer
+  contracts**, not deferred — see mqobsidian DEC-004. `mq-mcp review_file`
+  returns prose rather than JSON, and `repo-signal` declares
+  `readiness_score.v1` / `publish_checklist.v1` while emitting neither, so an
+  adapter could only be tested against invented fixtures. The working evidence
+  path (`run_cochange` → `memory-observation.v1`) is unaffected.
+
 ## [v1.21.0] — 2026-07-16
 
 Covers the v1.19.0 operator dashboard, v1.20.0 autonomous stack, and v1.21.0

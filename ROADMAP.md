@@ -144,23 +144,28 @@ taking over truth ownership or shell runtime.
 `mq-agent` runs the workflow. `mqobsidian` owns the schema and remembers the
 result. `mqlaunch` stays a thin delegate surface.
 
-* [ ] Add `mq-agent obsidian inbox list` / `inbox read` over canonical
+* [x] Add `mq-agent obsidian inbox list` / `inbox read` over canonical
   `mqobsidian` inbox exports (read-only).
-* [ ] Add `mq-agent obsidian inbox rank`: score candidates against the
+* [x] Add `mq-agent obsidian inbox rank`: score candidates against the
   canonical ranking fields, merging evidence across sources.
-* [ ] Add a review-needed vs auto-promotable classification flow using the
+* [x] Add a review-needed vs auto-promotable classification flow using the
   `mqobsidian` promotion-state model.
-* [ ] Add `mq-agent obsidian promote --dry-run` and `--confirm`, plus
+* [x] Add `mq-agent obsidian promote --dry-run` and `--confirm`, plus
   `reject/defer` and `rollback/deprecate` flows.
-* [ ] Require traceable source evidence before any promotion; keep mutation
+* [x] Require traceable source evidence before any promotion; keep mutation
   paths explicit and review-gated.
-* [ ] Validate expected `mqobsidian` manifests/views before workflow
+* [x] Validate expected `mqobsidian` manifests/views before workflow
   execution; fail safely on stale, missing, or drifted truth surfaces.
-* [ ] Accept `repo-signal` readiness and `mq-mcp` review outputs as evidence
-  inputs without moving truth ownership out of `mqobsidian`.
-* [ ] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
+* [ ] **Blocked** — accept `repo-signal` readiness and `mq-mcp` review outputs
+  as evidence inputs without moving truth ownership out of `mqobsidian`.
+  Blocked by producer contracts (mqobsidian DEC-004): `mq-mcp review_file` emits
+  prose, not JSON; `repo-signal` declares `readiness_score.v1` /
+  `publish_checklist.v1` but emits neither; and no repo-signal output carries a
+  candidate key. Unblocks when a producer emits candidate-bearing, bounded JSON
+  evidence with an explicit `producer` and `schema_id`.
+* [x] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
   delegate to; keep ranking and promotion logic out of shell.
-* [ ] Register `inbox_promotion_orchestration.v1` in the repo contract.
+* [x] Register `inbox_promotion_orchestration.v1` in the repo contract.
 
 ## v1.23.0 — Cross-repo release automation
 
