@@ -263,11 +263,41 @@ def plan_stack_release_all(bump: str = "patch") -> dict[str, Any]:
     }
 
 
+def _verify_release_shape(repo_path: Path) -> tuple[bool, str]:
+    """Re-check the release preconditions at execute time: on main and clean.
+
+    The plan enforces these too, but a plan is a snapshot — the checkout can
+    move to a feature branch or gain uncommitted changes between plan and
+    execute. Re-checking here, before any mutation, means a release is never
+    committed, tagged, or pushed from the wrong shape — the exact shape that
+    produced tags off unmerged feature branches. Read-only.
+    """
+    ok, branch = _run_git(["branch", "--show-current"], repo_path)
+    branch = branch.strip()
+    if not ok:
+        return False, f"could not determine branch: {branch}"
+    if branch not in ("main", "master"):
+        return False, (
+            f"repo is on '{branch or 'a detached HEAD'}', not main — "
+            "refusing to release off-main"
+        )
+    ok, out = _run_git(["status", "--short"], repo_path)
+    if not ok:
+        return False, f"could not check working tree: {out}"
+    if out.strip():
+        return False, "working tree is not clean — refusing to release from a dirty tree"
+    return True, ""
+
+
 def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
     """Execute a GO plan step by step. Aborts on the first failure.
 
     File edits made before the release commit are restored on failure, so an
     aborted run leaves the repo exactly as it was.
+
+    Before any mutation the plan's on-main and clean-tree preconditions are
+    re-verified against the live repo: a plan is a snapshot, and the checkout
+    may have moved off main or gone dirty since it was built.
     """
     result: dict[str, Any] = {
         "repo": plan.get("repo"),
@@ -286,6 +316,13 @@ def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
     path = Path(plan["path"])
     new_version: str = plan["new_version"]
     tag: str = plan["tag"]
+
+    shape_ok, shape_reason = _verify_release_shape(path)
+    if not shape_ok:
+        result["error"] = shape_reason
+        result["blockers"] = [shape_reason]
+        return result
+
     changed_files: list[Path] = []
     committed = False
 
