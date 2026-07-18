@@ -3,9 +3,9 @@
 Design for `mq-agent stack release --all --execute`: releasing several stack
 repos in one run over the existing single-repo primitive.
 
-**Status:** DRAFT — direction approved, decisions locked (see below). No
-execute code exists yet. This document is the specification the first code
-slice must satisfy.
+**Status:** IN PROGRESS — decisions locked (see below). The read-only preflight
+hook is shipped (`stack release --all --preflight`); no execute code exists yet.
+This document is the specification the remaining slices must satisfy.
 
 Related: [Stack Release](STACK_RELEASE.md) (single-repo pipeline),
 [Stack Contract Gate](STACK_CONTRACT_GATE.md).
@@ -147,15 +147,19 @@ a half-finished stack.
 
 | Invocation | Behavior | Mutates? |
 | --- | --- | --- |
-| `stack release --all` | Preflight report (today's behavior). Exit 1 if any `BLOCKED`. | No |
-| `stack release --all --execute --approve` | Preflight → fail-fast gate → execute in order. | Yes |
+| `stack release --all` | Soft plan report (ready/blocked/up-to-date). Exit 1 if any `BLOCKED`. | No |
+| `stack release --all --preflight` | **Shipped.** Strict read-only preflight — the full refusal surface, execute column always `—`. Exit 1 if any `BLOCKED`. | No |
+| `stack release --all --execute --approve` | Preflight → fail-fast gate → execute in order. | Yes (future) |
 | `stack release --all --execute` *without* `--approve` | Refused. Prints preflight + what *would* be released. Exit 1. | No |
 
+* `--all --preflight` is the read-only slice, shipped first (`preflight_stack_release_all`,
+  schema `mq_stack_release_all_execute.v1`). It runs the strict blockers below
+  including each repo's `release-check.sh`, never mutates, and never executes.
 * `--execute` alone is not enough: the stack convention is that write flows
   require an explicit `--approve`. Multi-repo release is the highest-consequence
   write flow — double confirmation.
 * `--all --execute` is currently hard-rejected (`test_all_execute_is_rejected`).
-  That guard stays until this design is implemented and tested.
+  That guard stays until the execute slice is built on top of the preflight hook.
 * Dry-run is always the default and always side-effect free.
 
 ---
@@ -201,16 +205,56 @@ a stopped run.
 | off-main | blocker | **BLOCKED** | `gate.on_main` |
 | target tag exists | blocker | **BLOCKED** | `_tag_exists` (#143) |
 | unpushed commits | warning | **BLOCKED** (locked 3) | `gate.unpushed` |
-| version mismatch | separate gate | **BLOCKED** (locked 4) | `stack_contract_check` |
-| failing repo test | not checked | **BLOCKED** (locked 1) | repo-local test target |
+| version mismatch | separate gate | **BLOCKED** (locked 4) | `VERSION` vs `.mq/repo-contract.json` |
+| failing repo test | not checked | **BLOCKED** (locked 1) | `release-check.sh` (see contract) |
 | no VERSION / no README | blocker | BLOCKED | `gate.blockers` |
 | no unreleased commits | blocker (→ up-to-date in `--all`) | UP-TO-DATE | `notes.has_changes` |
 
-The failing-repo-test blocker (locked decision 1) is the only one without a
-ready read-only primitive today: it requires preflight to run each repo's own
-release/preflight test target. `mq-mcp-review` may aggregate or supplement the
-result, but the authoritative check is the repo-local one — each repo owns its
-own releasability.
+The failing-repo-test blocker (locked decision 1) is the one without a
+pre-existing primitive; its contract is defined below.
+
+---
+
+## Repo release-check contract (`repo_release_check.v1`)
+
+Every MQ repo owns its own "am I releasable?" check behind one canonical
+read-only entrypoint. `mq-agent` runs exactly this and reads its verdict — it
+never auto-discovers or interprets individual `check-*.sh` scripts.
+
+Entrypoint (run by preflight from the repo root):
+
+```bash
+./release-check.sh --dry-run --json
+```
+
+Rules — the repo is `BLOCKED` if any hold:
+
+* `release-check.sh` is missing at the repo root
+* the script is not executable
+* it exits non-zero
+* it emits invalid JSON
+* it reports `status` other than `READY`
+
+The script must be **read-only** in preflight: no version bump, changelog write,
+commit, tag, push, truth-export, or working-directory change. A repo with
+scattered `check-*.sh` may orchestrate them internally; a repo with an existing
+`scripts/release-check.sh` may wrap it thinly.
+
+Output shape:
+
+```json
+{
+  "schema": "repo_release_check.v1",
+  "repo": "mq-agent",
+  "status": "READY",
+  "blockers": [],
+  "warnings": [],
+  "evidence": {}
+}
+```
+
+`status` is `READY` or `BLOCKED`. Adoption of the entrypoint in each repo is a
+separate rollout; until a repo ships it, preflight reports that repo `BLOCKED`.
 
 ---
 
@@ -263,11 +307,16 @@ a preflight/refusal behavior, verifiable without performing a real release:
 
 Implement in slices, preflight first:
 
-1. **Preflight hook** — the read-only aggregate with the hardened blocking
-   states and the fail-fast gate, reported via `mq_stack_release_all_execute.v1`
-   but with the execute column always `—`. Ships the whole refusal surface and
-   its tests without any mutation.
-2. **Execute** — only after the preflight hook and its tests are in place: wire
-   the gate to the existing per-repo `execute_stack_release`, in explicit
-   `MQ_STACK_REPOS` order, behind `--execute --approve`, with stop-on-first-
-   failure and the exact report.
+1. **Preflight hook** — **SHIPPED.** `preflight_stack_release_all` +
+   `stack release --all --preflight`: the read-only aggregate with the hardened
+   blocking states and the fail-fast gate, reported via
+   `mq_stack_release_all_execute.v1` with every `execute_state` `None`. The whole
+   refusal surface and its tests, no mutation.
+2. **Repo release-check rollout** — each repo grows a conforming
+   `release-check.sh` (see the contract above). Until then preflight reports
+   those repos `BLOCKED`. Independent per repo.
+3. **Execute** — only after the preflight hook and the rollout: wire the gate to
+   the existing per-repo `execute_stack_release`, in explicit `MQ_STACK_REPOS`
+   order, behind `--execute --approve`, with stop-on-first-failure and the exact
+   report. The two execute-phase test requirements (repo 2 of 5 fails → rest
+   `SKIPPED`; already-released repo not rolled back) land with this slice.

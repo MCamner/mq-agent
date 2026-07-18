@@ -4292,6 +4292,7 @@ def stack_release_cmd(
     bump: Annotated[str, typer.Option("--bump", help="Version bump: patch, minor or major")] = "patch",
     version: Annotated[str, typer.Option("--version", help="Explicit target version (overrides --bump)")] = "",
     execute: Annotated[bool, typer.Option("--execute", help="Apply the release (default is dry-run)")] = False,
+    preflight: Annotated[bool, typer.Option("--preflight", help="Read-only multi-repo release preflight (strict blockers; never executes). Requires --all.")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Orchestrated single-repo release: gate, bump, changelog, tag, push, truth-export.
@@ -4305,10 +4306,16 @@ def stack_release_cmd(
     With --all, plans a release for every stack repo at once (dry-run only):
     each repo is reported as ready, blocked, or up-to-date. Exits 1 if any repo
     is blocked. Release a ready repo with --repo <name> --execute.
+
+    With --all --preflight, runs the read-only multi-repo release preflight: the
+    strict fail-fast refusal surface (dirty, off-main, unpushed, tag exists,
+    version mismatch, and each repo's release-check.sh). Never mutates and never
+    executes; exits 1 if any repo is blocked.
     """
     from mq_agent.tools.stack_release import (
         BUMP_PARTS,
         plan_stack_release_all,
+        preflight_stack_release_all,
         stack_release as _release,
     )
 
@@ -4322,8 +4329,53 @@ def stack_release_cmd(
     if not all_repos and not repo:
         console.print("[bold red]Provide --repo <name> or --all.[/bold red]")
         raise typer.Exit(1)
+    if preflight and not all_repos:
+        console.print("[bold red]--preflight requires --all.[/bold red]")
+        raise typer.Exit(1)
+    if preflight and execute:
+        console.print("[bold red]--preflight is read-only and cannot be combined with --execute.[/bold red]")
+        raise typer.Exit(1)
 
     if all_repos:
+        if preflight:
+            with console.status("[cyan]Preflighting stack release...[/cyan]"):
+                data = preflight_stack_release_all(bump=bump)
+            if json_out:
+                typer.echo(json.dumps(data, indent=2, default=str))
+                raise typer.Exit(1 if data["blocked_count"] else 0)
+            console.print()
+            console.rule("[bold]Stack Release — preflight (read-only)[/bold]")
+            console.print()
+            console.print(
+                f"[dim]bump {data['bump']}  ·  ready {data['ready_count']}  ·  "
+                f"blocked {data['blocked_count']}  ·  up-to-date {data['uptodate_count']}[/dim]"
+            )
+            console.print()
+            for r in data["repos"]:
+                state = r["preflight_state"]
+                if state == "READY":
+                    console.print(
+                        f"  [green]READY[/green]        {r['repo']:<18} "
+                        f"{r['current_version']} → [bold]{r['new_version']}[/bold]"
+                    )
+                elif state == "UP-TO-DATE":
+                    console.print(f"  [dim]UP-TO-DATE[/dim]   {r['repo']:<18} {r['current_version']}")
+                else:
+                    console.print(f"  [red]BLOCKED[/red]      {r['repo']:<18} {r['current_version']}")
+                    for b in r["blockers"]:
+                        console.print(f"    [red]→[/red] {b}")
+            console.print()
+            if data["would_execute"]:
+                console.print(
+                    "[green]Preflight clean.[/green] "
+                    "[dim]Multi-repo execute is not implemented yet (design-locked).[/dim]"
+                )
+            else:
+                console.print(
+                    "[bold red]Preflight blocked[/bold red] — a multi-repo execute "
+                    "would abort in this phase, before any mutation."
+                )
+            raise typer.Exit(1 if data["blocked_count"] else 0)
         if execute:
             console.print(
                 "[bold red]--all is dry-run only.[/bold red] "
