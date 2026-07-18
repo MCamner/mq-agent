@@ -296,10 +296,11 @@ tagged-off-main release shape that produced it.
 **Recommended reframe.** Point v1.23.0 at making the correct path the only
 path, not at rebuilding the plan/prepare/execute surface:
 
-* [ ] Converge the release paths: either retire each repo's `release.sh` in
+* [x] Converge the release paths: either retire each repo's `release.sh` in
   favour of `stack release`, or make `release.sh` sync `.mq/repo-contract.json`
   through the same logic, so the contract cannot drift regardless of which path
-  runs.
+  runs. Done — each repo's `release.sh` now syncs the contract (or validates
+  it): mq-mcp #46, macos-scripts #55, repo-signal #15.
 * [x] Add multi-repo orchestration over the existing single-repo primitive
   (`stack release` is one repo at a time) — refuse any repo that is dirty, off
   main, or already tagged at the target version. `stack release --all` (#141)
@@ -319,8 +320,11 @@ path, not at rebuilding the plan/prepare/execute surface:
   Slice 1 **shipped**: the read-only preflight hook `stack release --all
   --preflight` (`preflight_stack_release_all`, schema
   `mq_stack_release_all_execute.v1`) — the full refusal surface incl. each repo's
-  `release-check.sh` (`repo_release_check.v1`), never mutates. Remaining:
-  per-repo `release-check.sh` rollout, then the execute slice.
+  `release-check.sh` (`repo_release_check.v1`), never mutates. Slice 2 (per-repo
+  `release-check.sh` rollout) in progress — **3/8**: mq-agent #147, mq-hal #17,
+  mqobsidian #50; the other five were off-main in the live drive (unmerged
+  feature branches) and block on that first. Remaining: finish the rollout, then
+  the execute slice (`--execute --approve`, stop-on-first-failure).
 * [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
   `v1.4.1`) — leave as known-bad history, or delete and re-release cleanly
   through `stack release`. Tag deletion is destructive and is the operator's
