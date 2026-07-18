@@ -283,7 +283,11 @@ def _run_release_check(repo_path: Path) -> tuple[bool, list[str]]:
     try:
         proc = subprocess.run(
             ["./release-check.sh", "--dry-run", "--json"],
-            cwd=repo_path, text=True, capture_output=True, timeout=120,
+            # A conforming release-check runs the repo's own suite; repos with
+            # heavy dependencies (ML imports, a full test run) legitimately take
+            # over a minute on a cold cache. Allow generous headroom so a real
+            # check is not reported as a timeout-BLOCKED false positive.
+            cwd=repo_path, text=True, capture_output=True, timeout=300,
         )
     except Exception as exc:
         return False, [f"release-check.sh failed to run: {exc}"]
