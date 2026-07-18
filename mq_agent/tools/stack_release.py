@@ -31,6 +31,21 @@ def _run_git(args: list[str], cwd: Path) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def _tag_exists(repo_path: Path, tag: str) -> bool:
+    """True if the tag exists locally or on the tracked remote 'origin'.
+
+    Local catches the drift case (a tag cut off a feature branch that never
+    reached main); the remote check catches a tag already published to origin
+    but pruned locally. A failing remote lookup (no origin, offline) is treated
+    as 'not found' so the plan never blocks on network flakiness.
+    """
+    ok, out = _run_git(["tag", "--list", tag], repo_path)
+    if ok and out.strip():
+        return True
+    ok, out = _run_git(["ls-remote", "--tags", "origin", f"refs/tags/{tag}"], repo_path)
+    return ok and bool(out.strip())
+
+
 def bump_version(version: str, part: str) -> str:
     """Bump a semver X.Y.Z string by patch/minor/major."""
     m = _SEMVER_RE.match(version)
@@ -168,6 +183,13 @@ def plan_stack_release(
             blockers.append(str(exc))
             new_version = "?"
     plan["new_version"] = new_version
+
+    # A tag already at the target version is the drift failure mode: a release
+    # for this version was already cut (often off a feature branch that never
+    # reached main). Executing would build a release commit and then abort at
+    # the tag step — after the commit — leaving a dangling commit. Refuse here.
+    if new_version != "?" and _tag_exists(path, f"v{new_version}"):
+        blockers.append(f"target version v{new_version} is already tagged")
 
     plan["commits"] = notes.get("commits", [])
     plan["last_tag"] = notes.get("last_tag")
