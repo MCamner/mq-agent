@@ -9,6 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+* `release-check.sh` now conforms to the `repo_release_check.v1` contract:
+  `--json` emits the machine-readable object (`schema`, `repo`, `status`,
+  `blockers`, `warnings`, `evidence`) on stdout and exits 0; `--dry-run` is
+  accepted (the check is already read-only). Human mode is unchanged. mq-agent
+  is the first repo to satisfy the multi-repo preflight's release-check gate.
+
 ### Added
 
 * `plan_stack_release` now refuses a target version whose tag already exists

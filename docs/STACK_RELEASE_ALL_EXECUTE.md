@@ -314,7 +314,9 @@ Implement in slices, preflight first:
    refusal surface and its tests, no mutation.
 2. **Repo release-check rollout** — each repo grows a conforming
    `release-check.sh` (see the contract above). Until then preflight reports
-   those repos `BLOCKED`. Independent per repo.
+   those repos `BLOCKED`. Independent per repo. **mq-agent is done** (its
+   existing check now emits `repo_release_check.v1` under `--json`) and is the
+   reference for the rest.
 3. **Execute** — only after the preflight hook and the rollout: wire the gate to
    the existing per-repo `execute_stack_release`, in explicit `MQ_STACK_REPOS`
    order, behind `--execute --approve`, with stop-on-first-failure and the exact
