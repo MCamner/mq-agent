@@ -15,6 +15,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   (locally or on `origin`), so `stack release` cannot re-cut an existing tag.
   Without it, `execute` built the release commit and only then aborted at the
   tag step, leaving a dangling commit — the drift shape v1.23.0 targets.
+* `execute_stack_release` re-verifies the on-main and clean-tree preconditions
+  against the live repo before any mutation, so a plan built on main cannot
+  release once the checkout has moved to a feature branch or gone dirty. It
+  aborts with a clear reason, creating no commit, tag, or push.
 
 ## [v1.22.0] — 2026-07-17
 

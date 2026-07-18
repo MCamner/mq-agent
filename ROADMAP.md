@@ -306,8 +306,13 @@ path, not at rebuilding the plan/prepare/execute surface:
   aggregates the per-repo plan; the plan refuses dirty and off-main, and now
   also refuses a target version whose tag already exists locally or on origin —
   the drift shape that would otherwise abort mid-release after the commit.
-* [ ] Enforce on-main releases: a tag cut off a feature branch that never
-  reaches `main` is the failure mode that produced the current drift.
+* [x] Enforce on-main releases: a tag cut off a feature branch that never
+  reaches `main` is the failure mode that produced the current drift. The plan
+  blocks off-main, and `execute_stack_release` now re-verifies on-main and a
+  clean tree against the live repo before any mutation — so a plan built on main
+  cannot cut a tag once the checkout has moved off main or gone dirty. Broader
+  enforcement (server-side branch protection) stays out of scope; this is the
+  local release-shape guard.
 * [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
   `v1.4.1`) — leave as known-bad history, or delete and re-release cleanly
   through `stack release`. Tag deletion is destructive and is the operator's

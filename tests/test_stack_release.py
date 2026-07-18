@@ -192,6 +192,35 @@ class TestExecuteStackRelease:
         assert "NO-GO" in result["error"]
         assert result["steps"] == []
 
+    def test_refuses_when_switched_off_main_after_plan(self, stack_repo):
+        # A GO plan built on main must not execute if the checkout moved to a
+        # feature branch between plan and execute — the shape that cut the
+        # drifted tags. Nothing may be created.
+        plan = plan_stack_release("mq-agent")
+        assert plan["go"] is True
+        _git(["switch", "-c", "feature"], stack_repo)
+        result = execute_stack_release(plan)
+        assert result["ok"] is False
+        assert result["released"] is False
+        assert "main" in result["error"].lower()
+        assert result["steps"] == []
+        assert (stack_repo / "VERSION").read_text().strip() == "1.0.0"
+        tags = subprocess.run(["git", "tag"], cwd=stack_repo,
+                              capture_output=True, text=True, check=True).stdout
+        assert "v1.0.1" not in tags
+
+    def test_refuses_when_tree_dirtied_after_plan(self, stack_repo):
+        # A tree dirtied after planning must abort before any mutation, so a
+        # release is never cut from an unclean tree.
+        plan = plan_stack_release("mq-agent")
+        (stack_repo / "sneaky.txt").write_text("x\n")
+        result = execute_stack_release(plan)
+        assert result["ok"] is False
+        assert result["released"] is False
+        assert "clean" in result["error"].lower() or "dirty" in result["error"].lower()
+        assert result["steps"] == []
+        assert (stack_repo / "VERSION").read_text().strip() == "1.0.0"
+
     def test_full_release_succeeds(self, stack_repo):
         plan = plan_stack_release("mq-agent", bump="minor")
         with self._truth_patch():
