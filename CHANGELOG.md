@@ -11,6 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+* The multi-repo preflight's per-repo `release-check.sh` timeout is raised from
+  120s to 300s. Repos with heavy dependencies (ML imports) running their full
+  suite legitimately exceed a minute on a cold cache; the tighter limit reported
+  them as timeout-BLOCKED false positives.
 * `release-check.sh` now conforms to the `repo_release_check.v1` contract:
   `--json` emits the machine-readable object (`schema`, `repo`, `status`,
   `blockers`, `warnings`, `evidence`) on stdout and exits 0; `--dry-run` is
