@@ -144,6 +144,30 @@ class TestPlanStackRelease:
         assert plan["go"] is False
         assert any("not on main" in b for b in plan["blockers"])
 
+    def test_already_tagged_target_version_is_no_go(self, stack_repo):
+        # The target tag already exists locally — the drift failure mode: a
+        # release for this version was already cut. Target v1.0.0 explicitly so
+        # unreleased commits remain present and this is the new blocker.
+        plan = plan_stack_release("mq-agent", version="1.0.0")
+        assert plan["go"] is False
+        assert any("already tagged" in b.lower() for b in plan["blockers"])
+
+    def test_target_tagged_only_on_remote_is_no_go(self, stack_repo):
+        # A tag pushed to origin but pruned locally must still block, so a
+        # re-release cannot collide with an already-published tag.
+        _git(["push", "origin", "v1.0.0"], stack_repo)
+        _git(["tag", "-d", "v1.0.0"], stack_repo)
+        plan = plan_stack_release("mq-agent", version="1.0.0")
+        assert plan["go"] is False
+        assert any("already tagged" in b.lower() for b in plan["blockers"])
+
+    def test_new_tag_not_blocked_by_tag_check(self, stack_repo):
+        # A target version with no existing tag stays GO — the check must not
+        # over-block.
+        plan = plan_stack_release("mq-agent", version="9.9.9")
+        assert plan["go"] is True
+        assert not any("already tagged" in b.lower() for b in plan["blockers"])
+
     def test_plan_is_read_only(self, stack_repo):
         plan_stack_release("mq-agent")
         assert (stack_repo / "VERSION").read_text().strip() == "1.0.0"

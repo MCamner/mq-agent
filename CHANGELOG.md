@@ -9,6 +9,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* `plan_stack_release` now refuses a target version whose tag already exists
+  (locally or on `origin`), so `stack release` cannot re-cut an existing tag.
+  Without it, `execute` built the release commit and only then aborted at the
+  tag step, leaving a dangling commit — the drift shape v1.23.0 targets.
+
 ## [v1.22.0] — 2026-07-17
 
 ### Added

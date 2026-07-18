@@ -300,9 +300,12 @@ path, not at rebuilding the plan/prepare/execute surface:
   favour of `stack release`, or make `release.sh` sync `.mq/repo-contract.json`
   through the same logic, so the contract cannot drift regardless of which path
   runs.
-* [ ] Add multi-repo orchestration over the existing single-repo primitive
+* [x] Add multi-repo orchestration over the existing single-repo primitive
   (`stack release` is one repo at a time) — refuse any repo that is dirty, off
-  main, or already tagged at the target version.
+  main, or already tagged at the target version. `stack release --all` (#141)
+  aggregates the per-repo plan; the plan refuses dirty and off-main, and now
+  also refuses a target version whose tag already exists locally or on origin —
+  the drift shape that would otherwise abort mid-release after the commit.
 * [ ] Enforce on-main releases: a tag cut off a feature branch that never
   reaches `main` is the failure mode that produced the current drift.
 * [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
