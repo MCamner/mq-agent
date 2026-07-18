@@ -1,22 +1,52 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Canonical repo releasability check. Read-only.
+#
+# Human mode (no flags): prints per-check OK/FAIL, exits 1 on any failure.
+# Contract mode (--json): emits a repo_release_check.v1 object on stdout and
+#   exits 0 (the `status` field carries the verdict). Consumed by mq-agent's
+#   `stack release --all --preflight`.
+# --dry-run is accepted for contract compatibility; this check never mutates,
+#   so it is a no-op here.
+set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$ROOT/VERSION")"
-ERRORS=0
+
+JSON=0
+for arg in "$@"; do
+  case "$arg" in
+    --json) JSON=1 ;;
+    --dry-run) : ;;
+    *) ;;
+  esac
+done
 
 export UV_CACHE_DIR="${UV_CACHE_DIR:-${TMPDIR:-/tmp}/mq-agent-uv-cache}"
 
-# Handles fail.
-fail() { echo "FAIL: $1" >&2; ERRORS=$((ERRORS + 1)); }
-# Handles ok.
-ok()   { echo "OK:   $1"; }
+BLOCKERS=()
 
-echo "=== mq-agent release-check v${VERSION} ==="
+say()  { [[ "$JSON" -eq 1 ]] || echo "$1"; }
+ok()   { [[ "$JSON" -eq 1 ]] || echo "OK:   $1"; }
+fail() { BLOCKERS+=("$1"); [[ "$JSON" -eq 1 ]] || echo "FAIL: $1" >&2; }
+
+# run_check LABEL CMD...  — records a blocker on non-zero exit; keeps stdout
+# clean in JSON mode by routing captured output to stderr only.
+run_check() {
+  local label="$1"; shift
+  local out
+  if out="$("$@" 2>&1)"; then
+    ok "$label"
+  else
+    fail "$label"
+    [[ "$JSON" -eq 1 ]] || printf '%s\n' "$out" >&2
+  fi
+}
+
+say "=== mq-agent release-check v${VERSION} ==="
 
 # Version lock
-echo ""
-echo "--- Version lock ---"
+say ""
+say "--- Version lock ---"
 LOCK_VERSION="$(awk '
   $0 == "[[package]]" { in_package=1; name=""; version=""; next }
   in_package && /^name = "mq-agent"/ { name="mq-agent"; next }
@@ -33,70 +63,56 @@ else
   fail "uv.lock mq-agent version '$LOCK_VERSION' != VERSION '$VERSION'"
 fi
 
-# Tests
-echo ""
-echo "--- Tests ---"
-if (cd "$ROOT" && uv run --extra dev --extra signal pytest tests/ -q --tb=no > /dev/null 2>&1); then
-  ok "pytest"
-else
-  fail "pytest — run: uv run --extra dev --extra signal pytest tests/ -v"
-fi
+say ""
+say "--- Tests ---"
+run_check "pytest" uv run --extra dev --extra signal pytest tests/ -q --tb=no
 
-# Lint
-echo ""
-echo "--- Lint ---"
-if (cd "$ROOT" && uv run --extra dev ruff check mq_agent/ > /dev/null 2>&1); then
-  ok "ruff"
-else
-  fail "ruff — run: uv run --extra dev ruff check mq_agent/"
-fi
+say ""
+say "--- Lint ---"
+run_check "ruff" uv run --extra dev ruff check mq_agent/
 
-# Docs consistency
-echo ""
-echo "--- Docs consistency ---"
-if bash "$ROOT/scripts/check-docs-consistency.sh" > /dev/null 2>&1; then
-  ok "check-docs-consistency.sh"
-else
-  bash "$ROOT/scripts/check-docs-consistency.sh" || true
-  ERRORS=$((ERRORS + 1))
-fi
+say ""
+say "--- Docs consistency ---"
+run_check "check-docs-consistency.sh" bash "$ROOT/scripts/check-docs-consistency.sh"
 
-# Skills consistency
-echo ""
-echo "--- Skills consistency ---"
-if bash "$ROOT/scripts/check-skills.sh" > /dev/null 2>&1; then
-  ok "check-skills.sh"
-else
-  bash "$ROOT/scripts/check-skills.sh" || true
-  ERRORS=$((ERRORS + 1))
-fi
+say ""
+say "--- Skills consistency ---"
+run_check "check-skills.sh" bash "$ROOT/scripts/check-skills.sh"
 
-# mqlaunch integration smoke
-echo ""
-echo "--- mqlaunch smoke ---"
-if bash "$ROOT/scripts/smoke-mqlaunch.sh" > /dev/null 2>&1; then
-  ok "smoke-mqlaunch.sh"
-else
-  bash "$ROOT/scripts/smoke-mqlaunch.sh" || true
-  ERRORS=$((ERRORS + 1))
-fi
+say ""
+say "--- mqlaunch smoke ---"
+run_check "smoke-mqlaunch.sh" bash "$ROOT/scripts/smoke-mqlaunch.sh"
 
-# Memory smoke
-echo ""
-echo "--- memory smoke ---"
-if bash "$ROOT/scripts/smoke-memory.sh" > /dev/null 2>&1; then
-  ok "smoke-memory.sh"
-else
-  bash "$ROOT/scripts/smoke-memory.sh" || true
-  ERRORS=$((ERRORS + 1))
-fi
+say ""
+say "--- memory smoke ---"
+run_check "smoke-memory.sh" bash "$ROOT/scripts/smoke-memory.sh"
 
 # Summary
+if [[ "$JSON" -eq 1 ]]; then
+  status=READY
+  [[ "${#BLOCKERS[@]}" -gt 0 ]] && status=BLOCKED
+  python3 - "$status" "$VERSION" ${BLOCKERS[@]+"${BLOCKERS[@]}"} <<'PY'
+import json
+import sys
+
+status, version, *blockers = sys.argv[1:]
+print(json.dumps({
+    "schema": "repo_release_check.v1",
+    "repo": "mq-agent",
+    "status": status,
+    "blockers": blockers,
+    "warnings": [],
+    "evidence": {"version": version},
+}))
+PY
+  exit 0
+fi
+
 echo ""
-if [[ "$ERRORS" -eq 0 ]]; then
+if [[ "${#BLOCKERS[@]}" -eq 0 ]]; then
   echo "=== All checks passed — ready to release v${VERSION} ==="
   echo "Next: push a release-prep branch, open a PR, wait for CI, then tag from merged main."
 else
-  echo "=== $ERRORS check(s) failed — fix before releasing ===" >&2
+  echo "=== ${#BLOCKERS[@]} check(s) failed — fix before releasing ===" >&2
   exit 1
 fi
