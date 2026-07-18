@@ -8,6 +8,7 @@ made before the release commit are rolled back so no repo is half-released.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from datetime import UTC, datetime
@@ -260,6 +261,128 @@ def plan_stack_release_all(bump: str = "patch") -> dict[str, Any]:
         "blocked_count": blocked_count,
         "uptodate_count": uptodate_count,
         "overall_go": go_count > 0,
+    }
+
+
+def _run_release_check(repo_path: Path) -> tuple[bool, list[str]]:
+    """Run the repo's canonical read-only releasability check.
+
+    Contract: `./release-check.sh --dry-run --json` at the repo root, emitting a
+    `repo_release_check.v1` object {schema, repo, status (READY|BLOCKED),
+    blockers[], warnings[], evidence{}}. Returns (ok, blockers). BLOCKED when the
+    script is missing, not executable, exits non-zero, emits invalid JSON, or
+    reports status != READY. mq-agent runs the entrypoint and reads its verdict;
+    it never inspects individual `check-*.sh` scripts — each repo owns its own
+    releasability behind the one entrypoint.
+    """
+    script = repo_path / "release-check.sh"
+    if not script.exists():
+        return False, ["no release-check.sh at repo root"]
+    if not os.access(script, os.X_OK):
+        return False, ["release-check.sh is not executable"]
+    try:
+        proc = subprocess.run(
+            ["./release-check.sh", "--dry-run", "--json"],
+            cwd=repo_path, text=True, capture_output=True, timeout=120,
+        )
+    except Exception as exc:
+        return False, [f"release-check.sh failed to run: {exc}"]
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+        tail = detail[-1] if detail else f"exit {proc.returncode}"
+        return False, [f"release-check.sh exit {proc.returncode}: {tail}"]
+    try:
+        data = json.loads(proc.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return False, ["release-check.sh emitted invalid JSON"]
+    status = data.get("status")
+    if status == "READY":
+        return True, []
+    reported = [str(b) for b in data.get("blockers", [])]
+    return False, reported or [f"release-check.sh reported {status!r}"]
+
+
+def _version_mismatch(repo_path: Path, version: str) -> str | None:
+    """Return a reason if VERSION disagrees with the repo contract version."""
+    contract_path = repo_path / ".mq" / "repo-contract.json"
+    if not contract_path.exists():
+        return None
+    try:
+        contract = json.loads(contract_path.read_text())
+    except (json.JSONDecodeError, ValueError, OSError):
+        return "unreadable .mq/repo-contract.json"
+    cver = contract.get("version")
+    if cver and version != "?" and cver != version:
+        return f"VERSION {version} != contract {cver}"
+    return None
+
+
+def preflight_stack_release_all(bump: str = "patch") -> dict[str, Any]:
+    """Read-only multi-repo release preflight — the fail-fast refusal surface.
+
+    Runs the single-repo plan per repo in explicit `MQ_STACK_REPOS` order, then
+    applies the stricter multi-repo blocking states that a partial release makes
+    too costly to leave as warnings: unpushed commits, VERSION/contract version
+    mismatch, and each repo's own `release-check.sh` verdict. Never mutates and
+    never executes — every repo's `execute_state` is `None`. Any `BLOCKED` repo
+    means a real `--all --execute` run would abort in this phase, before any
+    mutation (schema `mq_stack_release_all_execute.v1`).
+    """
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand
+
+    repos: list[dict[str, Any]] = []
+    ready_count = blocked_count = uptodate_count = 0
+    for entry in MQ_STACK_REPOS:
+        plan = plan_stack_release(entry["name"], bump=bump)
+        blockers = list(plan.get("blockers", []))
+        is_uptodate = bool(blockers) and all(
+            b.startswith("no unreleased commits") for b in blockers
+        )
+
+        path = _expand(entry["path"])
+        if not is_uptodate and path.exists():
+            unpushed = plan.get("gate", {}).get("unpushed", 0)
+            if unpushed:
+                blockers.append(f"{unpushed} unpushed commit(s) — push before releasing")
+            mismatch = _version_mismatch(path, plan.get("current_version", "?"))
+            if mismatch:
+                blockers.append(f"version mismatch: {mismatch}")
+            ok, rc_blockers = _run_release_check(path)
+            if not ok:
+                blockers.extend(f"release-check: {b}" for b in rc_blockers)
+
+        if is_uptodate:
+            state = "UP-TO-DATE"
+            uptodate_count += 1
+        elif blockers:
+            state = "BLOCKED"
+            blocked_count += 1
+        else:
+            state = "READY"
+            ready_count += 1
+
+        repos.append({
+            "repo": entry["name"],
+            "preflight_state": state,
+            "execute_state": None,
+            "current_version": plan.get("current_version", "?"),
+            "new_version": plan.get("new_version") if state == "READY" else None,
+            "tag": plan.get("tag") if state == "READY" else None,
+            "blockers": blockers if state == "BLOCKED" else [],
+        })
+
+    return {
+        "schema": "mq_stack_release_all_execute.v1",
+        "planned_at": datetime.now(UTC).isoformat(),
+        "executed_at": None,
+        "bump": bump,
+        "approved": False,
+        "aborted_phase": "preflight" if blocked_count else "none",
+        "repos": repos,
+        "ready_count": ready_count,
+        "blocked_count": blocked_count,
+        "uptodate_count": uptodate_count,
+        "would_execute": ready_count > 0 and blocked_count == 0,
     }
 
 

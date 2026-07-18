@@ -19,6 +19,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   against the live repo before any mutation, so a plan built on main cannot
   release once the checkout has moved to a feature branch or gone dirty. It
   aborts with a clear reason, creating no commit, tag, or push.
+* `stack release --all --preflight` — read-only multi-repo release preflight
+  (`preflight_stack_release_all`, schema `mq_stack_release_all_execute.v1`). The
+  strict fail-fast refusal surface: dirty, off-main, unpushed commits, target
+  tag exists, `VERSION`/contract mismatch, and each repo's read-only
+  `release-check.sh --dry-run --json` (`repo_release_check.v1`) verdict. Never
+  mutates and never executes; exits 1 if any repo is blocked. First slice of the
+  multi-repo execute design (`docs/STACK_RELEASE_ALL_EXECUTE.md`).
 
 ## [v1.22.0] — 2026-07-17
 

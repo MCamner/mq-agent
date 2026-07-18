@@ -14,6 +14,7 @@ from mq_agent.tools.stack_release import (
     execute_stack_release,
     plan_stack_release,
     plan_stack_release_all,
+    preflight_stack_release_all,
     stack_release,
 )
 
@@ -465,4 +466,204 @@ class TestStackReleaseAllCli:
             {"name": "repo-signal", "path": str(uptodate), "role": "test"},
         ])
         result = self._invoke(["stack", "release", "--all"])
+        assert result.exit_code == 0
+
+
+# ── multi-repo preflight hook (v1.23.0) ──────────────────────────────────────
+
+def _release_check_body(status: str = "READY", exit_code: int = 0,
+                        valid_json: bool = True) -> str:
+    if not valid_json:
+        return "#!/bin/sh\necho 'not json at all'\nexit 0\n"
+    return (
+        "#!/bin/sh\n"
+        "cat <<'JSON'\n"
+        '{"schema":"repo_release_check.v1","repo":"r","status":"' + status + '",'
+        '"blockers":[],"warnings":[],"evidence":{}}\n'
+        "JSON\n"
+        f"exit {exit_code}\n"
+    )
+
+
+def _add_release_check(repo: Path, *, status: str = "READY", exit_code: int = 0,
+                       valid_json: bool = True, executable: bool = True) -> None:
+    """Drop a root release-check.sh, commit it, and push so the tree stays clean."""
+    script = repo / "release-check.sh"
+    script.write_text(_release_check_body(status, exit_code, valid_json))
+    if executable:
+        script.chmod(0o755)
+    _git(["add", "release-check.sh"], repo)
+    _git(["commit", "-m", "chore: release-check"], repo)
+    subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+
+
+def _ready_repo(tmp_path: Path, name: str = "mq-agent") -> Path:
+    """A repo that passes every preflight blocker: clean, on main, unreleased
+    commits, pushed, contract == VERSION, release-check READY."""
+    repo = _make_repo(tmp_path, name=name, with_remote=True)
+    _add_release_check(repo, status="READY")
+    return repo
+
+
+def _unpushed_commit(repo: Path) -> None:
+    (repo / "extra.txt").write_text("more\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "feat: more"], repo)  # deliberately not pushed
+
+
+class TestPreflightStackReleaseAll:
+    def test_all_ready_would_execute(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        data = preflight_stack_release_all()
+        assert data["schema"] == "mq_stack_release_all_execute.v1"
+        assert data["ready_count"] == 1
+        assert data["blocked_count"] == 0
+        assert data["would_execute"] is True
+        assert data["aborted_phase"] == "none"
+        assert all(r["execute_state"] is None for r in data["repos"])
+
+    def test_missing_release_check_blocks(self, stack_repo):
+        data = preflight_stack_release_all()
+        r = data["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("no release-check" in b.lower() for b in r["blockers"])
+        assert data["would_execute"] is False
+        assert data["aborted_phase"] == "preflight"
+
+    def test_not_executable_blocks(self, stack_repo):
+        _add_release_check(stack_repo, executable=False)
+        data = preflight_stack_release_all()
+        r = data["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("executable" in b.lower() for b in r["blockers"])
+
+    def test_release_check_nonzero_exit_blocks(self, stack_repo):
+        _add_release_check(stack_repo, exit_code=1)
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("exit" in b.lower() for b in r["blockers"])
+
+    def test_release_check_status_blocked_surfaces(self, stack_repo):
+        _add_release_check(stack_repo, status="BLOCKED")
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("release-check" in b.lower() for b in r["blockers"])
+
+    def test_release_check_invalid_json_blocks(self, stack_repo):
+        _add_release_check(stack_repo, valid_json=False)
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("json" in b.lower() for b in r["blockers"])
+
+    def test_unpushed_commits_block(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        _unpushed_commit(repo)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("unpushed" in b.lower() for b in r["blockers"])
+
+    def test_version_mismatch_blocks(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        contract = repo / ".mq" / "repo-contract.json"
+        d = json.loads(contract.read_text())
+        d["version"] = "9.9.9"
+        contract.write_text(json.dumps(d, indent=2) + "\n")
+        _git(["commit", "-am", "drift contract"], repo)
+        subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("version mismatch" in b.lower() for b in r["blockers"])
+
+    def test_dirty_tree_blocks(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        (repo / "dirty.txt").write_text("x\n")
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("uncommitted" in b.lower() for b in r["blockers"])
+
+    def test_off_main_blocks(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        _git(["switch", "-c", "feature"], repo)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("not on main" in b.lower() for b in r["blockers"])
+
+    def test_target_tag_exists_blocks(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        _git(["tag", "v1.0.1", "HEAD~1"], repo)  # patch target already tagged
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("already tagged" in b.lower() for b in r["blockers"])
+
+    def test_up_to_date_repo_skips_hardened_checks(self, tmp_path, monkeypatch):
+        # No release-check.sh, but up-to-date → must NOT be blocked on it.
+        repo = _make_repo(tmp_path, name="repo-signal",
+                          with_unreleased=False, with_remote=True)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        r = preflight_stack_release_all()["repos"][0]
+        assert r["preflight_state"] == "UP-TO-DATE"
+        assert r["blockers"] == []
+
+    def test_preflight_is_read_only(self, stack_repo):
+        preflight_stack_release_all()
+        assert (stack_repo / "VERSION").read_text().strip() == "1.0.0"
+        status = subprocess.run(["git", "status", "--short"], cwd=stack_repo,
+                                capture_output=True, text=True, check=True)
+        assert status.stdout.strip() == ""
+
+    def test_mixed_stack_reports_all_in_order(self, tmp_path, monkeypatch):
+        ready = _ready_repo(tmp_path, name="mq-agent")
+        blocked = _make_repo(tmp_path, name="mq-mcp", with_remote=True)  # no check
+        uptodate = _make_repo(tmp_path, name="repo-signal",
+                              with_unreleased=False, with_remote=True)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
+            {"name": "mq-agent", "path": str(ready), "role": "test"},
+            {"name": "mq-mcp", "path": str(blocked), "role": "test"},
+            {"name": "repo-signal", "path": str(uptodate), "role": "test"},
+        ])
+        data = preflight_stack_release_all()
+        assert [r["repo"] for r in data["repos"]] == ["mq-agent", "mq-mcp", "repo-signal"]
+        states = {r["repo"]: r["preflight_state"] for r in data["repos"]}
+        assert states == {
+            "mq-agent": "READY", "mq-mcp": "BLOCKED", "repo-signal": "UP-TO-DATE",
+        }
+        assert data["would_execute"] is False
+        assert data["aborted_phase"] == "preflight"
+
+
+class TestPreflightCli:
+    def _invoke(self, args):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        return CliRunner().invoke(app, args)
+
+    def test_preflight_requires_all(self, stack_repo):
+        result = self._invoke(["stack", "release", "--preflight", "--repo", "mq-agent"])
+        assert result.exit_code == 1
+
+    def test_preflight_and_execute_mutually_exclusive(self, stack_repo):
+        result = self._invoke(["stack", "release", "--all", "--preflight", "--execute"])
+        assert result.exit_code == 1
+
+    def test_preflight_reports_and_exits_1_when_blocked(self, stack_repo):
+        result = self._invoke(["stack", "release", "--all", "--preflight"])
+        assert result.exit_code == 1  # missing release-check → blocked
+        assert "blocked" in result.output.lower()
+
+    def test_preflight_json(self, stack_repo):
+        result = self._invoke(["stack", "release", "--all", "--preflight", "--json"])
+        data = json.loads(result.output)
+        assert data["schema"] == "mq_stack_release_all_execute.v1"
+
+    def test_preflight_exits_0_when_all_ready(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        result = self._invoke(["stack", "release", "--all", "--preflight"])
         assert result.exit_code == 0
