@@ -225,16 +225,16 @@ Release automation should coordinate:
 Goal: make Claude/Codex grounding fast and low-cost by prioritizing compact,
 controlled exports before falling back to the full `mqobsidian` vault.
 
-* [ ] Run `mq-agent agent-views rebuild` as the first prepare step
+* [x] Run `mq-agent agent-views rebuild` as the first prepare step
   * Explanation: builds `memory/learn/agent/<system>.md` from `hot.md` + `index.md`.
   * Result: model step‑0 view; small, focused first-read surface.
-* [ ] Export `.mq/context/*` snapshots for relevant repos
+* [x] Export `.mq/context/*` snapshots for relevant repos
   * Explanation: `mq-agent context export --repo <repo> --output-root <dir>`
   * Result: repo-local `repo-card.md`, `integration-map.md`, `token-budget.md`, `active-contract.md`.
-* [ ] Prioritize read order in agent workflows
+* [x] Prioritize read order in agent workflows
   * Explanation: prefer `memory/learn/agent` → `.mq/context/*` → full vault as fallback.
   * Result: reduced token usage, faster grounding, less noise.
-* [ ] Add drift guard in CI/prep
+* [x] Add drift guard in CI/prep
   * Explanation: `mq-agent agent-views check` fails when views are stale.
   * Result: CI can refuse runs when generated views are out of sync.
 * [ ] Create a repeatable prepare step (script/CI target)
