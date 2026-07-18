@@ -313,6 +313,10 @@ path, not at rebuilding the plan/prepare/execute surface:
   cannot cut a tag once the checkout has moved off main or gone dirty. Broader
   enforcement (server-side branch protection) stays out of scope; this is the
   local release-shape guard.
+* [ ] Multi-repo execute (`stack release --all --execute`) — design locked in
+  [docs/STACK_RELEASE_ALL_EXECUTE.md](docs/STACK_RELEASE_ALL_EXECUTE.md)
+  (fail-fast preflight gate, stop-on-first-failure, no destructive rollback).
+  Build in slices: preflight hook first, execute later. No execute code yet.
 * [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
   `v1.4.1`) — leave as known-bad history, or delete and re-release cleanly
   through `stack release`. Tag deletion is destructive and is the operator's
