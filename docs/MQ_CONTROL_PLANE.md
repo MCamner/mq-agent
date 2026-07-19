@@ -138,8 +138,8 @@ memory
 Example mapping:
 
 ```text
-fast → qwen
-review → gpt
+fast → qwen3:4b-instruct
+review → qwen3:4b-instruct
 memory → mq-learn
 ```
 
@@ -148,9 +148,16 @@ Runtime surface:
 ```bash
 mq-agent models list
 mq-agent models current
-mq-agent models switch qwen3 --profile review --approve
+mq-agent models doctor
+mq-agent models switch qwen3:4b-instruct --profile review --approve
 mq-agent models bench
+mq-agent models bench mq-learn --json
 ```
+
+The benchmark uses Ollama's local generate API and returns load/total duration,
+prompt and output token counts, tokens per second, and JSON/schema validity.
+Models are unloaded after the request by default; use `--keep-alive` to retain
+them explicitly.
 
 ## Dashboard Direction
 

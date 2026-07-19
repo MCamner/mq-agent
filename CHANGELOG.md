@@ -9,6 +9,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* `mq-agent models doctor [--json]` — read-only Ollama runtime diagnostics for
+  version, installed/loaded models, profile resolution, mq-learn Modelfile
+  drift, and a structured JSON smoke test.
+* `mq-agent models bench` now reports load/total duration, prompt/output token
+  counts, tokens per second, and JSON/schema validity through
+  `ollama_model_benchmark.v1`.
+
+### Changed
+
+* Default `fast`, `review`, and `planner` profiles now use the installed exact
+  model name `qwen3:4b-instruct` instead of the unresolved `qwen3` alias.
+* Model benchmarks now use Ollama's local generate API with `keep_alive=0` by
+  default; `--keep-alive` can override that runtime setting.
+
 ## [v1.23.0] — 2026-07-19
 
 * e59e8e4 fix(release): sync uv.lock version so a release cannot ship its own drift (#155)
