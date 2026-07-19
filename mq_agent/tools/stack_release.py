@@ -429,6 +429,25 @@ def preflight_stack_release_all(bump: str = "patch") -> dict[str, Any]:
     }
 
 
+def _release_mode(repo_path: Path | None) -> str | None:
+    """The repo's declared release path: 'direct', 'pull_request', or None.
+
+    Read from `.mq/repo-contract.json`. `None` means the repo has not declared
+    one — treated as refusal by the execute path, never as permission.
+    """
+    if repo_path is None:
+        return None
+    contract_path = repo_path / ".mq" / "repo-contract.json"
+    if not contract_path.exists():
+        return None
+    try:
+        contract = json.loads(contract_path.read_text())
+    except (json.JSONDecodeError, ValueError, OSError):
+        return None
+    mode = contract.get("release_mode")
+    return str(mode) if mode else None
+
+
 def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dict[str, Any]:
     """Multi-repo release: read-only preflight → fail-fast gate → execute in order.
 
@@ -445,7 +464,37 @@ def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dic
     history, which this stack does not do. Repair is fix-forward, and the
     tag-exists (#143) and release-shape (#144) guards make a re-run safe.
     """
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand
+
     data = preflight_stack_release_all(bump=bump)
+
+    # Branch protection is data, not something to discover from a push error.
+    # A repo whose main requires a PR cannot be released by direct push, and
+    # finding that out at the push step is too late — the bump, commit and tag
+    # already exist locally and have to be unwound by hand. Absent declaration
+    # means refusal: assuming "direct" is what produced that cleanup.
+    paths = {e["name"]: _expand(e["path"]) for e in MQ_STACK_REPOS}
+    for entry in data["repos"]:
+        if entry["preflight_state"] != "READY":
+            continue
+        mode = _release_mode(paths.get(entry["repo"]))
+        if mode == "direct":
+            continue
+        entry["preflight_state"] = "BLOCKED"
+        entry["blockers"] = list(entry["blockers"]) + [
+            f"release_mode {mode!r}: this repo is not releasable by direct push"
+            if mode
+            else "release_mode is not declared in .mq/repo-contract.json — "
+            "refusing to assume direct push is allowed"
+        ]
+        entry["new_version"] = None
+        entry["tag"] = None
+        data["ready_count"] -= 1
+        data["blocked_count"] += 1
+    if data["blocked_count"]:
+        data["aborted_phase"] = "preflight"
+        data["would_execute"] = False
+
     data["approved"] = approve
     data["released_count"] = 0
     data["failed_count"] = 0

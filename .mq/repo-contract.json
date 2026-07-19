@@ -33,5 +33,6 @@
     "mq_hal_operator_contract.v1",
     "inbox_promotion_orchestration.v1"
   ],
-  "next_focus": "v1.23.0 \u2014 Cross-repo release automation"
+  "next_focus": "v1.23.0 \u2014 Cross-repo release automation",
+  "release_mode": "pull_request"
 }
