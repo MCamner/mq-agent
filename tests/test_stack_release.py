@@ -1049,3 +1049,81 @@ class TestReleaseModeContract:
         _set_release_mode(repos[0], "pull_request")
         data = preflight_stack_release_all()
         assert data["repos"][0]["preflight_state"] == "READY"
+
+
+# ── post-bump re-gate ────────────────────────────────────────────────────────
+
+class TestPostBumpRegate:
+    """The repo's own release-check runs pre-bump, so it cannot see drift the
+    bump itself creates.
+
+    That is how mq-mcp v2.0.1 shipped, and how v1.23.0's README stayed at
+    1.22.0 through a release commit. Re-running the repo's check after the
+    version surfaces are written — but before the commit — catches every
+    surface the repo knows about, without mq-agent having to enumerate them.
+    Nothing is committed at that point, so a refusal rolls back cleanly.
+    """
+
+    def _repo(self, tmp_path: Path, check_body: str) -> Path:
+        repo = _make_repo(tmp_path, name="mq-agent", with_remote=True)
+        script = repo / "release-check.sh"
+        script.write_text(check_body)
+        script.chmod(0o755)
+        _git(["add", "-A"], repo)
+        _git(["commit", "-m", "chore: release-check"], repo)
+        subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+        return repo
+
+    # A check that mirrors the real failure: it compares VERSION against a
+    # second surface (docs/BADGE) that `stack release` does not know about.
+    _DRIFT_CHECK = """#!/bin/sh
+V=$(cat VERSION)
+B=$(cat docs/BADGE 2>/dev/null)
+if [ "$V" = "$B" ]; then S=READY; BL=""; else S=BLOCKED; BL='"BADGE '"$B"' != VERSION '"$V"'"'; fi
+cat <<JSON
+{"schema":"repo_release_check.v1","repo":"mq-agent","status":"$S","blockers":[$BL],"warnings":[],"evidence":{}}
+JSON
+exit 0
+"""
+
+    def test_drift_created_by_the_bump_aborts_before_commit(self, tmp_path, monkeypatch):
+        repo = self._repo(tmp_path, self._DRIFT_CHECK)
+        (repo / "docs").mkdir(exist_ok=True)
+        (repo / "docs" / "BADGE").write_text("1.0.0\n")
+        _git(["add", "-A"], repo)
+        _git(["commit", "-m", "chore: badge"], repo)
+        subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+
+        # Pre-bump the repo is releasable: VERSION and BADGE agree at 1.0.0.
+        plan = plan_stack_release("mq-agent")
+        assert plan["go"] is True
+        result = execute_stack_release(plan)
+
+        # The bump moves VERSION to 1.0.1 and leaves BADGE behind — the repo's
+        # own check now says BLOCKED, and nothing may be committed or tagged.
+        assert result["released"] is False
+        assert "BADGE" in result["error"]
+        assert _tags(repo) == ["v1.0.0"]
+        assert (repo / "VERSION").read_text().strip() == "1.0.0"
+        assert _porcelain(repo) == ""
+
+    def test_clean_repo_still_releases(self, tmp_path, monkeypatch):
+        # The re-gate must not block a repo whose surfaces move together.
+        repo = self._repo(tmp_path, _release_check_body("READY"))
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        plan = plan_stack_release("mq-agent")
+        with _truth_export_patch():
+            result = execute_stack_release(plan)
+        assert result["released"] is True
+        assert "v1.0.1" in _tags(repo)
+
+    def test_regate_step_is_reported(self, tmp_path, monkeypatch):
+        repo = self._repo(tmp_path, _release_check_body("READY"))
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        plan = plan_stack_release("mq-agent")
+        with _truth_export_patch():
+            result = execute_stack_release(plan)
+        steps = [s["step"] for s in result["steps"]]
+        assert "re-gate" in steps
+        assert steps.index("re-gate") < steps.index("commit")
