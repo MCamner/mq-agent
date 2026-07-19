@@ -326,7 +326,7 @@ uv run pytest tests/ -v
 ## v1.17.0 status
 
 - [x] `mq-agent models` — first-class Ollama model runtime command group
-- [x] `mq-agent models list/current/switch/bench`
+- [x] `mq-agent models list/current/doctor/switch/bench`
 - [x] Model profiles persisted in `~/.mq-agent/models.json`
 - [x] `mq-agent stack run` surfaces the active model profile in the Ollama check
 - [x] v1.17.0 release docs/status sync

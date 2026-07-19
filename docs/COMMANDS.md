@@ -26,8 +26,9 @@ reference across mq-agent, mqlaunch, MCP and smoke-test coverage.
 | `mq-agent stack loop --execute --approve` | execute | no | Run one allowlisted stack loop action |
 | `mq-agent models current` | read-only | no | Show active Ollama model profile |
 | `mq-agent models list` | read-only | no | List local Ollama models |
+| `mq-agent models doctor [--json]` | read-only | no | Diagnose Ollama runtime, profiles and mq-learn |
 | `mq-agent models switch <model> --profile <profile> --approve` | execute | no | Write model profile config |
-| `mq-agent models bench [model]` | read-only | no | Run a small local Ollama benchmark |
+| `mq-agent models bench [model] [--json]` | read-only | no | Measure Ollama timing, tokens/sec and structured-output validity |
 | `mq-agent memory ingest` | read-only | no | Index mqobsidian Markdown memory |
 | `mq-agent memory query <query>` | read-only | no | Search mqobsidian memory notes |
 | `mq-agent memory summarize` | read-only | no | Summarize mqobsidian memory sections |

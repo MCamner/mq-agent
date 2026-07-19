@@ -142,9 +142,11 @@ profiles and operator-visible status.
 * [x] `mq-agent models` — first-class command group for local model runtime
 * [x] `mq-agent models list` — list local Ollama models
 * [x] `mq-agent models current` — show active profile and model
+* [x] `mq-agent models doctor` — read-only runtime, profile, Modelfile, and JSON diagnostics
 * [x] `mq-agent models switch` — switch active profile or assign model to a
   profile, with `--approve` required for writes
-* [x] `mq-agent models bench` — local Ollama smoke benchmark
+* [x] `mq-agent models bench` — measurable Ollama API benchmark with timing,
+  token throughput, structured-output validation, and explicit keep-alive
 * [x] `~/.mq-agent/models.json` — profile config for `fast`, `review`,
   `planner`, and `memory`
 * [x] `mq-agent stack run` — shows active model profile in the Ollama check

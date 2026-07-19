@@ -3,11 +3,18 @@ from __future__ import annotations
 
 import json
 import subprocess
+from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
 
 from mq_agent.main import app
-from mq_agent.tools.model_runtime import current_model, load_models_config, switch_model
+from mq_agent.tools.model_runtime import (
+    bench_model,
+    current_model,
+    load_models_config,
+    model_doctor,
+    switch_model,
+)
 
 runner = CliRunner()
 
@@ -19,6 +26,9 @@ def test_default_models_config(monkeypatch, tmp_path):
     config = load_models_config()
 
     assert config["current_profile"] == "fast"
+    assert config["profiles"]["fast"] == "qwen3:4b-instruct"
+    assert config["profiles"]["review"] == "qwen3:4b-instruct"
+    assert config["profiles"]["planner"] == "qwen3:4b-instruct"
     assert config["profiles"]["memory"] == "mq-learn"
 
 
@@ -56,7 +66,7 @@ def test_models_current_json(monkeypatch, tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["profile"] == "fast"
-    assert data["profiles"]["planner"] == "qwen3"
+    assert data["profiles"]["planner"] == "qwen3:4b-instruct"
 
 
 def test_models_switch_requires_approve_to_write(monkeypatch, tmp_path):
@@ -106,19 +116,170 @@ def test_models_list_json(monkeypatch):
 def test_models_bench_json(monkeypatch, tmp_path):
     config_path = tmp_path / "models.json"
     monkeypatch.setenv("MQ_AGENT_MODELS_CONFIG", str(config_path))
-    fake = subprocess.CompletedProcess(
-        args=["ollama", "run", "qwen3", "Reply with OK."],
-        returncode=0,
-        stdout="OK\n",
-        stderr="",
-    )
     monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
-    monkeypatch.setattr("mq_agent.tools.model_runtime.subprocess.run", lambda *a, **kw: fake)
+    monkeypatch.setattr(
+        "mq_agent.tools.model_runtime._ollama_generate",
+        lambda *args, **kwargs: {
+            "response": "OK",
+            "done": True,
+            "done_reason": "stop",
+            "total_duration": 2_000_000_000,
+            "load_duration": 500_000_000,
+            "prompt_eval_count": 4,
+            "prompt_eval_duration": 200_000_000,
+            "eval_count": 10,
+            "eval_duration": 1_000_000_000,
+        },
+    )
 
     result = runner.invoke(app, ["models", "bench", "--json"])
 
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["ok"] is True
-    assert data["model"] == "qwen3"
+    assert data["schema"] == "ollama_model_benchmark.v1"
+    assert data["model"] == "qwen3:4b-instruct"
     assert data["output"] == "OK"
+    assert data["metrics"] == {
+        "total_duration_ms": 2000.0,
+        "load_duration_ms": 500.0,
+        "prompt_eval_count": 4,
+        "prompt_eval_duration_ms": 200.0,
+        "eval_count": 10,
+        "eval_duration_ms": 1000.0,
+        "tokens_per_second": 10.0,
+    }
+    assert data["validation"] == {"json_valid": False, "schema_valid": False}
+
+
+def test_bench_model_validates_memory_schema(monkeypatch):
+    payload = {
+        "pattern_name": "release-drift",
+        "pattern_type": "release",
+        "summary": "Version surfaces differed.",
+        "evidence": ["version mismatch"],
+        "recommended_action": "Check version surfaces.",
+        "confidence": "medium",
+        "should_store": False,
+    }
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        "mq_agent.tools.model_runtime._ollama_generate",
+        lambda *args, **kwargs: {
+            "response": json.dumps(payload),
+            "done": True,
+            "total_duration": 1,
+            "load_duration": 0,
+            "prompt_eval_count": 1,
+            "prompt_eval_duration": 1,
+            "eval_count": 1,
+            "eval_duration": 1,
+        },
+    )
+
+    data = bench_model("mq-learn", prompt="review", validate_schema=True)
+
+    assert data["ok"] is True
+    assert data["validation"] == {"json_valid": True, "schema_valid": True}
+
+
+def test_bench_model_uses_ollama_host(monkeypatch):
+    response = MagicMock()
+    response.read.return_value = json.dumps({"response": "OK", "done": True}).encode()
+    response.__enter__.return_value = response
+    monkeypatch.setenv("OLLAMA_HOST", "ollama.example.test:4242/")
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+    urlopen = MagicMock(return_value=response)
+    monkeypatch.setattr("mq_agent.tools.model_runtime.urllib.request.urlopen", urlopen)
+
+    data = bench_model("qwen3")
+
+    request = urlopen.call_args.args[0]
+    assert request.full_url == "http://ollama.example.test:4242/api/generate"
+    assert data["ok"] is True
+
+
+def test_model_doctor_passes_with_installed_profiles(monkeypatch, tmp_path):
+    config_path = tmp_path / "models.json"
+    monkeypatch.setenv("MQ_AGENT_MODELS_CONFIG", str(config_path))
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+
+    def fake_run(args, **kwargs):
+        outputs = {
+            ("ollama", "--version"): "ollama version is 0.32.1\n",
+            ("ollama", "list"): (
+                "NAME ID SIZE MODIFIED\n"
+                "qwen3:4b-instruct abc 2.5GB today\n"
+                "mq-learn:latest def 2.0GB today\n"
+            ),
+            ("ollama", "ps"): "NAME ID SIZE PROCESSOR CONTEXT UNTIL\n",
+        }
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=outputs[tuple(args)], stderr="")
+
+    monkeypatch.setattr("mq_agent.tools.model_runtime.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "mq_agent.tools.model_runtime._ollama_generate_json",
+        lambda *args: {"response": json.dumps({
+            "pattern_name": "version-mismatch",
+            "pattern_type": "release",
+            "summary": "A version mismatch was corrected.",
+            "evidence": ["version mismatch"],
+            "recommended_action": "Check version surfaces.",
+            "confidence": "medium",
+            "should_store": False,
+        })},
+    )
+
+    result = model_doctor(check_modelfile=False)
+
+    assert result["ok"] is True
+    assert result["schema"] == "ollama_runtime_doctor.v1"
+    assert result["profiles"]["missing"] == []
+    assert result["smoke"]["json_valid"] is True
+    assert result["smoke"]["schema_valid"] is True
+
+
+def test_model_doctor_reports_cli_timeouts(monkeypatch, tmp_path):
+    config_path = tmp_path / "models.json"
+    monkeypatch.setenv("MQ_AGENT_MODELS_CONFIG", str(config_path))
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+
+    def time_out(args, **kwargs):
+        raise subprocess.TimeoutExpired(args, kwargs["timeout"])
+
+    monkeypatch.setattr("mq_agent.tools.model_runtime.subprocess.run", time_out)
+
+    result = model_doctor(smoke=False, check_modelfile=False)
+
+    assert result["ok"] is False
+    timed_out = {item["check"]: item for item in result["items"]}
+    assert timed_out["ollama-version"]["status"] == "FAIL"
+    assert timed_out["ollama-version"]["detail"] == "ollama --version timed out after 10s"
+    assert timed_out["ollama-list"]["status"] == "FAIL"
+    assert timed_out["ollama-list"]["detail"] == "ollama list timed out after 10s"
+    assert timed_out["ollama-ps"]["status"] == "FAIL"
+    assert timed_out["ollama-ps"]["detail"] == "ollama ps timed out after 10s"
+
+
+def test_models_doctor_json_fails_for_missing_profile_models(monkeypatch, tmp_path):
+    config_path = tmp_path / "models.json"
+    monkeypatch.setenv("MQ_AGENT_MODELS_CONFIG", str(config_path))
+    monkeypatch.setenv("MQ_MCP_DIR", str(tmp_path / "missing-mq-mcp"))
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+
+    def fake_run(args, **kwargs):
+        outputs = {
+            ("ollama", "--version"): "ollama version is 0.32.1\n",
+            ("ollama", "list"): "NAME ID SIZE MODIFIED\nmq-learn:latest def 2.0GB today\n",
+            ("ollama", "ps"): "NAME ID SIZE PROCESSOR CONTEXT UNTIL\n",
+        }
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=outputs[tuple(args)], stderr="")
+
+    monkeypatch.setattr("mq_agent.tools.model_runtime.subprocess.run", fake_run)
+
+    result = runner.invoke(app, ["models", "doctor", "--no-smoke", "--json"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["ok"] is False
+    assert data["profiles"]["missing"] == ["qwen3:4b-instruct"]

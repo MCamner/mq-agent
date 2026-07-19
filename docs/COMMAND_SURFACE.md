@@ -152,11 +152,15 @@ and require `--approve`.
 | `mq-agent models list --json` | no | Machine-readable Ollama inventory |
 | `mq-agent models current` | no | Show active profile, model and config path |
 | `mq-agent models current --json` | no | Machine-readable active model state |
+| `mq-agent models doctor` | no | Validate Ollama runtime, profiles, mq-learn drift and JSON output |
+| `mq-agent models doctor --json` | no | Machine-readable `ollama_runtime_doctor.v1` verdict |
+| `mq-agent models doctor --no-smoke` | no | Skip model generation while retaining runtime checks |
 | `mq-agent models switch <profile>` | no | Dry-run profile switch preview |
 | `mq-agent models switch <model> --profile <profile>` | no | Dry-run profile assignment preview |
 | `mq-agent models switch <model> --profile <profile> --approve` | yes | Write model profile config |
-| `mq-agent models bench [model]` | no | Run a tiny local Ollama smoke benchmark |
-| `mq-agent models bench [model] --json` | no | Machine-readable benchmark result |
+| `mq-agent models bench [model]` | no | Measure duration, token counts, tokens/sec and JSON/schema validity |
+| `mq-agent models bench [model] --json` | no | Machine-readable `ollama_model_benchmark.v1` result |
+| `mq-agent models bench [model] --keep-alive <value>` | no | Override the default `keep_alive=0` for the request |
 
 ## Brain Commands
 

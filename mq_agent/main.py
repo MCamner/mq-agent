@@ -2881,6 +2881,33 @@ def models_current_cmd(
     console.print(table)
 
 
+@models_app.command("doctor")
+def models_doctor_cmd(
+    smoke: Annotated[bool, typer.Option("--smoke/--no-smoke", help="Run mq-learn JSON smoke test")] = True,
+    timeout: Annotated[int, typer.Option("--timeout", help="Smoke-test timeout in seconds")] = 60,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run read-only diagnostics for Ollama, model profiles, and mq-learn."""
+    from mq_agent.tools.model_runtime import model_doctor
+
+    data = model_doctor(smoke=smoke, timeout=timeout)
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        raise typer.Exit(0 if data["ok"] else 1)
+
+    table = Table(title="Ollama Runtime Doctor")
+    table.add_column("Check")
+    table.add_column("Status")
+    table.add_column("Detail")
+    for item in data["items"]:
+        status = str(item["status"])
+        style = {"PASS": "green", "WARN": "yellow", "FAIL": "red"}.get(status, "dim")
+        table.add_row(str(item["check"]), f"[{style}]{status}[/{style}]", str(item.get("detail", "")))
+    console.print(table)
+    if not data["ok"]:
+        raise typer.Exit(1)
+
+
 @models_app.command("switch")
 def models_switch_cmd(
     target: Annotated[str, typer.Argument(help="Profile or model name")],
@@ -2916,20 +2943,39 @@ def models_bench_cmd(
     model: Annotated[str | None, typer.Argument(help="Model name; defaults to active model")] = None,
     prompt: Annotated[str, typer.Option("--prompt", help="Benchmark prompt")] = "Reply with OK.",
     timeout: Annotated[int, typer.Option("--timeout", help="Ollama timeout in seconds")] = 30,
+    keep_alive: Annotated[str, typer.Option("--keep-alive", help="Ollama keep_alive value")] = "0",
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """Run a tiny local Ollama benchmark prompt."""
+    """Benchmark a local Ollama model with timing and token metrics."""
     from mq_agent.tools.model_runtime import bench_model
 
-    data = bench_model(model, prompt=prompt, timeout=timeout)
+    data = bench_model(model, prompt=prompt, timeout=timeout, keep_alive=keep_alive)
     if json_out:
         typer.echo(json.dumps(data, indent=2))
         raise typer.Exit(0 if data["ok"] else 1)
 
     if data["ok"]:
-        console.print(f"[green]✓[/green] {data['model']}: {data['output']}")
+        metrics = data["metrics"]
+        table = Table(title=f"Ollama Benchmark — {data['model']}")
+        table.add_column("Metric")
+        table.add_column("Value", justify="right")
+        for label, value in (
+            ("Load", f"{metrics['load_duration_ms']} ms"),
+            ("Total", f"{metrics['total_duration_ms']} ms"),
+            ("Prompt tokens", metrics["prompt_eval_count"]),
+            ("Output tokens", metrics["eval_count"]),
+            ("Tokens/sec", metrics["tokens_per_second"]),
+            ("JSON valid", data["validation"]["json_valid"]),
+            ("Schema valid", data["validation"]["schema_valid"]),
+        ):
+            table.add_row(label, str(value))
+        console.print(table)
+        console.print(f"[green]✓[/green] {data['output']}")
         return
-    console.print(f"[red]✗[/red] {data['model']}: {data['output'] or data.get('detail', 'benchmark failed')}")
+    console.print(
+        f"[red]✗[/red] {data['model']}: "
+        f"{data.get('output') or data.get('detail', 'benchmark failed')}"
+    )
     raise typer.Exit(1)
 
 

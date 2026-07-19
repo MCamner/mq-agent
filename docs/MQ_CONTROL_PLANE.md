@@ -135,22 +135,42 @@ planner
 memory
 ```
 
-Example mapping:
+Runtime roles:
 
 ```text
-fast → qwen
-review → gpt
-memory → mq-learn
+qwen3:4b-instruct → general fast, planner, and review work
+mq-learn → structured pattern extraction
+bakllava → vision only
+llama3.2 → base/fallback model; no separate MQ profile
 ```
+
+The current scope does not introduce a local vector store, embedding runtime,
+embedding model, additional `llama3.2` profile, or `mq-learn-fast` /
+`mq-learn-deep` variants.
+
+Future gates:
+
+* Consider a local vector store only after an isolated test with a dedicated
+  embedding model and 20–50 real mqobsidian queries shows a measurable
+  retrieval improvement.
+* Consider a deep learn profile only when real reviews are truncated or
+  regularly require more than 4096 context tokens.
 
 Runtime surface:
 
 ```bash
 mq-agent models list
 mq-agent models current
-mq-agent models switch qwen3 --profile review --approve
+mq-agent models doctor
+mq-agent models switch qwen3:4b-instruct --profile review --approve
 mq-agent models bench
+mq-agent models bench mq-learn --json
 ```
+
+The benchmark uses Ollama's local generate API and returns load/total duration,
+prompt and output token counts, tokens per second, and JSON/schema validity.
+Models are unloaded after the request by default; use `--keep-alive` to retain
+them explicitly.
 
 ## Dashboard Direction
 
