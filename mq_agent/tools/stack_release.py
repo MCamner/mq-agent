@@ -67,14 +67,53 @@ def _version_files(repo_path: Path) -> list[Path]:
     files = [repo_path / name for name in ("VERSION", "version.txt") if (repo_path / name).exists()]
     if (repo_path / "pyproject.toml").exists():
         files.append(repo_path / "pyproject.toml")
+    if (repo_path / "uv.lock").exists():
+        files.append(repo_path / "uv.lock")
     return files
+
+
+def _project_name(repo_path: Path) -> str | None:
+    """The distribution name from pyproject.toml, if there is one."""
+    pyproject = repo_path / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    match = re.search(
+        r'^name\s*=\s*"([^"]+)"', pyproject.read_text(), flags=re.MULTILINE
+    )
+    return match.group(1) if match else None
+
+
+def _write_lockfile_version(lock_path: Path, project: str, new_version: str) -> bool:
+    """Bump only this project's own `[[package]]` block in uv.lock.
+
+    uv.lock carries the repo version alongside every dependency's, and a repo
+    whose release-check gates on it (mq-agent does) will fail its own check
+    right after a release that left the lockfile behind — with the tag already
+    pushed. The edit is scoped to the block whose `name` matches the project so
+    dependencies that happen to share the version string are never rewritten.
+    The project's own entry is an editable source with no hashes, so a targeted
+    line edit keeps the lockfile valid without invoking `uv` or the network.
+    """
+    text = lock_path.read_text()
+    pattern = re.compile(
+        r'(\[\[package\]\]\nname = "' + re.escape(project) + r'"\nversion = ")[^"]+(")'
+    )
+    updated, count = pattern.subn(rf"\g<1>{new_version}\g<2>", text, count=1)
+    if not count:
+        return False
+    lock_path.write_text(updated)
+    return True
 
 
 def _write_version(repo_path: Path, new_version: str) -> list[Path]:
     """Write the new version to every version-carrying file. Returns changed files."""
     changed: list[Path] = []
+    project = _project_name(repo_path)
     for f in _version_files(repo_path):
-        if f.name == "pyproject.toml":
+        if f.name == "uv.lock":
+            if project and _write_lockfile_version(f, project, new_version):
+                changed.append(f)
+        elif f.name == "pyproject.toml":
             text = f.read_text()
             updated = re.sub(
                 r'^(version\s*=\s*")[^"]+(")', rf"\g<1>{new_version}\g<2>",

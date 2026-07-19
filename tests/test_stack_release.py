@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +11,7 @@ import pytest
 
 import mq_agent.tools.stack_tools as stack_tools
 from mq_agent.tools.stack_release import (
+    _write_version,
     bump_version,
     execute_stack_release,
     execute_stack_release_all,
@@ -866,3 +868,90 @@ class TestExecuteStackReleaseAllCli:
         data = json.loads(result.output)
         assert data["schema"] == "mq_stack_release_all_execute.v1"
         assert data["approved"] is True
+
+
+# ── uv.lock version surface ──────────────────────────────────────────────────
+
+_UV_LOCK = """version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "httpx"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "mq-agent"
+version = "1.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+]
+
+[[package]]
+name = "zzz-other"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+"""
+
+
+def _lock_version(repo: Path, package: str) -> str:
+    """Read one package's version out of uv.lock."""
+    block = None
+    for chunk in repo.joinpath("uv.lock").read_text().split("[[package]]"):
+        if f'name = "{package}"' in chunk:
+            block = chunk
+            break
+    assert block is not None, f"{package} not found in uv.lock"
+    return re.search(r'^version = "([^"]+)"', block, re.MULTILINE).group(1)
+
+
+class TestLockfileVersionSurface:
+    """uv.lock carries the repo version too, and mq-agent's release-check gates
+    on it. A release that bumps VERSION and pyproject but leaves uv.lock behind
+    ships a tag whose own release-check fails — the exact drift shape that
+    produced mq-mcp v2.0.1."""
+
+    def _repo_with_lock(self, tmp_path: Path) -> Path:
+        repo = _make_repo(tmp_path, name="mq-agent", with_remote=True)
+        (repo / "pyproject.toml").write_text(
+            '[project]\nname = "mq-agent"\nversion = "1.0.0"\n'
+        )
+        (repo / "uv.lock").write_text(_UV_LOCK)
+        _git(["add", "-A"], repo)
+        _git(["commit", "-m", "chore: add lockfile"], repo)
+        subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+        return repo
+
+    def test_write_version_bumps_own_package_in_lockfile(self, tmp_path):
+        repo = self._repo_with_lock(tmp_path)
+        changed = _write_version(repo, "1.1.0")
+        assert repo / "uv.lock" in changed
+        assert _lock_version(repo, "mq-agent") == "1.1.0"
+
+    def test_other_packages_on_the_same_version_are_untouched(self, tmp_path):
+        # Every package in the fixture starts at 1.0.0 — a careless global
+        # substitution would rewrite the whole dependency tree.
+        repo = self._repo_with_lock(tmp_path)
+        _write_version(repo, "1.1.0")
+        assert _lock_version(repo, "httpx") == "1.0.0"
+        assert _lock_version(repo, "zzz-other") == "1.0.0"
+
+    def test_missing_lockfile_is_not_an_error(self, tmp_path):
+        repo = _make_repo(tmp_path, name="mq-hal", with_remote=True)
+        changed = _write_version(repo, "1.1.0")
+        assert all(f.name != "uv.lock" for f in changed)
+
+    def test_release_leaves_every_version_surface_in_sync(self, tmp_path, monkeypatch):
+        repo = self._repo_with_lock(tmp_path)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+        plan = plan_stack_release("mq-agent", bump="minor")
+        with patch("mq_agent.tools.stack_truth.stack_truth_export",
+                   return_value={"path": "/tmp/t.md", "ok": True, "status": "READY"}):
+            result = execute_stack_release(plan)
+        assert result["released"] is True
+        assert (repo / "VERSION").read_text().strip() == "1.1.0"
+        assert _lock_version(repo, "mq-agent") == "1.1.0"
+        assert 'version = "1.1.0"' in (repo / "pyproject.toml").read_text()
+        # nothing left uncommitted: the lockfile went into the release commit
+        assert _porcelain(repo) == ""
