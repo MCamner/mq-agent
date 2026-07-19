@@ -1127,3 +1127,23 @@ exit 0
         steps = [s["step"] for s in result["steps"]]
         assert "re-gate" in steps
         assert steps.index("re-gate") < steps.index("commit")
+
+
+class TestReleaseModeValues:
+    """The allowed modes are a closed set. A typo must say so, not fall through
+    to a generic refusal that reads like a policy decision."""
+
+    def test_unknown_mode_names_itself(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
+        _set_release_mode(repos[0], "Direct")  # capitalised typo
+        data = execute_stack_release_all(approve=True)
+        blockers = data["repos"][0]["blockers"]
+        assert any("unknown release_mode" in b for b in blockers)
+        assert any("direct, pull_request, manual" in b for b in blockers)
+
+    def test_manual_blocks_with_its_own_reason(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
+        _set_release_mode(repos[0], "manual")
+        data = execute_stack_release_all(approve=True)
+        assert any("manual" in b for b in data["repos"][0]["blockers"])
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
