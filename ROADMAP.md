@@ -321,10 +321,13 @@ path, not at rebuilding the plan/prepare/execute surface:
   --preflight` (`preflight_stack_release_all`, schema
   `mq_stack_release_all_execute.v1`) — the full refusal surface incl. each repo's
   `release-check.sh` (`repo_release_check.v1`), never mutates. Slice 2 (per-repo
-  `release-check.sh` rollout) in progress — **3/8**: mq-agent #147, mq-hal #17,
-  mqobsidian #50; the other five were off-main in the live drive (unmerged
-  feature branches) and block on that first. Remaining: finish the rollout, then
-  the execute slice (`--execute --approve`, stop-on-first-failure).
+  `release-check.sh` rollout) **done — 8/8**: mq-agent #147, mq-hal #17,
+  mqobsidian #50, repo-signal #17, mq-mcp #48, mq-ums #13, mq-image-analyze #11,
+  macos-scripts #57. The five that were off-main in the live drive have since
+  landed on `main`; verified by running `release-check.sh --json` in each repo —
+  all eight answer with schema `repo_release_check.v1` and status `READY`, and
+  `stack release --all --preflight` reports `blocked 0`. Remaining: the execute
+  slice (`--execute --approve`, stop-on-first-failure).
 * [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
   `v1.4.1`) — leave as known-bad history, or delete and re-release cleanly
   through `stack release`. Tag deletion is destructive and is the operator's
