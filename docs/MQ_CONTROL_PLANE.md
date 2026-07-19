@@ -135,13 +135,26 @@ planner
 memory
 ```
 
-Example mapping:
+Runtime roles:
 
 ```text
-fast → qwen3:4b-instruct
-review → qwen3:4b-instruct
-memory → mq-learn
+qwen3:4b-instruct → general fast, planner, and review work
+mq-learn → structured pattern extraction
+bakllava → vision only
+llama3.2 → base/fallback model; no separate MQ profile
 ```
+
+The current scope does not introduce a local vector store, embedding runtime,
+embedding model, additional `llama3.2` profile, or `mq-learn-fast` /
+`mq-learn-deep` variants.
+
+Future gates:
+
+* Consider a local vector store only after an isolated test with a dedicated
+  embedding model and 20–50 real mqobsidian queries shows a measurable
+  retrieval improvement.
+* Consider a deep learn profile only when real reviews are truncated or
+  regularly require more than 4096 context tokens.
 
 Runtime surface:
 

@@ -24,6 +24,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   model name `qwen3:4b-instruct` instead of the unresolved `qwen3` alias.
 * Model benchmarks now use Ollama's local generate API with `keep_alive=0` by
   default; `--keep-alive` can override that runtime setting.
+* Runtime policy keeps `qwen3:4b-instruct` for general fast/planner/review work,
+  `mq-learn` for structured extraction, `bakllava` for vision only, and
+  `llama3.2` as an unprofiled fallback. Vector storage and deep learn variants
+  remain gated on measured retrieval and context-window needs.
 
 ## [v1.23.0] — 2026-07-19
 
