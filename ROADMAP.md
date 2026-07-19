@@ -24,7 +24,7 @@ All phases complete through v1.21.0.
 | v1.20.0 | Autonomous stack | Done |
 | v1.21.0 | mq-hal operator layer readiness | Done |
 | v1.22.0 | Inbox ranking and promotion orchestration | Done |
-| v1.23.0 | Cross-repo release automation | Planned |
+| v1.23.0 | Cross-repo release automation | In progress — one slice left |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -180,7 +180,12 @@ Release automation should coordinate:
 * `mq-mcp` for local test/review orchestration and machine-readable output
 * `mq-hal` for operator visibility and next-action guidance
 
-### v1.23.0 checklist
+### v1.23.0 checklist (superseded — do not work through this list)
+
+**Superseded 2026-07-17 by the reframe below.** This list predates `stack
+release` and most of it would rebuild what already ships. It is kept for
+provenance only; the live checklist is under *Recommended reframe*. The
+unchecked boxes here are not open work.
 
 * [ ] Add `mq-agent release plan` to generate a repo-aware release plan from
   current `CHANGELOG.md`, `VERSION`, and `repo-signal` readiness output.
@@ -328,8 +333,14 @@ path, not at rebuilding the plan/prepare/execute surface:
   macos-scripts #57. The five that were off-main in the live drive have since
   landed on `main`; verified by running `release-check.sh --json` in each repo —
   all eight answer with schema `repo_release_check.v1` and status `READY`, and
-  `stack release --all --preflight` reports `blocked 0`. Remaining: the execute
-  slice (`--execute --approve`, stop-on-first-failure).
+  `stack release --all --preflight` reports `blocked 0`. Slice 2 is **closed**;
+  the rollout needs no further work.
+* [ ] **Next slice — multi-repo execute (`--execute --approve`).** Deferred to a
+  separate, test-driven work session so it is not mixed into the checkpoint
+  above. The design is already locked; what is missing is the wiring plus the
+  two execute-phase tests the design calls for: repo 2/5 fails → repos 3–5
+  reported `SKIPPED`, and an already-released repo is never rolled back.
+  Stop-on-first-failure, fix-forward only, no destructive rollback.
 * [x] Disposition of the drifted tags — **decided 2026-07-19: keep as known-bad
   history and fix forward.** Tag deletion was rejected as destructive; the
   operator's rule for these operations is run from clean `main`, verify the
@@ -347,6 +358,31 @@ path, not at rebuilding the plan/prepare/execute surface:
     `.mq/repo-contract.json` reads `1.0.1` at the tag, matching `VERSION`.
     Nothing to fix forward; its next release proceeds normally.
   * `stack release --all --preflight` is clean — `blocked 0`.
+
+### Checkpoint — 2026-07-19
+
+State of v1.23.0 at the point the work was paused. Four of five reframed
+slices are done: release paths converged, multi-repo dry-run orchestration,
+on-main enforcement, and the read-only preflight incl. the 8/8
+`release-check.sh` rollout. The tag disposition is decided — `mq-mcp v2.0.1`
+and `repo-signal v1.4.1` kept as known-bad, fixed forward to `v2.0.2` and
+`v1.4.2`, no tag deletion, no force-push, no history rewrite.
+
+Last preflight run for this checkpoint (`stack release --all --preflight
+--json`, schema `mq_stack_release_all_execute.v1`):
+
+```text
+ready 7   blocked 0   up-to-date 1
+would_execute true    aborted_phase none
+```
+
+All eight repos are on `main` and clean. `repo-signal` is the up-to-date one
+(`v1.4.2` already released). `mq-mcp` reads `READY 2.0.2 -> 2.0.3` rather than
+up-to-date because of one docs commit landed after its tag (#50) — expected,
+not drift.
+
+Only the execute slice remains open, and it is deliberately a separate work
+session. This checkpoint added no wiring, no tags, and ran no releases.
 
 ## v1.15.0 — Brain-integrated stack workflow
 
