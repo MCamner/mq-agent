@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -33,5 +33,5 @@
     "mq_hal_operator_contract.v1",
     "inbox_promotion_orchestration.v1"
   ],
-  "next_focus": "v1.23.0 — Cross-repo release automation"
+  "next_focus": "v1.23.0 \u2014 Cross-repo release automation"
 }

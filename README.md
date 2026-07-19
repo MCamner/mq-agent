@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.22.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.23.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -274,6 +274,17 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.23.0 status
+
+- [x] `mq-agent stack release --all` — multi-repo release plan over the single-repo primitive; every repo categorized ready / blocked / up-to-date
+- [x] Refuses a target version whose tag already exists, locally or on `origin` — the shape that otherwise aborts mid-release after the commit
+- [x] Re-verifies on-main and a clean tree against the live repo before any mutation, so a plan built on main cannot cut a tag once the checkout moved
+- [x] `stack release --all --preflight` — read-only refusal surface: dirty, off-main, unpushed, tag exists, version mismatch, and each repo's own `release-check.sh`
+- [x] `repo_release_check.v1` contract adopted by all 8 stack repos behind one canonical read-only entrypoint
+- [x] `stack release --all --execute --approve` — fail-fast gate, dependency-ordered execute, stop-on-first-failure; repos after a failure are `SKIPPED` and an already-released repo is never rolled back
+- [x] Release paths converged: each repo's `release.sh` syncs `.mq/repo-contract.json` or aborts, so the contract cannot drift regardless of which path runs
+- [ ] **Known gap** — `stack release --execute` pushes directly to `main` and cannot release a branch-protected repo; `mq-agent`, `macos-scripts` and `mqobsidian` need the PR flow
 
 ## v1.22.0 status
 

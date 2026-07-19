@@ -9,6 +9,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.23.0] — 2026-07-19
+
+* e59e8e4 fix(release): sync uv.lock version so a release cannot ship its own drift (#155)
+* b527694 feat(stack): multi-repo release execute behind --execute --approve (#154)
+* 5c351b6 docs(roadmap): v1.23.0 checkpoint — 4/5 slices done, execute deferred (#153)
+* 269430b docs(roadmap): close tag disposition — known-bad kept, fixed forward (#152)
+* f5433c3 docs(roadmap): mark release-check.sh rollout done (3/8 -> 8/8) (#151)
+* 3eb620b fix(stack): raise preflight release-check timeout 120s -> 300s (#150)
+* b89de0b docs(roadmap): mark agent-context-pipeline prepare steps done (#149)
+* e3867f9 docs(roadmap): reconcile v1.23.0 state (converge done, rollout 3/8) (#148)
+* 6098088 feat(release): make release-check.sh conform to repo_release_check.v1 (#147)
+* 700d7dc feat(stack): read-only multi-repo release preflight hook (#146)
+* ad68beb docs(stack): lock multi-repo execute design (--all --execute) (#145)
+* f84faf6 feat(stack): re-verify on-main and clean tree before executing a release (#144)
+* e37b702 feat(stack): refuse a release plan when the target tag already exists (#143)
+* b253e57 chore(lint): enforce markdown consistency in CI (#142)
+* bbc6111 feat(stack): plan a release for the whole stack at once (#141)
+* dc8ab48 docs(roadmap): reframe v1.23.0 around release-path convergence (#140)
+* 966cc66 docs(workflow): add fence language to WORKFLOW_CONTRACT code blocks (#139)
+
 ### Changed
 
 * The multi-repo preflight's per-repo `release-check.sh` timeout is raised from
