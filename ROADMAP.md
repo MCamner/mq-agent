@@ -286,12 +286,14 @@ four times.
 `release.sh` bumps `VERSION` but never `.mq/repo-contract.json`, so three repos
 shipped tags (`macos-scripts v1.0.1`, `mq-mcp v2.0.1`, `repo-signal v1.4.1`)
 with the contract one version behind, each tagged off a feature branch and
-never merged to `main`. The drift stayed invisible because those repos had no
-contract-version gate. Gates now exist across the stack (mq-agent#135,
-mq-hal#15, mq-mcp#45, repo-signal#14, and the pointer check on macos-scripts
-main), so drift fails a repo's own CI instead of mq-agent's stack gate — but a
-gate only catches drift after the fact. It does not stop the two-path,
-tagged-off-main release shape that produced it.
+never merged to `main`. (Correction 2026-07-19: `macos-scripts v1.0.1` does not
+hold up on inspection — see the tag-disposition item below. Only `mq-mcp
+v2.0.1` and `repo-signal v1.4.1` were actually drifted.) The drift stayed
+invisible because those repos had no contract-version gate. Gates now exist
+across the stack (mq-agent#135, mq-hal#15, mq-mcp#45, repo-signal#14, and the
+pointer check on macos-scripts main), so drift fails a repo's own CI instead of
+mq-agent's stack gate — but a gate only catches drift after the fact. It does
+not stop the two-path, tagged-off-main release shape that produced it.
 
 **Recommended reframe.** Point v1.23.0 at making the correct path the only
 path, not at rebuilding the plan/prepare/execute surface:
@@ -328,10 +330,23 @@ path, not at rebuilding the plan/prepare/execute surface:
   all eight answer with schema `repo_release_check.v1` and status `READY`, and
   `stack release --all --preflight` reports `blocked 0`. Remaining: the execute
   slice (`--execute --approve`, stop-on-first-failure).
-* [ ] Decide the disposition of the three botched tags (`v1.0.1`, `v2.0.1`,
-  `v1.4.1`) — leave as known-bad history, or delete and re-release cleanly
-  through `stack release`. Tag deletion is destructive and is the operator's
-  call.
+* [x] Disposition of the drifted tags — **decided 2026-07-19: keep as known-bad
+  history and fix forward.** Tag deletion was rejected as destructive; the
+  operator's rule for these operations is run from clean `main`, verify the
+  target tag does not already exist, no remote tag deletion, no force-push, no
+  history rewrite, protected `main` → branch/PR, and stop on any deviation.
+  * `mq-mcp v2.0.1` — kept as known-bad. Fixed forward to `v2.0.2`: the package,
+    stability, tool-contract and repo-contract surfaces had stayed at `2.0.0`.
+    The fix also stopped `tests/test_cli.py` and
+    `tests/test_server_observability.py` asserting a hardcoded `"2.0.0"` — they
+    read `VERSION` from disk now, which is what let the drift ship.
+  * `repo-signal v1.4.1` — kept as known-bad. Fixed forward to `v1.4.2`: the
+    repo contract had stayed at `1.4.0`.
+  * `macos-scripts v1.0.1` — **not** drifted, contrary to the earlier note
+    above. Verified 2026-07-19: annotated tag, an ancestor of `main`, and
+    `.mq/repo-contract.json` reads `1.0.1` at the tag, matching `VERSION`.
+    Nothing to fix forward; its next release proceeds normally.
+  * `stack release --all --preflight` is clean — `blocked 0`.
 
 ## v1.15.0 — Brain-integrated stack workflow
 
