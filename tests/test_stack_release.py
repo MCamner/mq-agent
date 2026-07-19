@@ -689,7 +689,8 @@ class TestPreflightCli:
 # ── multi-repo execute (v1.23.0) ─────────────────────────────────────────────
 
 def _ready_stack(tmp_path, monkeypatch, names: list[str],
-                 no_remote: tuple[str, ...] = ()) -> list[Path]:
+                 no_remote: tuple[str, ...] = (),
+                 mode: str | None = "direct") -> list[Path]:
     """N preflight-READY repos registered in the given (dependency) order.
 
     A repo named in `no_remote` still passes preflight — nothing it is checked
@@ -702,10 +703,24 @@ def _ready_stack(tmp_path, monkeypatch, names: list[str],
         else _no_remote_ready_repo(tmp_path, name=n)
         for n in names
     ]
+    if mode is not None:
+        for r in repos:
+            _write_release_mode(r, mode)
     monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
         {"name": r.name, "path": str(r), "role": "test"} for r in repos
     ])
     return repos
+
+
+def _write_release_mode(repo: Path, mode: str) -> None:
+    """Declare the repo's release path and commit it, keeping the tree clean."""
+    contract_path = repo / ".mq" / "repo-contract.json"
+    contract = json.loads(contract_path.read_text())
+    contract["release_mode"] = mode
+    contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "chore: declare release mode"], repo)
+    subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
 
 
 def _no_remote_ready_repo(tmp_path: Path, name: str) -> Path:
@@ -816,6 +831,7 @@ class TestExecuteStackReleaseAll:
         # HEAD so the repo is genuinely up to date
         _git(["tag", "-d", "v1.0.0"], stale)
         _git(["tag", "v1.0.0"], stale)
+        _write_release_mode(ready, "direct")
         monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
             {"name": "a", "path": str(ready), "role": "test"},
             {"name": "b", "path": str(stale), "role": "test"},
@@ -955,3 +971,81 @@ class TestLockfileVersionSurface:
         assert 'version = "1.1.0"' in (repo / "pyproject.toml").read_text()
         # nothing left uncommitted: the lockfile went into the release commit
         assert _porcelain(repo) == ""
+
+
+# ── release mode contract (branch protection as data) ────────────────────────
+
+def _set_release_mode(repo: Path, mode: str | None) -> None:
+    contract_path = repo / ".mq" / "repo-contract.json"
+    contract = json.loads(contract_path.read_text())
+    if mode is None:
+        contract.pop("release_mode", None)
+    else:
+        contract["release_mode"] = mode
+    contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "chore: release mode"], repo)
+    subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+
+
+class TestReleaseModeContract:
+    """Branch protection has to be data the tool knows before it mutates, not a
+    push error it discovers afterwards.
+
+    A repo whose `main` requires a pull request cannot be released by direct
+    push. Learning that at the push step is too late: the bump, commit and tag
+    already exist locally and have to be unwound by hand. `execute` therefore
+    refuses any repo that has not declared `release_mode: direct`, and the
+    default when the field is absent is refusal, not assumption.
+    """
+
+    def test_execute_refuses_repo_without_declared_mode(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
+        data = execute_stack_release_all(approve=True)
+        entry = data["repos"][0]
+        assert entry["preflight_state"] == "BLOCKED"
+        assert any("release_mode" in b for b in entry["blockers"])
+        assert data["aborted_phase"] == "preflight"
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_execute_refuses_pull_request_repo(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
+        _set_release_mode(repos[0], "pull_request")
+        data = execute_stack_release_all(approve=True)
+        entry = data["repos"][0]
+        assert entry["preflight_state"] == "BLOCKED"
+        assert any("pull_request" in b for b in entry["blockers"])
+        # nothing mutated: no bump, no tag, clean tree
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
+        assert _tags(repos[0]) == ["v1.0.0"]
+        assert _porcelain(repos[0]) == ""
+
+    def test_execute_allows_declared_direct_repo(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
+        _set_release_mode(repos[0], "direct")
+        with _truth_export_patch():
+            data = execute_stack_release_all(approve=True)
+        assert data["repos"][0]["execute_state"] == "RELEASED"
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.1"
+
+    def test_one_protected_repo_stops_the_whole_run_before_mutation(
+        self, tmp_path, monkeypatch
+    ):
+        # The mixed stack this actually failed on: a direct repo ahead of a
+        # protected one. Fail-fast means even the releasable repo is untouched.
+        repos = _ready_stack(tmp_path, monkeypatch, ["a", "b"], mode=None)
+        _set_release_mode(repos[0], "direct")
+        _set_release_mode(repos[1], "pull_request")
+        data = execute_stack_release_all(approve=True)
+        assert data["aborted_phase"] == "preflight"
+        assert data["released_count"] == 0
+        for repo in repos:
+            assert (repo / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_preflight_alone_is_unaffected(self, tmp_path, monkeypatch):
+        # `--all --preflight` stays a pure measurement of release readiness;
+        # the mode gate belongs to the mutating path.
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
+        _set_release_mode(repos[0], "pull_request")
+        data = preflight_stack_release_all()
+        assert data["repos"][0]["preflight_state"] == "READY"
