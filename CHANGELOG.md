@@ -23,6 +23,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* `mq-agent stack release --all --execute --approve` — multi-repo release,
+  completing v1.23.0. `execute_stack_release_all` runs the read-only preflight,
+  fail-fast gates on any `BLOCKED` repo before a single mutation, then releases
+  the `READY` repos in explicit `MQ_STACK_REPOS` (dependency) order with
+  stop-on-first-failure. Repos after a failure are reported `SKIPPED` and never
+  started. An already-released repo is left released — un-releasing it would
+  mean deleting a pushed tag or rewriting history, so repair is fix-forward.
+  `--execute` without `--approve` prints what would be released and touches
+  nothing (exit 1). Reported via `mq_stack_release_all_execute.v1` with
+  `released_count`, `failed_count`, `skipped_count`, and `aborted_phase`.
 * `plan_stack_release` now refuses a target version whose tag already exists
   (locally or on `origin`), so `stack release` cannot re-cut an existing tag.
   Without it, `execute` built the release commit and only then aborted at the

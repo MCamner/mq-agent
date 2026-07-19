@@ -24,7 +24,7 @@ All phases complete through v1.21.0.
 | v1.20.0 | Autonomous stack | Done |
 | v1.21.0 | mq-hal operator layer readiness | Done |
 | v1.22.0 | Inbox ranking and promotion orchestration | Done |
-| v1.23.0 | Cross-repo release automation | In progress — one slice left |
+| v1.23.0 | Cross-repo release automation | Done — all slices shipped |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -335,12 +335,18 @@ path, not at rebuilding the plan/prepare/execute surface:
   all eight answer with schema `repo_release_check.v1` and status `READY`, and
   `stack release --all --preflight` reports `blocked 0`. Slice 2 is **closed**;
   the rollout needs no further work.
-* [ ] **Next slice — multi-repo execute (`--execute --approve`).** Deferred to a
-  separate, test-driven work session so it is not mixed into the checkpoint
-  above. The design is already locked; what is missing is the wiring plus the
-  two execute-phase tests the design calls for: repo 2/5 fails → repos 3–5
-  reported `SKIPPED`, and an already-released repo is never rolled back.
-  Stop-on-first-failure, fix-forward only, no destructive rollback.
+* [x] **Multi-repo execute (`--execute --approve`) — done.**
+  `execute_stack_release_all` runs the read-only preflight, fail-fast gates on
+  any `BLOCKED` repo before a single mutation, then executes the `READY` repos
+  in explicit `MQ_STACK_REPOS` (dependency) order with stop-on-first-failure.
+  Repos after a failure are reported `SKIPPED` and never started; an
+  already-released repo is left released, because un-releasing it would mean
+  deleting a pushed tag or rewriting history. `--execute` without `--approve`
+  prints what would be released and touches nothing. Both locked execute-phase
+  tests ship with it — repo 2 of 5 fails → 3–5 `SKIPPED`, and the released repo
+  keeps its commit and its pushed tag — and the failure is real (one repo is
+  given no reachable remote so its `git push` fails mid-run) rather than a
+  patched return value.
 * [x] Disposition of the drifted tags — **decided 2026-07-19: keep as known-bad
   history and fix forward.** Tag deletion was rejected as destructive; the
   operator's rule for these operations is run from clean `main`, verify the

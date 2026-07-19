@@ -12,6 +12,7 @@ import mq_agent.tools.stack_tools as stack_tools
 from mq_agent.tools.stack_release import (
     bump_version,
     execute_stack_release,
+    execute_stack_release_all,
     plan_stack_release,
     plan_stack_release_all,
     preflight_stack_release_all,
@@ -65,6 +66,18 @@ def _make_repo(
 
 def _stack_entry(repo: Path) -> list[dict[str, str]]:
     return [{"name": repo.name, "path": str(repo), "role": "test"}]
+
+
+def _tags(repo: Path) -> list[str]:
+    out = subprocess.run(["git", "tag", "--list"], cwd=repo,
+                         capture_output=True, text=True, check=True)
+    return sorted(out.stdout.split())
+
+
+def _porcelain(repo: Path) -> str:
+    out = subprocess.run(["git", "status", "--short"], cwd=repo,
+                         capture_output=True, text=True, check=True)
+    return out.stdout.strip()
 
 
 @pytest.fixture
@@ -450,10 +463,12 @@ class TestStackReleaseAllCli:
         result = self._invoke(["stack", "release"])
         assert result.exit_code == 1
 
-    def test_all_execute_is_rejected(self, multi_stack):
+    def test_all_execute_without_approve_is_rejected(self, multi_stack):
+        # Until the execute slice shipped this pointed at --repo. Multi-repo
+        # execute now exists, so the refusal is the missing --approve instead.
         result = self._invoke(["stack", "release", "--all", "--execute"])
         assert result.exit_code == 1
-        assert "--repo" in result.output  # points at the per-repo path
+        assert "--approve" in result.output
         # nothing was released
         for repo in multi_stack:
             assert (repo / "VERSION").read_text().strip() == "1.0.0"
@@ -667,3 +682,187 @@ class TestPreflightCli:
         monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
         result = self._invoke(["stack", "release", "--all", "--preflight"])
         assert result.exit_code == 0
+
+
+# ── multi-repo execute (v1.23.0) ─────────────────────────────────────────────
+
+def _ready_stack(tmp_path, monkeypatch, names: list[str],
+                 no_remote: tuple[str, ...] = ()) -> list[Path]:
+    """N preflight-READY repos registered in the given (dependency) order.
+
+    A repo named in `no_remote` still passes preflight — nothing it is checked
+    on requires a remote — but its `git push` fails for real during execute.
+    That is the failure injection: a genuine mid-flight push failure, not a
+    patched return value.
+    """
+    repos = [
+        _ready_repo(tmp_path, name=n) if n not in no_remote
+        else _no_remote_ready_repo(tmp_path, name=n)
+        for n in names
+    ]
+    monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
+        {"name": r.name, "path": str(r), "role": "test"} for r in repos
+    ])
+    return repos
+
+
+def _no_remote_ready_repo(tmp_path: Path, name: str) -> Path:
+    repo = _make_repo(tmp_path, name=name, with_remote=False)
+    _add_release_check(repo, status="READY")
+    return repo
+
+
+def _truth_export_patch():
+    return patch(
+        "mq_agent.tools.stack_truth.stack_truth_export",
+        return_value={"path": "/tmp/truth.md", "ok": True, "status": "READY"},
+    )
+
+
+class TestExecuteStackReleaseAll:
+    def test_requires_approve(self, tmp_path, monkeypatch):
+        # --execute alone must not mutate: the stack convention is that write
+        # flows need an explicit --approve, and this is the widest write there is.
+        repos = _ready_stack(tmp_path, monkeypatch, ["a", "b"])
+        data = execute_stack_release_all(approve=False)
+        assert data["approved"] is False
+        assert data["aborted_phase"] == "preflight"
+        assert all(r["execute_state"] is None for r in data["repos"])
+        for repo in repos:
+            assert (repo / "VERSION").read_text().strip() == "1.0.0"
+            assert _tags(repo) == ["v1.0.0"]
+
+    def test_blocked_repo_aborts_before_any_mutation(self, tmp_path, monkeypatch):
+        # The fail-fast gate: one blocked repo stops the whole run in the
+        # preflight phase, so even the READY repos ahead of it are untouched.
+        repos = _ready_stack(tmp_path, monkeypatch, ["a", "b"])
+        (repos[1] / "dirty.txt").write_text("x\n")
+        data = execute_stack_release_all(approve=True)
+        assert data["aborted_phase"] == "preflight"
+        assert data["released_count"] == 0
+        assert all(r["execute_state"] is None for r in data["repos"])
+        for repo in repos:
+            assert (repo / "VERSION").read_text().strip() == "1.0.0"
+            assert _tags(repo) == ["v1.0.0"]
+
+    def test_releases_every_ready_repo_in_order(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a", "b", "c"])
+        with _truth_export_patch():
+            data = execute_stack_release_all(approve=True)
+        assert data["aborted_phase"] == "none"
+        assert data["released_count"] == 3
+        assert [r["repo"] for r in data["repos"]] == ["a", "b", "c"]
+        assert all(r["execute_state"] == "RELEASED" for r in data["repos"])
+        assert data["executed_at"] is not None
+        for repo in repos:
+            assert (repo / "VERSION").read_text().strip() == "1.0.1"
+            assert "v1.0.1" in _tags(repo)
+
+    def test_repo_2_of_5_fails_so_3_to_5_are_skipped(self, tmp_path, monkeypatch):
+        # The locked partial-failure contract: stop-on-first-failure, and every
+        # repo after the failure is reported SKIPPED and left completely untouched.
+        repos = _ready_stack(tmp_path, monkeypatch, ["a", "b", "c", "d", "e"],
+                             no_remote=("b",))
+        with _truth_export_patch():
+            data = execute_stack_release_all(approve=True)
+
+        states = {r["repo"]: r["execute_state"] for r in data["repos"]}
+        assert states == {
+            "a": "RELEASED", "b": "FAILED",
+            "c": "SKIPPED", "d": "SKIPPED", "e": "SKIPPED",
+        }
+        assert data["aborted_phase"] == "execute"
+        assert data["released_count"] == 1
+        assert data["failed_count"] == 1
+        assert data["skipped_count"] == 3
+
+        # c/d/e never started — no bump, no tag, clean tree.
+        for repo in repos[2:]:
+            assert (repo / "VERSION").read_text().strip() == "1.0.0"
+            assert _tags(repo) == ["v1.0.0"]
+            assert _porcelain(repo) == ""
+
+    def test_already_released_repo_is_not_rolled_back(self, tmp_path, monkeypatch):
+        # Locked decision 5: no destructive rollback across repos. Repo a is
+        # released before b fails; its tag and commit must survive untouched.
+        repos = _ready_stack(tmp_path, monkeypatch, ["a", "b"], no_remote=("b",))
+        with _truth_export_patch():
+            data = execute_stack_release_all(approve=True)
+
+        released, failed = repos[0], repos[1]
+        assert data["repos"][0]["execute_state"] == "RELEASED"
+        assert data["repos"][1]["execute_state"] == "FAILED"
+
+        # a stays released, locally and on its remote.
+        assert (released / "VERSION").read_text().strip() == "1.0.1"
+        assert "v1.0.1" in _tags(released)
+        remote_tags = subprocess.run(
+            ["git", "ls-remote", "--tags", "origin"], cwd=released,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert "v1.0.1" in remote_tags
+
+        # b failed at push: the release commit stays local, the tag is local,
+        # and nothing was force-pushed or deleted anywhere.
+        assert (failed / "VERSION").read_text().strip() == "1.0.1"
+
+    def test_up_to_date_repo_is_not_executed(self, tmp_path, monkeypatch):
+        ready = _ready_repo(tmp_path, name="a")
+        stale = _make_repo(tmp_path, name="b", with_remote=True, with_unreleased=False)
+        _add_release_check(stale, status="READY")
+        # the release-check commit is itself unreleased — re-point the tag at
+        # HEAD so the repo is genuinely up to date
+        _git(["tag", "-d", "v1.0.0"], stale)
+        _git(["tag", "v1.0.0"], stale)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
+            {"name": "a", "path": str(ready), "role": "test"},
+            {"name": "b", "path": str(stale), "role": "test"},
+        ])
+        with _truth_export_patch():
+            data = execute_stack_release_all(approve=True)
+        by_repo = {r["repo"]: r for r in data["repos"]}
+        assert by_repo["b"]["preflight_state"] == "UP-TO-DATE"
+        assert by_repo["b"]["execute_state"] is None
+        assert data["released_count"] == 1
+
+
+class TestExecuteStackReleaseAllCli:
+    def _invoke(self, args):
+        from typer.testing import CliRunner
+
+        from mq_agent.main import app
+        return CliRunner().invoke(app, args)
+
+    def test_execute_without_approve_is_refused(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"])
+        result = self._invoke(["stack", "release", "--all", "--execute"])
+        assert result.exit_code == 1
+        assert "--approve" in result.output
+        # a repo that *would* be released must not render as "—" here — that
+        # reads as "nothing happens to this repo"
+        assert "READY" in result.output
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_execute_with_approve_releases(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"])
+        with _truth_export_patch():
+            result = self._invoke(["stack", "release", "--all", "--execute", "--approve"])
+        assert result.exit_code == 0
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.1"
+
+    def test_execute_exits_1_when_preflight_blocks(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"])
+        (repos[0] / "dirty.txt").write_text("x\n")
+        result = self._invoke(["stack", "release", "--all", "--execute", "--approve"])
+        assert result.exit_code == 1
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_execute_json(self, tmp_path, monkeypatch):
+        _ready_stack(tmp_path, monkeypatch, ["a"])
+        with _truth_export_patch():
+            result = self._invoke(
+                ["stack", "release", "--all", "--execute", "--approve", "--json"]
+            )
+        data = json.loads(result.output)
+        assert data["schema"] == "mq_stack_release_all_execute.v1"
+        assert data["approved"] is True

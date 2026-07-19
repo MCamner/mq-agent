@@ -390,6 +390,71 @@ def preflight_stack_release_all(bump: str = "patch") -> dict[str, Any]:
     }
 
 
+def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dict[str, Any]:
+    """Multi-repo release: read-only preflight → fail-fast gate → execute in order.
+
+    Two phases with one gate between them. The preflight is the same read-only
+    aggregate `--all --preflight` runs; if it reports a single BLOCKED repo the
+    run ends there, before any mutation, and every `execute_state` stays `None`.
+    Only a fully clean preflight plus an explicit `approve` reaches the execute
+    phase.
+
+    Execute walks the READY repos in explicit `MQ_STACK_REPOS` order — the
+    dependency order — and stops on the first failure. Repos after the failure
+    are reported `SKIPPED` and never started. An already-released repo is left
+    released: un-releasing it would mean deleting a pushed tag or rewriting
+    history, which this stack does not do. Repair is fix-forward, and the
+    tag-exists (#143) and release-shape (#144) guards make a re-run safe.
+    """
+    data = preflight_stack_release_all(bump=bump)
+    data["approved"] = approve
+    data["released_count"] = 0
+    data["failed_count"] = 0
+    data["skipped_count"] = 0
+
+    if not approve:
+        data["aborted_phase"] = "preflight"
+        data["would_execute"] = False
+        data["error"] = (
+            "multi-repo execute requires --approve; nothing was touched"
+        )
+        return data
+
+    if data["blocked_count"]:
+        # Gate: fail fast, before the first mutation.
+        return data
+
+    aborted = False
+    for entry in data["repos"]:
+        if entry["preflight_state"] != "READY":
+            continue
+        if aborted:
+            entry["execute_state"] = "SKIPPED"
+            entry["detail"] = "not attempted — run aborted at an earlier repo"
+            data["skipped_count"] += 1
+            continue
+
+        plan = plan_stack_release(entry["repo"], bump=bump)
+        result = execute_stack_release(plan)
+        entry["evidence"] = {"steps": result.get("steps", [])}
+
+        if result.get("released"):
+            entry["execute_state"] = "RELEASED"
+            entry["detail"] = f"tag {entry['tag']} pushed"
+            data["released_count"] += 1
+            if result.get("warning"):
+                entry["detail"] += f" ({result['warning']})"
+        else:
+            entry["execute_state"] = "FAILED"
+            entry["detail"] = result.get("error", "execute failed")
+            data["failed_count"] += 1
+            aborted = True
+
+    data["executed_at"] = datetime.now(UTC).isoformat()
+    data["aborted_phase"] = "execute" if aborted else "none"
+    return data
+
+
 def _verify_release_shape(repo_path: Path) -> tuple[bool, str]:
     """Re-check the release preconditions at execute time: on main and clean.
 

@@ -4292,6 +4292,7 @@ def stack_release_cmd(
     bump: Annotated[str, typer.Option("--bump", help="Version bump: patch, minor or major")] = "patch",
     version: Annotated[str, typer.Option("--version", help="Explicit target version (overrides --bump)")] = "",
     execute: Annotated[bool, typer.Option("--execute", help="Apply the release (default is dry-run)")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Required with --all --execute: multi-repo release is a write flow")] = False,
     preflight: Annotated[bool, typer.Option("--preflight", help="Read-only multi-repo release preflight (strict blockers; never executes). Requires --all.")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
@@ -4314,6 +4315,7 @@ def stack_release_cmd(
     """
     from mq_agent.tools.stack_release import (
         BUMP_PARTS,
+        execute_stack_release_all,
         plan_stack_release_all,
         preflight_stack_release_all,
         stack_release as _release,
@@ -4377,11 +4379,76 @@ def stack_release_cmd(
                 )
             raise typer.Exit(1 if data["blocked_count"] else 0)
         if execute:
+            if version:
+                console.print("[bold red]--version applies to a single --repo, not --all.[/bold red]")
+                raise typer.Exit(1)
+            with console.status("[cyan]Preflighting stack release...[/cyan]"):
+                data = execute_stack_release_all(bump=bump, approve=approve)
+            if json_out:
+                typer.echo(json.dumps(data, indent=2, default=str))
+                raise typer.Exit(0 if data["aborted_phase"] == "none" and approve else 1)
+            console.print()
+            console.rule("[bold]Stack Release — all repos (execute)[/bold]")
+            console.print()
+            for r in data["repos"]:
+                pre, ex = r["preflight_state"], r["execute_state"]
+                ver = r["current_version"]
+                if r.get("new_version"):
+                    ver = f"{r['current_version']} → {r['new_version']}"
+                if ex == "RELEASED":
+                    label = "[green]RELEASED[/green]  "
+                elif ex == "FAILED":
+                    label = "[bold red]FAILED[/bold red]    "
+                elif ex == "SKIPPED":
+                    label = "[yellow]SKIPPED[/yellow]   "
+                elif pre == "BLOCKED":
+                    label = "[red]BLOCKED[/red]   "
+                elif pre == "UP-TO-DATE":
+                    label = "[dim]UP-TO-DATE[/dim]"
+                elif pre == "READY":
+                    # Not executed (yet). Showing "—" here would read as
+                    # "nothing happens to this repo", which is the opposite of
+                    # the truth in the --approve-less refusal report.
+                    label = "[green]READY[/green]     "
+                else:
+                    label = "[dim]—[/dim]         "
+                console.print(f"  {label} {r['repo']:<18} {ver}")
+                if r.get("detail"):
+                    console.print(f"    [dim]{r['detail']}[/dim]")
+                for b in r["blockers"]:
+                    console.print(f"    [red]→[/red] {b}")
+            console.print()
+            if not approve:
+                console.print(
+                    "[bold red]Refused: multi-repo execute requires --approve.[/bold red]"
+                )
+                console.print(
+                    "[dim]The table above is what a run would release. Nothing was touched.[/dim]"
+                )
+                raise typer.Exit(1)
+            if data["aborted_phase"] == "preflight":
+                console.print(
+                    "[bold red]Aborted in preflight[/bold red] — at least one repo is "
+                    "blocked. No repo was touched."
+                )
+                raise typer.Exit(1)
+            if data["aborted_phase"] == "execute":
+                console.print(
+                    f"[bold red]Stopped at the first failure.[/bold red] "
+                    f"released {data['released_count']}  ·  failed {data['failed_count']}  ·  "
+                    f"skipped {data['skipped_count']}"
+                )
+                console.print(
+                    "[dim]The stack is partially released. Already-released repos are "
+                    "left released — repair by fixing forward, never by deleting a "
+                    "pushed tag or rewriting history.[/dim]"
+                )
+                raise typer.Exit(1)
             console.print(
-                "[bold red]--all is dry-run only.[/bold red] "
-                "Release each ready repo with [cyan]--repo <name> --execute[/cyan]."
+                f"[green]Released {data['released_count']} repo(s).[/green] "
+                f"[dim]up-to-date {data['uptodate_count']}[/dim]"
             )
-            raise typer.Exit(1)
+            raise typer.Exit(0)
         if version:
             console.print("[bold red]--version applies to a single --repo, not --all.[/bold red]")
             raise typer.Exit(1)
