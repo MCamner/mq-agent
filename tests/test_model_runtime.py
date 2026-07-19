@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
 
@@ -182,6 +183,22 @@ def test_bench_model_validates_memory_schema(monkeypatch):
     assert data["validation"] == {"json_valid": True, "schema_valid": True}
 
 
+def test_bench_model_uses_ollama_host(monkeypatch):
+    response = MagicMock()
+    response.read.return_value = json.dumps({"response": "OK", "done": True}).encode()
+    response.__enter__.return_value = response
+    monkeypatch.setenv("OLLAMA_HOST", "ollama.example.test:4242/")
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+    urlopen = MagicMock(return_value=response)
+    monkeypatch.setattr("mq_agent.tools.model_runtime.urllib.request.urlopen", urlopen)
+
+    data = bench_model("qwen3")
+
+    request = urlopen.call_args.args[0]
+    assert request.full_url == "http://ollama.example.test:4242/api/generate"
+    assert data["ok"] is True
+
+
 def test_model_doctor_passes_with_installed_profiles(monkeypatch, tmp_path):
     config_path = tmp_path / "models.json"
     monkeypatch.setenv("MQ_AGENT_MODELS_CONFIG", str(config_path))
@@ -220,6 +237,28 @@ def test_model_doctor_passes_with_installed_profiles(monkeypatch, tmp_path):
     assert result["profiles"]["missing"] == []
     assert result["smoke"]["json_valid"] is True
     assert result["smoke"]["schema_valid"] is True
+
+
+def test_model_doctor_reports_cli_timeouts(monkeypatch, tmp_path):
+    config_path = tmp_path / "models.json"
+    monkeypatch.setenv("MQ_AGENT_MODELS_CONFIG", str(config_path))
+    monkeypatch.setattr("mq_agent.tools.model_runtime.shutil.which", lambda _: "/usr/bin/ollama")
+
+    def time_out(args, **kwargs):
+        raise subprocess.TimeoutExpired(args, kwargs["timeout"])
+
+    monkeypatch.setattr("mq_agent.tools.model_runtime.subprocess.run", time_out)
+
+    result = model_doctor(smoke=False, check_modelfile=False)
+
+    assert result["ok"] is False
+    timed_out = {item["check"]: item for item in result["items"]}
+    assert timed_out["ollama-version"]["status"] == "FAIL"
+    assert timed_out["ollama-version"]["detail"] == "ollama --version timed out after 10s"
+    assert timed_out["ollama-list"]["status"] == "FAIL"
+    assert timed_out["ollama-list"]["detail"] == "ollama list timed out after 10s"
+    assert timed_out["ollama-ps"]["status"] == "FAIL"
+    assert timed_out["ollama-ps"]["detail"] == "ollama ps timed out after 10s"
 
 
 def test_models_doctor_json_fails_for_missing_profile_models(monkeypatch, tmp_path):

@@ -25,6 +25,7 @@ DOCTOR_SMOKE_FIELDS = {
     "pattern_name", "pattern_type", "summary", "evidence",
     "recommended_action", "confidence", "should_store",
 }
+DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 
 
 def models_config_path() -> Path:
@@ -129,13 +130,7 @@ def list_ollama_models() -> dict[str, Any]:
             "detail": "ollama CLI not found",
             "hint": "install or start Ollama",
         }
-    result = subprocess.run(
-        ["ollama", "list"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
+    result = _ollama_command(["list"])
     if result.returncode != 0:
         return {
             "ok": False,
@@ -148,13 +143,25 @@ def list_ollama_models() -> dict[str, Any]:
 
 
 def _ollama_command(args: list[str], timeout: int = 10) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["ollama", *args],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        check=False,
-    )
+    command = ["ollama", *args]
+    try:
+        return subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        detail = f"{' '.join(command)} timed out after {timeout}s"
+        return subprocess.CompletedProcess(command, returncode=124, stdout="", stderr=detail)
+
+
+def _ollama_base_url() -> str:
+    host = os.environ.get("OLLAMA_HOST", "").strip() or DEFAULT_OLLAMA_HOST
+    if "://" not in host:
+        host = f"http://{host}"
+    return host.rstrip("/")
 
 
 def _ollama_generate(
@@ -175,7 +182,7 @@ def _ollama_generate(
         request_data["format"] = "json"
     body = json.dumps(request_data).encode("utf-8")
     request = urllib.request.Request(
-        "http://127.0.0.1:11434/api/generate",
+        f"{_ollama_base_url()}/api/generate",
         data=body,
         headers={"Content-Type": "application/json"},
         method="POST",
