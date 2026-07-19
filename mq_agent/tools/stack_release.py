@@ -431,8 +431,21 @@ def preflight_stack_release_all(bump: str = "patch") -> dict[str, Any]:
     }
 
 
+RELEASE_MODES = ("direct", "pull_request", "manual")
+"""How a repo's release commit is allowed to reach `main`.
+
+* `direct` — mq-agent may commit, tag and push to `main` itself.
+* `pull_request` — `main` is branch-protected; the release must go through a
+  release branch and a PR, and the tag is cut from the merged commit.
+* `manual` — released by hand on purpose; automation must not touch it.
+
+Only `direct` is executable today. The others are declarations that block, so
+the tool refuses knowingly instead of discovering the rule from a push error.
+"""
+
+
 def _release_mode(repo_path: Path | None) -> str | None:
-    """The repo's declared release path: 'direct', 'pull_request', or None.
+    """The repo's declared release path: one of RELEASE_MODES, or None.
 
     Read from `.mq/repo-contract.json`. `None` means the repo has not declared
     one — treated as refusal by the execute path, never as permission.
@@ -483,12 +496,26 @@ def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dic
         if mode == "direct":
             continue
         entry["preflight_state"] = "BLOCKED"
-        entry["blockers"] = list(entry["blockers"]) + [
-            f"release_mode {mode!r}: this repo is not releasable by direct push"
-            if mode
-            else "release_mode is not declared in .mq/repo-contract.json — "
-            "refusing to assume direct push is allowed"
-        ]
+        if mode is None:
+            reason = (
+                "release_mode is not declared in .mq/repo-contract.json — "
+                "refusing to assume direct push is allowed"
+            )
+        elif mode not in RELEASE_MODES:
+            reason = (
+                f"unknown release_mode {mode!r} — expected one of: "
+                f"{', '.join(RELEASE_MODES)}"
+            )
+        elif mode == "pull_request":
+            reason = (
+                "release_mode 'pull_request': main requires a PR, so this repo "
+                "cannot be released by direct push"
+            )
+        else:
+            reason = (
+                "release_mode 'manual': this repo is released by hand on purpose"
+            )
+        entry["blockers"] = list(entry["blockers"]) + [reason]
         entry["new_version"] = None
         entry["tag"] = None
         data["ready_count"] -= 1
