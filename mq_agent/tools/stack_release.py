@@ -246,6 +246,8 @@ def plan_stack_release(
         {"step": "bump-version", "detail": f"{current} → {new_version}"},
         *([{"step": "sync-contract", "detail": ".mq/repo-contract.json"}] if has_contract else []),
         *([{"step": "update-changelog", "detail": f"{len(plan['commits'])} commit(s) since {plan['last_tag'] or 'start'}"}] if has_changelog else []),
+        *([{"step": "re-gate", "detail": "release-check.sh after bump"}]
+          if (path / "release-check.sh").exists() else []),
         {"step": "commit", "detail": f"release: {tag}"},
         {"step": "tag", "detail": tag},
         {"step": "push", "detail": "git push"},
@@ -651,6 +653,18 @@ def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
             record("update-changelog", "done")
         except Exception as exc:
             return abort("update-changelog", str(exc))
+
+    # Re-gate on the repo's own release-check, now that the version surfaces
+    # have moved. The check ran pre-bump during planning, where it cannot see
+    # drift the bump itself creates — the shape that shipped mq-mcp v2.0.1 and
+    # that left v1.23.0's README a version behind inside the release commit.
+    # Nothing is committed yet, so a refusal rolls back cleanly. The repo owns
+    # the list of surfaces; mq-agent does not need to enumerate them.
+    if (path / "release-check.sh").exists():
+        gate_ok, gate_blockers = _run_release_check(path)
+        if not gate_ok:
+            return abort("re-gate", "; ".join(gate_blockers))
+        record("re-gate", "done", "release-check READY after bump")
 
     rel_files = [str(f.relative_to(path)) for f in changed_files]
     ok, out = _run_git(["add", "--"] + rel_files, path)
