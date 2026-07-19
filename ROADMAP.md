@@ -24,7 +24,7 @@ All phases complete through v1.21.0.
 | v1.20.0 | Autonomous stack | Done |
 | v1.21.0 | mq-hal operator layer readiness | Done |
 | v1.22.0 | Inbox ranking and promotion orchestration | Done |
-| v1.23.0 | Cross-repo release automation | Done — all slices shipped |
+| v1.23.0 | Cross-repo release automation | Released v1.23.0 |
 
 ## v1.16.0 — Runtime consolidation
 
@@ -364,6 +364,34 @@ path, not at rebuilding the plan/prepare/execute surface:
     `.mq/repo-contract.json` reads `1.0.1` at the tag, matching `VERSION`.
     Nothing to fix forward; its next release proceeds normally.
   * `stack release --all --preflight` is clean — `blocked 0`.
+
+### Release-mode contract — 2026-07-19
+
+Releasing v1.23.0 exposed a structural gap the design had not modelled.
+`stack release --execute` pushes straight to `main`; three stack repos
+(`mq-agent`, `macos-scripts`, `mqobsidian`) require a pull request, so the
+push was refused with `GH013` **after** the bump, commit and tag already
+existed locally. All of it had to be unwound by hand.
+
+The tool knew versions, tags, clean tree, unpushed commits, `release-check.sh`,
+README and `uv.lock` — but nothing about whether a repo may be pushed to at
+all, so it learned about branch protection by failing at the most expensive
+possible point.
+
+* [x] `release_mode` is declared data in `.mq/repo-contract.json`, read before
+  any mutation (#157). Execute refuses anything that is not `direct`, and an
+  absent field is refusal rather than permission. `--all --preflight` stays a
+  pure readiness measurement; the mode gate belongs to the mutating path.
+* [ ] **Next slice — the PR-mediated release path.** `pull_request` repos need
+  release branch → PR → merge → tag the merged SHA, as a first-class flow
+  rather than a manual recovery. Until then those three repos are released by
+  hand and the other five stay blocked until they declare their mode.
+* [ ] Declare `release_mode` in the remaining seven repos.
+* [ ] Fold README's status badge and status section into the declared version
+  surfaces. `stack release` bumps VERSION, pyproject, `uv.lock` and the
+  contract; README drifted and only CI's docs job caught it, while
+  `release-check.sh --json` still reported `READY`. Two gates, two different
+  definitions of releasable.
 
 ### Checkpoint — 2026-07-19
 
