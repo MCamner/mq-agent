@@ -581,9 +581,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.21.0 — mq-hal operator layer readiness — is complete. v1.22.0 — inbox
-ranking and promotion orchestration — is the next focus and remains planned,
-not shipped.
+v1.23.0 — cross-repo release automation — is released. The next direction is
+a PR-mediated release path for branch-protected repos, so
+`mq-agent stack release --all --execute --approve` preserves branch protection
+and review gates instead of pushing directly to `main`.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
 mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
