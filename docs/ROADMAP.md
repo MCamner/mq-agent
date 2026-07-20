@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-v1.21.0 — mq-hal operator layer readiness (done)
-Next:    v1.23.0 — Cross-repo release automation
+Released: v1.23.0 — Cross-repo release automation
+Current:  Post-release hardening tracked under Unreleased
 ```
 
 Completed foundation:
@@ -82,8 +82,8 @@ Completed foundation:
 | v1.19.0 | Operator dashboard                           | Done    |
 | v1.20.0 | Autonomous stack                             | Done    |
 | v1.21.0 | mq-hal operator layer readiness              | Done    |
-| v1.22.0 | Inbox ranking and promotion orchestration    | Done |
-| v1.23.0 | Cross-repo release automation                | Planned |
+| v1.22.0 | Inbox ranking and promotion orchestration    | Done    |
+| v1.23.0 | Cross-repo release automation                | Done    |
 
 ---
 
@@ -248,27 +248,24 @@ result. `mqlaunch` stays a thin delegate surface.
 Goal: make the correct release path the only path across repos, without
 rebuilding automation that already ships.
 
-Single-repo release automation already exists as `stack release`
+Single-repo release automation ships as `stack release`
 (`plan_stack_release` / `execute_stack_release`): gate → bump → sync-contract →
 changelog → tag → push → truth-export. The full scope, evidence, and the three
 botched off-main tags this reframe came from are recorded in the top-level
 `ROADMAP.md` scoping note (2026-07-17).
 
-* [ ] Converge the two release paths so `.mq/repo-contract.json` cannot drift:
-  each repo's `release.sh` bumps `VERSION` but not the contract, which is how
-  `macos-scripts v1.0.1`, `mq-mcp v2.0.1`, and `repo-signal v1.4.1` shipped
-  drifted. Retire `release.sh` in favour of `stack release`, or share the
-  contract-sync logic.
-* [ ] Add multi-repo orchestration over the existing single-repo primitive;
-  refuse any repo that is dirty, off main, or already tagged at the target.
-* [ ] Enforce on-main releases — a tag cut off a feature branch that never
-  reaches `main` is the failure mode that produced the current drift.
-* [ ] Decide the disposition of the three drifted tags (leave as known-bad, or
-  delete and re-release cleanly). Tag deletion is destructive — operator's call.
+* [x] Converge release paths around contract-safe `stack release` behavior and
+  the shared `repo_release_check.v1` preflight contract.
+* [x] Add read-only multi-repo preflight plus approval-gated execution in
+  dependency order, with fail-fast behavior before mutation.
+* [x] Enforce clean, on-main release execution and reject target versions whose
+  tag already exists locally or on `origin`.
+* [x] Keep the known-bad drifted tags for provenance and fix forward without
+  tag deletion, force-push, or history rewriting.
 
-Contract gates now catch this drift after the fact across the stack
-(mq-agent#135, mq-hal#15, mq-mcp#45, repo-signal#14, macos-scripts main), but a
-gate does not stop the two-path, tagged-off-main shape that caused it.
+Released as `v1.23.0` on 2026-07-19. GitHub Release metadata was synchronized
+after publication so the tag, changelog, package version, README, and Latest
+Release surface all identify `v1.23.0` consistently.
 
 ---
 
