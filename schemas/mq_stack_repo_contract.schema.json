@@ -30,6 +30,11 @@
       "items": { "type": "string" },
       "description": "Interface contracts this repo declares (e.g. 'stack_sweep.v1')."
     },
+    "release_mode": {
+      "type": "string",
+      "enum": ["direct", "pull_request", "manual"],
+      "description": "How release changes are allowed to reach the default branch."
+    },
     "next_focus": {
       "type": "string",
       "description": "Optional: next planned work item."

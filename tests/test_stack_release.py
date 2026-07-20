@@ -594,6 +594,19 @@ class TestPreflightStackReleaseAll:
         assert r["preflight_state"] == "BLOCKED"
         assert any("version mismatch" in b.lower() for b in r["blockers"])
 
+    def test_missing_contract_blocks(self, tmp_path, monkeypatch):
+        repo = _ready_repo(tmp_path)
+        (repo / ".mq" / "repo-contract.json").unlink()
+        _git(["add", "-A"], repo)
+        _git(["commit", "-m", "remove contract"], repo)
+        subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+        monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", _stack_entry(repo))
+
+        r = preflight_stack_release_all()["repos"][0]
+
+        assert r["preflight_state"] == "BLOCKED"
+        assert any("missing .mq/repo-contract.json" in b for b in r["blockers"])
+
     def test_dirty_tree_blocks(self, tmp_path, monkeypatch):
         repo = _ready_repo(tmp_path)
         (repo / "dirty.txt").write_text("x\n")

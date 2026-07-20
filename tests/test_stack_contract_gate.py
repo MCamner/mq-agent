@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
 from mq_agent.main import app
@@ -58,9 +60,9 @@ class TestContractEntry:
         assert e["status"] == "BLOCKED"
         assert "not found" in e["reason"]
 
-    def test_missing_contract_returns_drift(self, bare_repo):
+    def test_missing_contract_returns_blocked(self, bare_repo):
         e = _contract_entry({"name": "test", "path": str(bare_repo)})
-        assert e["status"] == "DRIFT"
+        assert e["status"] == "BLOCKED"
         assert "repo-contract.json" in e["reason"]
 
     def test_invalid_json_returns_blocked(self, bare_repo):
@@ -93,9 +95,44 @@ class TestContractEntry:
         e = _contract_entry({"name": "test", "path": str(contract_repo)})
         assert e["status"] in ("READY", "REVIEW")
 
+    @pytest.mark.parametrize("mode", ["direct", "pull_request", "manual"])
+    def test_valid_release_modes_are_accepted(self, contract_repo, mode):
+        contract_path = contract_repo / ".mq" / "repo-contract.json"
+        contract = json.loads(contract_path.read_text())
+        contract["release_mode"] = mode
+        contract_path.write_text(json.dumps(contract))
+
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+
+        assert e["status"] in ("READY", "REVIEW")
+
+    def test_unknown_release_mode_returns_blocked(self, contract_repo):
+        contract_path = contract_repo / ".mq" / "repo-contract.json"
+        contract = json.loads(contract_path.read_text())
+        contract["release_mode"] = "automatic"
+        contract_path.write_text(json.dumps(contract))
+
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+
+        assert e["status"] == "BLOCKED"
+        assert "release_mode" in e["reason"]
+
     def test_clean_tree_returns_ready(self, contract_repo):
         e = _contract_entry({"name": "test", "path": str(contract_repo)})
         assert e["status"] == "READY"
+
+
+def test_repo_contract_schema_keeps_release_mode_closed():
+    schema_path = Path(__file__).parents[1] / "schemas" / "mq_stack_repo_contract.schema.json"
+    schema = json.loads(schema_path.read_text())
+
+    Draft202012Validator.check_schema(schema)
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["release_mode"]["enum"] == [
+        "direct",
+        "pull_request",
+        "manual",
+    ]
 
     def test_dirty_tree_returns_review(self, contract_repo):
         (contract_repo / "dirty.txt").write_text("unstaged\n")
