@@ -369,7 +369,9 @@ def _contract_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
             "reason": f"contract missing fields: {', '.join(sorted(missing))}",
         }
 
-    schema_path = Path(__file__).resolve().parents[2] / "schemas" / "mq_stack_repo_contract.schema.json"
+    source_schema = Path(__file__).resolve().parents[2] / "schemas" / "mq_stack_repo_contract.schema.json"
+    installed_schema = Path(__file__).resolve().parents[1] / "schemas" / "mq_stack_repo_contract.schema.json"
+    schema_path = installed_schema if installed_schema.exists() else source_schema
     schema = json.loads(schema_path.read_text())
     errors = sorted(Draft202012Validator(schema).iter_errors(contract), key=lambda e: list(e.path))
     if errors:

@@ -134,6 +134,23 @@ def test_repo_contract_schema_keeps_release_mode_closed():
         "manual",
     ]
 
+
+def test_repo_contract_schema_accepts_pointer_contract_fields():
+    schema_path = Path(__file__).parents[1] / "schemas" / "mq_stack_repo_contract.schema.json"
+    schema = json.loads(schema_path.read_text())
+    contract = {
+        "schema": "mq-stack-repo-contract.pointer.v1",
+        "repo": "macos-scripts",
+        "role": "human-terminal-entrypoint",
+        "version": "1.0.1",
+        "status": "active",
+        "canonical_contract": ".mq/context/repo-contract.json",
+        "contracts": ["mq-stack-repo-contract.v1"],
+        "release_mode": "pull_request",
+    }
+
+    Draft202012Validator(schema).validate(contract)
+
     def test_dirty_tree_returns_review(self, contract_repo):
         (contract_repo / "dirty.txt").write_text("unstaged\n")
         e = _contract_entry({"name": "test", "path": str(contract_repo)})
