@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.24.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
+    "jsonschema>=4.23.0",
 ]
 
 [project.scripts]
@@ -27,7 +28,6 @@ signal = [
     "repo-signal>=0.7.0",
 ]
 dev = [
-    "jsonschema>=4.23.0",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-mock>=3.0.0",
@@ -39,6 +39,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["mq_agent"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schemas/mq_stack_repo_contract.schema.json" = "mq_agent/schemas/mq_stack_repo_contract.schema.json"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

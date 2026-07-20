@@ -7,6 +7,10 @@
   "required": ["repo", "role", "version", "status", "contracts"],
   "additionalProperties": false,
   "properties": {
+    "schema": {
+      "type": "string",
+      "description": "Optional schema identifier for pointer-style repo contracts."
+    },
     "repo": {
       "type": "string",
       "description": "Repository slug matching MQ_STACK_REPOS name."
@@ -29,6 +33,15 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "Interface contracts this repo declares (e.g. 'stack_sweep.v1')."
+    },
+    "canonical_contract": {
+      "type": "string",
+      "description": "Optional repo-relative path to the canonical contract."
+    },
+    "release_mode": {
+      "type": "string",
+      "enum": ["direct", "pull_request", "manual"],
+      "description": "How release changes are allowed to reach the default branch."
     },
     "next_focus": {
       "type": "string",

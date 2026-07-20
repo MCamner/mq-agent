@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 MQ_STACK_REPOS: list[dict[str, str]] = [
     {"name": "mqlaunch",        "path": "~/macos-scripts",    "role": "Terminal entrypoint"},
     {"name": "mq-agent",        "path": "~/mq-agent",         "role": "Orchestrator"},
@@ -348,7 +350,11 @@ def _contract_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
 
     contract_path = path / ".mq" / "repo-contract.json"
     if not contract_path.exists():
-        return {"name": entry["name"], "status": "DRIFT", "reason": "missing .mq/repo-contract.json"}
+        return {
+            "name": entry["name"],
+            "status": "BLOCKED",
+            "reason": "missing .mq/repo-contract.json",
+        }
 
     try:
         contract = json.loads(contract_path.read_text())
@@ -361,6 +367,21 @@ def _contract_entry(entry: dict[str, str], ci: bool = False) -> dict[str, Any]:
             "name": entry["name"],
             "status": "BLOCKED",
             "reason": f"contract missing fields: {', '.join(sorted(missing))}",
+        }
+
+    source_schema = Path(__file__).resolve().parents[2] / "schemas" / "mq_stack_repo_contract.schema.json"
+    installed_schema = Path(__file__).resolve().parents[1] / "schemas" / "mq_stack_repo_contract.schema.json"
+    schema_path = installed_schema if installed_schema.exists() else source_schema
+    schema = json.loads(schema_path.read_text())
+    errors = sorted(Draft202012Validator(schema).iter_errors(contract), key=lambda e: list(e.path))
+    if errors:
+        error = errors[0]
+        field = ".".join(str(part) for part in error.path)
+        location = f" at {field}" if field else ""
+        return {
+            "name": entry["name"],
+            "status": "BLOCKED",
+            "reason": f"contract schema invalid{location}: {error.message}",
         }
 
     if contract.get("version") != version:

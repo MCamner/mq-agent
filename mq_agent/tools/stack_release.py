@@ -351,7 +351,7 @@ def _version_mismatch(repo_path: Path, version: str) -> str | None:
     """Return a reason if VERSION disagrees with the repo contract version."""
     contract_path = repo_path / ".mq" / "repo-contract.json"
     if not contract_path.exists():
-        return None
+        return "missing .mq/repo-contract.json"
     try:
         contract = json.loads(contract_path.read_text())
     except (json.JSONDecodeError, ValueError, OSError):
