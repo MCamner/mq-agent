@@ -284,7 +284,6 @@ uv run pytest tests/ -v
 - [x] `repo_release_check.v1` contract adopted by all 8 stack repos behind one canonical read-only entrypoint
 - [x] `stack release --all --execute --approve` — fail-fast gate, dependency-ordered execute, stop-on-first-failure; repos after a failure are `SKIPPED` and an already-released repo is never rolled back
 - [x] Release paths converged: each repo's `release.sh` syncs `.mq/repo-contract.json` or aborts, so the contract cannot drift regardless of which path runs
-- [x] PR-mediated release path for branch-protected repos: prepare a draft release PR without tagging, stop the stack in `AWAITING_MERGE`, then explicitly finalize with `stack release --repo <name> --version <version> --finalize-pr <number> --approve`
 
 ## v1.22.0 status
 
