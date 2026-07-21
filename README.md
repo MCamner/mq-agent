@@ -284,7 +284,7 @@ uv run pytest tests/ -v
 - [x] `repo_release_check.v1` contract adopted by all 8 stack repos behind one canonical read-only entrypoint
 - [x] `stack release --all --execute --approve` — fail-fast gate, dependency-ordered execute, stop-on-first-failure; repos after a failure are `SKIPPED` and an already-released repo is never rolled back
 - [x] Release paths converged: each repo's `release.sh` syncs `.mq/repo-contract.json` or aborts, so the contract cannot drift regardless of which path runs
-- [ ] **Known gap** — `stack release --execute` pushes directly to `main` and cannot release a branch-protected repo; `mq-agent`, `macos-scripts` and `mqobsidian` need the PR flow
+- [x] PR-mediated release path for branch-protected repos: prepare a draft release PR without tagging, stop the stack in `AWAITING_MERGE`, then explicitly finalize with `stack release --repo <name> --version <version> --finalize-pr <number> --approve`
 
 ## v1.22.0 status
 
@@ -581,10 +581,11 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.23.0 — cross-repo release automation — is released. The next direction is
+v1.23.0 — cross-repo release automation — is released. The current work adds
 a PR-mediated release path for branch-protected repos, so
 `mq-agent stack release --all --execute --approve` preserves branch protection
-and review gates instead of pushing directly to `main`.
+and review gates instead of pushing directly to `main`. Tagging is a separate,
+explicit post-merge finalization step.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
 mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin

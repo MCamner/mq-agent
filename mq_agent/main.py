@@ -4334,11 +4334,12 @@ def stack_skills_check_cmd(
 @stack_app.command("release")
 def stack_release_cmd(
     repo: Annotated[str, typer.Option("--repo", help="Stack repo to release")] = "",
-    all_repos: Annotated[bool, typer.Option("--all", help="Plan a release for every stack repo (dry-run only)")] = False,
+    all_repos: Annotated[bool, typer.Option("--all", help="Plan or execute a release across every stack repo")] = False,
     bump: Annotated[str, typer.Option("--bump", help="Version bump: patch, minor or major")] = "patch",
     version: Annotated[str, typer.Option("--version", help="Explicit target version (overrides --bump)")] = "",
     execute: Annotated[bool, typer.Option("--execute", help="Apply the release (default is dry-run)")] = False,
     approve: Annotated[bool, typer.Option("--approve", help="Required with --all --execute: multi-repo release is a write flow")] = False,
+    finalize_pr: Annotated[int, typer.Option("--finalize-pr", help="Finalize a merged release PR by number; requires --repo, --version and --approve")] = 0,
     preflight: Annotated[bool, typer.Option("--preflight", help="Read-only multi-repo release preflight (strict blockers; never executes). Requires --all.")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
@@ -4350,7 +4351,7 @@ def stack_release_cmd(
     failed step. Ends with a stack truth-export so the release lands in
     mqobsidian memory.
 
-    With --all, plans a release for every stack repo at once (dry-run only):
+    With --all, plans a release for every stack repo at once (dry-run by default):
     each repo is reported as ready, blocked, or up-to-date. Exits 1 if any repo
     is blocked. Release a ready repo with --repo <name> --execute.
 
@@ -4358,10 +4359,15 @@ def stack_release_cmd(
     strict fail-fast refusal surface (dirty, off-main, unpushed, tag exists,
     version mismatch, and each repo's release-check.sh). Never mutates and never
     executes; exits 1 if any repo is blocked.
+
+    Pull-request repos stop in AWAITING_MERGE without directly releasing other
+    repos. Finalize a verified merged release PR explicitly with --finalize-pr,
+    --repo, --version and --approve.
     """
     from mq_agent.tools.stack_release import (
         BUMP_PARTS,
         execute_stack_release_all,
+        finalize_release_pull_request,
         plan_stack_release_all,
         preflight_stack_release_all,
         stack_release as _release,
@@ -4370,6 +4376,31 @@ def stack_release_cmd(
     if bump not in BUMP_PARTS:
         console.print(f"[red]Invalid --bump {bump!r} — expected one of: {', '.join(BUMP_PARTS)}[/red]")
         raise typer.Exit(1)
+
+    if finalize_pr:
+        from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand
+
+        if all_repos or execute or preflight or not repo or not version or not approve:
+            console.print(
+                "[bold red]--finalize-pr requires --repo, --version and --approve; "
+                "it cannot be combined with --all, --execute or --preflight.[/bold red]"
+            )
+            raise typer.Exit(1)
+        entry = next((item for item in MQ_STACK_REPOS if item["name"] == repo), None)
+        if entry is None:
+            console.print(f"[bold red]Unknown stack repo: {repo}[/bold red]")
+            raise typer.Exit(1)
+        data = finalize_release_pull_request(
+            _expand(entry["path"]), f"v{version}", finalize_pr,
+        )
+        if json_out:
+            typer.echo(json.dumps(data, indent=2, default=str))
+        elif data.get("finalized"):
+            suffix = " (already finalized)" if data.get("already_finalized") else ""
+            console.print(f"[green]Finalized v{version}{suffix}.[/green]")
+        else:
+            console.print(f"[bold red]Finalization refused:[/bold red] {data.get('error')}")
+        raise typer.Exit(0 if data.get("finalized") else 1)
 
     if all_repos and repo:
         console.print("[bold red]Use either --repo or --all, not both.[/bold red]")
@@ -4443,6 +4474,8 @@ def stack_release_cmd(
                     ver = f"{r['current_version']} → {r['new_version']}"
                 if ex == "RELEASED":
                     label = "[green]RELEASED[/green]  "
+                elif ex == "AWAITING_MERGE":
+                    label = "[yellow]AWAITING_MERGE[/yellow]"
                 elif ex == "FAILED":
                     label = "[bold red]FAILED[/bold red]    "
                 elif ex == "SKIPPED":
@@ -4488,6 +4521,12 @@ def stack_release_cmd(
                     "[dim]The stack is partially released. Already-released repos are "
                     "left released — repair by fixing forward, never by deleting a "
                     "pushed tag or rewriting history.[/dim]"
+                )
+                raise typer.Exit(1)
+            if data["aborted_phase"] == "awaiting_merge":
+                console.print(
+                    "[yellow]Release PR merge required.[/yellow] "
+                    "No direct releases were started."
                 )
                 raise typer.Exit(1)
             console.print(
