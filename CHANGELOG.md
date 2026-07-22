@@ -11,6 +11,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [v1.24.0] — 2026-07-22
 
+* e593d73 fix(stack): route single-repo releases by contract (#169)
 * 3c90a0f fix(release): sync docs during prepare (#167)
 * 9e9db86 docs(release): plan mq-agent v1.24.0 (#166)
 * 1bcaf40 feat(stack): route protected releases through pull requests (#165)

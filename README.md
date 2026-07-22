@@ -277,6 +277,7 @@ uv run pytest tests/ -v
 
 ## v1.24.0 status
 
+- [x] fix(stack): route single-repo releases by contract (#169)
 - [x] fix(release): sync docs during prepare (#167)
 - [x] docs(release): plan mq-agent v1.24.0 (#166)
 - [x] feat(stack): route protected releases through pull requests (#165)
