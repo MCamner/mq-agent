@@ -1125,6 +1125,18 @@ class TestPullRequestRelease:
     ):
         repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
         repo = repos[0]
+        (repo / "README.md").write_text(
+            "[![Status](https://img.shields.io/badge/status-v1.0.0-brightgreen)]"
+            "(https://example.test/)\n\n"
+            "## v1.0.0 status\n\n- [x] Previous release\n"
+        )
+        (repo / "docs").mkdir()
+        (repo / "docs" / "index.html").write_text(
+            '<span id="status-badge">Status v1.0.0 released</span>\n'
+        )
+        _git(["add", "README.md", "docs/index.html"], repo)
+        _git(["commit", "-m", "docs: add release status surfaces"], repo)
+        _git(["push"], repo)
         plan = plan_stack_release("a")
 
         with patch(
@@ -1141,6 +1153,7 @@ class TestPullRequestRelease:
         assert result["release_branch"] == "mq/release-v1.0.1"
         assert _tags(repo) == ["v1.0.0"]
         assert (repo / "VERSION").read_text().strip() == "1.0.0"
+        assert "status-v1.0.0" in (repo / "README.md").read_text()
         branch = subprocess.run(
             ["git", "branch", "--show-current"], cwd=repo,
             capture_output=True, text=True, check=True,
@@ -1151,6 +1164,18 @@ class TestPullRequestRelease:
             capture_output=True, text=True, check=True,
         ).stdout.strip()
         assert remote_version == "1.0.1"
+        remote_readme = subprocess.run(
+            ["git", "show", "origin/mq/release-v1.0.1:README.md"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert "status-v1.0.1" in remote_readme
+        assert "## v1.0.1 status" in remote_readme
+        assert "## v1.0.0 status" in remote_readme
+        remote_index = subprocess.run(
+            ["git", "show", "origin/mq/release-v1.0.1:docs/index.html"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert "Status v1.0.1" in remote_index
         assert run_gh.call_count == 2
 
     def test_finalize_requires_verified_merge(self, tmp_path, monkeypatch):
@@ -1260,6 +1285,16 @@ class TestPullRequestRelease:
     def test_prepare_failure_restores_clean_start_branch(self, tmp_path, monkeypatch):
         repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
         repo = repos[0]
+        (repo / "README.md").write_text(
+            "status-v1.0.0\n\n## v1.0.0 status\n\n- [x] Previous release\n"
+        )
+        (repo / "docs").mkdir()
+        (repo / "docs" / "index.html").write_text(
+            '<span id="status-badge">Status v1.0.0 released</span>\n'
+        )
+        _git(["add", "README.md", "docs/index.html"], repo)
+        _git(["commit", "-m", "docs: add release status surfaces"], repo)
+        _git(["push"], repo)
         plan = plan_stack_release("a")
         with (
             patch("mq_agent.tools.stack_release._run_gh", return_value=(True, "[]")),
@@ -1278,6 +1313,9 @@ class TestPullRequestRelease:
             capture_output=True, text=True, check=True,
         ).stdout.strip() == "main"
         assert (repo / "VERSION").read_text().strip() == "1.0.0"
+        assert "status-v1.0.0" in (repo / "README.md").read_text()
+        assert "## v1.0.1 status" not in (repo / "README.md").read_text()
+        assert "Status v1.0.0" in (repo / "docs" / "index.html").read_text()
 
     def test_prepare_reuses_existing_matching_pr(self, tmp_path, monkeypatch):
         repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
