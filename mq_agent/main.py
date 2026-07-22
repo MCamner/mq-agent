@@ -4603,7 +4603,14 @@ def stack_release_cmd(
         console.print(f"  {s['step']:<18} {status_str}{detail}")
     console.print()
 
-    if data.get("ok"):
+    if data.get("state") == "AWAITING_MERGE":
+        console.print(
+            f"[bold yellow]Release PR prepared for {repo} {data['tag']} — "
+            "AWAITING_MERGE[/bold yellow]"
+        )
+        if data.get("pull_request"):
+            console.print(f"  [dim]{data['pull_request']}[/dim]")
+    elif data.get("ok"):
         console.print(f"[bold green]✓ Released {repo} {data['tag']}[/bold green]  [dim]truth note: {data.get('truth_note', '—')}[/dim]")
     elif data.get("released"):
         console.print(f"[yellow]⚠ Released {repo} {data['tag']}, but: {data.get('warning')}[/yellow]")
