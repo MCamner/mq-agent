@@ -187,6 +187,72 @@ def _update_changelog(repo_path: Path, new_version: str, commits: list[str]) -> 
     return cl
 
 
+def _sync_release_docs(
+    repo_path: Path,
+    current_version: str,
+    new_version: str,
+    commits: list[str],
+) -> list[Path]:
+    """Move recognized release-status docs to the new version.
+
+    These surfaces are optional, but when a repo owns them its release check
+    may require them to move with VERSION. Keep the previous status section as
+    history and derive the new section from the same commits as CHANGELOG.
+    """
+    changed: list[Path] = []
+    readme = repo_path / "README.md"
+    if readme.exists():
+        text = readme.read_text()
+        updated = text.replace(
+            f"status-v{current_version}", f"status-v{new_version}", 1,
+        )
+        current_heading = f"## v{current_version} status"
+        new_heading = f"## v{new_version} status"
+        if new_heading not in updated and current_heading in updated:
+            subjects = [commit.split(" ", 1)[-1] for commit in commits]
+            checklist = "\n".join(f"- [x] {subject}" for subject in subjects)
+            if not checklist:
+                checklist = f"- [x] Prepare v{new_version}"
+            section = f"{new_heading}\n\n{checklist}\n\n"
+            updated = updated.replace(current_heading, section + current_heading, 1)
+        if updated != text:
+            readme.write_text(updated)
+            changed.append(readme)
+
+    index = repo_path / "docs" / "index.html"
+    if index.exists():
+        text = index.read_text()
+        updated = re.sub(
+            rf'(id="status-badge"[^>]*>[^\n]*?v){re.escape(current_version)}\b',
+            rf"\g<1>{new_version}",
+            text,
+            count=1,
+        )
+        if updated != text:
+            index.write_text(updated)
+            changed.append(index)
+
+    return changed
+
+
+def _has_release_docs(repo_path: Path, current_version: str) -> bool:
+    """Return whether recognized release-status markers need to move."""
+    readme = repo_path / "README.md"
+    if readme.exists():
+        text = readme.read_text()
+        if (
+            f"status-v{current_version}" in text
+            or f"## v{current_version} status" in text
+        ):
+            return True
+    index = repo_path / "docs" / "index.html"
+    if index.exists():
+        text = index.read_text()
+        if 'id="status-badge"' in text and f"v{current_version}" in text:
+            return True
+    return False
+
+
 def plan_stack_release(
     repo: str, bump: str = "patch", version: str = "",
 ) -> dict[str, Any]:
@@ -265,12 +331,14 @@ def plan_stack_release(
 
     has_contract = (path / ".mq" / "repo-contract.json").exists()
     has_changelog = (path / "CHANGELOG.md").exists()
+    has_release_docs = _has_release_docs(path, str(current))
     tag = f"v{new_version}"
     plan["tag"] = tag
     plan["steps"] = [
         {"step": "bump-version", "detail": f"{current} → {new_version}"},
         *([{"step": "sync-contract", "detail": ".mq/repo-contract.json"}] if has_contract else []),
         *([{"step": "update-changelog", "detail": f"{len(plan['commits'])} commit(s) since {plan['last_tag'] or 'start'}"}] if has_changelog else []),
+        *([{"step": "sync-release-docs", "detail": "README.md and docs/index.html when present"}] if has_release_docs else []),
         *([{"step": "re-gate", "detail": "release-check.sh after bump"}]
           if (path / "release-check.sh").exists() else []),
         {"step": "commit", "detail": f"release: {tag}"},
@@ -770,6 +838,15 @@ def prepare_release_pull_request(plan: dict[str, Any]) -> dict[str, Any]:
                 changed_files.append(changelog)
             record("update-changelog", "done")
 
+        if any(s["step"] == "sync-release-docs" for s in plan["steps"]):
+            changed_files.extend(_sync_release_docs(
+                path,
+                str(plan["current_version"]),
+                str(plan["new_version"]),
+                plan.get("commits", []),
+            ))
+            record("sync-release-docs", "done")
+
         if (path / "release-check.sh").exists():
             gate_ok, blockers = _run_release_check(path)
             if not gate_ok:
@@ -1001,6 +1078,16 @@ def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
             record("update-changelog", "done")
         except Exception as exc:
             return abort("update-changelog", str(exc))
+
+    if "sync-release-docs" in planned:
+        try:
+            changed_files.extend(_sync_release_docs(
+                path, str(plan["current_version"]), new_version,
+                plan.get("commits", []),
+            ))
+            record("sync-release-docs", "done")
+        except Exception as exc:
+            return abort("sync-release-docs", str(exc))
 
     # Re-gate on the repo's own release-check, now that the version surfaces
     # have moved. The check ran pre-bump during planning, where it cannot see
