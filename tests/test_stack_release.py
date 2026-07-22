@@ -15,6 +15,8 @@ from mq_agent.tools.stack_release import (
     bump_version,
     execute_stack_release,
     execute_stack_release_all,
+    finalize_release_pull_request,
+    prepare_release_pull_request,
     plan_stack_release,
     plan_stack_release_all,
     preflight_stack_release_all,
@@ -898,6 +900,46 @@ class TestExecuteStackReleaseAllCli:
         assert data["schema"] == "mq_stack_release_all_execute.v1"
         assert data["approved"] is True
 
+    def test_pending_pr_exits_nonzero_and_is_rendered(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        with patch(
+            "mq_agent.tools.stack_release.prepare_release_pull_request",
+            return_value={
+                "prepared": True, "state": "AWAITING_MERGE",
+                "release_branch": "mq/release-v1.0.1",
+                "pull_request": "https://github.test/example/a/pull/1",
+                "steps": [],
+            },
+        ):
+            result = self._invoke(
+                ["stack", "release", "--all", "--execute", "--approve"]
+            )
+        assert result.exit_code == 1
+        assert "AWAITING_MERGE" in result.output
+        assert "No direct releases were started" in result.output
+        assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_finalize_pr_is_explicit_and_requires_approve(self, tmp_path, monkeypatch):
+        _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        refused = self._invoke([
+            "stack", "release", "--repo", "a", "--version", "1.0.1",
+            "--finalize-pr", "7", "--json",
+        ])
+        assert refused.exit_code == 1
+        assert "--approve" in refused.output
+
+        with patch(
+            "mq_agent.tools.stack_release.finalize_release_pull_request",
+            return_value={"finalized": True, "state": "RELEASED", "tag": "v1.0.1"},
+        ) as finalize:
+            accepted = self._invoke([
+                "stack", "release", "--repo", "a", "--version", "1.0.1",
+                "--finalize-pr", "7", "--approve", "--json",
+            ])
+        assert accepted.exit_code == 0
+        assert json.loads(accepted.output)["finalized"] is True
+        finalize.assert_called_once_with(tmp_path / "a", "v1.0.1", 7)
+
 
 # ── uv.lock version surface ──────────────────────────────────────────────────
 
@@ -1006,10 +1048,9 @@ class TestReleaseModeContract:
     push error it discovers afterwards.
 
     A repo whose `main` requires a pull request cannot be released by direct
-    push. Learning that at the push step is too late: the bump, commit and tag
-    already exist locally and have to be unwound by hand. `execute` therefore
-    refuses any repo that has not declared `release_mode: direct`, and the
-    default when the field is absent is refusal, not assumption.
+    push. Learning that at the push step is too late. `execute` therefore
+    prepares a release PR for `pull_request`, while an absent or manual mode
+    remains a refusal rather than an assumption.
     """
 
     def test_execute_refuses_repo_without_declared_mode(self, tmp_path, monkeypatch):
@@ -1021,13 +1062,20 @@ class TestReleaseModeContract:
         assert data["aborted_phase"] == "preflight"
         assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
 
-    def test_execute_refuses_pull_request_repo(self, tmp_path, monkeypatch):
+    def test_execute_prepares_pull_request_repo(self, tmp_path, monkeypatch):
         repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode=None)
         _set_release_mode(repos[0], "pull_request")
-        data = execute_stack_release_all(approve=True)
+        with patch(
+            "mq_agent.tools.stack_release.prepare_release_pull_request",
+            return_value={
+                "prepared": True, "state": "AWAITING_MERGE",
+                "release_branch": "mq/release-v1.0.1", "steps": [],
+            },
+        ):
+            data = execute_stack_release_all(approve=True)
         entry = data["repos"][0]
-        assert entry["preflight_state"] == "BLOCKED"
-        assert any("pull_request" in b for b in entry["blockers"])
+        assert entry["preflight_state"] == "READY"
+        assert entry["execute_state"] == "AWAITING_MERGE"
         # nothing mutated: no bump, no tag, clean tree
         assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
         assert _tags(repos[0]) == ["v1.0.0"]
@@ -1049,8 +1097,15 @@ class TestReleaseModeContract:
         repos = _ready_stack(tmp_path, monkeypatch, ["a", "b"], mode=None)
         _set_release_mode(repos[0], "direct")
         _set_release_mode(repos[1], "pull_request")
-        data = execute_stack_release_all(approve=True)
-        assert data["aborted_phase"] == "preflight"
+        with patch(
+            "mq_agent.tools.stack_release.prepare_release_pull_request",
+            return_value={
+                "prepared": True, "state": "AWAITING_MERGE",
+                "release_branch": "mq/release-v1.0.1", "steps": [],
+            },
+        ):
+            data = execute_stack_release_all(approve=True)
+        assert data["aborted_phase"] == "awaiting_merge"
         assert data["released_count"] == 0
         for repo in repos:
             assert (repo / "VERSION").read_text().strip() == "1.0.0"
@@ -1062,6 +1117,193 @@ class TestReleaseModeContract:
         _set_release_mode(repos[0], "pull_request")
         data = preflight_stack_release_all()
         assert data["repos"][0]["preflight_state"] == "READY"
+
+
+class TestPullRequestRelease:
+    def test_prepare_creates_release_pr_without_tagging_main(
+        self, tmp_path, monkeypatch
+    ):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        repo = repos[0]
+        plan = plan_stack_release("a")
+
+        with patch(
+            "mq_agent.tools.stack_release._run_gh",
+            side_effect=[
+                (True, "[]"),
+                (True, "https://github.test/example/a/pull/1"),
+            ],
+        ) as run_gh:
+            result = prepare_release_pull_request(plan)
+
+        assert result["prepared"] is True
+        assert result["state"] == "AWAITING_MERGE"
+        assert result["release_branch"] == "mq/release-v1.0.1"
+        assert _tags(repo) == ["v1.0.0"]
+        assert (repo / "VERSION").read_text().strip() == "1.0.0"
+        branch = subprocess.run(
+            ["git", "branch", "--show-current"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert branch == "main"
+        remote_version = subprocess.run(
+            ["git", "show", "origin/mq/release-v1.0.1:VERSION"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert remote_version == "1.0.1"
+        assert run_gh.call_count == 2
+
+    def test_finalize_requires_verified_merge(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        repo = repos[0]
+
+        with patch(
+            "mq_agent.tools.stack_release._run_gh",
+            return_value=(True, json.dumps({
+                "state": "OPEN", "mergedAt": None, "mergeCommit": None,
+                "baseRefName": "main", "headRefName": "mq/release-v1.0.1",
+            })),
+        ):
+            result = finalize_release_pull_request(
+                repo, tag="v1.0.1", pr_number=1,
+            )
+
+        assert result["finalized"] is False
+        assert result["state"] == "AWAITING_MERGE"
+        assert "not merged" in result["error"]
+        assert _tags(repo) == ["v1.0.0"]
+
+    def test_finalize_tags_verified_merge_commit(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        repo = repos[0]
+        plan = plan_stack_release("a")
+        with patch(
+            "mq_agent.tools.stack_release._run_gh",
+            side_effect=[
+                (True, "[]"),
+                (True, "https://github.test/example/a/pull/1"),
+            ],
+        ):
+            prepared = prepare_release_pull_request(plan)
+        assert prepared["prepared"] is True
+
+        _git(["switch", prepared["release_branch"]], repo)
+        merge_oid = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        _git(["switch", "main"], repo)
+        _git(["merge", "--ff-only", prepared["release_branch"]], repo)
+        _git(["push", "origin", "main"], repo)
+
+        with (
+            patch(
+                "mq_agent.tools.stack_release._run_gh",
+                return_value=(True, json.dumps({
+                    "state": "MERGED", "mergedAt": "2026-07-21T12:00:00Z",
+                    "mergeCommit": {"oid": merge_oid}, "baseRefName": "main",
+                    "headRefName": prepared["release_branch"],
+                })),
+            ),
+            _truth_export_patch(),
+        ):
+            result = finalize_release_pull_request(repo, "v1.0.1", 1)
+
+        assert result["finalized"] is True
+        assert result["state"] == "RELEASED"
+        assert result["merge_commit"] == merge_oid
+        assert _tags(repo) == ["v1.0.0", "v1.0.1"]
+
+        with patch(
+            "mq_agent.tools.stack_release._run_gh",
+            return_value=(True, json.dumps({
+                "state": "MERGED", "mergedAt": "2026-07-21T12:00:00Z",
+                "mergeCommit": {"oid": merge_oid}, "baseRefName": "main",
+                "headRefName": prepared["release_branch"],
+            })),
+        ):
+            retried = finalize_release_pull_request(repo, "v1.0.1", 1)
+        assert retried["finalized"] is True
+        assert retried["already_finalized"] is True
+
+    def test_pending_release_pr_blocks_direct_releases(
+        self, tmp_path, monkeypatch
+    ):
+        repos = _ready_stack(tmp_path, monkeypatch, ["direct", "protected"], mode=None)
+        _set_release_mode(repos[0], "direct")
+        _set_release_mode(repos[1], "pull_request")
+
+        with (
+            patch(
+                "mq_agent.tools.stack_release.prepare_release_pull_request",
+                return_value={
+                    "prepared": True,
+                    "state": "AWAITING_MERGE",
+                    "release_branch": "mq/release-v1.0.1",
+                    "steps": [],
+                },
+            ) as prepare_pr,
+            patch("mq_agent.tools.stack_release.execute_stack_release") as direct_release,
+        ):
+            data = execute_stack_release_all(approve=True)
+
+        states = {entry["repo"]: entry["execute_state"] for entry in data["repos"]}
+        assert states == {"direct": "SKIPPED", "protected": "AWAITING_MERGE"}
+        assert data["aborted_phase"] == "awaiting_merge"
+        assert data["released_count"] == 0
+        prepare_pr.assert_called_once()
+        direct_release.assert_not_called()
+        for repo in repos:
+            assert (repo / "VERSION").read_text().strip() == "1.0.0"
+            assert _tags(repo) == ["v1.0.0"]
+
+    def test_prepare_failure_restores_clean_start_branch(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        repo = repos[0]
+        plan = plan_stack_release("a")
+        with (
+            patch("mq_agent.tools.stack_release._run_gh", return_value=(True, "[]")),
+            patch(
+                "mq_agent.tools.stack_release._run_release_check",
+                return_value=(False, ["injected failure"]),
+            ),
+        ):
+            result = prepare_release_pull_request(plan)
+
+        assert result["prepared"] is False
+        assert "injected failure" in result["error"]
+        assert _porcelain(repo) == ""
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == "main"
+        assert (repo / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_prepare_reuses_existing_matching_pr(self, tmp_path, monkeypatch):
+        repos = _ready_stack(tmp_path, monkeypatch, ["a"], mode="pull_request")
+        repo = repos[0]
+        plan = plan_stack_release("a")
+        branch = "mq/release-v1.0.1"
+        _git(["switch", "-c", branch], repo)
+        (repo / "VERSION").write_text("1.0.1\n")
+        _git(["add", "VERSION"], repo)
+        _git(["commit", "-m", "release: v1.0.1"], repo)
+        _git(["push", "-u", "origin", branch], repo)
+        _git(["switch", "main"], repo)
+
+        with patch(
+            "mq_agent.tools.stack_release._run_gh",
+            return_value=(True, json.dumps([{
+                "number": 7, "url": "https://github.test/example/a/pull/7",
+                "headRefName": branch, "baseRefName": "main",
+            }])),
+        ) as run_gh:
+            result = prepare_release_pull_request(plan)
+
+        assert result["prepared"] is True
+        assert result["reused"] is True
+        assert result["pull_request"] == "https://github.test/example/a/pull/7"
+        run_gh.assert_called_once()
 
 
 # ── post-bump re-gate ────────────────────────────────────────────────────────

@@ -32,6 +32,18 @@ def _run_git(args: list[str], cwd: Path) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def _run_gh(args: list[str], cwd: Path) -> tuple[bool, str]:
+    """Run GitHub CLI and return (ok, combined output). Never raises."""
+    try:
+        proc = subprocess.run(
+            ["gh"] + args, cwd=cwd, text=True, capture_output=True, timeout=60,
+        )
+        out = (proc.stdout + proc.stderr).strip()
+        return proc.returncode == 0, out
+    except Exception as exc:
+        return False, str(exc)
+
+
 def _tag_exists(repo_path: Path, tag: str) -> bool:
     """True if the tag exists locally or on the tracked remote 'origin'.
 
@@ -45,6 +57,19 @@ def _tag_exists(repo_path: Path, tag: str) -> bool:
         return True
     ok, out = _run_git(["ls-remote", "--tags", "origin", f"refs/tags/{tag}"], repo_path)
     return ok and bool(out.strip())
+
+
+def _tag_commit(repo_path: Path, tag: str) -> str | None:
+    """Resolve a local or remote tag to its commit without changing refs."""
+    ok, out = _run_git(["rev-parse", f"{tag}^{{commit}}"], repo_path)
+    if ok and out.strip():
+        return out.strip()
+    ok, out = _run_git(
+        ["ls-remote", "--tags", "origin", f"refs/tags/{tag}^{{}}"], repo_path,
+    )
+    if ok and out.strip():
+        return out.split()[0]
+    return None
 
 
 def bump_version(version: str, part: str) -> str:
@@ -493,7 +518,10 @@ def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dic
         if entry["preflight_state"] != "READY":
             continue
         mode = _release_mode(paths.get(entry["repo"]))
+        entry["release_mode"] = mode
         if mode == "direct":
+            continue
+        if mode == "pull_request":
             continue
         entry["preflight_state"] = "BLOCKED"
         if mode is None:
@@ -505,11 +533,6 @@ def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dic
             reason = (
                 f"unknown release_mode {mode!r} — expected one of: "
                 f"{', '.join(RELEASE_MODES)}"
-            )
-        elif mode == "pull_request":
-            reason = (
-                "release_mode 'pull_request': main requires a PR, so this repo "
-                "cannot be released by direct push"
             )
         else:
             reason = (
@@ -539,6 +562,48 @@ def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dic
 
     if data["blocked_count"]:
         # Gate: fail fast, before the first mutation.
+        return data
+
+    pull_request_entries = [
+        entry for entry in data["repos"]
+        if entry["preflight_state"] == "READY"
+        and entry.get("release_mode") == "pull_request"
+    ]
+    if pull_request_entries:
+        preparation_failed = False
+        for entry in data["repos"]:
+            if entry["preflight_state"] != "READY":
+                continue
+            if entry.get("release_mode") != "pull_request":
+                entry["execute_state"] = "SKIPPED"
+                entry["detail"] = (
+                    "not attempted — stack is waiting for release PR merge"
+                )
+                data["skipped_count"] += 1
+                continue
+            if preparation_failed:
+                entry["execute_state"] = "SKIPPED"
+                entry["detail"] = "not attempted — PR preparation failed earlier"
+                data["skipped_count"] += 1
+                continue
+
+            plan = plan_stack_release(entry["repo"], bump=bump)
+            result = prepare_release_pull_request(plan)
+            entry["evidence"] = {"steps": result.get("steps", [])}
+            if result.get("prepared"):
+                entry["execute_state"] = "AWAITING_MERGE"
+                entry["detail"] = result.get("pull_request", result["release_branch"])
+            else:
+                entry["execute_state"] = "FAILED"
+                entry["detail"] = result.get("error", "PR preparation failed")
+                data["failed_count"] += 1
+                preparation_failed = True
+
+        data["executed_at"] = datetime.now(UTC).isoformat()
+        data["aborted_phase"] = (
+            "execute" if preparation_failed else "awaiting_merge"
+        )
+        data["would_execute"] = False
         return data
 
     aborted = False
@@ -596,6 +661,262 @@ def _verify_release_shape(repo_path: Path) -> tuple[bool, str]:
     if out.strip():
         return False, "working tree is not clean — refusing to release from a dirty tree"
     return True, ""
+
+
+def _verify_synced_main(repo_path: Path) -> tuple[bool, str]:
+    ok, out = _run_git(["fetch", "origin", "main"], repo_path)
+    if not ok:
+        return False, f"could not fetch origin/main: {out}"
+    ok_local, local = _run_git(["rev-parse", "HEAD"], repo_path)
+    ok_remote, remote = _run_git(["rev-parse", "origin/main"], repo_path)
+    if not ok_local or not ok_remote or local.strip() != remote.strip():
+        return False, "local main is not synchronized with origin/main"
+    return True, ""
+
+
+def prepare_release_pull_request(plan: dict[str, Any]) -> dict[str, Any]:
+    """Prepare and push a release branch, then open a draft pull request.
+
+    This path deliberately stops before tagging. The caller must finalize the
+    release separately after GitHub confirms that the pull request was merged.
+    The operator's starting checkout is restored even when preparation fails.
+    """
+    result: dict[str, Any] = {
+        "repo": plan.get("repo"),
+        "prepared": False,
+        "state": "FAILED",
+        "version": plan.get("new_version"),
+        "tag": plan.get("tag"),
+        "steps": [],
+    }
+    if not plan.get("go"):
+        result["error"] = "plan is NO-GO; refusing to prepare release PR"
+        return result
+
+    path = Path(plan["path"])
+    shape_ok, shape_reason = _verify_release_shape(path)
+    if not shape_ok:
+        result["error"] = shape_reason
+        return result
+    sync_ok, sync_reason = _verify_synced_main(path)
+    if not sync_ok:
+        result["error"] = sync_reason
+        return result
+
+    ok, start_branch = _run_git(["branch", "--show-current"], path)
+    if not ok or not start_branch:
+        result["error"] = "could not determine starting branch"
+        return result
+
+    tag = str(plan["tag"])
+    release_branch = f"mq/release-{tag}"
+    result["release_branch"] = release_branch
+
+    ok, out = _run_gh([
+        "pr", "list", "--state", "open", "--base", "main",
+        "--head", release_branch,
+        "--json", "number,url,headRefName,baseRefName",
+    ], path)
+    if not ok:
+        result["error"] = f"find-pr: {out}"
+        return result
+    try:
+        existing = json.loads(out)
+    except json.JSONDecodeError as exc:
+        result["error"] = f"find-pr: invalid GitHub response: {exc}"
+        return result
+    if existing:
+        pr = existing[0]
+        ok, remote_version = _run_git(
+            ["show", f"origin/{release_branch}:VERSION"], path,
+        )
+        if not ok or remote_version.strip() != str(plan["new_version"]):
+            result["error"] = "existing release PR branch has the wrong VERSION"
+            return result
+        result["prepared"] = True
+        result["state"] = "AWAITING_MERGE"
+        result["pull_request"] = pr["url"]
+        result["pr_number"] = pr["number"]
+        result["reused"] = True
+        return result
+
+    def record(step: str, status: str, detail: str = "") -> None:
+        result["steps"].append({"step": step, "status": status, "detail": detail})
+
+    changed_files: list[Path] = []
+    committed = False
+    try:
+        ok, out = _run_git(["switch", "-c", release_branch], path)
+        if not ok:
+            result["error"] = f"create-branch: {out}"
+            return result
+        record("create-branch", "done", release_branch)
+
+        changed_files = _write_version(path, str(plan["new_version"]))
+        record(
+            "bump-version", "done",
+            f"{plan['current_version']} → {plan['new_version']}",
+        )
+        if any(s["step"] == "sync-contract" for s in plan["steps"]):
+            contract = _sync_contract(path, str(plan["new_version"]))
+            if contract:
+                changed_files.append(contract)
+            record("sync-contract", "done")
+        if any(s["step"] == "update-changelog" for s in plan["steps"]):
+            changelog = _update_changelog(
+                path, str(plan["new_version"]), plan.get("commits", []),
+            )
+            if changelog:
+                changed_files.append(changelog)
+            record("update-changelog", "done")
+
+        if (path / "release-check.sh").exists():
+            gate_ok, blockers = _run_release_check(path)
+            if not gate_ok:
+                result["error"] = f"re-gate: {'; '.join(blockers)}"
+                return result
+            record("re-gate", "done", "release-check READY after bump")
+
+        rel_files = [str(file.relative_to(path)) for file in changed_files]
+        ok, out = _run_git(["add", "--"] + rel_files, path)
+        if ok:
+            ok, out = _run_git(["commit", "-m", f"release: {tag}"], path)
+        if not ok:
+            result["error"] = f"commit: {out}"
+            return result
+        committed = True
+        record("commit", "done", f"release: {tag}")
+
+        ok, out = _run_git(["push", "-u", "origin", release_branch], path)
+        if not ok:
+            result["error"] = f"push-branch: {out}"
+            return result
+        record("push-branch", "done", release_branch)
+
+        ok, out = _run_gh([
+            "pr", "create", "--draft", "--base", "main", "--head", release_branch,
+            "--title", f"release: {tag}",
+            "--body", f"Prepare {tag}. Tagging requires explicit post-merge finalization.",
+        ], path)
+        if not ok:
+            result["error"] = f"create-pr: {out}"
+            return result
+        record("create-pr", "done", out)
+        result["prepared"] = True
+        result["state"] = "AWAITING_MERGE"
+        result["pull_request"] = out
+        return result
+    except Exception as exc:
+        result["error"] = str(exc)
+        return result
+    finally:
+        if not result["prepared"] and changed_files and not committed:
+            rel_files = [str(file.relative_to(path)) for file in changed_files]
+            _run_git(["restore", "--staged", "--worktree", "--"] + rel_files, path)
+        restored, restore_out = _run_git(["switch", start_branch], path)
+        record("restore-checkout", "done" if restored else "failed", restore_out)
+        if not restored:
+            result["prepared"] = False
+            result["state"] = "FAILED"
+            result["error"] = f"restore-checkout: {restore_out}"
+
+
+def finalize_release_pull_request(
+    repo_path: Path, tag: str, pr_number: int,
+) -> dict[str, Any]:
+    """Tag a PR-mediated release only after its merge is verified on origin/main."""
+    result: dict[str, Any] = {
+        "finalized": False,
+        "state": "FAILED",
+        "tag": tag,
+        "pr_number": pr_number,
+        "steps": [],
+    }
+    shape_ok, shape_reason = _verify_release_shape(repo_path)
+    if not shape_ok:
+        result["error"] = shape_reason
+        return result
+    expected_head = f"mq/release-{tag}"
+    ok, out = _run_gh([
+        "pr", "view", str(pr_number),
+        "--json", "state,mergedAt,mergeCommit,baseRefName,headRefName",
+    ], repo_path)
+    if not ok:
+        result["error"] = f"verify-pr: {out}"
+        return result
+    try:
+        pr = json.loads(out)
+    except json.JSONDecodeError as exc:
+        result["error"] = f"verify-pr: invalid GitHub response: {exc}"
+        return result
+
+    if pr.get("baseRefName") != "main" or pr.get("headRefName") != expected_head:
+        result["error"] = (
+            "verify-pr: PR base/head does not match "
+            f"main ← {expected_head}"
+        )
+        return result
+    merge_commit = pr.get("mergeCommit") or {}
+    merge_oid = merge_commit.get("oid") if isinstance(merge_commit, dict) else None
+    if pr.get("state") != "MERGED" or not pr.get("mergedAt") or not merge_oid:
+        result["state"] = "AWAITING_MERGE"
+        result["error"] = "verify-pr: release PR is not merged"
+        return result
+
+    ok, out = _run_git(["fetch", "origin", "main"], repo_path)
+    if not ok:
+        result["error"] = f"fetch-main: {out}"
+        return result
+    ok_local, local = _run_git(["rev-parse", "HEAD"], repo_path)
+    ok_remote, remote = _run_git(["rev-parse", "origin/main"], repo_path)
+    if not ok_local or not ok_remote or local.strip() != remote.strip():
+        result["error"] = "local main is not synchronized with origin/main"
+        return result
+    ok, _ = _run_git(["merge-base", "--is-ancestor", merge_oid, "origin/main"], repo_path)
+    if not ok:
+        result["error"] = "verify-merge: GitHub merge commit is not on origin/main"
+        return result
+
+    version = tag.removeprefix("v")
+    ok, remote_version = _run_git(["show", "origin/main:VERSION"], repo_path)
+    if not ok or remote_version.strip() != version:
+        result["error"] = (
+            f"verify-version: origin/main VERSION is {remote_version.strip()!r}, "
+            f"expected {version!r}"
+        )
+        return result
+    existing_tag_commit = _tag_commit(repo_path, tag)
+    if existing_tag_commit:
+        if existing_tag_commit == merge_oid:
+            result["finalized"] = True
+            result["state"] = "RELEASED"
+            result["merge_commit"] = merge_oid
+            result["already_finalized"] = True
+            return result
+        result["error"] = (
+            f"tag {tag} already points at {existing_tag_commit}, expected {merge_oid}"
+        )
+        return result
+
+    ok, out = _run_git(["tag", "-a", tag, merge_oid, "-m", f"release: {tag}"], repo_path)
+    if not ok:
+        result["error"] = f"tag: {out}"
+        return result
+    ok, out = _run_git(["push", "origin", tag], repo_path)
+    if not ok:
+        result["error"] = f"push-tag: {out}"
+        return result
+    result["finalized"] = True
+    result["state"] = "RELEASED"
+    result["merge_commit"] = merge_oid
+    try:
+        from mq_agent.tools.stack_truth import stack_truth_export
+
+        export = stack_truth_export(write=True)
+        result["truth_note"] = export.get("path")
+    except Exception as exc:
+        result["warning"] = f"tag pushed, but truth-export failed: {exc}"
+    return result
 
 
 def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
