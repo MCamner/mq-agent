@@ -9,6 +9,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.24.0] — 2026-07-22
+
+* 3c90a0f fix(release): sync docs during prepare (#167)
+* 9e9db86 docs(release): plan mq-agent v1.24.0 (#166)
+* 1bcaf40 feat(stack): route protected releases through pull requests (#165)
+* 7c2c185 fix(stack): block missing repo contracts and validate release_mode (#164)
+* f5232ec docs(readme): update current release direction (#163)
+* 6629b5e docs(release): sync v1.23 status surfaces (#162)
+* 71068d4 feat(models): harden Ollama runtime diagnostics (#161)
+* 9d92a60 feat(stack): close the release_mode value set and name what each one means (#160)
+* ff72b2e fix(release): re-gate on the repo's own release-check after the bump (#159)
+* cc9ae84 docs(roadmap): record the release-mode gap and what v1.23.0 taught (#158)
+* 2a6800c feat(stack): make branch protection a release contract, not a push error (#157)
+
 ### Added
 
 * `mq-agent models doctor [--json]` — read-only Ollama runtime diagnostics for

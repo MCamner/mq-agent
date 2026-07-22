@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.23.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.24.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -274,6 +274,20 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.24.0 status
+
+- [x] fix(release): sync docs during prepare (#167)
+- [x] docs(release): plan mq-agent v1.24.0 (#166)
+- [x] feat(stack): route protected releases through pull requests (#165)
+- [x] fix(stack): block missing repo contracts and validate release_mode (#164)
+- [x] docs(readme): update current release direction (#163)
+- [x] docs(release): sync v1.23 status surfaces (#162)
+- [x] feat(models): harden Ollama runtime diagnostics (#161)
+- [x] feat(stack): close the release_mode value set and name what each one means (#160)
+- [x] fix(release): re-gate on the repo's own release-check after the bump (#159)
+- [x] docs(roadmap): record the release-mode gap and what v1.23.0 taught (#158)
+- [x] feat(stack): make branch protection a release contract, not a push error (#157)
 
 ## v1.23.0 status
 
