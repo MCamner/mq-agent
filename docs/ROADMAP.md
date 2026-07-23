@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.23.0 — Cross-repo release automation
-Current:  Post-release hardening tracked under Unreleased
+Released: v1.24.0 — PR-mediated release flow
+Current:  Post-v1.24 planning, contract, and documentation stabilization
 ```
 
 Completed foundation:
@@ -84,10 +84,19 @@ Completed foundation:
 | v1.21.0 | mq-hal operator layer readiness              | Done    |
 | v1.22.0 | Inbox ranking and promotion orchestration    | Done    |
 | v1.23.0 | Cross-repo release automation                | Done    |
+| v1.24.0 | PR-mediated release flow                     | Done    |
 
 ---
 
 ## Recently Completed
+
+### v1.24.0 — PR-mediated release flow
+
+Released 2026-07-23. Branch-protected repos now prepare a release branch and
+draft PR, wait for review and merge, and require explicit finalization before
+the merged commit is tagged. Post-release stabilization aligns single-repo
+plans with that mode policy, includes `mqobsidian` in contract-check coverage,
+and synchronizes operator documentation.
 
 ### v1.16.0 — Runtime consolidation
 

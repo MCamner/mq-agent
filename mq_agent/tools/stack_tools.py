@@ -414,7 +414,7 @@ def stack_contract_check(ci: bool = False) -> str:
     In CI mode, repos missing from the workspace are SKIPPED instead of BLOCKED.
     Returns JSON with per-repo status (READY/REVIEW/DRIFT/BLOCKED/SKIPPED) and overall verdict.
     """
-    entries = [_contract_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
+    entries = [_contract_entry(r, ci=ci) for r in MQ_STACK_REPOS]
     has_failure = any(e["status"] in ("BLOCKED", "DRIFT") for e in entries)
     reasons = [f"{e['name']}: {e['reason']}" for e in entries if e["status"] in ("BLOCKED", "DRIFT")]
     return json.dumps({

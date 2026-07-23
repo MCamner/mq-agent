@@ -305,8 +305,9 @@ Exits 0 when no alerts, exits 1 when alerts are found — CI-friendly.
 
 ### Stack contract gate
 
-Validates that every repo has a `.mq/repo-contract.json` in sync with `VERSION`.
-Exits 0 only when all repos are READY or REVIEW. Exits 1 on BLOCKED or DRIFT.
+Validates that every configured MQ-stack repo, including `mqobsidian`, has a
+`.mq/repo-contract.json` in sync with `VERSION`. Exits 0 only when all repos
+are READY or REVIEW. Exits 1 on BLOCKED or DRIFT.
 
 | Command | Notes |
 |---|---|
@@ -336,17 +337,24 @@ NO-GO or any failed step. See `docs/STACK_RELEASE.md`.
 | Command | Notes |
 |---|---|
 | `mq-agent stack release --repo <name>` | Dry-run: show the release plan |
-| `mq-agent stack release --repo <name> --execute` | Apply the release (bump, changelog, tag, push, truth-export) |
+| `mq-agent stack release --repo <name> --execute` | Follow `release_mode`: direct release or prepare a release PR |
 | `mq-agent stack release --repo <name> --bump minor` | Version bump: patch (default), minor or major |
 | `mq-agent stack release --repo <name> --version X.Y.Z` | Explicit target version |
 | `mq-agent stack release --repo <name> --json` | Machine-readable plan or result |
 | `mq-agent stack release --all` | Dry-run: plan every stack repo at once (ready / blocked / up-to-date); exits 1 if any repo is blocked |
 | `mq-agent stack release --all --json` | Machine-readable multi-repo plan (`mq_stack_release_all.v1`) |
+| `mq-agent stack release --all --preflight --json` | Read-only execution preflight; inspect before approval |
+| `mq-agent stack release --all --execute --approve` | Execute an approved stack plan; PR repos stop at `AWAITING_MERGE` |
+| `mq-agent stack release --repo <name> --version X.Y.Z --finalize-pr N --approve` | Verify a merged release PR and push its annotated tag |
 
-`--all` is dry-run only: it surveys the whole stack and reports which repos are
-ready to release, which are blocked (and why), and which are up-to-date. It does
-not apply anything — release each ready repo with `--repo <name> --execute`, so
-every write stays a single, explicit, per-repo step.
+Release modes are `direct`, `pull_request`, and `manual`. Direct mode tags and
+pushes after the release commit. Pull-request mode prepares a draft PR and
+requires an explicit post-merge finalize command before tagging. Manual mode,
+missing contracts, and invalid modes block automation. GitHub Release creation
+is separate from prepare and finalize.
+
+Do not use `--all --execute --approve` without first reviewing a separate
+preflight result and release plan.
 
 ### Stack cockpit
 

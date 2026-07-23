@@ -10,6 +10,7 @@ import pytest
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
+import mq_agent.tools.stack_tools as stack_tools
 from mq_agent.main import app
 from mq_agent.tools.stack_tools import _contract_entry
 
@@ -121,6 +122,34 @@ class TestContractEntry:
         e = _contract_entry({"name": "test", "path": str(contract_repo)})
         assert e["status"] == "READY"
 
+    def test_dirty_tree_returns_review(self, contract_repo):
+        (contract_repo / "dirty.txt").write_text("unstaged\n")
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+        assert e["status"] == "REVIEW"
+        assert "uncommitted" in e["reason"]
+
+    def test_contract_dict_present_on_ready(self, contract_repo):
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+        assert "contract" in e
+        assert e["contract"]["repo"] == "test-repo"
+
+    def test_schema_keys_always_present(self, contract_repo):
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+        for key in ("name", "status", "reason"):
+            assert key in e
+
+    def test_no_readme_returns_blocked(self, bare_repo):
+        (bare_repo / "README.md").unlink()
+        e = _contract_entry({"name": "test", "path": str(bare_repo)})
+        assert e["status"] == "BLOCKED"
+        assert "README" in e["reason"]
+
+    def test_no_version_returns_blocked(self, bare_repo):
+        (bare_repo / "VERSION").unlink()
+        e = _contract_entry({"name": "test", "path": str(bare_repo)})
+        assert e["status"] == "BLOCKED"
+        assert "VERSION" in e["reason"]
+
 
 def test_repo_contract_schema_keeps_release_mode_closed():
     schema_path = Path(__file__).parents[1] / "schemas" / "mq_stack_repo_contract.schema.json"
@@ -151,33 +180,20 @@ def test_repo_contract_schema_accepts_pointer_contract_fields():
 
     Draft202012Validator(schema).validate(contract)
 
-    def test_dirty_tree_returns_review(self, contract_repo):
-        (contract_repo / "dirty.txt").write_text("unstaged\n")
-        e = _contract_entry({"name": "test", "path": str(contract_repo)})
-        assert e["status"] == "REVIEW"
-        assert "uncommitted" in e["reason"]
 
-    def test_contract_dict_present_on_ready(self, contract_repo):
-        e = _contract_entry({"name": "test", "path": str(contract_repo)})
-        assert "contract" in e
-        assert e["contract"]["repo"] == "test-repo"
+def test_stack_contract_check_includes_mqobsidian(contract_repo, monkeypatch):
+    entries = [
+        {"name": "mq-agent", "path": str(contract_repo), "role": "orchestrator"},
+        {"name": "mqobsidian", "path": str(contract_repo), "role": "truth"},
+    ]
+    monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", entries)
 
-    def test_schema_keys_always_present(self, contract_repo):
-        e = _contract_entry({"name": "test", "path": str(contract_repo)})
-        for key in ("name", "status", "reason"):
-            assert key in e
+    result = json.loads(stack_tools.stack_contract_check())
 
-    def test_no_readme_returns_blocked(self, bare_repo):
-        (bare_repo / "README.md").unlink()
-        e = _contract_entry({"name": "test", "path": str(bare_repo)})
-        assert e["status"] == "BLOCKED"
-        assert "README" in e["reason"]
-
-    def test_no_version_returns_blocked(self, bare_repo):
-        (bare_repo / "VERSION").unlink()
-        e = _contract_entry({"name": "test", "path": str(bare_repo)})
-        assert e["status"] == "BLOCKED"
-        assert "VERSION" in e["reason"]
+    assert [entry["name"] for entry in result["repos"]] == [
+        "mq-agent",
+        "mqobsidian",
+    ]
 
 
 # ── CLI tests ────────────────────────────────────────────────────────────────

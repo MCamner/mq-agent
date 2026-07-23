@@ -5,9 +5,7 @@ lesson extraction target and attribute the right repo.
 """
 from __future__ import annotations
 
-import os
 from typing import Any
-from unittest.mock import patch
 
 from typer.testing import CliRunner
 

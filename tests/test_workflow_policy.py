@@ -1,8 +1,6 @@
 """Tool-policy provider + runner policy-gate tests (Phase 6). No network."""
 from __future__ import annotations
 
-import pytest
-
 from mq_agent.workflows import (
     SCHEMA_ID,
     PolicyProvider,
@@ -13,7 +11,6 @@ from mq_agent.workflows import (
     resume,
     validate_plan,
 )
-from mq_agent.workflows.models import StepStatus
 from mq_agent.workflows.storage import WorkflowStore
 
 

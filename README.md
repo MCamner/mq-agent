@@ -277,6 +277,7 @@ uv run pytest tests/ -v
 
 ## v1.24.0 status
 
+- [x] Released 2026-07-23; annotated tag and GitHub Release point to merged PR #168
 - [x] fix(stack): route single-repo releases by contract (#169)
 - [x] fix(release): sync docs during prepare (#167)
 - [x] docs(release): plan mq-agent v1.24.0 (#166)
@@ -595,11 +596,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.23.0 — cross-repo release automation — is released. The current work adds
-a PR-mediated release path for branch-protected repos, so
-`mq-agent stack release --all --execute --approve` preserves branch protection
-and review gates instead of pushing directly to `main`. Tagging is a separate,
-explicit post-merge finalization step.
+v1.24.0 — PR-mediated release flow — is released. Current work focuses on
+post-release stabilization: making single-repo plans release-mode aware,
+including every configured stack repo in contract-check, and keeping release
+documentation aligned with the same safety model used by execution.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
 mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
