@@ -1145,15 +1145,49 @@ def execute_stack_release(plan: dict[str, Any]) -> dict[str, Any]:
 def stack_release(
     repo: str, bump: str = "patch", version: str = "", execute: bool = False,
 ) -> str:
-    """Orchestrated single-repo release: gate, bump, changelog, tag, push, truth-export.
+    """Orchestrated single-repo release through its declared release mode.
 
     Dry-run by default — returns the plan as JSON. With execute=True the plan
-    is applied; any failed step aborts and pre-commit file edits are rolled back.
+    is either prepared as a release PR or applied through the direct flow.
+    Manual, missing, and unknown release modes are blocked before mutation.
     """
     plan = plan_stack_release(repo, bump=bump, version=version)
     if not execute:
         plan["mode"] = "dry-run"
         return json.dumps(plan, indent=2, default=str)
-    result = execute_stack_release(plan)
+
+    repo_path = Path(plan["path"]) if plan.get("path") else None
+    release_mode = _release_mode(repo_path)
+    if release_mode == "pull_request":
+        result = prepare_release_pull_request(plan)
+        result["ok"] = bool(result.get("prepared"))
+        result["released"] = False
+    elif release_mode == "direct":
+        result = execute_stack_release(plan)
+    else:
+        if release_mode is None:
+            reason = (
+                "release_mode is not declared in .mq/repo-contract.json — "
+                "refusing to assume direct push is allowed"
+            )
+        elif release_mode == "manual":
+            reason = "release_mode 'manual': this repo is released by hand on purpose"
+        else:
+            reason = (
+                f"unknown release_mode {release_mode!r} — expected one of: "
+                f"{', '.join(RELEASE_MODES)}"
+            )
+        result = {
+            "repo": repo,
+            "ok": False,
+            "released": False,
+            "state": "BLOCKED",
+            "version": plan.get("new_version"),
+            "tag": plan.get("tag"),
+            "steps": [],
+            "error": reason,
+            "blockers": [reason],
+        }
+    result["release_mode"] = release_mode
     result["mode"] = "execute"
     return json.dumps(result, indent=2, default=str)

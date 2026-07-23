@@ -317,6 +317,7 @@ class TestStackReleaseTool:
         assert data["new_version"] == "1.0.1"
 
     def test_execute_returns_result_json(self, stack_repo):
+        _write_release_mode(stack_repo, "direct")
         with patch("mq_agent.tools.stack_truth.stack_truth_export",
                    return_value={"path": "/tmp/truth.md"}):
             raw = stack_release("mq-agent", bump="minor", execute=True)
@@ -324,6 +325,73 @@ class TestStackReleaseTool:
         assert data["mode"] == "execute"
         assert data["ok"] is True
         assert data["tag"] == "v1.1.0"
+
+    def test_pull_request_mode_prepares_pr_without_tagging(self, stack_repo):
+        _write_release_mode(stack_repo, "pull_request")
+        with patch(
+            "mq_agent.tools.stack_release.prepare_release_pull_request",
+            return_value={
+                "prepared": True,
+                "state": "AWAITING_MERGE",
+                "release_branch": "mq/release-v1.0.1",
+                "pull_request": "https://github.test/example/mq-agent/pull/1",
+                "tag": "v1.0.1",
+                "steps": [],
+            },
+        ) as prepare, patch(
+            "mq_agent.tools.stack_release.execute_stack_release",
+        ) as direct:
+            data = json.loads(stack_release("mq-agent", execute=True))
+
+        assert data["ok"] is True
+        assert data["released"] is False
+        assert data["state"] == "AWAITING_MERGE"
+        assert data["release_mode"] == "pull_request"
+        prepare.assert_called_once()
+        direct.assert_not_called()
+        assert _tags(stack_repo) == ["v1.0.0"]
+
+    def test_direct_mode_uses_existing_release_flow(self, stack_repo):
+        _write_release_mode(stack_repo, "direct")
+        with patch(
+            "mq_agent.tools.stack_release.execute_stack_release",
+            return_value={
+                "ok": True, "released": True, "tag": "v1.0.1", "steps": [],
+            },
+        ) as direct, patch(
+            "mq_agent.tools.stack_release.prepare_release_pull_request",
+        ) as prepare:
+            data = json.loads(stack_release("mq-agent", execute=True))
+
+        assert data["ok"] is True
+        assert data["release_mode"] == "direct"
+        direct.assert_called_once()
+        prepare.assert_not_called()
+
+    def test_manual_mode_is_blocked(self, stack_repo):
+        _write_release_mode(stack_repo, "manual")
+        data = json.loads(stack_release("mq-agent", execute=True))
+        assert data["ok"] is False
+        assert data["state"] == "BLOCKED"
+        assert "manual" in data["error"]
+        assert _tags(stack_repo) == ["v1.0.0"]
+
+    def test_missing_contract_is_blocked(self, stack_repo):
+        _git(["rm", ".mq/repo-contract.json"], stack_repo)
+        _git(["commit", "-m", "test: remove repo contract"], stack_repo)
+        data = json.loads(stack_release("mq-agent", execute=True))
+        assert data["ok"] is False
+        assert data["state"] == "BLOCKED"
+        assert "not declared" in data["error"]
+        assert _tags(stack_repo) == ["v1.0.0"]
+
+    def test_invalid_release_mode_is_blocked(self, stack_repo):
+        _write_release_mode(stack_repo, "Direct")
+        data = json.loads(stack_release("mq-agent", execute=True))
+        assert data["ok"] is False
+        assert data["state"] == "BLOCKED"
+        assert "unknown release_mode 'Direct'" in data["error"]
+        assert _tags(stack_repo) == ["v1.0.0"]
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -361,12 +429,37 @@ class TestStackReleaseCli:
         assert data["mode"] == "dry-run"
 
     def test_execute_releases_and_prints_steps(self, stack_repo):
+        _write_release_mode(stack_repo, "direct")
         with patch("mq_agent.tools.stack_truth.stack_truth_export",
                    return_value={"path": "/tmp/truth.md"}):
             result = self._invoke(["stack", "release", "--repo", "mq-agent", "--execute"])
         assert result.exit_code == 0
         assert "Released mq-agent v1.0.1" in result.output
         assert (stack_repo / "VERSION").read_text().strip() == "1.0.1"
+
+    def test_execute_approve_prepares_pull_request_without_tag(self, stack_repo):
+        _write_release_mode(stack_repo, "pull_request")
+        with patch(
+            "mq_agent.tools.stack_release.prepare_release_pull_request",
+            return_value={
+                "prepared": True,
+                "state": "AWAITING_MERGE",
+                "release_branch": "mq/release-v1.0.1",
+                "pull_request": "https://github.test/example/mq-agent/pull/1",
+                "tag": "v1.0.1",
+                "steps": [],
+            },
+        ), patch("mq_agent.tools.stack_release.execute_stack_release") as direct:
+            result = self._invoke([
+                "stack", "release", "--repo", "mq-agent",
+                "--version", "1.0.1", "--execute", "--approve",
+            ])
+
+        assert result.exit_code == 0
+        assert "AWAITING_MERGE" in result.output
+        assert "Released mq-agent" not in result.output
+        direct.assert_not_called()
+        assert _tags(stack_repo) == ["v1.0.0"]
 
 
 # ── multi-repo plan (v1.23.0) ────────────────────────────────────────────────
