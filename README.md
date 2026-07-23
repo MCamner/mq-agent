@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.24.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.24.1-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -274,6 +274,12 @@ uv run pytest tests/ -v
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.24.1 status
+
+- [x] fix(ci): align Ruff check with repository default rules (#172)
+- [x] fix(ci): include mqobsidian in stack gate checkout (#171)
+- [x] fix(stack): stabilize post-v1.24 release planning (#170)
 
 ## v1.24.0 status
 

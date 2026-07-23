@@ -9,6 +9,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.24.1] — 2026-07-23
+
+* fa38d5f fix(ci): align Ruff check with repository default rules (#172)
+* bc41b25 fix(ci): include mqobsidian in stack gate checkout (#171)
+* acee4a8 fix(stack): stabilize post-v1.24 release planning (#170)
+
 ## [v1.24.0] — 2026-07-22
 
 * e593d73 fix(stack): route single-repo releases by contract (#169)
