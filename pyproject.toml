@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mq-agent"
-version = "1.24.0"
+version = "1.24.1"
 description = "Terminal-native workflow orchestration runtime for the mq ecosystem"
 requires-python = ">=3.11"
 dependencies = [
