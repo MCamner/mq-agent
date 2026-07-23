@@ -5,7 +5,8 @@
 v1.14.0 closes the loop: the stack suite observes (`status`, `report`, `sweep`,
 `history`), gates (`alert`, `release-check`, `contract-check`), remembers
 (`truth-export`), and drafts (`release-notes`) — `stack release` makes it act.
-A green release gate becomes an actual release without manual per-repo steps.
+A green release gate becomes the declared release path without guessing whether
+the repo allows direct pushes.
 
 ---
 
@@ -13,7 +14,9 @@ A green release gate becomes an actual release without manual per-repo steps.
 
 ```bash
 mq-agent stack release --repo <name>             # dry-run (default): show the plan
-mq-agent stack release --repo <name> --execute   # apply the release
+mq-agent stack release --repo <name> --execute   # direct release or PR prepare
+mq-agent stack release --repo <name> --version X.Y.Z \
+  --finalize-pr <number> --approve                # finalize a merged release PR
 ```
 
 Options:
@@ -26,25 +29,36 @@ Options:
 
 ---
 
-## Pipeline
+## Release modes
 
-An executed release runs these steps, in order, aborting on the first failure:
+Each repo declares `release_mode` in `.mq/repo-contract.json`:
 
-1. **Gate** — `release-check` for the repo must pass, plus stricter
-   release-time rules: clean working tree, on `main`/`master`, and at least
-   one unreleased commit since the last tag.
-2. **bump-version** — updates `VERSION` / `version.txt` and the
-   `pyproject.toml` `version` field.
-3. **sync-contract** — updates `version` in `.mq/repo-contract.json` so the
-   contract gate stays READY after the release.
-4. **update-changelog** — inserts a `## [vX.Y.Z]` section drafted from the
-   commits since the last tag (the `release-notes` draft), under
-   `## [Unreleased]` when present.
-5. **commit** — `release: vX.Y.Z`.
-6. **tag** — `vX.Y.Z`.
-7. **push** + **push-tag**.
-8. **truth-export** — writes the stack truth note to mqobsidian, so the
-   release lands in durable memory.
+| Mode | Plan and execute behavior |
+| --- | --- |
+| `direct` | Bump, sync, re-gate, commit, tag, push, push tag, truth export |
+| `pull_request` | Bump, sync, re-gate, commit, push release branch, open draft PR, then stop at `AWAITING_MERGE` |
+| `manual` | Block automation with an explicit policy reason |
+
+Missing contracts, missing modes, and unknown modes also block. Dry-run and
+execute use the same policy decision.
+
+Both executable modes begin with the same gates: a clean `main`/`master`, at
+least one unreleased commit, a valid target version, and the repo's own
+release check. Version, contract, changelog, and declared release docs are
+synchronized before the release commit.
+
+### PR-mediated finalize
+
+`pull_request` deliberately separates three approvals:
+
+1. Prepare and open the draft release PR with `--execute`.
+2. Review and merge the PR through GitHub.
+3. Finalize the verified merge commit with `--finalize-pr <number> --approve`.
+
+Finalize verifies the merged PR, base/head relationship, merge commit, version
+surfaces, and tag absence before creating and pushing the annotated tag.
+Nothing tags or pushes a tag before merge. Creating a GitHub Release remains a
+separate release operation; finalize only establishes the verified Git tag.
 
 ---
 
@@ -53,8 +67,8 @@ An executed release runs these steps, in order, aborting on the first failure:
 * **Dry-run by default.** Without `--execute` nothing is touched — the
   command prints the plan (steps, version transition, warnings) and exits.
 * **NO-GO refuses to run.** Blockers (dirty tree, off-main branch, no
-  unreleased commits, missing VERSION/README, invalid target version) exit 1
-  before any mutation.
+  unreleased commits, missing VERSION/README, invalid target version, or
+  release-mode policy) exit 1 before any mutation.
 * **Abort on failure, no half-released repos.** A failed step aborts the
   run; the remaining steps are reported as `aborted`. File edits made before
   the release commit are rolled back (`git restore --staged --worktree`), so
@@ -88,9 +102,21 @@ Execute returns per-step status:
 mq-agent stack release --repo repo-signal --execute --json | jq '{ok, released, tag, steps}'
 ```
 
+For a PR-mediated repo, inspect the prepare state and PR URL:
+
+```bash
+mq-agent stack release --repo mq-agent --execute --json |
+  jq '{state, release_mode, pull_request, steps}'
+```
+
+Do not run `stack release --all --execute --approve` blindly. Inspect the
+read-only `--all --preflight --json` result first, then approve a separate,
+reviewed release plan. A stack containing PR-mediated repos stops after PR
+preparation and waits for merge.
+
 ---
 
 ## Tool registry
 
 Registered as `stack_release` in `TOOL_REGISTRY` — dry-run by default;
-`execute=True` applies the release.
+`execute=True` follows the repo's declared release mode.

@@ -49,7 +49,7 @@ def _make_repo(
     (repo / ".mq").mkdir()
     (repo / ".mq" / "repo-contract.json").write_text(json.dumps({
         "repo": name, "role": "test", "version": "1.0.0",
-        "status": "active", "contracts": [],
+        "status": "active", "contracts": [], "release_mode": "direct",
     }, indent=2) + "\n")
     _git(["add", "-A"], repo)
     _git(["commit", "-m", "initial"], repo)
@@ -315,6 +315,53 @@ class TestStackReleaseTool:
         assert data["mode"] == "dry-run"
         assert data["go"] is True
         assert data["new_version"] == "1.0.1"
+        assert data["release_mode"] == "direct"
+
+    def test_pull_request_dry_run_describes_prepare_only(self, stack_repo):
+        _write_release_mode(stack_repo, "pull_request")
+
+        data = json.loads(stack_release("mq-agent"))
+        steps = [step["step"] for step in data["steps"]]
+
+        assert data["go"] is True
+        assert data["release_mode"] == "pull_request"
+        assert data["state"] == "AWAITING_MERGE"
+        assert "push-branch" in steps
+        assert "create-pr" in steps
+        assert "tag" not in steps
+        assert "push-tag" not in steps
+        assert "truth-export" not in steps
+
+    @pytest.mark.parametrize(
+        ("release_mode", "expected"),
+        [
+            ("manual", "manual"),
+            ("Direct", "unknown release_mode 'Direct'"),
+        ],
+    )
+    def test_non_executable_dry_run_is_blocked(
+        self, stack_repo, release_mode, expected,
+    ):
+        _write_release_mode(stack_repo, release_mode)
+
+        data = json.loads(stack_release("mq-agent"))
+
+        assert data["go"] is False
+        assert data["state"] == "BLOCKED"
+        assert data["steps"] == []
+        assert any(expected in blocker for blocker in data["blockers"])
+
+    def test_missing_contract_dry_run_is_blocked(self, stack_repo):
+        _git(["rm", ".mq/repo-contract.json"], stack_repo)
+        _git(["commit", "-m", "test: remove repo contract"], stack_repo)
+
+        data = json.loads(stack_release("mq-agent"))
+
+        assert data["go"] is False
+        assert data["release_mode"] is None
+        assert data["state"] == "BLOCKED"
+        assert data["steps"] == []
+        assert any("not declared" in blocker for blocker in data["blockers"])
 
     def test_execute_returns_result_json(self, stack_repo):
         _write_release_mode(stack_repo, "direct")
@@ -811,7 +858,10 @@ def _ready_stack(tmp_path, monkeypatch, names: list[str],
         else _no_remote_ready_repo(tmp_path, name=n)
         for n in names
     ]
-    if mode is not None:
+    if mode is None:
+        for r in repos:
+            _remove_release_mode(r)
+    else:
         for r in repos:
             _write_release_mode(r, mode)
     monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", [
@@ -824,10 +874,23 @@ def _write_release_mode(repo: Path, mode: str) -> None:
     """Declare the repo's release path and commit it, keeping the tree clean."""
     contract_path = repo / ".mq" / "repo-contract.json"
     contract = json.loads(contract_path.read_text())
+    if contract.get("release_mode") == mode:
+        return
     contract["release_mode"] = mode
     contract_path.write_text(json.dumps(contract, indent=2) + "\n")
     _git(["add", "-A"], repo)
     _git(["commit", "-m", "chore: declare release mode"], repo)
+    subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
+
+
+def _remove_release_mode(repo: Path) -> None:
+    """Remove the declared release path and commit the missing-mode fixture."""
+    contract_path = repo / ".mq" / "repo-contract.json"
+    contract = json.loads(contract_path.read_text())
+    contract.pop("release_mode", None)
+    contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "test: remove release mode"], repo)
     subprocess.run(["git", "push"], cwd=repo, capture_output=True, text=True)
 
 
@@ -1126,6 +1189,8 @@ class TestLockfileVersionSurface:
 def _set_release_mode(repo: Path, mode: str | None) -> None:
     contract_path = repo / ".mq" / "repo-contract.json"
     contract = json.loads(contract_path.read_text())
+    if contract.get("release_mode") == mode:
+        return
     if mode is None:
         contract.pop("release_mode", None)
     else:

@@ -5,8 +5,6 @@ directory or in the repo. No tool execution.
 """
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from mq_agent.workflows import (

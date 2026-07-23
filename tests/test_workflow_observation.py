@@ -20,7 +20,7 @@ from mq_agent.workflows import (
     new_run,
     validate_plan,
 )
-from mq_agent.workflows.models import StepStatus, WorkflowStatus
+from mq_agent.workflows.models import WorkflowStatus
 from mq_agent.workflows.storage import WorkflowStore
 
 

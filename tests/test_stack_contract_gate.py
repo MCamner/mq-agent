@@ -10,6 +10,7 @@ import pytest
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
+import mq_agent.tools.stack_tools as stack_tools
 from mq_agent.main import app
 from mq_agent.tools.stack_tools import _contract_entry
 
@@ -150,6 +151,21 @@ def test_repo_contract_schema_accepts_pointer_contract_fields():
     }
 
     Draft202012Validator(schema).validate(contract)
+
+
+def test_stack_contract_check_includes_mqobsidian(contract_repo, monkeypatch):
+    entries = [
+        {"name": "mq-agent", "path": str(contract_repo), "role": "orchestrator"},
+        {"name": "mqobsidian", "path": str(contract_repo), "role": "truth"},
+    ]
+    monkeypatch.setattr(stack_tools, "MQ_STACK_REPOS", entries)
+
+    result = json.loads(stack_tools.stack_contract_check())
+
+    assert [entry["name"] for entry in result["repos"]] == [
+        "mq-agent",
+        "mqobsidian",
+    ]
 
     def test_dirty_tree_returns_review(self, contract_repo):
         (contract_repo / "dirty.txt").write_text("unstaged\n")

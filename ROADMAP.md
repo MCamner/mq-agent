@@ -1,11 +1,12 @@
 # mq-agent Roadmap
 
-v1.21.0 — mq-hal operator layer readiness. Done.
-Next: v1.23.0 — Cross-repo release automation.
+v1.24.0 — PR-mediated release flow. Released.
+Next: post-v1.24 release planning, contract coverage, and documentation
+stabilization.
 
 ## Current status
 
-All phases complete through v1.21.0.
+All release phases complete through v1.24.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -25,6 +26,20 @@ All phases complete through v1.21.0.
 | v1.21.0 | mq-hal operator layer readiness | Done |
 | v1.22.0 | Inbox ranking and promotion orchestration | Done |
 | v1.23.0 | Cross-repo release automation | Released v1.23.0 |
+| v1.24.0 | PR-mediated release flow | Released v1.24.0 |
+
+## Post-v1.24 stabilization
+
+The release path now supports `direct`, `pull_request`, and `manual` contract
+modes. Current work aligns dry-run planning, execution policy, contract-check
+coverage, and operator documentation.
+
+* [x] Make single-repo dry-run plans release-mode aware.
+* [x] Include `mqobsidian` in contract-check coverage.
+* [x] Document prepare, merge, finalize, and direct/manual behavior.
+* [x] Set current direction to post-v1.24 stabilization.
+* [x] Restore a green repo-wide Ruff baseline.
+* [x] Centralize release-mode policy used by single- and multi-repo flows.
 
 ## v1.16.0 — Runtime consolidation
 
@@ -382,12 +397,11 @@ possible point.
   any mutation (#157). Execute refuses anything that is not `direct`, and an
   absent field is refusal rather than permission. `--all --preflight` stays a
   pure readiness measurement; the mode gate belongs to the mutating path.
-* [ ] **Next slice — the PR-mediated release path.** `pull_request` repos need
+* [x] **PR-mediated release path.** `pull_request` repos use
   release branch → PR → merge → tag the merged SHA, as a first-class flow
-  rather than a manual recovery. Until then those three repos are released by
-  hand and the other five stay blocked until they declare their mode.
-* [ ] Declare `release_mode` in the remaining seven repos.
-* [ ] Fold README's status badge and status section into the declared version
+  rather than a manual recovery.
+* [x] Declare `release_mode` across the configured stack repos.
+* [x] Fold README's status badge and status section into the declared version
   surfaces. `stack release` bumps VERSION, pyproject, `uv.lock` and the
   contract; README drifted and only CI's docs job caught it, while
   `release-check.sh --json` still reported `READY`. Two gates, two different

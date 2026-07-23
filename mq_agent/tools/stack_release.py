@@ -287,6 +287,8 @@ def plan_stack_release(
         plan["blockers"].append("repo not found locally")
         return plan
     plan["path"] = str(path)
+    release_mode, release_mode_blocker = _release_mode_policy(path)
+    plan["release_mode"] = release_mode
 
     gate = _release_entry(entry)
     notes = _release_notes_entry(entry)
@@ -294,6 +296,8 @@ def plan_stack_release(
     plan["warnings"] = list(gate.get("warnings", []))
 
     blockers: list[str] = list(gate.get("blockers", []))
+    if release_mode_blocker:
+        blockers.append(release_mode_blocker)
     if not gate.get("on_main"):
         blockers.append(f"not on main/master (branch: {gate.get('branch')})")
     if gate.get("dirty"):
@@ -327,6 +331,7 @@ def plan_stack_release(
     plan["blockers"] = blockers
     plan["go"] = not blockers
     if not plan["go"]:
+        plan["state"] = "BLOCKED"
         return plan
 
     has_contract = (path / ".mq" / "repo-contract.json").exists()
@@ -334,7 +339,7 @@ def plan_stack_release(
     has_release_docs = _has_release_docs(path, str(current))
     tag = f"v{new_version}"
     plan["tag"] = tag
-    plan["steps"] = [
+    common_steps = [
         {"step": "bump-version", "detail": f"{current} → {new_version}"},
         *([{"step": "sync-contract", "detail": ".mq/repo-contract.json"}] if has_contract else []),
         *([{"step": "update-changelog", "detail": f"{len(plan['commits'])} commit(s) since {plan['last_tag'] or 'start'}"}] if has_changelog else []),
@@ -342,11 +347,21 @@ def plan_stack_release(
         *([{"step": "re-gate", "detail": "release-check.sh after bump"}]
           if (path / "release-check.sh").exists() else []),
         {"step": "commit", "detail": f"release: {tag}"},
-        {"step": "tag", "detail": tag},
-        {"step": "push", "detail": "git push"},
-        {"step": "push-tag", "detail": f"git push origin {tag}"},
-        {"step": "truth-export", "detail": "write stack truth note to mqobsidian"},
     ]
+    if release_mode == "pull_request":
+        plan["state"] = "AWAITING_MERGE"
+        plan["steps"] = common_steps + [
+            {"step": "push-branch", "detail": f"git push origin mq/release-{tag}"},
+            {"step": "create-pr", "detail": "open draft release pull request"},
+        ]
+    else:
+        plan["state"] = "READY"
+        plan["steps"] = common_steps + [
+            {"step": "tag", "detail": tag},
+            {"step": "push", "detail": "git push"},
+            {"step": "push-tag", "detail": f"git push origin {tag}"},
+            {"step": "truth-export", "detail": "write stack truth note to mqobsidian"},
+        ]
     return plan
 
 
@@ -532,8 +547,8 @@ RELEASE_MODES = ("direct", "pull_request", "manual")
   release branch and a PR, and the tag is cut from the merged commit.
 * `manual` — released by hand on purpose; automation must not touch it.
 
-Only `direct` is executable today. The others are declarations that block, so
-the tool refuses knowingly instead of discovering the rule from a push error.
+`direct` executes the full release. `pull_request` prepares a release PR and
+waits for explicit post-merge finalization. `manual` blocks automation.
 """
 
 
@@ -554,6 +569,24 @@ def _release_mode(repo_path: Path | None) -> str | None:
         return None
     mode = contract.get("release_mode")
     return str(mode) if mode else None
+
+
+def _release_mode_policy(repo_path: Path | None) -> tuple[str | None, str | None]:
+    """Return the declared mode and a blocker when automation must refuse."""
+    mode = _release_mode(repo_path)
+    if mode in ("direct", "pull_request"):
+        return mode, None
+    if mode is None:
+        return mode, (
+            "release_mode is not declared in .mq/repo-contract.json — "
+            "refusing to assume direct push is allowed"
+        )
+    if mode == "manual":
+        return mode, "release_mode 'manual': this repo is released by hand on purpose"
+    return mode, (
+        f"unknown release_mode {mode!r} — expected one of: "
+        f"{', '.join(RELEASE_MODES)}"
+    )
 
 
 def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dict[str, Any]:
@@ -585,27 +618,11 @@ def execute_stack_release_all(bump: str = "patch", approve: bool = False) -> dic
     for entry in data["repos"]:
         if entry["preflight_state"] != "READY":
             continue
-        mode = _release_mode(paths.get(entry["repo"]))
+        mode, reason = _release_mode_policy(paths.get(entry["repo"]))
         entry["release_mode"] = mode
-        if mode == "direct":
-            continue
-        if mode == "pull_request":
+        if reason is None:
             continue
         entry["preflight_state"] = "BLOCKED"
-        if mode is None:
-            reason = (
-                "release_mode is not declared in .mq/repo-contract.json — "
-                "refusing to assume direct push is allowed"
-            )
-        elif mode not in RELEASE_MODES:
-            reason = (
-                f"unknown release_mode {mode!r} — expected one of: "
-                f"{', '.join(RELEASE_MODES)}"
-            )
-        else:
-            reason = (
-                "release_mode 'manual': this repo is released by hand on purpose"
-            )
         entry["blockers"] = list(entry["blockers"]) + [reason]
         entry["new_version"] = None
         entry["tag"] = None
@@ -1157,7 +1174,7 @@ def stack_release(
         return json.dumps(plan, indent=2, default=str)
 
     repo_path = Path(plan["path"]) if plan.get("path") else None
-    release_mode = _release_mode(repo_path)
+    release_mode, release_mode_blocker = _release_mode_policy(repo_path)
     if release_mode == "pull_request":
         result = prepare_release_pull_request(plan)
         result["ok"] = bool(result.get("prepared"))
@@ -1165,18 +1182,7 @@ def stack_release(
     elif release_mode == "direct":
         result = execute_stack_release(plan)
     else:
-        if release_mode is None:
-            reason = (
-                "release_mode is not declared in .mq/repo-contract.json — "
-                "refusing to assume direct push is allowed"
-            )
-        elif release_mode == "manual":
-            reason = "release_mode 'manual': this repo is released by hand on purpose"
-        else:
-            reason = (
-                f"unknown release_mode {release_mode!r} — expected one of: "
-                f"{', '.join(RELEASE_MODES)}"
-            )
+        reason = release_mode_blocker or "release mode policy blocked execution"
         result = {
             "repo": repo,
             "ok": False,
