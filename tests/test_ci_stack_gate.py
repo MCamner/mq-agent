@@ -1,4 +1,4 @@
-"""Regression tests for full-stack GitHub Actions repository coverage."""
+"""Regression tests for MQ GitHub Actions configuration."""
 from __future__ import annotations
 
 import re
@@ -9,6 +9,9 @@ from mq_agent.tools.stack_tools import MQ_STACK_REPOS
 
 WORKFLOW_PATH = (
     Path(__file__).parents[1] / ".github" / "workflows" / "mq-stack-gate.yml"
+)
+TESTS_WORKFLOW_PATH = (
+    Path(__file__).parents[1] / ".github" / "workflows" / "tests.yml"
 )
 
 
@@ -31,3 +34,9 @@ def test_full_stack_gate_provisions_every_configured_repo():
     assert "mqobsidian" in linked_paths
     assert checkout_paths == expected_paths
     assert linked_paths == expected_paths
+
+
+def test_ci_ruff_check_uses_repository_default_rules():
+    workflow = TESTS_WORKFLOW_PATH.read_text()
+
+    assert "uv run ruff check --select E4,E7,E9,F mq_agent/" in workflow
