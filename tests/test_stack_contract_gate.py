@@ -122,6 +122,34 @@ class TestContractEntry:
         e = _contract_entry({"name": "test", "path": str(contract_repo)})
         assert e["status"] == "READY"
 
+    def test_dirty_tree_returns_review(self, contract_repo):
+        (contract_repo / "dirty.txt").write_text("unstaged\n")
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+        assert e["status"] == "REVIEW"
+        assert "uncommitted" in e["reason"]
+
+    def test_contract_dict_present_on_ready(self, contract_repo):
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+        assert "contract" in e
+        assert e["contract"]["repo"] == "test-repo"
+
+    def test_schema_keys_always_present(self, contract_repo):
+        e = _contract_entry({"name": "test", "path": str(contract_repo)})
+        for key in ("name", "status", "reason"):
+            assert key in e
+
+    def test_no_readme_returns_blocked(self, bare_repo):
+        (bare_repo / "README.md").unlink()
+        e = _contract_entry({"name": "test", "path": str(bare_repo)})
+        assert e["status"] == "BLOCKED"
+        assert "README" in e["reason"]
+
+    def test_no_version_returns_blocked(self, bare_repo):
+        (bare_repo / "VERSION").unlink()
+        e = _contract_entry({"name": "test", "path": str(bare_repo)})
+        assert e["status"] == "BLOCKED"
+        assert "VERSION" in e["reason"]
+
 
 def test_repo_contract_schema_keeps_release_mode_closed():
     schema_path = Path(__file__).parents[1] / "schemas" / "mq_stack_repo_contract.schema.json"
@@ -166,34 +194,6 @@ def test_stack_contract_check_includes_mqobsidian(contract_repo, monkeypatch):
         "mq-agent",
         "mqobsidian",
     ]
-
-    def test_dirty_tree_returns_review(self, contract_repo):
-        (contract_repo / "dirty.txt").write_text("unstaged\n")
-        e = _contract_entry({"name": "test", "path": str(contract_repo)})
-        assert e["status"] == "REVIEW"
-        assert "uncommitted" in e["reason"]
-
-    def test_contract_dict_present_on_ready(self, contract_repo):
-        e = _contract_entry({"name": "test", "path": str(contract_repo)})
-        assert "contract" in e
-        assert e["contract"]["repo"] == "test-repo"
-
-    def test_schema_keys_always_present(self, contract_repo):
-        e = _contract_entry({"name": "test", "path": str(contract_repo)})
-        for key in ("name", "status", "reason"):
-            assert key in e
-
-    def test_no_readme_returns_blocked(self, bare_repo):
-        (bare_repo / "README.md").unlink()
-        e = _contract_entry({"name": "test", "path": str(bare_repo)})
-        assert e["status"] == "BLOCKED"
-        assert "README" in e["reason"]
-
-    def test_no_version_returns_blocked(self, bare_repo):
-        (bare_repo / "VERSION").unlink()
-        e = _contract_entry({"name": "test", "path": str(bare_repo)})
-        assert e["status"] == "BLOCKED"
-        assert "VERSION" in e["reason"]
 
 
 # ── CLI tests ────────────────────────────────────────────────────────────────
