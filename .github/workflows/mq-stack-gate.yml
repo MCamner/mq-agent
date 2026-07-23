@@ -90,6 +90,12 @@ jobs:
           repository: MCamner/mq-ums
           path: mq-ums
 
+      - name: Check out mqobsidian
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/mqobsidian
+          path: mqobsidian
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -110,6 +116,7 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/mq-hal" "$HOME/mq-hal"
           ln -s "$GITHUB_WORKSPACE/mq-image-analyze" "$HOME/mq-image-analyze"
           ln -s "$GITHUB_WORKSPACE/mq-ums" "$HOME/mq-ums"
+          ln -s "$GITHUB_WORKSPACE/mqobsidian" "$HOME/mqobsidian"
 
       - name: Run stack contract gate
         working-directory: mq-agent
