@@ -3835,6 +3835,17 @@ def _print_rebuild_views(dry_run: bool) -> None:
         console.print(f"[bold red]agent-views error:[/bold red] {err}")
 
 
+def _stack_sweep_status(overall: int, publish: int, publish_total: int) -> tuple[str, str]:
+    """Classify product readiness without hiding an incomplete publish checklist."""
+    if overall >= 80 and publish >= publish_total:
+        return "green", "✓ ready"
+    if overall >= 80:
+        return "yellow", "~ publish"
+    if overall >= 50:
+        return "yellow", "~ review"
+    return "red", "✗ weak"
+
+
 @stack_app.command("sweep")
 def stack_sweep_cmd(
     brain: Annotated[bool, typer.Option("--brain", help="Record signal result for each repo to mqobsidian")] = False,
@@ -3896,7 +3907,13 @@ def stack_sweep_cmd(
             title=f"[bold]{r['name']}[/bold] · {result.get('project_type', '')}",
         ))
 
-        entry = {"name": r["name"], "overall": overall, "publish": result["scores"]["publish"], "skipped": False}
+        entry = {
+            "name": r["name"],
+            "overall": overall,
+            "publish": result["scores"]["publish"],
+            "publish_total": result["scores"]["publish_total"],
+            "skipped": False,
+        }
         results.append(entry)
 
         if brain:
@@ -3917,18 +3934,27 @@ def stack_sweep_cmd(
         return
 
     # Summary table
-    table = Table(title="Stack health sweep — summary", show_header=True)
+    table = Table(title="Repository product-readiness sweep — summary", show_header=True)
     table.add_column("Repo", style="cyan", width=18)
     table.add_column("Overall", width=10)
     table.add_column("Publish", width=10)
-    table.add_column("Status", width=8)
+    table.add_column("Status", width=10)
     for e in results:
         if e.get("skipped"):
             table.add_row(e["name"], "—", "—", "[dim]skipped[/dim]")
             continue
         score = e["overall"]
-        color = "green" if score >= 80 else "yellow" if score >= 50 else "red"
-        table.add_row(e["name"], f"[{color}]{score}/100[/{color}]", str(e.get("publish", "?")), "[green]✓[/green]" if score >= 80 else "[yellow]~[/yellow]")
+        color, status = _stack_sweep_status(
+            score,
+            e.get("publish", 0),
+            e.get("publish_total", 16),
+        )
+        table.add_row(
+            e["name"],
+            f"[{color}]{score}/100[/{color}]",
+            f"{e.get('publish', '?')}/{e.get('publish_total', '?')}",
+            f"[{color}]{status}[/{color}]",
+        )
     console.print(table)
 
     if alert:
