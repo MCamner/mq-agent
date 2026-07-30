@@ -94,10 +94,11 @@ def test_pack_selects_card_and_do_not_read(tmp_path):
     assert "## Exclusions" in content
     assert "`irrelevant` — full repo README files" in content
     assert "`irrelevant` — old release notes" in content
-    # source-heavy task -> concrete, bounded CodeGraph queries with explicit -p
+    # source-heavy task -> bounded MCP-native CodeGraph guidance
     assert result["codegraph_applied"]
     assert "## CodeGraph queries" in content
-    assert 'codegraph explore "fix mq-mcp brain writer paths" -p mq-mcp --max-files 8' in content
+    assert "`codegraph_context`" in content
+    assert "codegraph explore" not in content
 
 
 def test_structured_exclusions_render_with_kinds(tmp_path):
@@ -196,8 +197,8 @@ def test_codegraph_on_forces_queries_on_non_source_task(tmp_path):
     )
     assert result["codegraph_applied"]
     assert "## CodeGraph queries" in result["content"]
-    assert "codegraph explore" in result["content"]
-    assert "-p mq-mcp" in result["content"]
+    assert "`codegraph_context`" in result["content"]
+    assert "tool intentions, not shell commands" in result["content"]
 
 
 def test_codegraph_queries_are_bounded_and_scoped(tmp_path):
@@ -213,12 +214,12 @@ def test_codegraph_queries_are_bounded_and_scoped(tmp_path):
     queries = result["codegraph_queries"]
     assert queries  # source-heavy -> emitted
     assert len(queries) <= 5  # bounded, never a token sink
-    # every query passes an explicit project path
-    assert all(" -p mq-mcp" in q for q in queries)
-    # named symbol -> callers + impact; source file -> repo-relative node query
-    assert any(q.startswith("codegraph callers store_learn_record") for q in queries)
-    assert any(q.startswith("codegraph impact store_learn_record") for q in queries)
-    assert "codegraph node runtime/memory/obsidian_writer.py -p mq-mcp" in queries
+    assert "`codegraph_context`" in queries[0]
+    assert any("`codegraph_trace`" in q for q in queries)
+    assert any("`codegraph_callers`" in q and "`store_learn_record`" in q for q in queries)
+    assert any("`codegraph_impact`" in q and "`store_learn_record`" in q for q in queries)
+    assert any("`codegraph_node`" in q and "`runtime/memory/obsidian_writer.py`" in q for q in queries)
+    assert all(not q.startswith("codegraph ") for q in queries)
 
 
 def test_codegraph_off_emits_no_queries(tmp_path):
