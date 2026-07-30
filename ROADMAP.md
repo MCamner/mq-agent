@@ -1,12 +1,11 @@
 # mq-agent Roadmap
 
-v1.24.0 — PR-mediated release flow. Released.
-Next: post-v1.24 release planning, contract coverage, and documentation
-stabilization.
+v1.24.1 — Post-release stabilization. Released.
+Next: v1.25.0 — Release Cockpit.
 
 ## Current status
 
-All release phases complete through v1.24.0.
+All release phases complete through v1.24.1.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -27,6 +26,8 @@ All release phases complete through v1.24.0.
 | v1.22.0 | Inbox ranking and promotion orchestration | Done |
 | v1.23.0 | Cross-repo release automation | Released v1.23.0 |
 | v1.24.0 | PR-mediated release flow | Released v1.24.0 |
+| v1.24.1 | Post-release stabilization | Released v1.24.1 |
+| v1.25.0 | Release Cockpit | Planned |
 
 ## Post-v1.24 stabilization
 
@@ -40,6 +41,127 @@ coverage, and operator documentation.
 * [x] Set current direction to post-v1.24 stabilization.
 * [x] Restore a green repo-wide Ruff baseline.
 * [x] Centralize release-mode policy used by single- and multi-repo flows.
+
+## v1.25.0 — Release Cockpit
+
+### Product direction
+
+v1.24.1 proved the PR-mediated release chain end to end. The next step is to
+make that safe machinery understandable from one operator-facing surface.
+`mq-agent` should show the current release state, explain blockers in plain
+language, and recommend exactly one safe next action.
+
+The release engine already exists. v1.25.0 improves the experience around it;
+it does not introduce another release mechanism.
+
+### Goals
+
+#### 1. Add `mq-agent ship status`
+
+* [ ] Add a read-only `mq-agent ship status` command.
+* [ ] Show repository, current and target versions, latest tag and target,
+  local `main` state, CI state, release-check, contract-check, stack preflight,
+  open release PR, and GitHub Release state.
+* [ ] Make the default output answer: “Can I release safely right now?”
+* [ ] Add a stable `--json` representation for future CI and `mqlaunch`
+  consumers.
+
+#### 2. Define one release state model
+
+* [ ] Define and test these states:
+  `IDLE`, `BLOCKED`, `PREFLIGHT_READY`, `PREPARED_PR`, `PR_GREEN`, `MERGED`,
+  `FINALIZED`, `PUBLISHED`, and `AUDITED`.
+* [ ] Give states an explicit precedence so one snapshot cannot resolve to
+  multiple states.
+* [ ] Require a target version before reporting `PREFLIGHT_READY`; aligned
+  current version and tag without a target remains `IDLE`.
+* [ ] Treat `AUDITED` as a verified snapshot, not permanent stored truth.
+
+State meanings:
+
+| State | Meaning |
+| --- | --- |
+| `IDLE` | No target release is in progress; current version and tag align |
+| `BLOCKED` | At least one safety prerequisite prevents progress |
+| `PREFLIGHT_READY` | A target exists and all prepare prerequisites pass |
+| `PREPARED_PR` | A release PR exists; no release tag exists |
+| `PR_GREEN` | The release PR is open, reviewed as required, and CI is green |
+| `MERGED` | The release PR is merged; the release tag does not yet exist |
+| `FINALIZED` | The annotated tag exists and targets the verified mergecommit |
+| `PUBLISHED` | Tag, GitHub Release, and version surfaces align |
+| `AUDITED` | A post-release audit currently passes without blockers |
+
+#### 3. Recommend exactly one next action
+
+* [ ] Return one deterministic next action for every state.
+* [ ] Include a copy-pasteable command only when the action is local and safe
+  for the current state.
+* [ ] Return `No action needed` when the latest release is audited.
+* [ ] Keep human review and merge decisions explicit; do not present them as
+  automatic execution.
+
+#### 4. Explain blockers in operator language
+
+* [ ] Map dirty or missing repos, failed CI, failed release or contract gates,
+  blocked stack preflight, existing tags, an unmerged release PR, a wrong tag
+  target, and a missing GitHub Release to bounded explanations.
+* [ ] Include the affected repo or release identifier when known.
+* [ ] Preserve the underlying machine-readable reason in JSON output.
+* [ ] Do not hide partial or unavailable checks behind a green summary.
+
+#### 5. Add `mq-agent ship proof`
+
+* [ ] Add a read-only proof view for the current or selected release.
+* [ ] Include version, release PR, mergecommit, tag name and type, tag target,
+  GitHub Release status and URL, CI status, release and contract checks, stack
+  preflight, and local `main` cleanliness.
+* [ ] Add `--json`.
+
+#### 6. Add `mq-agent ship audit`
+
+* [ ] Verify that local `main` is clean and synced with `origin/main`.
+* [ ] Verify version surfaces, latest tag, annotated tag target, GitHub
+  Release, main CI, release-check, contract-check, and zero preflight blockers.
+* [ ] Remain read-only by default.
+* [ ] Add `--json` with evidence for every check.
+
+#### 7. Keep `stack release` as the engine
+
+* [ ] Reuse existing release planning, contract, preflight, prepare, and
+  finalize primitives instead of duplicating policy.
+* [ ] Keep `stack release` as the lower-level implementation surface.
+* [ ] Keep the first `ship` release read-only: status, proof, and audit only.
+* [ ] Consider `ship prepare`, `ship finalize`, and `ship publish` wrappers
+  only after the state contract is stable.
+
+### Non-goals
+
+* [ ] No new release mechanism.
+* [ ] No automatic merge or automatic post-merge finalize.
+* [ ] No GitHub Release publication without explicit approval.
+* [ ] No unrelated lint or cleanup work.
+* [ ] No replacement of technical evidence with simplified status text.
+
+### Definition of done
+
+* [ ] `mq-agent ship status`, `ship status --json`, `ship proof`, and
+  `ship audit` exist.
+* [ ] State precedence, blocker mapping, and next-action selection are tested.
+* [ ] Existing `stack release` behavior remains unchanged.
+* [ ] PR-mediated releases cannot tag before a verified merge.
+* [ ] Documentation names `ship` as the operator surface and `stack release`
+  as the engine.
+* [ ] README, command-surface docs, public roadmap, and GitHub Pages index are
+  synchronized when the commands ship.
+* [ ] Main CI, release-check, contract-check, and stack preflight pass without
+  blockers.
+
+### Recommended implementation order
+
+1. State model, `ship status`, and JSON contract.
+2. Plain-language blockers and deterministic next action.
+3. `ship proof` and `ship audit`.
+4. Command reference, release-cockpit guide, README, and Pages links.
 
 ## v1.16.0 — Runtime consolidation
 

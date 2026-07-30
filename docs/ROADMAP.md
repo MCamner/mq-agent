@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.24.0 — PR-mediated release flow
-Current:  Post-v1.24 planning, contract, and documentation stabilization
+Released: v1.24.1 — Post-release stabilization
+Current:  v1.25.0 — Release Cockpit
 ```
 
 Completed foundation:
@@ -85,10 +85,74 @@ Completed foundation:
 | v1.22.0 | Inbox ranking and promotion orchestration    | Done    |
 | v1.23.0 | Cross-repo release automation                | Done    |
 | v1.24.0 | PR-mediated release flow                     | Done    |
+| v1.24.1 | Post-release stabilization                   | Done    |
+| v1.25.0 | Release Cockpit                              | Planned |
+
+---
+
+## Next release
+
+### v1.25.0 — Release Cockpit
+
+v1.24.1 proved the PR-mediated release chain end to end. v1.25.0 turns the
+existing release engine into a guided operator experience: show the current
+state, explain blockers, recommend one safe next action, and provide coherent
+release proof.
+
+#### Operator surface
+
+* [ ] Add read-only `mq-agent ship status` with human-readable and `--json`
+  output.
+* [ ] Show repository, current and target versions, latest tag and tag target,
+  local `main`, CI, release-check, contract-check, stack preflight, release PR,
+  and GitHub Release state.
+* [ ] Add `mq-agent ship proof` for release PR, mergecommit, annotated tag,
+  GitHub Release, CI, gate, and local-tree evidence.
+* [ ] Add `mq-agent ship audit` for a non-mutating post-release verification.
+
+#### State and guidance
+
+* [ ] Define and test `IDLE`, `BLOCKED`, `PREFLIGHT_READY`, `PREPARED_PR`,
+  `PR_GREEN`, `MERGED`, `FINALIZED`, `PUBLISHED`, and `AUDITED`.
+* [ ] Define explicit state precedence and require a target version for
+  `PREFLIGHT_READY`.
+* [ ] Treat `AUDITED` as the result of the current verification snapshot.
+* [ ] Recommend exactly one next action for every state.
+* [ ] Explain dirty and missing repos, failed CI and gates, blocked preflight,
+  existing tags, release-PR state, wrong tag targets, and missing GitHub
+  Releases in plain language without hiding the underlying evidence.
+
+#### Architecture and safety
+
+* [ ] Keep `stack release` as the lower-level engine.
+* [ ] Reuse existing planning, gate, preflight, prepare, and finalize
+  primitives; do not duplicate release policy.
+* [ ] Keep the first `ship` scope read-only.
+* [ ] Keep review, merge, finalize, and publication explicit.
+* [ ] Do not add a new release mechanism, automatic merge, automatic finalize,
+  or unrelated cleanup.
+
+#### Delivery order
+
+1. State model, `ship status`, and JSON contract.
+2. Blocker explanations and deterministic next action.
+3. `ship proof` and `ship audit`.
+4. Command reference, release-cockpit guide, README, and Pages links.
+
+Definition of done: the state contract and blocker mapping are tested,
+existing `stack release` behavior remains unchanged, documentation clearly
+separates the operator surface from the engine, and main CI plus all release
+gates pass without blockers.
 
 ---
 
 ## Recently Completed
+
+### v1.24.1 — Post-release stabilization
+
+Released 2026-07-24. The full PR-mediated path was verified through prepare,
+green CI, human-controlled merge, explicit finalize, annotated tag targeting
+the mergecommit, GitHub Release publication, and post-release audit.
 
 ### v1.24.0 — PR-mediated release flow
 

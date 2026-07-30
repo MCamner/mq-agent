@@ -1,6 +1,8 @@
-# Stack Health
+# Repository Product Readiness Sweep
 
-Multi-repo health sweep across all core MQ repos.
+Multi-repo product-readiness sweep across all core MQ repos. It measures
+README and publish readiness signals; it is not a runtime-health or integration
+test.
 
 ## Quick start
 
@@ -65,20 +67,24 @@ Repos whose path does not exist are skipped and noted in output.
 ...
 
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
-┃ Repo             ┃ Overall    ┃ Publish ┃ Status ┃
+┃ Repo             ┃ Overall    ┃ Publish ┃ Status     ┃
 ┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
-│ mqlaunch         │ 100/100    │ 16      │ ✓      │
-│ mq-agent         │ 100/100    │ 16      │ ✓      │
-│ mq-mcp           │  95/100    │ 15      │ ~      │
-│ repo-signal      │  88/100    │ 14      │ ~      │
-│ mq-hal           │  —         │ —       │ skipped│
-│ mq-image-analyze │  90/100    │ 14      │ ~      │
-│ mq-ums           │  —         │ —       │ skipped│
-│ mqobsidian       │  —         │ —       │ skipped│
+│ mqlaunch         │ 100/100    │ 16/16   │ ✓ ready    │
+│ mq-agent         │ 100/100    │ 16/16   │ ✓ ready    │
+│ mq-mcp           │  95/100    │ 15/16   │ ~ publish  │
+│ repo-signal      │  88/100    │ 14/16   │ ~ publish  │
+│ mq-hal           │  —         │ —       │ skipped    │
+│ mq-image-analyze │  70/100    │ 11/16   │ ~ review   │
+│ mq-ums           │  —         │ —       │ skipped    │
+│ mqobsidian       │  —         │ —       │ skipped    │
 └──────────────────┴────────────┴─────────┴────────┘
 
 → brain ADR: decisions/mq-stack-health-snapshot.md
 ```
+
+`✓ ready` requires both an overall score of at least 80 and a complete publish
+checklist. `~ publish` means the overall score is at least 80 but public-facing
+publish work remains. Lower scores are shown as `~ review` or `✗ weak`.
 
 ## JSON output
 
