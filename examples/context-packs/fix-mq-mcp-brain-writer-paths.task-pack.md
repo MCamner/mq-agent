@@ -25,8 +25,13 @@ summary: Minimum context needed for: fix mq-mcp brain writer paths
 ## Notes
 
 * Prefer the mqobsidian cards above before broad repo scans.
-* `.codegraph/` is present in `mq-mcp`; ask CodeGraph for callers/impact before broad grep.
-* Use CodeGraph for source structure only; use mqobsidian cards/packs for durable memory and repo boundaries.
+
+## CodeGraph queries
+
+Use the installed CodeGraph MCP tools directly. Treat returned source as already
+read; fall back to targeted reads only for missing, stale, or unsupported detail.
+
+* `codegraph_context` — map task "fix mq-mcp brain writer paths" in `mq-mcp` first
 
 ## Exclusions
 
