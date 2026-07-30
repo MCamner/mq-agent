@@ -29,11 +29,11 @@ Given a task, the command:
    drops to a `fallback` exclusion; a `stale` card is kept but flagged in Notes.
    Cards without metadata behave exactly as before (treated as current /
    public-safe).
-5. **Adds an optional CodeGraph hint** when the task is source-structure heavy
-   (callers / impact / refactor / rename / trace / symbol / fix …). The hint
-   names the real index when `.codegraph/` exists in the target repo, and is a
-   plain conditional otherwise. Doc-shaped tasks (readme / roadmap / changelog)
-   never get a CodeGraph mention.
+5. **Adds bounded CodeGraph MCP guidance** when the task is source-structure
+   heavy (callers / impact / refactor / rename / trace / symbol / fix …).
+   Codex and Claude receive tool intentions such as `codegraph_context`,
+   `codegraph_trace`, and `codegraph_impact` rather than shell commands.
+   Doc-shaped tasks (readme / roadmap / changelog) remain free of CodeGraph noise.
 
 The output is the `context-pack.v1` shape. Phase 11 added the optional
 `exclusions` array (structured negative context) and the optional
