@@ -33,8 +33,30 @@ TOOL = "repo_signal_analyze"
 
 
 def _run(result, *extra):
-    """Invoke run-tool with call_tool stubbed to return `result`."""
+    """Invoke run-tool with the bridge fully stubbed.
+
+    describe_tool is stubbed too, and that is not incidental. It reaches the
+    server for a tool's safety class and falls back to name classification when
+    there is none; an unknown class makes run-tool exit 1 at the safety gate,
+    before the result is ever read. With a local mq-mcp running, these tests
+    passed while CI failed all three exit-zero cases — the assertions were
+    measuring whether a server happened to be up. Everything the command talks
+    to is stubbed now, so the test measures the exit-code contract only.
+    """
+    from mq_agent.tools.mcp_registry import MCPSafetyClass, MCPToolSpec
+
+    # READ_ONLY explicitly, not from_name(). The name heuristic classifies
+    # repo_signal_analyze as UNKNOWN — there is no `repo_` or `_analyze` rule —
+    # and UNKNOWN is refused at the safety gate before the result is read. A
+    # server supplies the real class from the tool contract, which is why this
+    # only showed up once CI ran it without one.
+    spec = MCPToolSpec.from_name(TOOL)
+    spec.safety_class = MCPSafetyClass.READ_ONLY
+    spec.read_only = True
+    spec.source = "mq-mcp"
+
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge.call_tool", return_value=result), \
+         patch("mq_agent.tools.mcp_bridge.MultiMCPBridge.describe_tool", return_value=spec), \
          patch("mq_agent.tools.mcp_bridge.MultiMCPBridge.is_available", return_value=True):
         return runner.invoke(app, ["run-tool", TOOL, *extra])
 
