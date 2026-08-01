@@ -1912,11 +1912,24 @@ def run_tool(
     with console.status(f"[bold cyan]Running {tool} ({spec.source})...[/bold cyan]"):
         result = bridge.call_tool(tool, args)
 
+    # Neither mq-mcp nor the bridge raises on failure: a failed tool comes back
+    # as the string "<tool> failed: <exc>", and transport problems come back as
+    # text too. Printing the result and returning implicitly made every one of
+    # those exit 0 — `mqlaunch repo-health` reported "Blocked path outside
+    # allowed roots" and told its caller the run succeeded.
+    from mq_agent.tools.mcp_bridge import tool_failure
+    failure = tool_failure(tool, result)
+
     if json_out:
+        # The document still prints. A caller that asked for JSON needs the
+        # payload; the exit status is what tells it the run failed, and that
+        # caller is the one least able to notice a message in a panel.
         if isinstance(result, str):
             typer.echo(json.dumps({"tool": tool, "source": spec.source, "result": result}))
         else:
             typer.echo(json.dumps({"tool": tool, "source": spec.source, "result": result}, indent=2))
+        if failure:
+            raise typer.Exit(code=1)
         return
 
     if isinstance(result, (dict, list)):
@@ -1924,6 +1937,9 @@ def run_tool(
         console.print(Panel(pprint.pformat(result, width=80), title=f"[bold]{tool} ({spec.source})[/bold]"))
     else:
         console.print(Panel(str(result), title=f"[bold]{tool} ({spec.source})[/bold]"))
+
+    if failure:
+        raise typer.Exit(code=1)
 
 
 # ── memory engine ──────────────────────────────────────────────────────────
