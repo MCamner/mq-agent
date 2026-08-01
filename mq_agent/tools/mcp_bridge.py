@@ -162,6 +162,10 @@ class MCPBridge:
     # ── tool execution ─────────────────────────────────────────────────────
 
     def call_tool(self, tool_name: str, args: dict) -> Any:
+        # NOTE: every failure below returns a *string* rather than raising, so a
+        # caller that only looks at the return value cannot tell a result from
+        # an error. tool_failure() is the reader for that convention; keep the
+        # two together when either changes.
         if not _HAS_HTTPX:
             return "httpx not installed; cannot reach mq-mcp"
         import httpx
@@ -393,3 +397,63 @@ def mcp_call(tool_name: str, args_json: str = "{}") -> str:
         return "Invalid JSON args"
     result = _default_bridge.call_tool(tool_name, args)
     return json.dumps(result) if not isinstance(result, str) else result
+
+
+# ── failure detection ──────────────────────────────────────────────────────
+#
+# Neither layer signals failure structurally, so this reads the conventions
+# both of them do use.
+#
+# mq-mcp has no `isError` anywhere in server.py. A tool that fails returns the
+# string f"{tool} failed: {exc}" — used consistently by repo_signal_analyze,
+# update_repo_file, repo_signal_checklist and the rest. That prefix is the
+# whole signal.
+#
+# call_tool above returns transport problems as strings for the same reason:
+# an unreachable server, an HTTP error, a bridge exception and an unknown tool
+# all come back as text a caller could mistake for output.
+#
+# Matching is deliberately narrow. "failed" on its own appears in perfectly
+# good output — a report reading "0 failed, 12 passed" is a successful report —
+# so the tool's own name has to precede it.
+
+_BRIDGE_FAILURES = (
+    "not reachable",
+    "mq-mcp error ",
+    "MCP bridge error:",
+    "not found on any connected MCP server",
+    "httpx not installed",
+)
+
+
+def _strings_in(value: Any, budget: int = 200) -> list[str]:
+    """Every string inside a nested result, depth- and count-limited.
+
+    The failure text is not always at the top level: mq-mcp answers over HTTP
+    with an MCP content list, so the operator-visible bug arrived as
+    [[{"text": "... failed: ..."}], {"result": "..."}]. A check that only
+    handled `isinstance(result, str)` would have missed the reported case.
+    """
+    found: list[str] = []
+    stack = [value]
+    while stack and len(found) < budget:
+        item = stack.pop()
+        if isinstance(item, str):
+            found.append(item)
+        elif isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple)):
+            stack.extend(item)
+    return found
+
+
+def tool_failure(tool_name: str, result: Any) -> str | None:
+    """Return the failure text when a call_tool result is an error, else None."""
+    marker = f"{tool_name} failed:"
+    for text in _strings_in(result):
+        if marker in text:
+            return text
+        for pattern in _BRIDGE_FAILURES:
+            if pattern in text:
+                return text
+    return None
