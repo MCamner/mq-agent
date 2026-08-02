@@ -170,12 +170,12 @@ def _render_integration_map(repo: str, card_text: str) -> str:
 """
 
 
-def _render_current_blockers(repo: str) -> str:
+def _render_current_blockers(repo: str, card_text: str) -> str:
     return f"""# Current Blockers: {repo}
 
 ## Known Blockers
 
-* No repo-specific blocker exported in this Phase 4 seed.
+{_bullet_lines(_section_items(card_text, "Current blockers"), "No blockers are declared in the source context card.")}
 
 ## Check Before Acting
 
@@ -214,7 +214,7 @@ def _render_files(vault: Path, repo: str) -> dict[str, str]:
     return {
         "repo-card.md": card_text,
         "active-contract.md": _render_active_contract(repo, card_text),
-        "current-blockers.md": _render_current_blockers(repo),
+        "current-blockers.md": _render_current_blockers(repo, card_text),
         "integration-map.md": _render_integration_map(repo, card_text),
         "token-budget.md": _render_token_budget(repo, budgets, order),
     }
