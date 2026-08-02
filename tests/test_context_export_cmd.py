@@ -45,6 +45,10 @@ MQ-stack workflow orchestrator.
 * `.mq/context/`
 * stack truth exports
 
+## Current blockers
+
+* repo-specific test blocker
+
 ## Use this card when
 
 * task involves context export
@@ -73,6 +77,9 @@ def test_export_repo_context_writes_expected_files(tmp_path):
     assert "# Active Contract: mq-agent" in (context_dir / "active-contract.md").read_text()
     assert "# Integration Map: mq-agent" in (context_dir / "integration-map.md").read_text()
     assert "# Current Blockers: mq-agent" in (context_dir / "current-blockers.md").read_text()
+    blockers = (context_dir / "current-blockers.md").read_text()
+    assert "* repo-specific test blocker" in blockers
+    assert "Phase 4 seed" not in blockers
     assert "# Token Budget: mq-agent" in (context_dir / "token-budget.md").read_text()
 
 
@@ -83,6 +90,18 @@ def test_export_repo_context_is_idempotent(tmp_path):
 
     assert second["written"] == []
     assert len(second["unchanged"]) == 5
+
+
+def test_current_blockers_fallback_is_explicit(tmp_path):
+    vault = _vault(tmp_path)
+    card = vault / "memory" / "context-cards" / "mq-agent-card.md"
+    card.write_text(CARD.replace("## Current blockers\n\n* repo-specific test blocker\n\n", ""), encoding="utf-8")
+
+    export_repo_context("mq-agent", vault=vault, output_root=tmp_path)
+    blockers = (tmp_path / "mq-agent" / ".mq" / "context" / "current-blockers.md").read_text()
+
+    assert "No blockers are declared in the source context card." in blockers
+    assert "Verify live repo state before making runtime or release claims." in blockers
 
 
 def test_clean_replaces_owned_files_but_preserves_task_pack(tmp_path):
