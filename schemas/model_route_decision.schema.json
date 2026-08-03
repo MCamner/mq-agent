@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mq.local/schemas/model_route_decision.schema.json",
+  "title": "MQ model route decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decision_id",
+    "task_class",
+    "risk",
+    "recommended_route",
+    "local_model",
+    "authoritative_agent",
+    "reason_codes",
+    "escalation_conditions"
+  ],
+  "properties": {
+    "schema": {"const": "mq.model-route-decision.v1"},
+    "decision_id": {"type": "string", "minLength": 1},
+    "task_class": {
+      "enum": [
+        "diff-summary",
+        "docs-review",
+        "repo-health",
+        "test-area-suggestions",
+        "review-finding-classification",
+        "context-pack-summary",
+        "architecture",
+        "security-review",
+        "destructive-operation",
+        "release-decision",
+        "schema-migration",
+        "unverified-change"
+      ]
+    },
+    "risk": {"enum": ["low", "medium", "high", "critical"]},
+    "recommended_route": {
+      "enum": ["local-shadow", "cloud-required", "approved-local"]
+    },
+    "local_model": {"type": ["string", "null"]},
+    "authoritative_agent": {"enum": ["codex", "claude"]},
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "read-only",
+          "deterministic-verification-available",
+          "architecture-risk",
+          "security-critical",
+          "destructive",
+          "release-authority-required",
+          "schema-migration",
+          "no-deterministic-verification",
+          "evidence-threshold-met",
+          "operator-approved"
+        ]
+      }
+    },
+    "escalation_conditions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "schema-invalid",
+          "verification-failed",
+          "confidence-below-threshold",
+          "model-unavailable",
+          "malformed-output",
+          "policy-requires-cloud",
+          "operator-required"
+        ]
+      }
+    }
+  }
+}
