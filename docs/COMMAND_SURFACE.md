@@ -162,6 +162,20 @@ and require `--approve`.
 | `mq-agent models bench [model] --json` | no | Machine-readable `ollama_model_benchmark.v1` result |
 | `mq-agent models bench [model] --keep-alive <value>` | no | Override the default `keep_alive=0` for the request |
 
+## Model Routing Commands
+
+Advisory local-first routing. Codex or Claude remains authoritative, shadow
+output is never executed, and these commands do not persist outcomes.
+
+| Command | Writes | Model call | Notes |
+|---|---:|---:|---|
+| `mq-agent route inspect <task>` | no | no | Deterministic task/risk classification and `mq.model-route-decision.v1` recommendation |
+| `mq-agent route inspect <task> --json` | no | no | Machine-readable decision contract |
+| `mq-agent route shadow <task>` | no | local Ollama | Validate an advisory candidate; cloud-required tasks skip the model call |
+| `mq-agent route shadow <task> --json` | no | local Ollama | Decision, validated candidate or `null`, and `mq.model-route-outcome.v1` |
+| `mq-agent route report [--source FILE]` | no | no | Aggregate validated JSON/JSONL outcomes without persisting them |
+| `mq-agent route report --json` | no | no | Preserve attempted, output, schema-valid, verified, accepted, and escalated counts |
+
 ## Brain Commands
 
 Direct mqobsidian vault commands. All writes are Class C and require `--approve`.
