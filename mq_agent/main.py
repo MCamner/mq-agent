@@ -77,6 +77,9 @@ app.add_typer(context_app, name="context")
 models_app = typer.Typer(help="Ollama model runtime commands.")
 app.add_typer(models_app, name="models")
 
+route_app = typer.Typer(help="Inspect advisory local-first model routing.")
+app.add_typer(route_app, name="route")
+
 console = Console()
 
 
@@ -2847,6 +2850,110 @@ def memory_doctor_cmd(
 
     if not report.healthy:
         raise typer.Exit(1)
+
+
+# ── Advisory model routing ────────────────────────────────────────────────
+
+@route_app.command("inspect")
+def route_inspect_cmd(
+    task: Annotated[str, typer.Argument(help="Task to classify")],
+    authoritative_agent: Annotated[
+        str, typer.Option("--agent", help="Authoritative coding agent: codex or claude")
+    ] = "codex",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Recommend a route without model calls or writes."""
+    from mq_agent.tools.model_routing import inspect_route
+
+    try:
+        data = inspect_route(task, authoritative_agent=authoritative_agent)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    table = Table(title="Model Route Inspection")
+    table.add_column("Field")
+    table.add_column("Value")
+    for field in ("task_class", "risk", "recommended_route", "local_model", "authoritative_agent"):
+        table.add_row(field.replace("_", " ").title(), str(data[field] or "—"))
+    console.print(table)
+    console.print(f"Reasons: {', '.join(data['reason_codes'])}")
+    console.print(f"Escalate when: {', '.join(data['escalation_conditions'])}")
+
+
+@route_app.command("shadow")
+def route_shadow_cmd(
+    task: Annotated[str, typer.Argument(help="Task for advisory local evaluation")],
+    authoritative_agent: Annotated[
+        str, typer.Option("--agent", help="Authoritative coding agent: codex or claude")
+    ] = "codex",
+    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Ollama timeout in seconds")] = 30,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run and verify an advisory Ollama candidate without accepting it."""
+    from mq_agent.tools.model_routing import shadow_route
+
+    try:
+        data = shadow_route(task, authoritative_agent=authoritative_agent, timeout=timeout)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    decision = data["decision"]
+    outcome = data["outcome"]
+    table = Table(title="Model Route Shadow")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("Task class", str(decision["task_class"]))
+    table.add_row("Route", str(decision["recommended_route"]))
+    table.add_row("Local model", str(decision["local_model"] or "—"))
+    table.add_row("Authoritative agent", str(decision["authoritative_agent"]))
+    table.add_row("Verification", str(outcome["verification"]["status"]))
+    table.add_row("Escalated", "yes" if outcome["escalated"] else "no")
+    console.print(table)
+    if data["candidate"]:
+        console.print(Panel(str(data["candidate"]["summary"]), title="Advisory candidate"))
+    if outcome["escalation_reason"]:
+        console.print(f"[yellow]Escalation:[/yellow] {outcome['escalation_reason']}")
+    console.print("[dim]Shadow output is advisory; it has not been accepted or executed.[/dim]")
+
+
+@route_app.command("report")
+def route_report_cmd(
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL outcome source")
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Aggregate validated routing outcomes from a read-only source."""
+    from mq_agent.tools.model_routing import route_report
+
+    data = route_report(source)
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    table = Table(title="Model Route Report")
+    table.add_column("Stage")
+    table.add_column("Count", justify="right")
+    for field in (
+        "valid_outcomes",
+        "invalid_records",
+        "attempted",
+        "model_output_received",
+        "schema_valid",
+        "verified",
+        "accepted_by_agent",
+        "accepted_by_operator",
+        "escalated",
+    ):
+        table.add_row(field.replace("_", " ").title(), str(data[field]))
+    console.print(table)
+    console.print(f"Source: {data['source']}")
 
 
 # ── Ollama model runtime ──────────────────────────────────────────────────
