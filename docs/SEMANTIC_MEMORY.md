@@ -33,19 +33,19 @@ mq-agent memory doctor --json   # machine-readable diagnostics
 ```text
 $ mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       missing-vector-store                                           │
-│ vector store: (not set — export OPENAI_VECTOR_STORE_ID)                      │
+│ status:       ready                                                          │
+│ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (canonical)                │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 $ mq-agent memory doctor
-╭──────────────────────── Memory Doctor ───────────────────────────╮
-│ ✗ OPENAI_VECTOR_STORE_ID: (not set)                              │
-│   fix: export OPENAI_VECTOR_STORE_ID=vs_...                      │
-│ ✓ repo-signal: available                                         │
-│ ✓ repo path: /path/to/mq-agent                                   │
-╰──────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────── Memory Doctor ────────────────────────────────╮
+│ ✓ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (semantic repository     │
+│ memory, canonical default)                                                   │
+│ ✓ repo-signal: available                                                     │
+│ ✓ repo path: /path/to/mq-agent                                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
 $ mq-agent memory build .
  Would run: repo-signal semantic-upload
@@ -54,7 +54,7 @@ Add --no-dry-run to execute, or use memory refresh --approve.
 $ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
 │ status:       ready                                                          │
-│ vector store: vs_abc                                                         │
+│ vector store: vs_abc (OPENAI_VECTOR_STORE_ID)                                │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -62,16 +62,40 @@ $ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
 
 ---
 
+## The canonical store
+
+mq-agent owns the canonical semantic memory:
+
+| | |
+|---|---|
+| name | `semantic repository memory` |
+| id | `vs_69ffa9a4ef5c81919d7d237c3ecdc260` |
+| declared in | `mq_agent/memory/semantic.py` |
+| policy | `mq-mcp/docs/global/GLOBAL_VECTOR_STORE_POLICY.md` |
+
+The ID lives in tracked code on purpose. It used to exist only in gitignored
+`.env` files, which meant a machine without that file had either no memory at
+all or whatever store an ambient variable happened to name. A vector-store ID
+is an addressable name, not a secret; the API key is the secret, and that stays
+in `.env`.
+
+`status` and `doctor` always report which store answered and where the ID came
+from — `(canonical)` or `(OPENAI_VECTOR_STORE_ID)` — so a fallback is never
+silent.
+
+---
+
 ## Environment
 
-Semantic memory requires a vector store ID:
+Semantic memory needs no configuration. Set the variable only to point a repo
+at a store other than the canonical one:
 
 ```bash
 export OPENAI_VECTOR_STORE_ID="vs_..."
 ```
 
-If the variable is not set, `mq-agent memory status` reports the state clearly
-and no upload is attempted.
+An explicit value always wins. There is no longer a `missing-vector-store`
+state, because mq-agent is never without a memory.
 
 ---
 
@@ -105,17 +129,8 @@ mq-agent memory refresh . --approve
 
 ## Failure states
 
-### Missing vector store
-
-```text
-status: missing-vector-store
-```
-
-Fix:
-
-```bash
-export OPENAI_VECTOR_STORE_ID="vs_..."
-```
+Only one remains. The store can no longer be missing — see
+[The canonical store](#the-canonical-store).
 
 ### Missing repo-signal
 

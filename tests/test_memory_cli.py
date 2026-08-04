@@ -12,9 +12,11 @@ runner = CliRunner()
 
 def test_memory_status_runs(monkeypatch, tmp_path):
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
     result = runner.invoke(app, ["memory", "status", str(tmp_path)])
     assert result.exit_code == 0
-    assert "missing-vector-store" in result.output
+    assert "canonical" in result.output
 
 
 def test_memory_status_json(monkeypatch, tmp_path):
@@ -29,13 +31,18 @@ def test_memory_status_json(monkeypatch, tmp_path):
     assert data["vector_store_id"] == "vs_test"
 
 
-def test_memory_status_json_missing_store(monkeypatch, tmp_path):
+def test_memory_status_json_without_env_reports_canonical(monkeypatch, tmp_path):
+    from mq_agent.memory.semantic import CANONICAL_VECTOR_STORE_ID
+
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
     result = runner.invoke(app, ["memory", "status", str(tmp_path), "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["enabled"] is False
-    assert data["vector_store_id"] is None
+    assert data["enabled"] is True
+    assert data["vector_store_id"] == CANONICAL_VECTOR_STORE_ID
+    assert data["vector_store_source"] == "canonical"
 
 
 # ── memory build dry-run ───────────────────────────────────────────────────
@@ -97,11 +104,15 @@ def test_memory_refresh_approve_propagates_failure(monkeypatch, tmp_path):
 
 # ── memory doctor ──────────────────────────────────────────────────────────
 
-def test_memory_doctor_unhealthy_without_vector_store(monkeypatch, tmp_path):
+def test_memory_doctor_names_the_canonical_store_without_env(monkeypatch, tmp_path):
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
     result = runner.invoke(app, ["memory", "doctor", str(tmp_path)])
-    assert result.exit_code == 1
-    assert "OPENAI_VECTOR_STORE_ID" in result.output
+    assert result.exit_code == 0
+    # The operator must be able to see *which* memory answered, not just that one did.
+    assert sem.CANONICAL_VECTOR_STORE_ID in result.output
+    assert "canonical" in result.output
 
 
 def test_memory_doctor_healthy(monkeypatch, tmp_path):
@@ -135,10 +146,25 @@ def test_memory_doctor_json_healthy(monkeypatch, tmp_path):
 
 
 def test_memory_doctor_json_unhealthy(monkeypatch, tmp_path):
+    """repo-signal, not the store, is now the only thing that can be missing."""
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: False)
     result = runner.invoke(app, ["memory", "doctor", str(tmp_path), "--json"])
     assert result.exit_code == 1
     data = json.loads(result.output)
     assert data["healthy"] is False
     failing = [i for i in data["items"] if not i["ok"]]
-    assert any("OPENAI_VECTOR_STORE_ID" in i["label"] for i in failing)
+    assert [i["label"] for i in failing] == ["repo-signal"]
+
+
+def test_memory_doctor_json_reports_the_env_override(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "vs_override")
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
+    result = runner.invoke(app, ["memory", "doctor", str(tmp_path), "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    store = next(i for i in data["items"] if i["label"] == "vector store")
+    assert "vs_override" in store["detail"]
+    assert sem.CANONICAL_VECTOR_STORE_ID not in store["detail"]
