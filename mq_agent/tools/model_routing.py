@@ -33,6 +33,23 @@ CLOUD_RULES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 _CANDIDATE_KEYS = {"task_class", "summary", "evidence", "suggestions"}
+_CANDIDATE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": sorted(_CANDIDATE_KEYS),
+    "properties": {
+        "task_class": {"type": "string"},
+        "summary": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "items": {"type": "string"}},
+        "suggestions": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+
+def _outcome_path(destination: Path | None = None) -> Path:
+    return destination or Path(
+        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
+    ).expanduser()
 
 
 def _schema_path(name: str) -> Path:
@@ -217,7 +234,7 @@ def shadow_route(
             str(decision["local_model"]),
             _shadow_prompt(task, str(decision["task_class"])),
             timeout,
-            json_format=True,
+            json_format=_CANDIDATE_SCHEMA,
             keep_alive=0,
         )
     except (TimeoutError, urllib.error.URLError, OSError, json.JSONDecodeError):
@@ -298,11 +315,19 @@ def _read_records(source: Path) -> tuple[list[Any], int]:
     return records, len(records)
 
 
+def record_route_outcome(outcome: dict[str, Any], destination: Path | None = None) -> Path:
+    """Append one schema-valid routing outcome to the local JSONL evidence store."""
+    _validator("model_route_outcome.schema.json").validate(outcome)
+    path = _outcome_path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(outcome, ensure_ascii=False) + "\n")
+    return path
+
+
 def route_report(source: Path | None = None) -> dict[str, Any]:
     """Aggregate validated outcomes from a JSON or JSONL source, read-only."""
-    path = source or Path(
-        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
-    ).expanduser()
+    path = _outcome_path(source)
     records, total = _read_records(path)
     validator = _validator("model_route_outcome.schema.json")
     outcomes = [record for record in records if not list(validator.iter_errors(record))]
@@ -363,9 +388,7 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
     if task_class not in allowed:
         raise ValueError(f"unknown task class: {task_class}")
 
-    path = source or Path(
-        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
-    ).expanduser()
+    path = _outcome_path(source)
     records, total = _read_records(path)
     validator = _validator("model_route_outcome.schema.json")
     valid = [record for record in records if not list(validator.iter_errors(record))]

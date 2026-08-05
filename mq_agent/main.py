@@ -2893,12 +2893,13 @@ def route_shadow_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Run and verify an advisory Ollama candidate without accepting it."""
-    from mq_agent.tools.model_routing import shadow_route
+    from mq_agent.tools.model_routing import record_route_outcome, shadow_route
 
     try:
         data = shadow_route(task, authoritative_agent=authoritative_agent, timeout=timeout)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    record_route_outcome(data["outcome"])
     if json_out:
         typer.echo(json.dumps(data, indent=2))
         return

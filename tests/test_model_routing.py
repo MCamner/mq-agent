@@ -129,6 +129,24 @@ def test_shadow_malformed_output_escalates_without_returning_raw_text(monkeypatc
     assert outcome["escalation_reason"] == "malformed-output"
 
 
+def test_record_route_outcome_appends_valid_jsonl(tmp_path) -> None:
+    destination = tmp_path / "route-outcomes.jsonl"
+    outcome = model_routing._outcome(
+        model_routing.inspect_route("Summarize this diff"),
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status="PASS",
+        verification_checks=["candidate-schema", "task-class-match"],
+    )
+
+    model_routing.record_route_outcome(outcome, destination)
+    model_routing.record_route_outcome(outcome, destination)
+
+    records = [json.loads(line) for line in destination.read_text().splitlines()]
+    assert records == [outcome, outcome]
+
+
 def test_report_distinguishes_attempted_verified_and_accepted(tmp_path) -> None:
     valid = model_routing._outcome(
         model_routing.inspect_route("Summarize this diff"),
@@ -179,10 +197,13 @@ def test_route_cli_json_surfaces_are_machine_readable(monkeypatch, tmp_path) -> 
     assert inspect_result.exit_code == 0
     assert json.loads(inspect_result.output)["schema"] == "mq.model-route-decision.v1"
 
+    outcome_path = tmp_path / "route-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_ROUTE_OUTCOMES", str(outcome_path))
     monkeypatch.setattr(model_routing.shutil, "which", lambda _: None)
     shadow_result = runner.invoke(app, ["route", "shadow", "Review README", "--json"])
     assert shadow_result.exit_code == 0
     assert json.loads(shadow_result.output)["outcome"]["verification"]["status"] == "UNAVAILABLE"
+    assert model_routing.route_report(outcome_path)["valid_outcomes"] == 1
 
     report_result = runner.invoke(
         app,
