@@ -2956,6 +2956,43 @@ def route_report_cmd(
     console.print(f"Source: {data['source']}")
 
 
+@route_app.command("evidence-review")
+def route_evidence_review_cmd(
+    task_class: Annotated[str, typer.Argument(help="Task class to review for promotion")],
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL outcome source")
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review one task class without promoting it or changing routing policy."""
+    from mq_agent.tools.model_routing import review_route_evidence
+
+    try:
+        data = review_route_evidence(task_class, source)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        table = Table(title="Model Route Evidence Review")
+        table.add_column("Gate")
+        table.add_column("Result")
+        table.add_column("Actual")
+        table.add_column("Required")
+        for gate in data["gates"]:
+            table.add_row(
+                str(gate["id"]),
+                "PASS" if gate["passed"] else "FAIL",
+                str(gate["actual"]),
+                str(gate["required"]),
+            )
+        console.print(table)
+        console.print(f"Decision: {data['decision']}")
+        console.print("[dim]Automatic routing remains disabled; promotion requires an operator.[/dim]")
+    if data["decision"] == "NOT_ELIGIBLE":
+        raise typer.Exit(1)
+
+
 # ── Ollama model runtime ──────────────────────────────────────────────────
 
 @models_app.command("list")
