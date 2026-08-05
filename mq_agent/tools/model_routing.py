@@ -8,7 +8,7 @@ import shutil
 import urllib.error
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
@@ -356,9 +356,10 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
 
 def review_route_evidence(task_class: str, source: Path | None = None) -> dict[str, Any]:
     """Evaluate one task class against the promotion evidence gate, read-only."""
-    allowed = _validator("model_route_outcome.schema.json").schema["properties"]["task_class"][
-        "enum"
-    ]
+    outcome_schema = cast(
+        dict[str, Any], _validator("model_route_outcome.schema.json").schema
+    )
+    allowed = outcome_schema["properties"]["task_class"]["enum"]
     if task_class not in allowed:
         raise ValueError(f"unknown task class: {task_class}")
 
