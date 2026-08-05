@@ -183,6 +183,7 @@ def test_report_distinguishes_attempted_verified_and_accepted(tmp_path) -> None:
     assert report["by_task_class"]["diff-summary"] == {
         "outcomes": 1,
         "attempted": 1,
+        "model_output_received": 1,
         "verified": 1,
         "accepted_by_agent": 1,
         "accepted_by_operator": 0,
@@ -260,6 +261,91 @@ def test_evidence_review_requires_operator_after_all_technical_gates(tmp_path) -
     assert review["verification_success_rate"] == 1.0
     assert review["failed_gates"] == []
     assert review["automatic_routing_enabled"] is False
+
+
+def test_verification_rate_ignores_attempts_the_model_never_answered(tmp_path) -> None:
+    decision = model_routing.inspect_route("Summarize this diff")
+    answered = model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status="PASS",
+        verification_checks=["candidate-schema", "task-class-match"],
+    )
+    server_down = model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=False,
+        verification_status="UNAVAILABLE",
+        escalated=True,
+        escalation_reason="model-unavailable",
+    )
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(
+        "\n".join((json.dumps(answered), json.dumps(server_down))) + "\n",
+        encoding="utf-8",
+    )
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+    report = model_routing.route_report(source)
+
+    assert review["responded_outcomes"] == 1
+    assert review["attempted_outcomes"] == 2
+    assert review["verification_success_rate"] == 1.0
+    assert report["by_task_class"]["diff-summary"]["verification_rate"] == 1.0
+    Draft202012Validator(_schema("model_route_evidence_review.schema.json")).validate(review)
+
+
+def test_evidence_review_marks_gates_no_observation_could_fail(tmp_path) -> None:
+    decision = model_routing.inspect_route("Summarize this diff")
+    outcome = model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status="PASS",
+        verification_checks=["candidate-schema", "task-class-match"],
+    )
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(json.dumps(outcome) + "\n", encoding="utf-8")
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+    by_id = {gate["id"]: gate for gate in review["gates"]}
+
+    assert by_id["zero-unauthorized-writes"]["vacuous"] is True
+    assert by_id["zero-safety-contract-violations"]["vacuous"] is True
+    assert by_id["all-malformed-outputs-escalated"]["vacuous"] is True
+    assert by_id["minimum-verified-outcomes"]["vacuous"] is False
+    assert by_id["verification-success-rate"]["vacuous"] is False
+    assert set(review["vacuous_gates"]) == {
+        "zero-unauthorized-writes",
+        "zero-safety-contract-violations",
+        "all-malformed-outputs-escalated",
+    }
+    Draft202012Validator(_schema("model_route_evidence_review.schema.json")).validate(review)
+
+
+def test_malformed_evidence_makes_the_escalation_gate_meaningful(tmp_path) -> None:
+    decision = model_routing.inspect_route("Summarize this diff")
+    malformed = model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=True,
+        verification_status="FAIL",
+        escalated=True,
+        escalation_reason="malformed-output",
+    )
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+    by_id = {gate["id"]: gate for gate in review["gates"]}
+
+    assert by_id["all-malformed-outputs-escalated"]["passed"] is True
+    assert by_id["all-malformed-outputs-escalated"]["vacuous"] is False
+    assert by_id["zero-safety-contract-violations"]["vacuous"] is False
+    assert "all-malformed-outputs-escalated" not in review["vacuous_gates"]
 
 
 def test_evidence_review_detects_unescalated_malformed_output(tmp_path) -> None:

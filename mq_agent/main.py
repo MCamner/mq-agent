@@ -2981,14 +2981,25 @@ def route_evidence_review_cmd(
         table.add_column("Actual")
         table.add_column("Required")
         for gate in data["gates"]:
+            if not gate["passed"]:
+                result = "FAIL"
+            elif gate.get("vacuous"):
+                result = "PASS (vacuous)"
+            else:
+                result = "PASS"
             table.add_row(
                 str(gate["id"]),
-                "PASS" if gate["passed"] else "FAIL",
+                result,
                 str(gate["actual"]),
                 str(gate["required"]),
             )
         console.print(table)
         console.print(f"Decision: {data['decision']}")
+        if data.get("vacuous_gates"):
+            console.print(
+                "[dim]Vacuous gates passed because the evidence held nothing that could "
+                "fail them; they are not evidence of safety.[/dim]"
+            )
         console.print("[dim]Automatic routing remains disabled; promotion requires an operator.[/dim]")
     if data["decision"] == "NOT_ELIGIBLE":
         raise typer.Exit(1)
