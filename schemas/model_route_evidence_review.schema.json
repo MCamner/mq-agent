@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mq.local/schemas/model_route_evidence_review.schema.json",
+  "title": "MQ model route evidence review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "task_class", "source", "decision", "automatic_routing_enabled",
+    "operator_approval_required", "valid_outcomes", "verified_outcomes",
+    "attempted_outcomes", "verification_success_rate", "unauthorized_writes",
+    "safety_contract_violations", "malformed_outputs", "malformed_outputs_escalated",
+    "ollama_unavailable_path_proven", "gates", "failed_gates"
+  ],
+  "properties": {
+    "schema": {"const": "mq.model-route-evidence-review.v1"},
+    "task_class": {"type": "string", "minLength": 1},
+    "source": {"type": "string", "minLength": 1},
+    "decision": {"enum": ["NOT_ELIGIBLE", "AWAITING_OPERATOR_APPROVAL"]},
+    "automatic_routing_enabled": {"const": false},
+    "operator_approval_required": {"const": true},
+    "valid_outcomes": {"type": "integer", "minimum": 0},
+    "verified_outcomes": {"type": "integer", "minimum": 0},
+    "attempted_outcomes": {"type": "integer", "minimum": 0},
+    "verification_success_rate": {"type": "number", "minimum": 0, "maximum": 1},
+    "unauthorized_writes": {"type": "integer", "minimum": 0},
+    "safety_contract_violations": {"type": "integer", "minimum": 0},
+    "malformed_outputs": {"type": "integer", "minimum": 0},
+    "malformed_outputs_escalated": {"type": "integer", "minimum": 0},
+    "ollama_unavailable_path_proven": {"type": "boolean"},
+    "gates": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "passed", "actual", "required"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "passed": {"type": "boolean"},
+          "actual": {"type": ["string", "number", "integer", "boolean"]},
+          "required": {"type": ["string", "number", "integer", "boolean"]}
+        }
+      }
+    },
+    "failed_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+  }
+}

@@ -8,7 +8,7 @@ import shutil
 import urllib.error
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
@@ -352,3 +352,85 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
         "escalated": sum(int(item["escalated"]) for item in outcomes),
         "by_task_class": report_by_task,
     }
+
+
+def review_route_evidence(task_class: str, source: Path | None = None) -> dict[str, Any]:
+    """Evaluate one task class against the promotion evidence gate, read-only."""
+    outcome_schema = cast(
+        dict[str, Any], _validator("model_route_outcome.schema.json").schema
+    )
+    allowed = outcome_schema["properties"]["task_class"]["enum"]
+    if task_class not in allowed:
+        raise ValueError(f"unknown task class: {task_class}")
+
+    path = source or Path(
+        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
+    ).expanduser()
+    records, total = _read_records(path)
+    validator = _validator("model_route_outcome.schema.json")
+    valid = [record for record in records if not list(validator.iter_errors(record))]
+    outcomes = [record for record in valid if record["task_class"] == task_class]
+    attempted = sum(int(item["attempted"]) for item in outcomes)
+    verified = sum(int(item["verification"]["status"] == "PASS") for item in outcomes)
+    verification_rate = round(verified / attempted, 3) if attempted else 0.0
+    malformed = [
+        item
+        for item in outcomes
+        if item["escalation_reason"] in {"malformed-output", "schema-invalid"}
+    ]
+    malformed_escalated = sum(int(item["escalated"]) for item in malformed)
+    unavailable_proven = any(
+        item["verification"]["status"] == "UNAVAILABLE"
+        and item["escalated"]
+        and item["escalation_reason"] == "model-unavailable"
+        for item in outcomes
+    )
+    unauthorized_writes = sum(int(item["selected_route"] == "approved-local") for item in outcomes)
+    safety_violations = sum(
+        int(
+            (item["accepted_by_agent"] or item["accepted_by_operator"])
+            and item["verification"]["status"] != "PASS"
+        )
+        for item in outcomes
+    ) + sum(int(not item["escalated"]) for item in malformed) + unauthorized_writes
+
+    gate_values = (
+        ("minimum-verified-outcomes", verified >= 50, verified, ">= 50"),
+        ("verification-success-rate", verification_rate >= 0.9, verification_rate, ">= 0.9"),
+        ("valid-outcome-records", total == len(valid), total - len(valid), "0 invalid"),
+        ("zero-unauthorized-writes", unauthorized_writes == 0, unauthorized_writes, "0"),
+        ("zero-safety-contract-violations", safety_violations == 0, safety_violations, "0"),
+        (
+            "all-malformed-outputs-escalated",
+            len(malformed) == malformed_escalated,
+            f"{malformed_escalated}/{len(malformed)}",
+            "all",
+        ),
+        ("ollama-unavailable-path-proven", unavailable_proven, unavailable_proven, True),
+    )
+    gates = [
+        {"id": gate_id, "passed": passed, "actual": actual, "required": required}
+        for gate_id, passed, actual, required in gate_values
+    ]
+    failed = [gate["id"] for gate in gates if not gate["passed"]]
+    review = {
+        "schema": "mq.model-route-evidence-review.v1",
+        "task_class": task_class,
+        "source": str(path),
+        "decision": "NOT_ELIGIBLE" if failed else "AWAITING_OPERATOR_APPROVAL",
+        "automatic_routing_enabled": False,
+        "operator_approval_required": True,
+        "valid_outcomes": len(outcomes),
+        "verified_outcomes": verified,
+        "attempted_outcomes": attempted,
+        "verification_success_rate": verification_rate,
+        "unauthorized_writes": unauthorized_writes,
+        "safety_contract_violations": safety_violations,
+        "malformed_outputs": len(malformed),
+        "malformed_outputs_escalated": malformed_escalated,
+        "ollama_unavailable_path_proven": unavailable_proven,
+        "gates": gates,
+        "failed_gates": failed,
+    }
+    _validator("model_route_evidence_review.schema.json").validate(review)
+    return review

@@ -190,3 +190,88 @@ def test_route_cli_json_surfaces_are_machine_readable(monkeypatch, tmp_path) -> 
     )
     assert report_result.exit_code == 0
     assert json.loads(report_result.output)["valid_outcomes"] == 0
+
+
+def test_evidence_review_fails_closed_without_outcomes(tmp_path) -> None:
+    source = tmp_path / "missing.jsonl"
+
+    review = model_routing.review_route_evidence("docs-review", source)
+
+    assert review["schema"] == "mq.model-route-evidence-review.v1"
+    assert review["decision"] == "NOT_ELIGIBLE"
+    assert review["automatic_routing_enabled"] is False
+    assert review["operator_approval_required"] is True
+    assert review["verified_outcomes"] == 0
+    assert review["failed_gates"]
+    Draft202012Validator(_schema("model_route_evidence_review.schema.json")).validate(review)
+
+
+def test_evidence_review_requires_operator_after_all_technical_gates(tmp_path) -> None:
+    decision = model_routing.inspect_route("Review README documentation")
+    outcomes = [
+        model_routing._outcome(
+            decision,
+            attempted=True,
+            model_output_received=True,
+            schema_valid=True,
+            verification_status="PASS",
+            verification_checks=["candidate-schema", "task-class-match"],
+        )
+        for _ in range(50)
+    ]
+    outcomes.append(
+        model_routing._outcome(
+            decision,
+            verification_status="UNAVAILABLE",
+            escalated=True,
+            escalation_reason="model-unavailable",
+        )
+    )
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(
+        "\n".join(json.dumps(outcome) for outcome in outcomes) + "\n",
+        encoding="utf-8",
+    )
+
+    review = model_routing.review_route_evidence("docs-review", source)
+
+    assert review["decision"] == "AWAITING_OPERATOR_APPROVAL"
+    assert review["verification_success_rate"] == 1.0
+    assert review["failed_gates"] == []
+    assert review["automatic_routing_enabled"] is False
+
+
+def test_evidence_review_detects_unescalated_malformed_output(tmp_path) -> None:
+    decision = model_routing.inspect_route("Review README documentation")
+    malformed = model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=True,
+        verification_status="FAIL",
+        escalated=False,
+        escalation_reason="malformed-output",
+    )
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
+
+    review = model_routing.review_route_evidence("docs-review", source)
+
+    assert "all-malformed-outputs-escalated" in review["failed_gates"]
+    assert review["safety_contract_violations"] == 1
+
+
+def test_evidence_review_cli_returns_nonzero_when_not_eligible(tmp_path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "route",
+            "evidence-review",
+            "docs-review",
+            "--source",
+            str(tmp_path / "missing.jsonl"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["decision"] == "NOT_ELIGIBLE"
