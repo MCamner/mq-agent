@@ -24,6 +24,7 @@
   "properties": {
     "schema": {"const": "mq.model-route-outcome.v1"},
     "decision_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
     "task_class": {
       "enum": [
         "diff-summary",

@@ -171,8 +171,9 @@ output is never executed, and these commands do not persist outcomes.
 |---|---:|---:|---|
 | `mq-agent route inspect <task>` | no | no | Deterministic task/risk classification and `mq.model-route-decision.v1` recommendation |
 | `mq-agent route inspect <task> --json` | no | no | Machine-readable decision contract |
-| `mq-agent route shadow <task>` | no | local Ollama | Validate an advisory candidate; cloud-required tasks skip the model call |
-| `mq-agent route shadow <task> --json` | no | local Ollama | Decision, validated candidate or `null`, and `mq.model-route-outcome.v1` |
+| `mq-agent route shadow <task>` | yes | local Ollama | Validate an advisory candidate; cloud-required tasks skip the model call. Appends the outcome to `$MQ_AGENT_ROUTE_OUTCOMES` |
+| `mq-agent route shadow <task> --json` | yes | local Ollama | Decision, validated candidate or `null`, and `mq.model-route-outcome.v1` |
+| `mq-agent route shadow <task> --context-file FILE` | yes | local Ollama | Verify every `evidence` entry is a verbatim quote from FILE; adds the `evidence-grounded` check |
 | `mq-agent route report [--source FILE]` | no | no | Aggregate validated JSON/JSONL outcomes without persisting them |
 | `mq-agent route report --json` | no | no | Preserve attempted, output, schema-valid, verified, accepted, and escalated counts |
 | `mq-agent route evidence-review <task-class> [--source FILE]` | no | no | Apply the per-class promotion evidence gate; never changes routing policy |

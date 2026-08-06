@@ -169,7 +169,7 @@ def _ollama_generate(
     prompt: str,
     timeout: int,
     *,
-    json_format: bool = False,
+    json_format: bool | dict[str, Any] = False,
     keep_alive: int | str = 0,
 ) -> dict[str, Any]:
     request_data: dict[str, Any] = {
@@ -179,7 +179,7 @@ def _ollama_generate(
         "keep_alive": keep_alive,
     }
     if json_format:
-        request_data["format"] = "json"
+        request_data["format"] = json_format if isinstance(json_format, dict) else "json"
     body = json.dumps(request_data).encode("utf-8")
     request = urllib.request.Request(
         f"{_ollama_base_url()}/api/generate",

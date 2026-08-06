@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import urllib.error
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -33,6 +34,29 @@ CLOUD_RULES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 _CANDIDATE_KEYS = {"task_class", "summary", "evidence", "suggestions"}
+_CANDIDATE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": sorted(_CANDIDATE_KEYS),
+    "properties": {
+        "task_class": {"type": "string"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 600},
+        # Ollama enforces this schema as a decoding grammar, so maxItems is a hard
+        # bound on generation length: an unbounded evidence array made one 10 KB diff
+        # generate ~2800 tokens in 100s+, and identical input varied 473 to 3143
+        # tokens. Bounding the count holds a typical run near 30s. Deliberately no
+        # maxLength on the items: a truncated quote is no longer verbatim and fails
+        # the grounding check.
+        "evidence": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
+        "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+    },
+}
+
+
+def _outcome_path(destination: Path | None = None) -> Path:
+    return destination or Path(
+        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
+    ).expanduser()
 
 
 def _schema_path(name: str) -> Path:
@@ -135,6 +159,9 @@ def _outcome(
     outcome = {
         "schema": "mq.model-route-outcome.v1",
         "decision_id": decision["decision_id"],
+        # decision_id is a hash of the task, so repeated runs of one task share it.
+        # run_id keeps those runs distinguishable from duplicated records.
+        "run_id": str(uuid.uuid4()),
         "task_class": decision["task_class"],
         "selected_route": decision["recommended_route"],
         "local_model": decision["local_model"],
@@ -170,13 +197,40 @@ def _candidate_is_valid(candidate: Any, task_class: str) -> bool:
     return True
 
 
-def _shadow_prompt(task: str, task_class: str) -> str:
-    return (
+# Shorter strings match too much of any material to be treated as a citation.
+_MIN_QUOTE_LENGTH = 12
+
+
+def _normalize(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _evidence_is_grounded(evidence: list[str], context: str) -> bool:
+    """Check every evidence item is a long-enough verbatim quote from the material."""
+    if not evidence:
+        return False
+    haystack = _normalize(context)
+    for item in evidence:
+        quote = _normalize(item)
+        if len(quote) < _MIN_QUOTE_LENGTH or quote not in haystack:
+            return False
+    return True
+
+
+def _shadow_prompt(task: str, task_class: str, context: str | None = None) -> str:
+    prompt = (
         "Return only one JSON object with exactly these keys: task_class, summary, "
         "evidence, suggestions. task_class must be "
         f"{json.dumps(task_class)}. evidence and suggestions must be string arrays. "
         "Do not return commands or markdown. Task: "
         f"{json.dumps(task)}"
+    )
+    if context is None:
+        return prompt
+    return (
+        prompt + " Every entry in evidence must be copied verbatim from the material "
+        "below, long enough to identify the line it came from. Do not paraphrase. "
+        f"Material: {json.dumps(context)}"
     )
 
 
@@ -184,7 +238,8 @@ def shadow_route(
     task: str,
     *,
     authoritative_agent: str = "codex",
-    timeout: int = 30,
+    timeout: int = 180,
+    context: str | None = None,
 ) -> dict[str, Any]:
     """Run an advisory local candidate and return a verified comparison record."""
     decision = inspect_route(task, authoritative_agent=authoritative_agent)
@@ -215,9 +270,9 @@ def shadow_route(
     try:
         response = _ollama_generate(
             str(decision["local_model"]),
-            _shadow_prompt(task, str(decision["task_class"])),
+            _shadow_prompt(task, str(decision["task_class"]), context),
             timeout,
-            json_format=True,
+            json_format=_CANDIDATE_SCHEMA,
             keep_alive=0,
         )
     except (TimeoutError, urllib.error.URLError, OSError, json.JSONDecodeError):
@@ -264,6 +319,24 @@ def shadow_route(
             ),
         }
 
+    checks = ["candidate-schema", "task-class-match"]
+    if context is not None:
+        if not _evidence_is_grounded(candidate["evidence"], context):
+            return {
+                "decision": decision,
+                "candidate": None,
+                "outcome": _outcome(
+                    decision,
+                    attempted=True,
+                    model_output_received=True,
+                    schema_valid=True,
+                    verification_status="FAIL",
+                    escalated=True,
+                    escalation_reason="verification-failed",
+                ),
+            }
+        checks.append("evidence-grounded")
+
     return {
         "decision": decision,
         "candidate": candidate,
@@ -273,7 +346,7 @@ def shadow_route(
             model_output_received=True,
             schema_valid=True,
             verification_status="PASS",
-            verification_checks=["candidate-schema", "task-class-match"],
+            verification_checks=checks,
         ),
     }
 
@@ -298,11 +371,19 @@ def _read_records(source: Path) -> tuple[list[Any], int]:
     return records, len(records)
 
 
+def record_route_outcome(outcome: dict[str, Any], destination: Path | None = None) -> Path:
+    """Append one schema-valid routing outcome to the local JSONL evidence store."""
+    _validator("model_route_outcome.schema.json").validate(outcome)
+    path = _outcome_path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(outcome, ensure_ascii=False) + "\n")
+    return path
+
+
 def route_report(source: Path | None = None) -> dict[str, Any]:
     """Aggregate validated outcomes from a JSON or JSONL source, read-only."""
-    path = source or Path(
-        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
-    ).expanduser()
+    path = _outcome_path(source)
     records, total = _read_records(path)
     validator = _validator("model_route_outcome.schema.json")
     outcomes = [record for record in records if not list(validator.iter_errors(record))]
@@ -314,6 +395,7 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
             {
                 "outcomes": 0,
                 "attempted": 0,
+                "model_output_received": 0,
                 "verified": 0,
                 "accepted_by_agent": 0,
                 "accepted_by_operator": 0,
@@ -322,17 +404,18 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
         )
         bucket["outcomes"] += 1
         bucket["attempted"] += int(outcome["attempted"])
+        bucket["model_output_received"] += int(outcome["model_output_received"])
         bucket["verified"] += int(outcome["verification"]["status"] == "PASS")
         bucket["accepted_by_agent"] += int(outcome["accepted_by_agent"])
         bucket["accepted_by_operator"] += int(outcome["accepted_by_operator"])
         bucket["escalated"] += int(outcome["escalated"])
     report_by_task: dict[str, dict[str, int | float]] = {}
     for task_class, counts in by_task.items():
-        attempted = counts["attempted"]
+        responded = counts["model_output_received"]
         verified = counts["verified"]
         report_by_task[task_class] = {
             **counts,
-            "verification_rate": round(verified / attempted, 3) if attempted else 0.0,
+            "verification_rate": round(verified / responded, 3) if responded else 0.0,
             "agent_acceptance_rate": (
                 round(counts["accepted_by_agent"] / verified, 3) if verified else 0.0
             ),
@@ -363,16 +446,17 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
     if task_class not in allowed:
         raise ValueError(f"unknown task class: {task_class}")
 
-    path = source or Path(
-        os.environ.get("MQ_AGENT_ROUTE_OUTCOMES", Path.home() / ".mq-agent/route-outcomes.jsonl")
-    ).expanduser()
+    path = _outcome_path(source)
     records, total = _read_records(path)
     validator = _validator("model_route_outcome.schema.json")
     valid = [record for record in records if not list(validator.iter_errors(record))]
     outcomes = [record for record in valid if record["task_class"] == task_class]
     attempted = sum(int(item["attempted"]) for item in outcomes)
+    responded = sum(int(item["model_output_received"]) for item in outcomes)
     verified = sum(int(item["verification"]["status"] == "PASS") for item in outcomes)
-    verification_rate = round(verified / attempted, 3) if attempted else 0.0
+    # Attempts the model never answered are Ollama availability, not model quality,
+    # so they belong in attempted_outcomes but not in the success-rate denominator.
+    verification_rate = round(verified / responded, 3) if responded else 0.0
     malformed = [
         item
         for item in outcomes
@@ -393,26 +477,73 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         )
         for item in outcomes
     ) + sum(int(not item["escalated"]) for item in malformed) + unauthorized_writes
+    accepted = sum(
+        int(item["accepted_by_agent"] or item["accepted_by_operator"]) for item in outcomes
+    )
+    passing = [item for item in outcomes if item["verification"]["status"] == "PASS"]
+    distinct_verified = len({str(item["decision_id"]) for item in passing})
+    grounded = sum(
+        int("evidence-grounded" in item["verification"]["checks"]) for item in passing
+    )
 
+    # A gate is vacuous when the evidence holds no observation that could have failed
+    # it. Such a gate passes by construction, so reporting it as met would overstate
+    # what the evidence proves.
     gate_values = (
-        ("minimum-verified-outcomes", verified >= 50, verified, ">= 50"),
-        ("verification-success-rate", verification_rate >= 0.9, verification_rate, ">= 0.9"),
-        ("valid-outcome-records", total == len(valid), total - len(valid), "0 invalid"),
-        ("zero-unauthorized-writes", unauthorized_writes == 0, unauthorized_writes, "0"),
-        ("zero-safety-contract-violations", safety_violations == 0, safety_violations, "0"),
+        ("minimum-verified-outcomes", verified >= 50, verified, ">= 50", False),
+        (
+            "verification-success-rate",
+            verification_rate >= 0.9,
+            verification_rate,
+            ">= 0.9",
+            responded == 0,
+        ),
+        ("valid-outcome-records", total == len(valid), total - len(valid), "0 invalid", total == 0),
+        (
+            "zero-unauthorized-writes",
+            unauthorized_writes == 0,
+            unauthorized_writes,
+            "0",
+            not any(item["selected_route"] == "approved-local" for item in outcomes),
+        ),
+        (
+            "zero-safety-contract-violations",
+            safety_violations == 0,
+            safety_violations,
+            "0",
+            accepted == 0 and not malformed and unauthorized_writes == 0,
+        ),
         (
             "all-malformed-outputs-escalated",
             len(malformed) == malformed_escalated,
             f"{malformed_escalated}/{len(malformed)}",
             "all",
+            not malformed,
         ),
-        ("ollama-unavailable-path-proven", unavailable_proven, unavailable_proven, True),
+        ("ollama-unavailable-path-proven", unavailable_proven, unavailable_proven, True, False),
+        # Volume alone can come from one task run many times, and a structurally valid
+        # candidate can still be invented, so coverage and grounding are separate bars.
+        ("distinct-verified-tasks", distinct_verified >= 10, distinct_verified, ">= 10", False),
+        (
+            "verified-outcomes-are-grounded",
+            grounded == verified,
+            f"{grounded}/{verified}",
+            "all",
+            verified == 0,
+        ),
     )
     gates = [
-        {"id": gate_id, "passed": passed, "actual": actual, "required": required}
-        for gate_id, passed, actual, required in gate_values
+        {
+            "id": gate_id,
+            "passed": passed,
+            "actual": actual,
+            "required": required,
+            "vacuous": vacuous,
+        }
+        for gate_id, passed, actual, required, vacuous in gate_values
     ]
     failed = [gate["id"] for gate in gates if not gate["passed"]]
+    vacuous_gates = [gate["id"] for gate in gates if gate["vacuous"]]
     review = {
         "schema": "mq.model-route-evidence-review.v1",
         "task_class": task_class,
@@ -422,7 +553,10 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         "operator_approval_required": True,
         "valid_outcomes": len(outcomes),
         "verified_outcomes": verified,
+        "distinct_verified_tasks": distinct_verified,
+        "grounded_verified_outcomes": grounded,
         "attempted_outcomes": attempted,
+        "responded_outcomes": responded,
         "verification_success_rate": verification_rate,
         "unauthorized_writes": unauthorized_writes,
         "safety_contract_violations": safety_violations,
@@ -431,6 +565,7 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         "ollama_unavailable_path_proven": unavailable_proven,
         "gates": gates,
         "failed_gates": failed,
+        "vacuous_gates": vacuous_gates,
     }
     _validator("model_route_evidence_review.schema.json").validate(review)
     return review

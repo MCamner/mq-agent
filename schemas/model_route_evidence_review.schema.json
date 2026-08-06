@@ -20,7 +20,10 @@
     "operator_approval_required": {"const": true},
     "valid_outcomes": {"type": "integer", "minimum": 0},
     "verified_outcomes": {"type": "integer", "minimum": 0},
+    "distinct_verified_tasks": {"type": "integer", "minimum": 0},
+    "grounded_verified_outcomes": {"type": "integer", "minimum": 0},
     "attempted_outcomes": {"type": "integer", "minimum": 0},
+    "responded_outcomes": {"type": "integer", "minimum": 0},
     "verification_success_rate": {"type": "number", "minimum": 0, "maximum": 1},
     "unauthorized_writes": {"type": "integer", "minimum": 0},
     "safety_contract_violations": {"type": "integer", "minimum": 0},
@@ -38,10 +41,12 @@
           "id": {"type": "string", "minLength": 1},
           "passed": {"type": "boolean"},
           "actual": {"type": ["string", "number", "integer", "boolean"]},
-          "required": {"type": ["string", "number", "integer", "boolean"]}
+          "required": {"type": ["string", "number", "integer", "boolean"]},
+          "vacuous": {"type": "boolean"}
         }
       }
     },
-    "failed_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+    "failed_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "vacuous_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
   }
 }
