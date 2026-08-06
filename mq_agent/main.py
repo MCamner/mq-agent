@@ -2890,13 +2890,30 @@ def route_shadow_cmd(
         str, typer.Option("--agent", help="Authoritative coding agent: codex or claude")
     ] = "codex",
     timeout: Annotated[int, typer.Option("--timeout", min=1, help="Ollama timeout in seconds")] = 30,
+    context_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--context-file",
+            help="Material the candidate must quote verbatim; enables grounding verification",
+        ),
+    ] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Run and verify an advisory Ollama candidate without accepting it."""
     from mq_agent.tools.model_routing import record_route_outcome, shadow_route
 
+    context: str | None = None
+    if context_file is not None:
+        if not context_file.is_file():
+            raise typer.BadParameter(f"context file not found: {context_file}")
+        context = context_file.read_text(encoding="utf-8")
     try:
-        data = shadow_route(task, authoritative_agent=authoritative_agent, timeout=timeout)
+        data = shadow_route(
+            task,
+            authoritative_agent=authoritative_agent,
+            timeout=timeout,
+            context=context,
+        )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     record_route_outcome(data["outcome"])

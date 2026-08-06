@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import urllib.error
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -152,6 +153,9 @@ def _outcome(
     outcome = {
         "schema": "mq.model-route-outcome.v1",
         "decision_id": decision["decision_id"],
+        # decision_id is a hash of the task, so repeated runs of one task share it.
+        # run_id keeps those runs distinguishable from duplicated records.
+        "run_id": str(uuid.uuid4()),
         "task_class": decision["task_class"],
         "selected_route": decision["recommended_route"],
         "local_model": decision["local_model"],
@@ -187,13 +191,40 @@ def _candidate_is_valid(candidate: Any, task_class: str) -> bool:
     return True
 
 
-def _shadow_prompt(task: str, task_class: str) -> str:
-    return (
+# Shorter strings match too much of any material to be treated as a citation.
+_MIN_QUOTE_LENGTH = 12
+
+
+def _normalize(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _evidence_is_grounded(evidence: list[str], context: str) -> bool:
+    """Check every evidence item is a long-enough verbatim quote from the material."""
+    if not evidence:
+        return False
+    haystack = _normalize(context)
+    for item in evidence:
+        quote = _normalize(item)
+        if len(quote) < _MIN_QUOTE_LENGTH or quote not in haystack:
+            return False
+    return True
+
+
+def _shadow_prompt(task: str, task_class: str, context: str | None = None) -> str:
+    prompt = (
         "Return only one JSON object with exactly these keys: task_class, summary, "
         "evidence, suggestions. task_class must be "
         f"{json.dumps(task_class)}. evidence and suggestions must be string arrays. "
         "Do not return commands or markdown. Task: "
         f"{json.dumps(task)}"
+    )
+    if context is None:
+        return prompt
+    return (
+        prompt + " Every entry in evidence must be copied verbatim from the material "
+        "below, long enough to identify the line it came from. Do not paraphrase. "
+        f"Material: {json.dumps(context)}"
     )
 
 
@@ -202,6 +233,7 @@ def shadow_route(
     *,
     authoritative_agent: str = "codex",
     timeout: int = 30,
+    context: str | None = None,
 ) -> dict[str, Any]:
     """Run an advisory local candidate and return a verified comparison record."""
     decision = inspect_route(task, authoritative_agent=authoritative_agent)
@@ -232,7 +264,7 @@ def shadow_route(
     try:
         response = _ollama_generate(
             str(decision["local_model"]),
-            _shadow_prompt(task, str(decision["task_class"])),
+            _shadow_prompt(task, str(decision["task_class"]), context),
             timeout,
             json_format=_CANDIDATE_SCHEMA,
             keep_alive=0,
@@ -281,6 +313,24 @@ def shadow_route(
             ),
         }
 
+    checks = ["candidate-schema", "task-class-match"]
+    if context is not None:
+        if not _evidence_is_grounded(candidate["evidence"], context):
+            return {
+                "decision": decision,
+                "candidate": None,
+                "outcome": _outcome(
+                    decision,
+                    attempted=True,
+                    model_output_received=True,
+                    schema_valid=True,
+                    verification_status="FAIL",
+                    escalated=True,
+                    escalation_reason="verification-failed",
+                ),
+            }
+        checks.append("evidence-grounded")
+
     return {
         "decision": decision,
         "candidate": candidate,
@@ -290,7 +340,7 @@ def shadow_route(
             model_output_received=True,
             schema_valid=True,
             verification_status="PASS",
-            verification_checks=["candidate-schema", "task-class-match"],
+            verification_checks=checks,
         ),
     }
 
@@ -424,6 +474,11 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
     accepted = sum(
         int(item["accepted_by_agent"] or item["accepted_by_operator"]) for item in outcomes
     )
+    passing = [item for item in outcomes if item["verification"]["status"] == "PASS"]
+    distinct_verified = len({str(item["decision_id"]) for item in passing})
+    grounded = sum(
+        int("evidence-grounded" in item["verification"]["checks"]) for item in passing
+    )
 
     # A gate is vacuous when the evidence holds no observation that could have failed
     # it. Such a gate passes by construction, so reporting it as met would overstate
@@ -460,6 +515,16 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
             not malformed,
         ),
         ("ollama-unavailable-path-proven", unavailable_proven, unavailable_proven, True, False),
+        # Volume alone can come from one task run many times, and a structurally valid
+        # candidate can still be invented, so coverage and grounding are separate bars.
+        ("distinct-verified-tasks", distinct_verified >= 10, distinct_verified, ">= 10", False),
+        (
+            "verified-outcomes-are-grounded",
+            grounded == verified,
+            f"{grounded}/{verified}",
+            "all",
+            verified == 0,
+        ),
     )
     gates = [
         {
@@ -482,6 +547,8 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         "operator_approval_required": True,
         "valid_outcomes": len(outcomes),
         "verified_outcomes": verified,
+        "distinct_verified_tasks": distinct_verified,
+        "grounded_verified_outcomes": grounded,
         "attempted_outcomes": attempted,
         "responded_outcomes": responded,
         "verification_success_rate": verification_rate,

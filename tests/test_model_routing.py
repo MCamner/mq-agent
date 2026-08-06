@@ -109,6 +109,116 @@ def test_shadow_validates_structured_candidate_without_accepting_it(monkeypatch)
     Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
 
 
+def _candidate(evidence: list[str]) -> dict:
+    return {
+        "response": json.dumps(
+            {
+                "task_class": "diff-summary",
+                "summary": "The change moves the retry budget into the client.",
+                "evidence": evidence,
+                "suggestions": [],
+            }
+        )
+    }
+
+
+CONTEXT = (
+    "--- a/client.py\n+++ b/client.py\n"
+    "-    RETRY_BUDGET = 3\n"
+    "+    def __init__(self, retry_budget: int = 3) -> None:\n"
+    "+        self.retry_budget = retry_budget\n"
+)
+
+
+def test_shadow_verifies_evidence_is_quoted_from_the_supplied_material(monkeypatch) -> None:
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing,
+        "_ollama_generate",
+        lambda *args, **kwargs: _candidate(["self.retry_budget = retry_budget"]),
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=CONTEXT)
+    outcome = result["outcome"]
+
+    assert outcome["verification"]["status"] == "PASS"
+    assert "evidence-grounded" in outcome["verification"]["checks"]
+    assert outcome["escalated"] is False
+    Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_shadow_fails_evidence_that_is_not_in_the_material(monkeypatch) -> None:
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing,
+        "_ollama_generate",
+        lambda *args, **kwargs: _candidate(["the timeout was raised to 30 seconds"]),
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=CONTEXT)
+    outcome = result["outcome"]
+
+    assert result["candidate"] is None
+    assert outcome["model_output_received"] is True
+    assert outcome["verification"]["status"] == "FAIL"
+    assert outcome["escalation_reason"] == "verification-failed"
+    assert outcome["escalated"] is True
+
+
+def test_shadow_rejects_evidence_too_short_to_be_a_quote(monkeypatch) -> None:
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing,
+        "_ollama_generate",
+        lambda *args, **kwargs: _candidate(["self"]),
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=CONTEXT)
+
+    assert result["outcome"]["verification"]["status"] == "FAIL"
+    assert result["outcome"]["escalation_reason"] == "verification-failed"
+
+
+def test_shadow_requires_evidence_when_material_is_supplied(monkeypatch) -> None:
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(model_routing, "_ollama_generate", lambda *args, **kwargs: _candidate([]))
+
+    result = model_routing.shadow_route("Summarize this diff", context=CONTEXT)
+
+    assert result["outcome"]["verification"]["status"] == "FAIL"
+    assert result["outcome"]["escalation_reason"] == "verification-failed"
+
+
+def test_shadow_without_material_is_verified_but_not_grounded(monkeypatch) -> None:
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing,
+        "_ollama_generate",
+        lambda *args, **kwargs: _candidate(["anything at all goes here"]),
+    )
+
+    outcome = model_routing.shadow_route("Summarize this diff")["outcome"]
+
+    assert outcome["verification"]["status"] == "PASS"
+    assert "evidence-grounded" not in outcome["verification"]["checks"]
+
+
+def test_each_shadow_run_gets_its_own_run_id(monkeypatch) -> None:
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing,
+        "_ollama_generate",
+        lambda *args, **kwargs: _candidate(["self.retry_budget = retry_budget"]),
+    )
+
+    first = model_routing.shadow_route("Summarize this diff", context=CONTEXT)["outcome"]
+    second = model_routing.shadow_route("Summarize this diff", context=CONTEXT)["outcome"]
+
+    assert first["decision_id"] == second["decision_id"]
+    assert first["run_id"] != second["run_id"]
+    Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(first)
+
+
 def test_shadow_malformed_output_escalates_without_returning_raw_text(monkeypatch) -> None:
     monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
     monkeypatch.setattr(
@@ -229,21 +339,13 @@ def test_evidence_review_fails_closed_without_outcomes(tmp_path) -> None:
 
 
 def test_evidence_review_requires_operator_after_all_technical_gates(tmp_path) -> None:
-    decision = model_routing.inspect_route("Review README documentation")
     outcomes = [
-        model_routing._outcome(
-            decision,
-            attempted=True,
-            model_output_received=True,
-            schema_valid=True,
-            verification_status="PASS",
-            verification_checks=["candidate-schema", "task-class-match"],
-        )
-        for _ in range(50)
+        _verified(model_routing.inspect_route(f"Review README documentation part {index}"))
+        for index in range(50)
     ]
     outcomes.append(
         model_routing._outcome(
-            decision,
+            model_routing.inspect_route("Review README documentation"),
             verification_status="UNAVAILABLE",
             escalated=True,
             escalation_reason="model-unavailable",
@@ -324,6 +426,69 @@ def test_evidence_review_marks_gates_no_observation_could_fail(tmp_path) -> None
         "all-malformed-outputs-escalated",
     }
     Draft202012Validator(_schema("model_route_evidence_review.schema.json")).validate(review)
+
+
+def _verified(decision: dict, *, grounded: bool = True) -> dict:
+    checks = ["candidate-schema", "task-class-match"]
+    if grounded:
+        checks.append("evidence-grounded")
+    return model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status="PASS",
+        verification_checks=checks,
+    )
+
+
+def test_volume_from_one_repeated_task_fails_the_coverage_gate(tmp_path) -> None:
+    decision = model_routing.inspect_route("Summarize this diff")
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(
+        "\n".join(json.dumps(_verified(decision)) for _ in range(50)) + "\n",
+        encoding="utf-8",
+    )
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+    by_id = {gate["id"]: gate for gate in review["gates"]}
+
+    assert review["verified_outcomes"] == 50
+    assert review["distinct_verified_tasks"] == 1
+    assert by_id["minimum-verified-outcomes"]["passed"] is True
+    assert by_id["distinct-verified-tasks"]["passed"] is False
+    assert review["decision"] == "NOT_ELIGIBLE"
+    Draft202012Validator(_schema("model_route_evidence_review.schema.json")).validate(review)
+
+
+def test_ungrounded_outcomes_fail_the_grounding_gate(tmp_path) -> None:
+    outcomes = [
+        _verified(model_routing.inspect_route(f"Summarize this diff number {index}"), grounded=False)
+        for index in range(50)
+    ]
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(
+        "\n".join(json.dumps(outcome) for outcome in outcomes) + "\n", encoding="utf-8"
+    )
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+    by_id = {gate["id"]: gate for gate in review["gates"]}
+
+    assert by_id["distinct-verified-tasks"]["passed"] is True
+    assert by_id["verified-outcomes-are-grounded"]["passed"] is False
+    assert by_id["verified-outcomes-are-grounded"]["vacuous"] is False
+    assert review["grounded_verified_outcomes"] == 0
+    assert review["decision"] == "NOT_ELIGIBLE"
+
+
+def test_grounding_gate_is_vacuous_without_verified_outcomes(tmp_path) -> None:
+    source = tmp_path / "missing.jsonl"
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+    by_id = {gate["id"]: gate for gate in review["gates"]}
+
+    assert by_id["verified-outcomes-are-grounded"]["vacuous"] is True
+    assert "verified-outcomes-are-grounded" in review["vacuous_gates"]
 
 
 def test_malformed_evidence_makes_the_escalation_gate_meaningful(tmp_path) -> None:

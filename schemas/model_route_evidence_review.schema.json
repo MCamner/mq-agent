@@ -20,6 +20,8 @@
     "operator_approval_required": {"const": true},
     "valid_outcomes": {"type": "integer", "minimum": 0},
     "verified_outcomes": {"type": "integer", "minimum": 0},
+    "distinct_verified_tasks": {"type": "integer", "minimum": 0},
+    "grounded_verified_outcomes": {"type": "integer", "minimum": 0},
     "attempted_outcomes": {"type": "integer", "minimum": 0},
     "responded_outcomes": {"type": "integer", "minimum": 0},
     "verification_success_rate": {"type": "number", "minimum": 0, "maximum": 1},
