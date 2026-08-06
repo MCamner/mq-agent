@@ -2889,7 +2889,7 @@ def route_shadow_cmd(
     authoritative_agent: Annotated[
         str, typer.Option("--agent", help="Authoritative coding agent: codex or claude")
     ] = "codex",
-    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Ollama timeout in seconds")] = 30,
+    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Ollama timeout in seconds")] = 180,
     context_file: Annotated[
         Path | None,
         typer.Option(

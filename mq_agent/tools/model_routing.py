@@ -40,9 +40,15 @@ _CANDIDATE_SCHEMA: dict[str, Any] = {
     "required": sorted(_CANDIDATE_KEYS),
     "properties": {
         "task_class": {"type": "string"},
-        "summary": {"type": "string", "minLength": 1},
-        "evidence": {"type": "array", "items": {"type": "string"}},
-        "suggestions": {"type": "array", "items": {"type": "string"}},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 600},
+        # Ollama enforces this schema as a decoding grammar, so maxItems is a hard
+        # bound on generation length: an unbounded evidence array made one 10 KB diff
+        # generate ~2800 tokens in 100s+, and identical input varied 473 to 3143
+        # tokens. Bounding the count holds a typical run near 30s. Deliberately no
+        # maxLength on the items: a truncated quote is no longer verbatim and fails
+        # the grounding check.
+        "evidence": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
+        "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
     },
 }
 
@@ -232,7 +238,7 @@ def shadow_route(
     task: str,
     *,
     authoritative_agent: str = "codex",
-    timeout: int = 30,
+    timeout: int = 180,
     context: str | None = None,
 ) -> dict[str, Any]:
     """Run an advisory local candidate and return a verified comparison record."""

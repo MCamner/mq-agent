@@ -130,6 +130,24 @@ CONTEXT = (
 )
 
 
+def test_candidate_schema_bounds_list_length_but_never_item_length() -> None:
+    evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
+    suggestions = model_routing._CANDIDATE_SCHEMA["properties"]["suggestions"]
+
+    assert evidence["maxItems"] == 5
+    assert suggestions["maxItems"] == 3
+    # A per-item maxLength truncates a quote mid-string, which fails the grounding
+    # check on every run. Bound how many quotes are returned, never how long one is.
+    assert "maxLength" not in evidence["items"]
+    assert "maxLength" not in suggestions["items"]
+
+
+def test_shadow_timeout_default_covers_measured_generation_time() -> None:
+    import inspect
+
+    assert inspect.signature(model_routing.shadow_route).parameters["timeout"].default == 180
+
+
 def test_shadow_verifies_evidence_is_quoted_from_the_supplied_material(monkeypatch) -> None:
     monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
     monkeypatch.setattr(
