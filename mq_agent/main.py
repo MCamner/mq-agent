@@ -2974,6 +2974,51 @@ def route_report_cmd(
     console.print(f"Source: {data['source']}")
 
 
+@route_app.command("history")
+def route_history_cmd(
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL outcome source")
+    ] = None,
+    decision_id: Annotated[
+        str | None, typer.Option("--decision-id", help="Explain a single routing decision")
+    ] = None,
+    task_class: Annotated[
+        str | None, typer.Option("--task-class", help="Limit history to one task class")
+    ] = None,
+    limit: Annotated[
+        int, typer.Option("--limit", help="Newest entries to return; 0 returns all")
+    ] = 20,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """List individual routing outcomes newest first, read-only."""
+    from mq_agent.tools.model_routing import route_history
+
+    data = route_history(
+        source, decision_id=decision_id, task_class=task_class, limit=limit
+    )
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    table = Table(title="Model Route History")
+    table.add_column("Recorded")
+    table.add_column("Decision")
+    table.add_column("Task class")
+    table.add_column("Verification")
+    table.add_column("Escalation")
+    for entry in data["entries"]:
+        table.add_row(
+            str(entry["recorded_at"]),
+            str(entry["decision_id"]),
+            str(entry["task_class"]),
+            str(entry["verification"]["status"]),
+            str(entry["escalation_reason"] or "—"),
+        )
+    console.print(table)
+    console.print(f"Showing {data['returned']} of {data['matched']} matched outcomes")
+    console.print(f"Source: {data['source']}")
+
+
 @route_app.command("evidence-review")
 def route_evidence_review_cmd(
     task_class: Annotated[str, typer.Argument(help="Task class to review for promotion")],

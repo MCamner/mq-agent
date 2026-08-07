@@ -321,6 +321,151 @@ def test_report_distinguishes_attempted_verified_and_accepted(tmp_path) -> None:
     }
 
 
+def _history_source(tmp_path) -> Path:
+    """Three outcomes recorded oldest first, with one unparsable line between them."""
+    first = {
+        **model_routing._outcome(
+            model_routing.inspect_route("Summarize this diff"),
+            attempted=True,
+            model_output_received=True,
+            schema_valid=True,
+            verification_status="PASS",
+            verification_checks=["candidate-schema", "task-class-match"],
+        ),
+        "recorded_at": "2026-08-07T10:00:00Z",
+    }
+    second = {
+        **model_routing._outcome(
+            model_routing.inspect_route("Review README documentation"),
+            attempted=False,
+            verification_status="UNAVAILABLE",
+            escalated=True,
+            escalation_reason="model-unavailable",
+        ),
+        "recorded_at": "2026-08-07T11:00:00Z",
+    }
+    third = {
+        **model_routing._outcome(
+            model_routing.inspect_route("Summarize this diff"),
+            attempted=True,
+            model_output_received=True,
+            verification_status="FAIL",
+            escalated=True,
+            escalation_reason="verification-failed",
+        ),
+        "recorded_at": "2026-08-07T12:00:00Z",
+    }
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(
+        "\n".join(
+            (json.dumps(first), "not-json", json.dumps(second), json.dumps(third))
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return source
+
+
+def test_history_returns_validated_outcomes_newest_first(tmp_path) -> None:
+    history = model_routing.route_history(_history_source(tmp_path))
+
+    assert history["schema"] == "mq.model-route-history.v1"
+    assert history["total_records"] == 4
+    assert history["valid_outcomes"] == 3
+    assert history["invalid_records"] == 1
+    assert [entry["recorded_at"] for entry in history["entries"]] == [
+        "2026-08-07T12:00:00Z",
+        "2026-08-07T11:00:00Z",
+        "2026-08-07T10:00:00Z",
+    ]
+    assert history["entries"][0]["escalation_reason"] == "verification-failed"
+    assert history["entries"][1]["verification"]["status"] == "UNAVAILABLE"
+
+
+def test_history_entries_keep_the_stages_the_report_must_not_conflate(tmp_path) -> None:
+    """attempted, answered, schema-valid and verified stay separable per decision."""
+    history = model_routing.route_history(_history_source(tmp_path))
+
+    failed = history["entries"][0]
+    assert failed["attempted"] is True
+    assert failed["model_output_received"] is True
+    assert failed["schema_valid"] is False
+    assert failed["verification"]["status"] == "FAIL"
+    assert failed["accepted_by_agent"] is False
+
+
+def test_history_filters_one_decision_for_explain(tmp_path) -> None:
+    source = _history_source(tmp_path)
+    target = model_routing.route_history(source)["entries"][1]["decision_id"]
+
+    history = model_routing.route_history(source, decision_id=target)
+
+    assert history["filters"] == {"decision_id": target, "task_class": None}
+    assert history["matched"] == 1
+    assert [entry["decision_id"] for entry in history["entries"]] == [target]
+
+
+def test_history_filters_by_task_class(tmp_path) -> None:
+    history = model_routing.route_history(_history_source(tmp_path), task_class="diff-summary")
+
+    assert history["matched"] == 2
+    assert {entry["task_class"] for entry in history["entries"]} == {"diff-summary"}
+
+
+def test_history_limit_caps_entries_without_hiding_the_match_count(tmp_path) -> None:
+    history = model_routing.route_history(_history_source(tmp_path), limit=1)
+
+    assert history["matched"] == 3
+    assert history["returned"] == 1
+    assert len(history["entries"]) == 1
+
+
+def test_history_of_a_missing_source_is_empty_not_an_error(tmp_path) -> None:
+    history = model_routing.route_history(tmp_path / "missing.jsonl")
+
+    assert history["total_records"] == 0
+    assert history["matched"] == 0
+    assert history["entries"] == []
+
+
+def test_history_never_writes_to_its_source(tmp_path) -> None:
+    source = _history_source(tmp_path)
+    before = source.read_bytes()
+
+    model_routing.route_history(source)
+
+    assert source.read_bytes() == before
+
+
+def test_history_cli_json_is_machine_readable_and_filterable(tmp_path) -> None:
+    source = _history_source(tmp_path)
+    result = runner.invoke(app, ["route", "history", "--source", str(source), "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["schema"] == "mq.model-route-history.v1"
+    assert payload["returned"] == 3
+
+    target = payload["entries"][1]["decision_id"]
+    filtered = runner.invoke(
+        app,
+        ["route", "history", "--source", str(source), "--decision-id", target, "--json"],
+    )
+    assert filtered.exit_code == 0
+    assert json.loads(filtered.output)["matched"] == 1
+
+
+def test_history_groups_every_run_of_a_repeated_decision(tmp_path) -> None:
+    """decision_id is derived from task and agent, so one decision can hold many runs."""
+    source = _history_source(tmp_path)
+    repeated = model_routing.route_history(source, task_class="diff-summary")["entries"][0]
+
+    history = model_routing.route_history(source, decision_id=repeated["decision_id"])
+
+    assert history["matched"] == 2
+    run_ids = {entry["run_id"] for entry in history["entries"]}
+    assert len(run_ids) == 2
+
+
 def test_route_cli_json_surfaces_are_machine_readable(monkeypatch, tmp_path) -> None:
     inspect_result = runner.invoke(app, ["route", "inspect", "Summarize this diff", "--json"])
     assert inspect_result.exit_code == 0
