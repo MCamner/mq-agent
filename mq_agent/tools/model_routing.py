@@ -437,6 +437,44 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
     }
 
 
+def route_history(
+    source: Path | None = None,
+    *,
+    decision_id: str | None = None,
+    task_class: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    """List validated outcomes newest first, read-only, without aggregating them.
+
+    `route_report` collapses outcomes into counts; this keeps each decision
+    separate so an operator can explain a single one. A non-positive `limit`
+    returns every match.
+    """
+    path = _outcome_path(source)
+    records, total = _read_records(path)
+    validator = _validator("model_route_outcome.schema.json")
+    outcomes = [record for record in records if not list(validator.iter_errors(record))]
+    matched = [
+        outcome
+        for outcome in outcomes
+        if (decision_id is None or outcome["decision_id"] == decision_id)
+        and (task_class is None or outcome["task_class"] == task_class)
+    ]
+    matched.sort(key=lambda outcome: str(outcome["recorded_at"]), reverse=True)
+    entries = matched if limit <= 0 else matched[:limit]
+    return {
+        "schema": "mq.model-route-history.v1",
+        "source": str(path),
+        "total_records": total,
+        "valid_outcomes": len(outcomes),
+        "invalid_records": total - len(outcomes),
+        "filters": {"decision_id": decision_id, "task_class": task_class},
+        "matched": len(matched),
+        "returned": len(entries),
+        "entries": entries,
+    }
+
+
 def review_route_evidence(task_class: str, source: Path | None = None) -> dict[str, Any]:
     """Evaluate one task class against the promotion evidence gate, read-only."""
     outcome_schema = cast(
