@@ -557,7 +557,11 @@ def _severity_value(item: dict[str, Any]) -> str:
 def _render_review_result(command: str, result: Any) -> None:
     if _is_error_result(result):
         message = str(result.get("error") if isinstance(result, dict) else result)
-        console.print(Panel(message, title="[bold red]mq-mcp review unavailable[/bold red]", border_style="red"))
+        # A down server and a missing tool need different operator fixes, so the
+        # bridge tags the former; the title has to keep them apart too.
+        unreachable = isinstance(result, dict) and result.get("reason") == "unreachable"
+        title = "mq-mcp not reachable" if unreachable else "mq-mcp review unavailable"
+        console.print(Panel(message, title=f"[bold red]{title}[/bold red]", border_style="red"))
         if isinstance(result, dict):
             hint = result.get("hint")
             if hint:

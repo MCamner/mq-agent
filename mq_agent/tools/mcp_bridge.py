@@ -244,12 +244,35 @@ class MultiMCPBridge:
                 return bridge.call_tool(tool_name, args)
         return f"Tool '{tool_name}' not found on any connected MCP server."
 
+    def _unreachable_error(self, tool_name: str) -> dict[str, Any] | None:
+        """Return a server-down error when no configured MCP server answers.
+
+        A down server and a server missing the tool both leave list_tools()
+        empty — _fetch_tools_raw swallows the connection error — so a lookup
+        miss alone cannot say which happened. Asking is_available() separates
+        them, and the two need different operator fixes: start mq-mcp, or
+        upgrade it. Only called on the miss path, so a hit pays nothing.
+        """
+        if any(bridge.is_available() for bridge in self.bridges.values()):
+            return None
+        endpoints = ", ".join(bridge.endpoint for bridge in self.bridges.values())
+        return {
+            "ok": False,
+            "error": f"No MCP server is reachable at {endpoints}; '{tool_name}' cannot be called.",
+            "tool": tool_name,
+            "reason": "unreachable",
+            "hint": MCP_START_HINT,
+        }
+
     def _call_required_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
         """Call a named MCP tool, returning a clear error when it is missing."""
         for name, bridge in self.bridges.items():
             tools = bridge.list_tools()
             if tool_name in tools:
                 return bridge.call_tool(tool_name, args)
+        down = self._unreachable_error(tool_name)
+        if down:
+            return down
         return {
             "ok": False,
             "error": f"mq-mcp tool '{tool_name}' is not available.",
@@ -263,6 +286,9 @@ class MultiMCPBridge:
         for bridge in self.bridges.values():
             if risk_tool in bridge.list_tools():
                 return risk_tool
+        down = self._unreachable_error(risk_tool)
+        if down:
+            return down
         return {
             "ok": False,
             "error": f"--risk requires mq-mcp tool '{risk_tool}', but it is not available.",
