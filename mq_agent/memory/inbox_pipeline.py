@@ -529,6 +529,20 @@ def run_promote_from_review(memory_id: str, *, apply: bool = False, vault: str |
     return {"vault": str(v), **_cli_stage(cli_runner, v, args)}
 
 
+def run_learn_writeback(*, apply: bool = False, vault: str | Path | None = None,
+                        cli_runner: Callable[..., tuple[int, str, str]] = run_mqobsidian_cli) -> dict:
+    """Delegate to mqobsidian `learn-writeback` — materialise durable agent-readable
+    memory for PROMOTED memories only (dry-run unless ``apply``).
+
+    Stage 4 of inbox-cochange runs this as part of intake; this is the same verb on
+    its own, for a promotion that landed some other way (promote-from-review, or a
+    manual tier change). mqobsidian decides what is promoted; mq-agent only asks.
+    """
+    v = resolve_vault(vault)
+    args = ["learn-writeback", "--apply" if apply else "--dry-run"]
+    return {"vault": str(v), **_cli_stage(cli_runner, v, args)}
+
+
 def run_resolve_supersede(memory_id: str, *, accept: bool, apply: bool = False,
                           vault: str | Path | None = None,
                           cli_runner: Callable[..., tuple[int, str, str]] = run_mqobsidian_cli) -> dict:

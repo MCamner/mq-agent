@@ -166,6 +166,36 @@ def test_resolve_supersede_requires_exactly_one_mode(tmp_path):
     assert result.exit_code == 2 and "exactly one of --accept or --reject" in result.output
 
 
+# --- learn-writeback (standalone delegator) --------------------------------
+# inbox-cochange already runs writeback as stage 4 of the pipeline. This exposes
+# the same mqobsidian verb on its own, for materialising durable memory after a
+# promotion that did not come through intake.
+
+def test_learn_writeback_dry_run_by_default(tmp_path):
+    cli = _RecordingCLI()
+    ip.run_learn_writeback(vault=tmp_path, cli_runner=cli)
+    assert cli.calls == [["learn-writeback", "--dry-run"]]
+
+
+def test_learn_writeback_apply_passes_flag(tmp_path):
+    cli = _RecordingCLI()
+    ip.run_learn_writeback(apply=True, vault=tmp_path, cli_runner=cli)
+    assert cli.calls == [["learn-writeback", "--apply"]]
+
+
+def test_learn_writeback_reports_vault(tmp_path):
+    res = ip.run_learn_writeback(vault=tmp_path, cli_runner=_RecordingCLI())
+    assert res["vault"] == str(tmp_path) and res["ok"] is True
+
+
+def test_learn_writeback_cli_reports_a_missing_vault_instead_of_crashing(tmp_path):
+    # No memory_cli.py in the tmp vault: the delegator reports rc=127 and exits 1,
+    # the same way review-status does. mq-agent never writes memory itself.
+    result = runner.invoke(app, ["memory", "learn-writeback", "--vault", str(tmp_path)])
+    assert result.exit_code == 1
+    assert "mqobsidian CLI not found" in result.output
+
+
 def test_review_cli_commands_degrade_gracefully(tmp_path):
     # tmp vault has no memory_cli.py → reported as failed rc=127, no crash.
     r = runner.invoke(app, ["memory", "review-status", "--vault", str(tmp_path)])
