@@ -2277,6 +2277,24 @@ def memory_promote_from_review_cmd(
     raise typer.Exit(0 if result["ok"] else 1)
 
 
+@memory_app.command("learn-writeback")
+def memory_learn_writeback_cmd(
+    apply: Annotated[bool, typer.Option("--apply", help="Persist the writeback (default: dry-run)")] = False,
+    vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")] = None,
+):
+    """Materialise durable agent-readable memory for PROMOTED memories. Dry-run by default.
+
+    inbox-cochange runs this as stage 4 of intake; this is the same verb standalone,
+    for promotions that landed another way. mqobsidian decides what counts as
+    promoted — candidate and observed memories are never written.
+    """
+    from mq_agent.memory.inbox_pipeline import run_learn_writeback
+
+    result = run_learn_writeback(apply=apply, vault=vault)
+    _print_delegated("MQ memory learn-writeback", result)
+    raise typer.Exit(0 if result["ok"] else 1)
+
+
 @memory_app.command("resolve-supersede")
 def memory_resolve_supersede_cmd(
     memory_id: Annotated[str, typer.Argument(help="memory_id with an open supersede proposal")],
