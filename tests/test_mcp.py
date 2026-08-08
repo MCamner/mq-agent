@@ -251,6 +251,66 @@ def test_multi_bridge_describe_visual_tool_uses_image_source_hint():
     assert spec.source == "mq-image-analyze"
 
 
+# ── server down vs tool missing ─────────────────────────────────────────────
+#
+# A down server and a server without the tool both leave list_tools() empty, so
+# the required-tool error has to ask is_available() to tell them apart. The
+# operator fix differs: start mq-mcp, or upgrade it.
+
+def _bridge_with(tools: list[str], available: bool) -> MagicMock:
+    fake = MagicMock()
+    fake.list_tools.return_value = tools
+    fake.is_available.return_value = available
+    fake.endpoint = "http://localhost:8765"
+    return fake
+
+def test_required_tool_reports_unreachable_server_not_missing_tool():
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    bridge.bridges = {"mq-mcp": _bridge_with([], available=False)}
+
+    result = bridge._call_required_tool("review_diff", {})
+
+    assert result["ok"] is False
+    assert "No MCP server is reachable" in result["error"]
+    assert "is not available" not in result["error"]
+    assert "mq-agent mcp start" in result["hint"]
+
+def test_required_tool_still_reports_missing_tool_when_server_is_up():
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    bridge.bridges = {"mq-mcp": _bridge_with(["review_file"], available=True)}
+
+    result = bridge._call_required_tool("review_diff", {})
+
+    assert result["ok"] is False
+    assert "mq-mcp tool 'review_diff' is not available." == result["error"]
+    assert "upgrade" in result["hint"].lower()
+
+def test_review_diff_reports_unreachable_server():
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    bridge.bridges = {"mq-mcp": _bridge_with([], available=False)}
+
+    result = bridge.review_diff({})
+
+    assert "No MCP server is reachable" in result["error"]
+
+def test_risk_review_reports_unreachable_server_before_upgrade_hint():
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    bridge = MultiMCPBridge()
+    bridge.bridges = {"mq-mcp": _bridge_with([], available=False)}
+
+    result = bridge.review_diff({"risk": True})
+
+    assert "No MCP server is reachable" in result["error"]
+    assert "--risk requires" not in result["error"]
+
+
 # ── safety counts ───────────────────────────────────────────────────────────
 
 def test_safety_class_counts():

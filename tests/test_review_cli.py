@@ -176,6 +176,25 @@ def test_review_missing_mq_mcp_tool_returns_clear_error():
     assert "review_file" in data["error"]
 
 
+def test_review_unreachable_server_titles_panel_as_not_reachable():
+    class DownBridge:
+        def review_diff(self, flags: dict[str, bool]) -> dict[str, object]:
+            return {
+                "ok": False,
+                "error": "No MCP server is reachable at http://localhost:8765; 'review_diff' cannot be called.",
+                "tool": "review_diff",
+                "reason": "unreachable",
+                "hint": "Start mq-mcp with:\n  mq-agent mcp start",
+            }
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=DownBridge()):
+        result = runner.invoke(app, ["review", "diff"])
+
+    assert result.exit_code == 1
+    assert "mq-mcp not reachable" in result.output
+    assert "review unavailable" not in result.output
+
+
 def test_review_mcp_error_string_exits_nonzero():
     class ErrorBridge:
         def review_diff(self, flags: dict[str, bool]) -> str:
