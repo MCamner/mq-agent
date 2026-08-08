@@ -1130,7 +1130,9 @@ def _lock_version(repo: Path, package: str) -> str:
             block = chunk
             break
     assert block is not None, f"{package} not found in uv.lock"
-    return re.search(r'^version = "([^"]+)"', block, re.MULTILINE).group(1)
+    match = re.search(r'^version = "([^"]+)"', block, re.MULTILINE)
+    assert match is not None, f"{package} has no version in uv.lock"
+    return match.group(1)
 
 
 class TestLockfileVersionSurface:
