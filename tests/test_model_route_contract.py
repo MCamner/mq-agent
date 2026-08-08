@@ -15,7 +15,9 @@ def schema(name: str) -> dict:
 
 
 def decision(**overrides: object) -> dict:
-    value = {
+    # Annotated because every value here is a str or list[str]; without it mypy
+    # narrows the dict to Sequence[str] and rejects the object-typed overrides.
+    value: dict[str, object] = {
         "schema": "mq.model-route-decision.v1",
         "decision_id": "route-20260803-001",
         "task_class": "diff-summary",
