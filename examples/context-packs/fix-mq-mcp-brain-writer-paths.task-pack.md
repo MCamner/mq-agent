@@ -31,7 +31,7 @@ summary: Minimum context needed for: fix mq-mcp brain writer paths
 Use the installed CodeGraph MCP tools directly. Treat returned source as already
 read; fall back to targeted reads only for missing, stale, or unsupported detail.
 
-* `codegraph_context` — map task "fix mq-mcp brain writer paths" in `mq-mcp` first
+* `codegraph_explore` — map task "fix mq-mcp brain writer paths" in `mq-mcp` first
 
 ## Exclusions
 
