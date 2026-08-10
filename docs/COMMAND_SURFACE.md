@@ -59,6 +59,21 @@ These rules hold across the whole command surface and are enforced by
 | `mq-agent run --stack` | read-only | no | Canonical stack runtime pipeline |
 | `mq-agent tui` | read-only | no | Textual dashboard |
 
+## Release Cockpit Commands
+
+`ship` is the read-only operator surface. It does not prepare, merge, tag,
+push, finalize, or publish. `stack release` remains the lower-level engine.
+
+| Command | Writes | Notes |
+|---|---:|---|
+| `mq-agent ship status --repo . [--target X.Y.Z]` | no | Resolve one release state and one next action |
+| `mq-agent ship status --json` | no | Stable `mq_release_cockpit.v1` payload |
+| `mq-agent ship proof --repo . [--target X.Y.Z]` | no | Show local, gate, PR, CI, tag, and GitHub Release evidence |
+| `mq-agent ship audit --repo . [--target X.Y.Z]` | no | Post-release verification; exits 1 unless state is `AUDITED` |
+
+See [RELEASE_COCKPIT.md](RELEASE_COCKPIT.md) for state precedence and evidence
+limitations.
+
 ## Review Commands
 
 Review commands are orchestration-only. mq-agent calls mq-mcp review tools and

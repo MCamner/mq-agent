@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mq_release_cockpit.v1",
+  "title": "mq-agent release cockpit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "command", "checked_at", "state", "safe_to_release",
+    "repo", "release", "checks", "pull_request", "github_release",
+    "blockers", "next_action"
+  ],
+  "properties": {
+    "schema": {"const": "mq_release_cockpit.v1"},
+    "command": {"enum": ["status", "proof", "audit"]},
+    "checked_at": {"type": "string", "format": "date-time"},
+    "state": {
+      "enum": ["IDLE", "BLOCKED", "PREFLIGHT_READY", "PREPARED_PR", "PR_GREEN", "MERGED", "FINALIZED", "PUBLISHED", "AUDITED"]
+    },
+    "safe_to_release": {"type": "boolean"},
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path", "path_exists", "branch", "head_commit", "origin_main_commit", "clean", "synced_main", "release_mode"],
+      "properties": {
+        "name": {"type": "string"},
+        "path": {"type": "string"},
+        "path_exists": {"type": "boolean"},
+        "branch": {"type": ["string", "null"]},
+        "head_commit": {"type": ["string", "null"]},
+        "origin_main_commit": {"type": ["string", "null"]},
+        "clean": {"type": "boolean"},
+        "synced_main": {"type": "boolean"},
+        "release_mode": {"type": ["string", "null"]}
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_version", "target_version", "latest_tag", "latest_tag_type", "latest_tag_target"],
+      "properties": {
+        "current_version": {"type": "string"},
+        "target_version": {"type": ["string", "null"]},
+        "latest_tag": {"type": ["string", "null"]},
+        "latest_tag_type": {"type": ["string", "null"]},
+        "latest_tag_target": {"type": ["string", "null"]}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release", "contract", "stack_preflight", "main_ci", "unavailable", "evidence"],
+      "properties": {
+        "release": {"type": "string"},
+        "contract": {"type": "string"},
+        "stack_preflight": {"type": "string"},
+        "main_ci": {"type": "string"},
+        "evidence": {"type": "object"},
+        "unavailable": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "pull_request": {"type": ["object", "null"]},
+    "github_release": {"type": "object"},
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {"code": {"type": "string"}, "message": {"type": "string"}}
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "command", "requires_human"],
+      "properties": {
+        "label": {"type": "string"},
+        "command": {"type": ["string", "null"]},
+        "requires_human": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -31,8 +31,8 @@ Given a task, the command:
    public-safe).
 5. **Adds bounded CodeGraph MCP guidance** when the task is source-structure
    heavy (callers / impact / refactor / rename / trace / symbol / fix …).
-   Codex and Claude receive tool intentions such as `codegraph_context`,
-   `codegraph_trace`, and `codegraph_impact` rather than shell commands.
+   Codex and Claude receive tool intentions such as `codegraph_explore`,
+   `codegraph_callers`, and `codegraph_impact` rather than shell commands.
    Doc-shaped tasks (readme / roadmap / changelog) remain free of CodeGraph noise.
 
 The output is the `context-pack.v1` shape. Phase 11 added the optional

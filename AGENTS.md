@@ -68,7 +68,7 @@ in this repo before making claims.
 ## Source Intelligence
 
 If `.codegraph/` exists, use CodeGraph MCP before broad scans:
-`codegraph_context` first; use trace/explore/impact as the task requires.
+`codegraph_explore` first; use node/callers/callees/impact as the task requires.
 Treat returned source as read; use targeted reads only for missing, stale, or
 unsupported detail. Use `mqobsidian` for durable memory and repo boundaries.
 

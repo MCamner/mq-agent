@@ -86,7 +86,7 @@ Completed foundation:
 | v1.23.0 | Cross-repo release automation                | Done    |
 | v1.24.0 | PR-mediated release flow                     | Done    |
 | v1.24.1 | Post-release stabilization                   | Done    |
-| v1.25.0 | Release Cockpit                              | Planned |
+| v1.25.0 | Release Cockpit                              | Implemented; unreleased |
 
 ---
 
@@ -101,35 +101,35 @@ release proof.
 
 #### Operator surface
 
-* [ ] Add read-only `mq-agent ship status` with human-readable and `--json`
+* [x] Add read-only `mq-agent ship status` with human-readable and `--json`
   output.
-* [ ] Show repository, current and target versions, latest tag and tag target,
+* [x] Show repository, current and target versions, latest tag and tag target,
   local `main`, CI, release-check, contract-check, stack preflight, release PR,
   and GitHub Release state.
-* [ ] Add `mq-agent ship proof` for release PR, mergecommit, annotated tag,
+* [x] Add `mq-agent ship proof` for release PR, mergecommit, annotated tag,
   GitHub Release, CI, gate, and local-tree evidence.
-* [ ] Add `mq-agent ship audit` for a non-mutating post-release verification.
+* [x] Add `mq-agent ship audit` for a non-mutating post-release verification.
 
 #### State and guidance
 
-* [ ] Define and test `IDLE`, `BLOCKED`, `PREFLIGHT_READY`, `PREPARED_PR`,
+* [x] Define and test `IDLE`, `BLOCKED`, `PREFLIGHT_READY`, `PREPARED_PR`,
   `PR_GREEN`, `MERGED`, `FINALIZED`, `PUBLISHED`, and `AUDITED`.
-* [ ] Define explicit state precedence and require a target version for
+* [x] Define explicit state precedence and require a target version for
   `PREFLIGHT_READY`.
-* [ ] Treat `AUDITED` as the result of the current verification snapshot.
-* [ ] Recommend exactly one next action for every state.
-* [ ] Explain dirty and missing repos, failed CI and gates, blocked preflight,
+* [x] Treat `AUDITED` as the result of the current verification snapshot.
+* [x] Recommend exactly one next action for every state.
+* [x] Explain dirty and missing repos, failed CI and gates, blocked preflight,
   existing tags, release-PR state, wrong tag targets, and missing GitHub
   Releases in plain language without hiding the underlying evidence.
 
 #### Architecture and safety
 
-* [ ] Keep `stack release` as the lower-level engine.
-* [ ] Reuse existing planning, gate, preflight, prepare, and finalize
+* [x] Keep `stack release` as the lower-level engine.
+* [x] Reuse existing planning, gate, preflight, prepare, and finalize
   primitives; do not duplicate release policy.
-* [ ] Keep the first `ship` scope read-only.
-* [ ] Keep review, merge, finalize, and publication explicit.
-* [ ] Do not add a new release mechanism, automatic merge, automatic finalize,
+* [x] Keep the first `ship` scope read-only.
+* [x] Keep review, merge, finalize, and publication explicit.
+* [x] Do not add a new release mechanism, automatic merge, automatic finalize,
   or unrelated cleanup.
 
 #### Delivery order

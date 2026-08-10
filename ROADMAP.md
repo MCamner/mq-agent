@@ -27,7 +27,7 @@ All release phases complete through v1.24.1.
 | v1.23.0 | Cross-repo release automation | Released v1.23.0 |
 | v1.24.0 | PR-mediated release flow | Released v1.24.0 |
 | v1.24.1 | Post-release stabilization | Released v1.24.1 |
-| v1.25.0 | Release Cockpit | Planned |
+| v1.25.0 | Release Cockpit | Implemented; unreleased |
 
 ## Post-v1.24 stabilization
 
@@ -58,24 +58,24 @@ it does not introduce another release mechanism.
 
 #### 1. Add `mq-agent ship status`
 
-* [ ] Add a read-only `mq-agent ship status` command.
-* [ ] Show repository, current and target versions, latest tag and target,
+* [x] Add a read-only `mq-agent ship status` command.
+* [x] Show repository, current and target versions, latest tag and target,
   local `main` state, CI state, release-check, contract-check, stack preflight,
   open release PR, and GitHub Release state.
-* [ ] Make the default output answer: “Can I release safely right now?”
-* [ ] Add a stable `--json` representation for future CI and `mqlaunch`
+* [x] Make the default output answer: “Can I release safely right now?”
+* [x] Add a stable `--json` representation for future CI and `mqlaunch`
   consumers.
 
 #### 2. Define one release state model
 
-* [ ] Define and test these states:
+* [x] Define and test these states:
   `IDLE`, `BLOCKED`, `PREFLIGHT_READY`, `PREPARED_PR`, `PR_GREEN`, `MERGED`,
   `FINALIZED`, `PUBLISHED`, and `AUDITED`.
-* [ ] Give states an explicit precedence so one snapshot cannot resolve to
+* [x] Give states an explicit precedence so one snapshot cannot resolve to
   multiple states.
-* [ ] Require a target version before reporting `PREFLIGHT_READY`; aligned
+* [x] Require a target version before reporting `PREFLIGHT_READY`; aligned
   current version and tag without a target remains `IDLE`.
-* [ ] Treat `AUDITED` as a verified snapshot, not permanent stored truth.
+* [x] Treat `AUDITED` as a verified snapshot, not permanent stored truth.
 
 State meanings:
 
@@ -93,65 +93,65 @@ State meanings:
 
 #### 3. Recommend exactly one next action
 
-* [ ] Return one deterministic next action for every state.
-* [ ] Include a copy-pasteable command only when the action is local and safe
+* [x] Return one deterministic next action for every state.
+* [x] Include a copy-pasteable command only when the action is local and safe
   for the current state.
-* [ ] Return `No action needed` when the latest release is audited.
-* [ ] Keep human review and merge decisions explicit; do not present them as
+* [x] Return `No action needed` when the latest release is audited.
+* [x] Keep human review and merge decisions explicit; do not present them as
   automatic execution.
 
 #### 4. Explain blockers in operator language
 
-* [ ] Map dirty or missing repos, failed CI, failed release or contract gates,
+* [x] Map dirty or missing repos, failed CI, failed release or contract gates,
   blocked stack preflight, existing tags, an unmerged release PR, a wrong tag
   target, and a missing GitHub Release to bounded explanations.
-* [ ] Include the affected repo or release identifier when known.
-* [ ] Preserve the underlying machine-readable reason in JSON output.
-* [ ] Do not hide partial or unavailable checks behind a green summary.
+* [x] Include the affected repo or release identifier when known.
+* [x] Preserve the underlying machine-readable reason in JSON output.
+* [x] Do not hide partial or unavailable checks behind a green summary.
 
 #### 5. Add `mq-agent ship proof`
 
-* [ ] Add a read-only proof view for the current or selected release.
-* [ ] Include version, release PR, mergecommit, tag name and type, tag target,
+* [x] Add a read-only proof view for the current or selected release.
+* [x] Include version, release PR, mergecommit, tag name and type, tag target,
   GitHub Release status and URL, CI status, release and contract checks, stack
   preflight, and local `main` cleanliness.
-* [ ] Add `--json`.
+* [x] Add `--json`.
 
 #### 6. Add `mq-agent ship audit`
 
-* [ ] Verify that local `main` is clean and synced with `origin/main`.
-* [ ] Verify version surfaces, latest tag, annotated tag target, GitHub
+* [x] Verify that local `main` is clean and synced with `origin/main`.
+* [x] Verify version surfaces, latest tag, annotated tag target, GitHub
   Release, main CI, release-check, contract-check, and zero preflight blockers.
-* [ ] Remain read-only by default.
-* [ ] Add `--json` with evidence for every check.
+* [x] Remain read-only by default.
+* [x] Add `--json` with evidence for every check.
 
 #### 7. Keep `stack release` as the engine
 
-* [ ] Reuse existing release planning, contract, preflight, prepare, and
+* [x] Reuse existing release planning, contract, preflight, prepare, and
   finalize primitives instead of duplicating policy.
-* [ ] Keep `stack release` as the lower-level implementation surface.
-* [ ] Keep the first `ship` release read-only: status, proof, and audit only.
+* [x] Keep `stack release` as the lower-level implementation surface.
+* [x] Keep the first `ship` release read-only: status, proof, and audit only.
 * [ ] Consider `ship prepare`, `ship finalize`, and `ship publish` wrappers
   only after the state contract is stable.
 
 ### Non-goals
 
-* [ ] No new release mechanism.
-* [ ] No automatic merge or automatic post-merge finalize.
-* [ ] No GitHub Release publication without explicit approval.
-* [ ] No unrelated lint or cleanup work.
-* [ ] No replacement of technical evidence with simplified status text.
+* [x] No new release mechanism.
+* [x] No automatic merge or automatic post-merge finalize.
+* [x] No GitHub Release publication without explicit approval.
+* [x] No unrelated lint or cleanup work.
+* [x] No replacement of technical evidence with simplified status text.
 
 ### Definition of done
 
-* [ ] `mq-agent ship status`, `ship status --json`, `ship proof`, and
+* [x] `mq-agent ship status`, `ship status --json`, `ship proof`, and
   `ship audit` exist.
-* [ ] State precedence, blocker mapping, and next-action selection are tested.
-* [ ] Existing `stack release` behavior remains unchanged.
-* [ ] PR-mediated releases cannot tag before a verified merge.
-* [ ] Documentation names `ship` as the operator surface and `stack release`
+* [x] State precedence, blocker mapping, and next-action selection are tested.
+* [x] Existing `stack release` behavior remains unchanged.
+* [x] PR-mediated releases cannot tag before a verified merge.
+* [x] Documentation names `ship` as the operator surface and `stack release`
   as the engine.
-* [ ] README, command-surface docs, public roadmap, and GitHub Pages index are
+* [x] README, command-surface docs, public roadmap, and GitHub Pages index are
   synchronized when the commands ship.
 * [ ] Main CI, release-check, contract-check, and stack preflight pass without
   blockers.
@@ -162,6 +162,308 @@ State meanings:
 2. Plain-language blockers and deterministic next action.
 3. `ship proof` and `ship audit`.
 4. Command reference, release-cockpit guide, README, and Pages links.
+
+## P1 — Stack compatibility gate
+
+* **Status:** Planned
+* **Priority:** P1
+* **Owner:** `mq-agent`
+* **Consumers:** `mq-hal`, `macos-scripts`, CI
+* **Contract:** `mq.stack-compatibility.v1`
+
+### Problem
+
+Individual MQ repositories can be green while the stack still contains a
+latent incompatibility.
+
+This happened when `mq-image-analyze` and `mq-mcp` used the same removed
+FastMCP import and both allowed MCP 2.x. `mq-image-analyze` failed after its
+dependencies were resolved again. `mq-mcp` remained green only because
+`uv.lock` kept MCP 1.27.1 in place.
+
+Repository-specific tests and lockfiles therefore cannot prove on their own
+that:
+
+* declared dependency ranges match known API contracts;
+* locked versions remain within declared ranges;
+* two MQ repositories use compatible versions of a shared protocol;
+* a fresh dependency resolution will not break the stack; or
+* consumers and producers use the same contract version.
+
+### Goal
+
+Introduce a read-only, deterministic compatibility command:
+
+```bash
+mq-agent stack compatibility
+mq-agent stack compatibility --json
+mq-agent stack compatibility --fresh-resolve
+```
+
+The command should detect dependency and contract drift across repository
+boundaries before it reaches installation, release, or runtime.
+
+### Ownership and boundaries
+
+* `mq-agent` owns orchestration, aggregation, and the final assessment.
+* Each repository owns its declared dependencies and compatibility metadata.
+* `.mq/repo-contract.json` is the repository's machine-readable input.
+* `mqobsidian` documents stack architecture but does not own runtime status.
+* `mq-hal` may read and present the result but must not duplicate the logic.
+* `macos-scripts` may delegate to the command but must not implement its own
+  compatibility assessment.
+* The command must not modify dependencies, lockfiles, or working trees.
+* Missing repositories, tools, or metadata must be reported as `UNAVAILABLE`.
+
+### Phase 0 — Contract and scope
+
+**Deliverable:** `mq.stack-compatibility.v1`
+
+* [ ] Define the JSON schema for compatibility reports.
+* [ ] Reuse `PASS`, `WARN`, `FAIL`, `SKIPPED`, and `UNAVAILABLE`.
+* [ ] Define structured evidence and `next_action`.
+* [ ] Distinguish declared, locked, installed, mutually compatible, and freshly
+  resolved versions.
+* [ ] Define stable error and warning codes.
+* [ ] Document which findings block release.
+* [ ] Add schema and negative contract tests.
+
+Example:
+
+```json
+{
+  "schema": "mq.stack-compatibility.v1",
+  "status": "WARN",
+  "components": [],
+  "relationships": [],
+  "findings": [],
+  "next_action": "Declare the actual compatibility boundary in mq-mcp"
+}
+```
+
+#### Definition of done
+
+* The schema is versioned.
+* Human and JSON output have identical semantics.
+* Unknown status values and incomplete evidence are rejected.
+* No runtime or repository changes are performed.
+
+### Phase 1 — Repository inventory
+
+**Deliverable:** discovery of MQ repositories and compatibility metadata.
+
+* [ ] Discover active MQ repositories from configuration or explicit paths.
+* [ ] Read `.mq/repo-contract.json`.
+* [ ] Read supported dependency sources, including `pyproject.toml`, `uv.lock`,
+  and `constraints.txt`.
+* [ ] Identify each repository's version and role.
+* [ ] Report missing or invalid contracts.
+* [ ] Preserve repository, file, field, and observed value as provenance.
+* [ ] Support `mq-mcp` and `mq-image-analyze` as the first vertical slice.
+
+#### Definition of done
+
+* Both MCP repositories are discovered without hardcoded private paths.
+* Declared and locked MCP versions are reported correctly.
+* Missing repositories or files produce `UNAVAILABLE`.
+* The command is read-only and supports `--json`.
+
+### Phase 2 — Declared compatibility
+
+**Deliverable:** machine-readable compatibility data in repository contracts.
+
+Proposed structure:
+
+```json
+{
+  "compatibility": {
+    "protocols": {
+      "mcp_api": "1.x-fastmcp"
+    },
+    "dependencies": {
+      "mcp": ">=1.27.1,<2"
+    },
+    "produces": ["mq-mcp.tools.v1"],
+    "consumes": ["mq.feedback.v1"]
+  }
+}
+```
+
+* [ ] Extend the repository contract without breaking existing consumers.
+* [ ] Declare critical protocols and dependency boundaries.
+* [ ] Declare produced and consumed MQ contracts.
+* [ ] Validate declarations against `pyproject.toml`.
+* [ ] Validate that locked versions fit declared ranges.
+* [ ] Distinguish missing metadata from inconsistent metadata.
+
+#### Definition of done
+
+* `mq-mcp` and `mq-image-analyze` declare the MCP 1.x contract.
+* A locked version outside the declared range produces `FAIL`.
+* An open range that contradicts the API contract produces `FAIL`.
+* Missing optional metadata remains explicit and non-blocking during rollout.
+
+### Phase 3 — Stack relationships and overlap
+
+**Deliverable:** compatibility checks between producers and consumers.
+
+* [ ] Match produced and consumed contracts.
+* [ ] Calculate overlap between shared dependency ranges.
+* [ ] Detect parallel protocol tracks in the same stack.
+* [ ] Detect consumers requiring a contract no producer offers.
+* [ ] Detect producer schema changes without corresponding consumer updates.
+* [ ] Check MCP tool names, safety classes, and schema signatures.
+* [ ] Present relationships as evidence, not only a summary status.
+
+Example finding:
+
+```text
+FAIL  mq-mcp ↔ mq-image-analyze
+      Shared protocol: MCP
+      mq-mcp API contract: 1.x-fastmcp
+      mq-image-analyze API contract: 1.x-fastmcp
+      Declared dependency ranges overlap: yes
+      Unbounded major-version exposure: no
+```
+
+#### Definition of done
+
+* Known compatible ranges produce `PASS`.
+* Ranges without overlap produce `FAIL`.
+* Different MCP tracks produce at least `WARN`, or `FAIL` on one runtime path.
+* Every assessment includes source files and observed values.
+
+### Phase 4 — Fresh resolve
+
+**Deliverable:** an isolated check of what a new installation would select.
+
+```bash
+mq-agent stack compatibility --fresh-resolve
+```
+
+* [ ] Run only when explicitly requested.
+* [ ] Create temporary environments outside repository working trees.
+* [ ] Never modify existing lockfiles.
+* [ ] Resolve dependencies from declared specifications.
+* [ ] Compare freshly resolved and locked versions.
+* [ ] Test critical imports and bounded, declared contract smokes.
+* [ ] Clean temporary environments after the run.
+* [ ] Support timeouts and explicit network-error handling.
+* [ ] Report network or registry failures as `UNAVAILABLE`, not incompatibility.
+
+Initial critical import:
+
+```python
+from mcp.server.fastmcp import FastMCP
+```
+
+Import probes should later be declared by each repository instead of being
+hardcoded centrally.
+
+#### Definition of done
+
+* MCP 2.x resolved against a FastMCP 1.x contract produces `FAIL`.
+* An older lockfile cannot make the result green on its own.
+* Working trees and real lockfiles remain unchanged.
+* Network failures remain distinguishable from incompatibility.
+
+### Phase 5 — CLI, dashboard, and CI
+
+**Deliverable:** operator surfaces and automated gates.
+
+* [ ] Add `stack compatibility`, `--json`, and `--fresh-resolve`.
+* [ ] Show the summary in `mq-agent dashboard`.
+* [ ] Expose the result read-only through `mq-hal`.
+* [ ] Delegate from `mqlaunch` without duplicated logic.
+* [ ] Run static checks in relevant PR and release workflows.
+* [ ] Run fresh resolution on a schedule or before release.
+* [ ] Preserve exit codes and human/JSON parity.
+* [ ] Document which statuses block merge or release.
+
+Proposed exit codes:
+
+* `0` — `PASS`
+* `1` — `WARN` in strict mode
+* `2` — `FAIL`
+* `3` — `UNAVAILABLE`
+* `130` — interrupted
+
+#### Definition of done
+
+* CLI, JSON, and dashboard show the same findings.
+* `mq-hal` and `mqlaunch` delegate to `mq-agent`.
+* CI distinguishes incompatibility from an unavailable check.
+* No surface performs automatic dependency upgrades.
+
+### Phase 6 — Extend across the MQ stack
+
+* [ ] Add `mq-agent`, `mq-hal`, `repo-signal`, `macos-scripts`, and
+  `mqobsidian`.
+* [ ] Add `mq-ums` where machine-readable contracts exist.
+* [ ] Check shared Python and JSON contracts.
+* [ ] Check versioned observations, feedback, and memory schemas.
+* [ ] Add regression fixtures for previous real drift failures.
+* [ ] Document exceptions for components using different package managers or
+  runtimes.
+
+### First regression case
+
+Preserve the MCP incident as a fixture:
+
+* both repositories import FastMCP from MCP 1.x;
+* both declare an open range that accepts MCP 2.x;
+* one repository has no protective lock;
+* the other has an older locked version;
+* local CI is green in the locked repository; and
+* the stack check must still report the exposure.
+
+The fixture must distinguish **works with today's lock** from **declares a
+genuinely compatible future resolution**.
+
+### Non-goals
+
+The first version will not:
+
+* migrate a server to MCP 2.x;
+* update dependencies or rewrite lockfiles automatically;
+* replace repository-specific tests or duplicate `repo-signal`;
+* interpret every package manager;
+* infer compatibility without evidence;
+* make GitHub changes; or
+* make `mqobsidian` a runtime authority.
+
+### Proposed PR series
+
+1. **Contract:** schema, models, and negative tests.
+2. **Inventory:** repository discovery and dependency/lock data for `mq-mcp`
+   and `mq-image-analyze`.
+3. **Compatibility:** API declarations, range overlap, and locked-versus-
+   declared checks.
+4. **Fresh resolve:** temporary resolution, import probes, and read-only gates.
+5. **Surfaces:** CLI, dashboard, `mq-hal`, and `mqlaunch` delegation.
+6. **CI and expansion:** PR/release gates, the MCP regression fixture, and
+   incremental support for the remaining repositories.
+
+### Final definition of done
+
+* [ ] `mq-agent stack compatibility` works without network access.
+* [ ] `--json` conforms to `mq.stack-compatibility.v1`.
+* [ ] `--fresh-resolve` changes no repositories or lockfiles.
+* [ ] Latent major-version exposure is detected even when the lockfile is green.
+* [ ] Producer and consumer contracts are compared across repositories.
+* [ ] Every assessment contains evidence and `next_action`.
+* [ ] Human, JSON, dashboard, and HAL results are semantically identical.
+* [ ] `mqlaunch` and `mq-hal` duplicate no compatibility logic.
+* [ ] The MCP regression case remains permanently tested.
+* [ ] Documentation, command references, and architecture maps are updated.
+* [ ] The full `mq-agent` suite and relevant stack contracts are green.
+
+### Recommended starting point
+
+Start with PR1 and PR2 only. They provide a stable contract and measurable,
+network-free inventory without dependency installation or changes in other
+repositories. Do not activate a blocking CI gate until it has run in shadow
+mode and false positives have been reviewed.
 
 ## v1.16.0 — Runtime consolidation
 

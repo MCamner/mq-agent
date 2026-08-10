@@ -165,6 +165,9 @@ mq-agent audit .                   # Read-only repo audit
 mq-agent release-plan              # Show release plan
 mq-agent release-check             # Validate release readiness (suggest mode)
 mq-agent release-check --approve   # Execute checks
+mq-agent ship status --target 1.25.0 # Read-only release decision
+mq-agent ship proof --target 1.25.0  # Release evidence
+mq-agent ship audit --target 1.25.0  # Post-release audit
 mq-agent repo-summary .            # Quick repo overview
 mq-agent run "pytest" --approve    # Safe shell execution
 mq-agent fix-ci                    # Diagnose CI failures
@@ -272,8 +275,16 @@ uv run pytest tests/ -v
 - [Safety](docs/SAFETY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
+- [Release cockpit](docs/RELEASE_COCKPIT.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+## v1.25.0 development status
+
+- [x] Read-only `ship status`, `ship proof`, and `ship audit`
+- [x] Versioned `mq_release_cockpit.v1` JSON contract
+- [x] Deterministic release states, bounded blockers, and one next action
+- [x] Existing `stack release` remains the release engine
 
 ## v1.24.1 status
 

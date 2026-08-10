@@ -45,6 +45,7 @@ packages = ["mq_agent"]
 "schemas/model_route_decision.schema.json" = "mq_agent/schemas/model_route_decision.schema.json"
 "schemas/model_route_outcome.schema.json" = "mq_agent/schemas/model_route_outcome.schema.json"
 "schemas/model_route_evidence_review.schema.json" = "mq_agent/schemas/model_route_evidence_review.schema.json"
+"schemas/mq_release_cockpit.schema.json" = "mq_agent/schemas/mq_release_cockpit.schema.json"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
