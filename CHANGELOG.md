@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* Generated command reference: `tools/generate_command_reference.py`
+  introspects the live Typer app and renders
+  `docs/generated/Command-Reference.md`. No hand-maintained command list is
+  involved, and the render is deterministic.
+* `scripts/publish-wiki-command-ref.sh` projects that one page to the GitHub
+  Wiki. Idempotent, diff-driven and warn-only, so a publishing failure never
+  invalidates a release.
+* CI gate: `tests.yml` fails when the checked-in reference drifts from the
+  code.
+
 ## [v1.25.1] — 2026-08-10
 
 * f8f14fb fix(ship): audit completed releases as up to date (#190)

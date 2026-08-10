@@ -40,3 +40,6 @@ Use this before tagging a release.
 
 - [ ] Bump version in `pyproject.toml` to next dev version
 - [ ] Add `## [Unreleased]` section to CHANGELOG
+- [ ] Publish the command reference to the wiki:
+      `bash scripts/publish-wiki-command-ref.sh` (warn-only — a publishing
+      failure never invalidates the release)
