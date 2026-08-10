@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MCamner/mq-agent/schemas/mq_stack_compatibility.schema.json",
+  "title": "mq.stack-compatibility.v1",
+  "description": "Read-only compatibility assessment across MQ stack repositories. Reports declared, locked and mutually compatible dependency versions with provenance. Never modifies dependencies, lockfiles or working trees.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "mode",
+    "components",
+    "relationships",
+    "findings",
+    "next_action",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.stack-compatibility.v1"
+    },
+    "status": {
+      "$ref": "#/$defs/status",
+      "description": "Worst status across all components and relationships."
+    },
+    "mode": {
+      "enum": ["static", "fresh-resolve"],
+      "description": "static reads declared and locked versions only. fresh-resolve additionally resolves in a temporary environment."
+    },
+    "components": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/component" }
+    },
+    "relationships": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relationship" }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Single recommended next step. Empty when status is PASS."
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": ["PASS", "WARN", "FAIL", "SKIPPED", "UNAVAILABLE"]
+    },
+    "severity": {
+      "enum": ["WARN", "FAIL", "UNAVAILABLE"],
+      "description": "Findings never carry PASS or SKIPPED; absence of findings is the pass signal."
+    },
+    "code": {
+      "enum": [
+        "MQC001_REPO_NOT_FOUND",
+        "MQC002_CONTRACT_MISSING",
+        "MQC003_CONTRACT_INVALID",
+        "MQC004_DEPENDENCY_SOURCE_MISSING",
+        "MQC005_DECLARED_RANGE_UNBOUNDED",
+        "MQC006_LOCKED_OUTSIDE_DECLARED",
+        "MQC007_DECLARED_RANGES_DISJOINT",
+        "MQC008_PROTOCOL_TRACK_MISMATCH",
+        "MQC009_COMPATIBILITY_METADATA_MISSING",
+        "MQC010_TOOL_UNAVAILABLE"
+      ],
+      "description": "Stable finding codes. Codes are append-only within v1."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "file", "field", "observed"],
+      "description": "Where an observed value came from. Required on every dependency observation.",
+      "properties": {
+        "repo": { "type": "string", "minLength": 1 },
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repository-relative path. Absolute or home paths must not be emitted."
+        },
+        "field": { "type": "string", "minLength": 1 },
+        "observed": { "type": "string" }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "declared", "locked", "sources"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "declared": {
+          "type": ["string", "null"],
+          "description": "Declared version specifier, or null when not declared."
+        },
+        "locked": {
+          "type": ["string", "null"],
+          "description": "Locked concrete version, or null when no lockfile pins it."
+        },
+        "installed": {
+          "type": ["string", "null"],
+          "description": "Version installed in the active environment, when observed."
+        },
+        "resolved": {
+          "type": ["string", "null"],
+          "description": "Version a fresh resolution selected. Only populated in fresh-resolve mode."
+        },
+        "bounded": {
+          "type": "boolean",
+          "description": "True when the declared range excludes the next major version."
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance" }
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "status", "role", "version", "dependencies"],
+      "properties": {
+        "repo": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/status" },
+        "role": { "type": "string" },
+        "version": {
+          "type": ["string", "null"],
+          "description": "Repository version, or null when unavailable."
+        },
+        "contract_present": { "type": "boolean" },
+        "protocols": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Declared protocol tracks, e.g. {\"mcp_api\": \"1.x-fastmcp\"}."
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependency" }
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this component is SKIPPED or UNAVAILABLE."
+        }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "consumer", "subject", "status"],
+      "properties": {
+        "producer": { "type": "string", "minLength": 1 },
+        "consumer": { "type": "string", "minLength": 1 },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shared dependency or protocol under assessment."
+        },
+        "status": { "$ref": "#/$defs/status" },
+        "overlap": {
+          "type": ["boolean", "null"],
+          "description": "Whether the declared ranges intersect. Null when undetermined."
+        },
+        "detail": { "type": "string" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "repo", "message", "blocks_release"],
+      "properties": {
+        "code": { "$ref": "#/$defs/code" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "repo": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "blocks_release": {
+          "type": "boolean",
+          "description": "True for FAIL findings. WARN and UNAVAILABLE never block on their own."
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/provenance" }
+        }
+      }
+    }
+  }
+}
