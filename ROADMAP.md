@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-v1.24.1 — Post-release stabilization. Released.
-Next: v1.25.0 — Release Cockpit.
+Released: v1.25.1 — Release Cockpit post-release audit fix.
+Next: v1.26.0 — Stack Compatibility Gate.
 
 ## Current status
 
-All release phases complete through v1.24.1.
+All release phases complete through v1.25.1.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -27,12 +27,14 @@ All release phases complete through v1.24.1.
 | v1.23.0 | Cross-repo release automation | Released v1.23.0 |
 | v1.24.0 | PR-mediated release flow | Released v1.24.0 |
 | v1.24.1 | Post-release stabilization | Released v1.24.1 |
-| v1.25.0 | Release Cockpit | Implemented; unreleased |
+| v1.25.0 | Release Cockpit | Released v1.25.0 |
+| v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
+| v1.26.0 | Stack Compatibility Gate | Planned |
 
-## Post-v1.24 stabilization
+## Completed — v1.24.1 Post-release stabilization
 
 The release path now supports `direct`, `pull_request`, and `manual` contract
-modes. Current work aligns dry-run planning, execution policy, contract-check
+modes. This release aligned dry-run planning, execution policy, contract-check
 coverage, and operator documentation.
 
 * [x] Make single-repo dry-run plans release-mode aware.
@@ -42,14 +44,18 @@ coverage, and operator documentation.
 * [x] Restore a green repo-wide Ruff baseline.
 * [x] Centralize release-mode policy used by single- and multi-repo flows.
 
-## v1.25.0 — Release Cockpit
+## Completed — v1.25.0–v1.25.1 Release Cockpit
+
+Released 2026-08-10. v1.25.1 fixed the post-release audit classification so
+an aligned published release resolves to `AUDITED` rather than treating its
+existing tag and lack of unreleased commits as prepare blockers.
 
 ### Product direction
 
-v1.24.1 proved the PR-mediated release chain end to end. The next step is to
-make that safe machinery understandable from one operator-facing surface.
-`mq-agent` should show the current release state, explain blockers in plain
-language, and recommend exactly one safe next action.
+v1.24.1 proved the PR-mediated release chain end to end. v1.25 made that safe
+machinery understandable from one operator-facing surface: `mq-agent` shows
+the current release state, explains blockers in plain language, and recommends
+exactly one safe next action.
 
 The release engine already exists. v1.25.0 improves the experience around it;
 it does not introduce another release mechanism.
@@ -131,8 +137,9 @@ State meanings:
   finalize primitives instead of duplicating policy.
 * [x] Keep `stack release` as the lower-level implementation surface.
 * [x] Keep the first `ship` release read-only: status, proof, and audit only.
-* [ ] Consider `ship prepare`, `ship finalize`, and `ship publish` wrappers
-  only after the state contract is stable.
+Optional `ship prepare`, `ship finalize`, and `ship publish` wrappers are
+deferred until operational use shows that wrappers improve safety without
+hiding the lower-level release evidence.
 
 ### Non-goals
 
@@ -153,7 +160,7 @@ State meanings:
   as the engine.
 * [x] README, command-surface docs, public roadmap, and GitHub Pages index are
   synchronized when the commands ship.
-* [ ] Main CI, release-check, contract-check, and stack preflight pass without
+* [x] Main CI, release-check, contract-check, and stack preflight pass without
   blockers.
 
 ### Recommended implementation order
@@ -163,7 +170,7 @@ State meanings:
 3. `ship proof` and `ship audit`.
 4. Command reference, release-cockpit guide, README, and Pages links.
 
-## P1 — Stack compatibility gate
+## Next release — v1.26.0 Stack Compatibility Gate
 
 * **Status:** Planned
 * **Priority:** P1
@@ -465,6 +472,26 @@ network-free inventory without dependency installation or changes in other
 repositories. Do not activate a blocking CI gate until it has run in shadow
 mode and false positives have been reviewed.
 
+## Deferred work
+
+### Optional `ship` write wrappers
+
+Do not add `ship prepare`, `ship finalize`, or `ship publish` in v1.26. The
+read-only cockpit contract is stable, but the existing `stack release` engine
+already owns mutation and approval policy. Reconsider wrappers only with
+operator evidence that they reduce mistakes without obscuring proof.
+
+### Inbox evidence ingestion
+
+Accepting `repo-signal` readiness and `mq-mcp` review output as inbox evidence
+remains blocked on producer-owned, candidate-bearing bounded JSON with explicit
+`producer` and `schema_id`. `mq-agent` must not invent those upstream contracts.
+
+## Historical release archive
+
+The sections below preserve completed milestones, superseded checklists, and
+implementation checkpoints. They are historical evidence, not active work.
+
 ## v1.16.0 — Runtime consolidation
 
 Goal: keep mq-agent focused as the orchestrator while reducing parallel paths.
@@ -595,13 +622,8 @@ result. `mqlaunch` stays a thin delegate surface.
   paths explicit and review-gated.
 * [x] Validate expected `mqobsidian` manifests/views before workflow
   execution; fail safely on stale, missing, or drifted truth surfaces.
-* [ ] **Blocked** — accept `repo-signal` readiness and `mq-mcp` review outputs
-  as evidence inputs without moving truth ownership out of `mqobsidian`.
-  Blocked by producer contracts (mqobsidian DEC-004): `mq-mcp review_file` emits
-  prose, not JSON; `repo-signal` declares `readiness_score.v1` /
-  `publish_checklist.v1` but emits neither; and no repo-signal output carries a
-  candidate key. Unblocks when a producer emits candidate-bearing, bounded JSON
-  evidence with an explicit `producer` and `schema_id`.
+* Deferred upstream evidence ingestion is tracked under **Deferred work**;
+  v1.22 shipped without taking ownership of producer contracts.
 * [x] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
   delegate to; keep ranking and promotion logic out of shell.
 * [x] Register `inbox_promotion_orchestration.v1` in the repo contract.

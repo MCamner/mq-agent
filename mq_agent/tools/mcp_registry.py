@@ -71,6 +71,12 @@ def classify_tool_name(name: str) -> str:
 
 @dataclass
 class MCPToolSpec:
+    """Normalized MCP tool metadata used by mq-agent safety routing.
+
+    Explicit ``safety_class`` metadata wins over legacy ``class`` metadata;
+    otherwise the class is inferred conservatively from the tool name.
+    """
+
     name: str
     description: str = ""
     safety_class: str = MCPSafetyClass.UNKNOWN
