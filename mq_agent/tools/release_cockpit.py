@@ -303,6 +303,43 @@ def _main_ci(path: Path) -> tuple[str, str | None, dict[str, Any]]:
     )
 
 
+def _collect_stack_release_plan(
+    repo_name: str, path: Path, target: str | None,
+) -> dict[str, Any]:
+    """Return the configured stack-release plan for exactly this checkout."""
+    from mq_agent.tools.stack_release import plan_stack_release
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand
+
+    stack_entry = next((item for item in MQ_STACK_REPOS if item["name"] == repo_name), None)
+    if not stack_entry or _expand(stack_entry["path"]).resolve() != path:
+        raise ValueError("repo path is outside configured MQ stack")
+    return plan_stack_release(repo_name, version=target or "")
+
+
+def _stack_preflight_status(
+    repo_name: str, path: Path, target: str | None,
+) -> tuple[str, dict[str, Any]]:
+    """Classify prepare readiness without treating a completed release as blocked."""
+    plan = _collect_stack_release_plan(repo_name, path, target)
+    blockers = list(plan.get("blockers", []))
+    expected_completed = (
+        bool(target)
+        and plan.get("current_version") == target
+        and plan.get("last_tag") == f"v{target}"
+        and bool(blockers)
+        and all(
+            item.startswith("no unreleased commits")
+            or item == f"target version v{target} is already tagged"
+            for item in blockers
+        )
+    )
+    if expected_completed:
+        return "UP-TO-DATE", {"blockers": blockers}
+    if not target and blockers and all(item.startswith("no unreleased commits") for item in blockers):
+        return "UP-TO-DATE", {"blockers": blockers}
+    return ("READY" if plan.get("go") else "BLOCKED"), {"blockers": blockers}
+
+
 def collect_release_evidence(repo_path: str = ".", target: str | None = None) -> ReleaseEvidence:
     """Collect bounded local and GitHub evidence without changing repository state."""
     path = Path(repo_path).resolve()
@@ -336,7 +373,7 @@ def collect_release_evidence(repo_path: str = ".", target: str | None = None) ->
     except (OSError, json.JSONDecodeError):
         contract_status = "BLOCKED"
 
-    from mq_agent.tools.stack_release import _run_release_check, plan_stack_release
+    from mq_agent.tools.stack_release import _run_release_check
     from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _contract_entry, _expand
 
     release_ok, release_blockers = _run_release_check(path)
@@ -352,14 +389,8 @@ def collect_release_evidence(repo_path: str = ".", target: str | None = None) ->
     else:
         contract_result = {"status": contract_status, "reason": "repo is outside MQ_STACK_REPOS"}
     try:
-        if not stack_entry or _expand(stack_entry["path"]).resolve() != path:
-            raise ValueError("repo path is outside configured MQ stack")
-        plan = plan_stack_release(repo_name, version=target or "")
-        plan_blockers = list(plan.get("blockers", []))
-        if not target and plan_blockers and all(item.startswith("no unreleased commits") for item in plan_blockers):
-            preflight = "UP-TO-DATE"
-        else:
-            preflight = "READY" if plan.get("go") else "BLOCKED"
+        preflight, preflight_evidence = _stack_preflight_status(repo_name, path, target)
+        plan_blockers = preflight_evidence["blockers"]
     except Exception:
         preflight = "UNAVAILABLE"
         plan_blockers = ["stack release plan could not be collected"]
