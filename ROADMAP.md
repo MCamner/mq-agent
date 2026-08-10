@@ -27,7 +27,7 @@ All release phases complete through v1.24.1.
 | v1.23.0 | Cross-repo release automation | Released v1.23.0 |
 | v1.24.0 | PR-mediated release flow | Released v1.24.0 |
 | v1.24.1 | Post-release stabilization | Released v1.24.1 |
-| v1.25.0 | Release Cockpit | Planned |
+| v1.25.0 | Release Cockpit | Implemented; unreleased |
 
 ## Post-v1.24 stabilization
 
@@ -58,24 +58,24 @@ it does not introduce another release mechanism.
 
 #### 1. Add `mq-agent ship status`
 
-* [ ] Add a read-only `mq-agent ship status` command.
-* [ ] Show repository, current and target versions, latest tag and target,
+* [x] Add a read-only `mq-agent ship status` command.
+* [x] Show repository, current and target versions, latest tag and target,
   local `main` state, CI state, release-check, contract-check, stack preflight,
   open release PR, and GitHub Release state.
-* [ ] Make the default output answer: “Can I release safely right now?”
-* [ ] Add a stable `--json` representation for future CI and `mqlaunch`
+* [x] Make the default output answer: “Can I release safely right now?”
+* [x] Add a stable `--json` representation for future CI and `mqlaunch`
   consumers.
 
 #### 2. Define one release state model
 
-* [ ] Define and test these states:
+* [x] Define and test these states:
   `IDLE`, `BLOCKED`, `PREFLIGHT_READY`, `PREPARED_PR`, `PR_GREEN`, `MERGED`,
   `FINALIZED`, `PUBLISHED`, and `AUDITED`.
-* [ ] Give states an explicit precedence so one snapshot cannot resolve to
+* [x] Give states an explicit precedence so one snapshot cannot resolve to
   multiple states.
-* [ ] Require a target version before reporting `PREFLIGHT_READY`; aligned
+* [x] Require a target version before reporting `PREFLIGHT_READY`; aligned
   current version and tag without a target remains `IDLE`.
-* [ ] Treat `AUDITED` as a verified snapshot, not permanent stored truth.
+* [x] Treat `AUDITED` as a verified snapshot, not permanent stored truth.
 
 State meanings:
 
@@ -93,65 +93,65 @@ State meanings:
 
 #### 3. Recommend exactly one next action
 
-* [ ] Return one deterministic next action for every state.
-* [ ] Include a copy-pasteable command only when the action is local and safe
+* [x] Return one deterministic next action for every state.
+* [x] Include a copy-pasteable command only when the action is local and safe
   for the current state.
-* [ ] Return `No action needed` when the latest release is audited.
-* [ ] Keep human review and merge decisions explicit; do not present them as
+* [x] Return `No action needed` when the latest release is audited.
+* [x] Keep human review and merge decisions explicit; do not present them as
   automatic execution.
 
 #### 4. Explain blockers in operator language
 
-* [ ] Map dirty or missing repos, failed CI, failed release or contract gates,
+* [x] Map dirty or missing repos, failed CI, failed release or contract gates,
   blocked stack preflight, existing tags, an unmerged release PR, a wrong tag
   target, and a missing GitHub Release to bounded explanations.
-* [ ] Include the affected repo or release identifier when known.
-* [ ] Preserve the underlying machine-readable reason in JSON output.
-* [ ] Do not hide partial or unavailable checks behind a green summary.
+* [x] Include the affected repo or release identifier when known.
+* [x] Preserve the underlying machine-readable reason in JSON output.
+* [x] Do not hide partial or unavailable checks behind a green summary.
 
 #### 5. Add `mq-agent ship proof`
 
-* [ ] Add a read-only proof view for the current or selected release.
-* [ ] Include version, release PR, mergecommit, tag name and type, tag target,
+* [x] Add a read-only proof view for the current or selected release.
+* [x] Include version, release PR, mergecommit, tag name and type, tag target,
   GitHub Release status and URL, CI status, release and contract checks, stack
   preflight, and local `main` cleanliness.
-* [ ] Add `--json`.
+* [x] Add `--json`.
 
 #### 6. Add `mq-agent ship audit`
 
-* [ ] Verify that local `main` is clean and synced with `origin/main`.
-* [ ] Verify version surfaces, latest tag, annotated tag target, GitHub
+* [x] Verify that local `main` is clean and synced with `origin/main`.
+* [x] Verify version surfaces, latest tag, annotated tag target, GitHub
   Release, main CI, release-check, contract-check, and zero preflight blockers.
-* [ ] Remain read-only by default.
-* [ ] Add `--json` with evidence for every check.
+* [x] Remain read-only by default.
+* [x] Add `--json` with evidence for every check.
 
 #### 7. Keep `stack release` as the engine
 
-* [ ] Reuse existing release planning, contract, preflight, prepare, and
+* [x] Reuse existing release planning, contract, preflight, prepare, and
   finalize primitives instead of duplicating policy.
-* [ ] Keep `stack release` as the lower-level implementation surface.
-* [ ] Keep the first `ship` release read-only: status, proof, and audit only.
+* [x] Keep `stack release` as the lower-level implementation surface.
+* [x] Keep the first `ship` release read-only: status, proof, and audit only.
 * [ ] Consider `ship prepare`, `ship finalize`, and `ship publish` wrappers
   only after the state contract is stable.
 
 ### Non-goals
 
-* [ ] No new release mechanism.
-* [ ] No automatic merge or automatic post-merge finalize.
-* [ ] No GitHub Release publication without explicit approval.
-* [ ] No unrelated lint or cleanup work.
-* [ ] No replacement of technical evidence with simplified status text.
+* [x] No new release mechanism.
+* [x] No automatic merge or automatic post-merge finalize.
+* [x] No GitHub Release publication without explicit approval.
+* [x] No unrelated lint or cleanup work.
+* [x] No replacement of technical evidence with simplified status text.
 
 ### Definition of done
 
-* [ ] `mq-agent ship status`, `ship status --json`, `ship proof`, and
+* [x] `mq-agent ship status`, `ship status --json`, `ship proof`, and
   `ship audit` exist.
-* [ ] State precedence, blocker mapping, and next-action selection are tested.
-* [ ] Existing `stack release` behavior remains unchanged.
-* [ ] PR-mediated releases cannot tag before a verified merge.
-* [ ] Documentation names `ship` as the operator surface and `stack release`
+* [x] State precedence, blocker mapping, and next-action selection are tested.
+* [x] Existing `stack release` behavior remains unchanged.
+* [x] PR-mediated releases cannot tag before a verified merge.
+* [x] Documentation names `ship` as the operator surface and `stack release`
   as the engine.
-* [ ] README, command-surface docs, public roadmap, and GitHub Pages index are
+* [x] README, command-surface docs, public roadmap, and GitHub Pages index are
   synchronized when the commands ship.
 * [ ] Main CI, release-check, contract-check, and stack preflight pass without
   blockers.

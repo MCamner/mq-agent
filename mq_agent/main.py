@@ -80,7 +80,75 @@ app.add_typer(models_app, name="models")
 route_app = typer.Typer(help="Inspect advisory local-first model routing.")
 app.add_typer(route_app, name="route")
 
+ship_app = typer.Typer(help="Inspect release state, proof, and audit evidence (read-only).")
+app.add_typer(ship_app, name="ship")
+
 console = Console()
+
+
+def _render_ship(payload: dict[str, Any]) -> None:
+    state = payload["state"]
+    color = "green" if state in ("PREFLIGHT_READY", "AUDITED") else "yellow"
+    if state == "BLOCKED":
+        color = "red"
+    console.print(Panel(
+        f"[bold {color}]{state}[/bold {color}]\n"
+        f"Safe to release now: {'yes' if payload['safe_to_release'] else 'no'}\n"
+        f"Next: {payload['next_action']['label']}",
+        title=f"Release Cockpit — {payload['repo']['name']}",
+    ))
+    if payload["blockers"]:
+        table = Table(title="Blockers", show_header=True)
+        table.add_column("Code")
+        table.add_column("Explanation")
+        for blocker in payload["blockers"]:
+            table.add_row(blocker["code"], blocker["message"])
+        console.print(table)
+    command = payload["next_action"].get("command")
+    if command:
+        console.print(f"[dim]Command: {command}[/dim]")
+
+
+def _ship_command(command: str, repo: str, target: str | None, json_out: bool) -> None:
+    from mq_agent.tools.release_cockpit import release_cockpit
+
+    payload = release_cockpit(command=command, repo_path=repo, target=target)
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, default=str))
+    else:
+        _render_ship(payload)
+    if command == "audit" and payload["state"] != "AUDITED":
+        raise typer.Exit(1)
+
+
+@ship_app.command("status")
+def ship_status_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repository path")] = ".",
+    target: Annotated[str | None, typer.Option("--target", help="Target version without v prefix")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Answer whether the selected repository can be released safely now."""
+    _ship_command("status", repo, target, json_out)
+
+
+@ship_app.command("proof")
+def ship_proof_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repository path")] = ".",
+    target: Annotated[str | None, typer.Option("--target", help="Target version without v prefix")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show bounded release evidence for the current or selected release."""
+    _ship_command("proof", repo, target, json_out)
+
+
+@ship_app.command("audit")
+def ship_audit_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repository path")] = ".",
+    target: Annotated[str | None, typer.Option("--target", help="Target version without v prefix")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Audit a published release; exits non-zero unless all evidence passes."""
+    _ship_command("audit", repo, target, json_out)
 
 
 def _extract_mcp_text_result(result: Any) -> str | None:
