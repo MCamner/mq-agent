@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.24.1 — Post-release stabilization
-Current:  v1.25.0 — Release Cockpit
+Released: v1.25.1 — Release Cockpit post-release audit fix
+Current:  v1.26.0 — Stack Compatibility Gate
 ```
 
 Completed foundation:
@@ -86,18 +86,65 @@ Completed foundation:
 | v1.23.0 | Cross-repo release automation                | Done    |
 | v1.24.0 | PR-mediated release flow                     | Done    |
 | v1.24.1 | Post-release stabilization                   | Done    |
-| v1.25.0 | Release Cockpit                              | Implemented; unreleased |
+| v1.25.0 | Release Cockpit                              | Released |
+| v1.25.1 | Release Cockpit post-release audit fix       | Released |
+| v1.26.0 | Stack Compatibility Gate                     | Planned  |
 
 ---
 
 ## Next release
 
-### v1.25.0 — Release Cockpit
+### v1.26.0 — Stack Compatibility Gate
 
-v1.24.1 proved the PR-mediated release chain end to end. v1.25.0 turns the
-existing release engine into a guided operator experience: show the current
-state, explain blockers, recommend one safe next action, and provide coherent
-release proof.
+Goal: detect dependency and machine-readable contract incompatibilities across
+MQ repositories before installation, release, or runtime. The command remains
+read-only and reports unavailable evidence explicitly rather than guessing.
+
+Planned operator surface:
+
+```bash
+mq-agent stack compatibility
+mq-agent stack compatibility --json
+mq-agent stack compatibility --fresh-resolve
+```
+
+Delivery order:
+
+1. Define `mq.stack-compatibility.v1`, status semantics, evidence, blocker
+   codes, and negative contract tests.
+2. Add network-free repository inventory for declared and locked dependencies,
+   starting with `mq-mcp` and `mq-image-analyze`.
+3. Compare dependency ranges plus produced and consumed MQ contracts.
+4. Add explicit `--fresh-resolve` using temporary environments without
+   modifying repositories or lockfiles.
+5. Integrate human/JSON output, dashboard, CI shadow mode, `mq-hal`, and
+   `mqlaunch` without duplicating policy.
+6. Expand incrementally across the remaining MQ repositories.
+
+`mq-agent` owns aggregation and assessment. Each repository owns dependency
+declarations and compatibility metadata. `mq-hal` may present results and
+`mqlaunch` may delegate, but neither owns compatibility logic. The detailed
+phase plan and regression case remain canonical in the root `ROADMAP.md`.
+
+## Deferred work
+
+* Optional `ship prepare`, `ship finalize`, and `ship publish` wrappers remain
+  deferred until operator evidence shows they improve safety without hiding
+  the existing `stack release` proof and approval policy.
+* Inbox ingestion of `repo-signal` readiness and `mq-mcp` reviews remains
+  blocked on producer-owned, candidate-bearing bounded JSON with explicit
+  `producer` and `schema_id`.
+
+## Recently Completed
+
+### v1.25.0–v1.25.1 — Release Cockpit
+
+Released 2026-08-10. v1.24.1 proved the PR-mediated release chain end to end;
+v1.25.0 turned the existing release engine into a guided operator experience:
+show the current state, explain blockers, recommend one safe next action, and
+provide coherent
+release proof. v1.25.1 fixed post-release audit classification and completed
+the milestone with an `AUDITED` release snapshot.
 
 #### Operator surface
 
@@ -145,8 +192,6 @@ separates the operator surface from the engine, and main CI plus all release
 gates pass without blockers.
 
 ---
-
-## Recently Completed
 
 ### v1.24.1 — Post-release stabilization
 
@@ -226,7 +271,7 @@ profiles and operator-visible status.
 * [x] v1.17.0 release docs/status sync
 * [x] Full test suite and stack gates before PR
 
-## Planned
+## Completed release details
 
 ### v1.20.0 — Autonomous stack
 
@@ -303,13 +348,8 @@ result. `mqlaunch` stays a thin delegate surface.
   paths explicit and review-gated.
 * [x] Validate expected `mqobsidian` manifests/views before workflow
   execution; fail safely on stale, missing, or drifted truth surfaces.
-* [ ] **Blocked** — accept `repo-signal` readiness and `mq-mcp` review outputs
-  as evidence inputs without moving truth ownership out of `mqobsidian`.
-  Blocked by producer contracts (mqobsidian DEC-004): `mq-mcp review_file`
-  emits prose, not JSON; `repo-signal` declares `readiness_score.v1` /
-  `publish_checklist.v1` but emits neither; and no repo-signal output carries a
-  candidate key. Unblocks when a producer emits candidate-bearing, bounded JSON
-  evidence with an explicit `producer` and `schema_id`.
+* Deferred upstream evidence ingestion is tracked under **Deferred work**;
+  v1.22 shipped without taking ownership of producer contracts.
 * [x] Expose a stable, machine-readable CLI/API surface for `mqlaunch` to
   delegate to; keep ranking and promotion logic out of shell.
 * [x] Register `inbox_promotion_orchestration.v1` in the repo contract.
