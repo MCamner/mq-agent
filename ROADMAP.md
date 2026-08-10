@@ -29,7 +29,7 @@ All release phases complete through v1.25.1.
 | v1.24.1 | Post-release stabilization | Released v1.24.1 |
 | v1.25.0 | Release Cockpit | Released v1.25.0 |
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
-| v1.26.0 | Stack Compatibility Gate | Planned |
+| v1.26.0 | Stack Compatibility Gate | In progress |
 
 ## Completed — v1.24.1 Post-release stabilization
 
