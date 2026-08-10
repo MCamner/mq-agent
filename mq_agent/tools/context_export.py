@@ -228,6 +228,12 @@ def export_repo_context(
     dry_run: bool = False,
     clean: bool = False,
 ) -> dict[str, Any]:
+    """Export one repository's generated context snapshot.
+
+    When ``clean`` is enabled, remove only names listed in ``CONTEXT_FILES`` from
+    the target context directory before writing. ``dry_run`` performs no deletion
+    or write and reports changed paths through ``would_write``.
+    """
     vault = (vault or default_vault()).expanduser().resolve()
     output_root = (output_root or DEFAULT_REPOS_ROOT).expanduser().resolve()
     context_dir = _repo_output_dir(repo, output_root)
@@ -275,6 +281,11 @@ def export_repo_contexts(
     dry_run: bool = False,
     clean: bool = False,
 ) -> dict[str, Any]:
+    """Export context for each repository, retaining successes after failures.
+
+    Per-repository exceptions are returned in ``errors`` and do not stop later
+    exports, so callers must inspect both ``results`` and ``errors``.
+    """
     results: list[dict[str, Any]] = []
     errors: list[str] = []
     for repo in repos:

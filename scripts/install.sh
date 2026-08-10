@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Install mq-agent and development dependencies as an editable package into
+# the currently active uv/Python environment, then verify the CLI on PATH.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -11,6 +11,12 @@ BLOCKED = [
 
 
 def run_command(command: str, cwd: str = ".", timeout: int = 120) -> str:
+    """Run a shell command after a minimal denylist check.
+
+    This is not a sandbox: callers must enforce approval and safety policy before
+    passing untrusted or write-capable commands. Non-zero exits are returned as
+    text instead of raised as exceptions.
+    """
     for pattern in BLOCKED:
         if pattern in command:
             raise ValueError(f"Blocked command pattern: '{pattern}'")
