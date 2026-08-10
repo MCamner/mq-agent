@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from mq_agent.main import app
 from mq_agent.tools.release_cockpit import (
     ReleaseEvidence,
+    _stack_preflight_status,
     build_release_cockpit,
     resolve_release_state,
 )
@@ -136,6 +137,24 @@ def test_unavailable_checks_never_resolve_green():
     result = resolve_release_state(_evidence(unavailable=["github"], target_version="1.25.0"))
     assert result.state == "BLOCKED"
     assert any(item["code"] == "EVIDENCE_UNAVAILABLE" for item in result.blockers)
+
+
+def test_published_target_treats_expected_release_plan_refusals_as_up_to_date(monkeypatch):
+    monkeypatch.setattr(
+        "mq_agent.tools.release_cockpit._collect_stack_release_plan",
+        lambda repo_name, path, target: {
+            "current_version": "1.25.0",
+            "last_tag": "v1.25.0",
+            "go": False,
+            "blockers": [
+                "no unreleased commits since v1.25.0",
+                "target version v1.25.0 is already tagged",
+            ],
+        },
+    )
+    status, evidence = _stack_preflight_status("mq-agent", Path("/repo"), "1.25.0")
+    assert status == "UP-TO-DATE"
+    assert evidence["blockers"]
 
 
 def test_cockpit_payload_validates_against_schema():
