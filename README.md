@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.24.1-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.25.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -285,6 +285,23 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.25.0 status
+
+- [x] feat(ship): add v1.25 release cockpit (#188)
+- [x] chore(skills): make the repo's skills discoverable by Claude Code (#187)
+- [x] fix(types): clear the two mypy errors in the test suite (#186)
+- [x] feat(memory): expose learn-writeback as its own delegator (#185)
+- [x] fix(mcp): tell an unreachable server apart from a missing tool (#184)
+- [x] feat(routing): expose per-decision routing history (#183)
+- [x] feat(routing): make local-first routing evidence mean something (#182)
+- [x] feat(routing): add evidence promotion review (#181)
+- [x] feat(routing): add advisory shadow routing commands (#179)
+- [x] feat(routing): define versioned model routing contracts (#178)
+- [x] fix(context): consume blocker declarations (#177)
+- [x] fix(run-tool): exit non-zero when the tool did not succeed (#176)
+- [x] fix(codegraph): consume MCP-native task guidance (#175)
+- [x] fix(stack): clarify repository product-readiness sweep (#174)
 
 ## v1.24.1 status
 

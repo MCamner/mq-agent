@@ -446,7 +446,7 @@ wheels = [
 
 [[package]]
 name = "mq-agent"
-version = "1.24.1"
+version = "1.25.0"
 source = { editable = "." }
 dependencies = [
     { name = "gitpython" },

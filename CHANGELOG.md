@@ -9,6 +9,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.25.0] — 2026-08-10
+
+* 9fd754f feat(ship): add v1.25 release cockpit (#188)
+* 26f21eb chore(skills): make the repo's skills discoverable by Claude Code (#187)
+* caa561f fix(types): clear the two mypy errors in the test suite (#186)
+* de139d3 feat(memory): expose learn-writeback as its own delegator (#185)
+* f80d420 fix(mcp): tell an unreachable server apart from a missing tool (#184)
+* adf6926 feat(routing): expose per-decision routing history (#183)
+* e24f23a feat(routing): make local-first routing evidence mean something (#182)
+* 6b46a4e feat(routing): add evidence promotion review (#181)
+* eb87ca5 feat(routing): add advisory shadow routing commands (#179)
+* 03b6a7f feat(routing): define versioned model routing contracts (#178)
+* a343494 fix(context): consume blocker declarations (#177)
+* aa94e0b fix(run-tool): exit non-zero when the tool did not succeed (#176)
+* 9e4ced7 fix(codegraph): consume MCP-native task guidance (#175)
+* 7ad89ce fix(stack): clarify repository product-readiness sweep (#174)
+
 ## [v1.24.1] — 2026-07-23
 
 * fa38d5f fix(ci): align Ruff check with repository default rules (#172)
