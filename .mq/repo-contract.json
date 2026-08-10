@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.25.0",
+  "version": "1.25.1",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",

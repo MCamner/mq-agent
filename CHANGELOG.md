@@ -9,6 +9,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.25.1] — 2026-08-10
+
+* f8f14fb fix(ship): audit completed releases as up to date (#190)
+
 ## [v1.25.0] — 2026-08-10
 
 * 9fd754f feat(ship): add v1.25 release cockpit (#188)
