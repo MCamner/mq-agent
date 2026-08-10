@@ -20,6 +20,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   invalidates a release.
 * CI gate: `tests.yml` fails when the checked-in reference drifts from the
   code.
+* `mq-agent stack compatibility` — read-only dependency compatibility gate
+  across MQ repositories, implementing Phase 0 (the
+  `mq.stack-compatibility.v1` contract) and Phase 1 (repository inventory) of
+  the v1.26.0 roadmap. Reports declared and locked versions with per-file
+  provenance, flags unbounded ranges and lockfiles outside their declared
+  range, and reports missing repos or sources as `UNAVAILABLE` rather than as
+  incompatibility. Never modifies dependencies, lockfiles or working trees.
+* `schemas/mq_stack_compatibility.schema.json` with stable finding codes and
+  an explicit `blocks_release` flag per finding.
+
+### Changed
+
+* Declare `packaging` explicitly in `dependencies`. It was already imported
+  transitively; the compatibility gate parses version specifiers with it.
 
 ## [v1.25.1] — 2026-08-10
 

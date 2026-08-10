@@ -31,7 +31,8 @@
     "mq_stack_release_check.v1",
     "mq_operator_dashboard.v1",
     "mq_hal_operator_contract.v1",
-    "inbox_promotion_orchestration.v1"
+    "inbox_promotion_orchestration.v1",
+    "mq.stack-compatibility.v1"
   ],
   "next_focus": "Post-v1.24 release planning, contract coverage, and documentation stabilization",
   "release_mode": "pull_request"

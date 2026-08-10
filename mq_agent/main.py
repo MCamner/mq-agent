@@ -4629,6 +4629,77 @@ def stack_contract_check_cmd(
         raise typer.Exit(1)
 
 
+# ── stack compatibility ────────────────────────────────────────────────────
+
+@stack_app.command("compatibility")
+def stack_compatibility_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    all_repos: Annotated[bool, typer.Option("--all", help="Inventory the whole stack instead of the MCP slice")] = False,
+):
+    """Assess dependency compatibility across MQ repositories (read-only).
+
+    A repo can be green while the stack holds a latent incompatibility: an
+    unbounded range, or a lockfile masking what a fresh install would pick.
+    This reads declared and locked versions with provenance and never modifies
+    dependencies, lockfiles or working trees.
+
+    Exit codes: 0 PASS or WARN, 2 FAIL, 3 UNAVAILABLE.
+    """
+    from mq_agent.tools.stack_compatibility import stack_compatibility as _check
+
+    with console.status("[cyan]Reading dependency sources...[/cyan]"):
+        raw = _check(slice_only=not all_repos)
+
+    data = json.loads(raw)
+    exit_code = {"PASS": 0, "SKIPPED": 0, "WARN": 0, "FAIL": 2, "UNAVAILABLE": 3}.get(
+        data["status"], 0
+    )
+
+    if json_out:
+        typer.echo(raw)
+        raise typer.Exit(exit_code)
+
+    _STATUS = {
+        "PASS":        "[green]PASS[/green]",
+        "WARN":        "[yellow]WARN[/yellow]",
+        "FAIL":        "[bold red]FAIL[/bold red]",
+        "SKIPPED":     "[dim]SKIPPED[/dim]",
+        "UNAVAILABLE": "[dim]UNAVAILABLE[/dim]",
+    }
+
+    console.print()
+    console.rule("[bold]MQ Stack Compatibility[/bold]")
+    console.print()
+
+    for component in data["components"]:
+        status_str = _STATUS.get(component["status"], component["status"])
+        console.print(f"  {component['repo']:<20} {status_str}")
+        for dep in component["dependencies"]:
+            declared = dep["declared"] or "—"
+            locked = dep["locked"] or "—"
+            bound = "" if dep["bounded"] else " [yellow](unbounded)[/yellow]"
+            console.print(
+                f"    [dim]{dep['name']}[/dim]  declared {declared}  "
+                f"locked {locked}{bound}"
+            )
+        if component.get("reason"):
+            console.print(f"    [dim]{component['reason']}[/dim]")
+
+    console.print()
+    if data["findings"]:
+        for finding in data["findings"]:
+            colour = "red" if finding["severity"] == "FAIL" else "yellow"
+            console.print(f"  [{colour}]→[/{colour}] {finding['code']}: {finding['message']}")
+        console.print()
+
+    overall = _STATUS.get(data["status"], data["status"])
+    console.print(f"[bold]Stack compatibility: {overall}[/bold]")
+    if data["next_action"]:
+        console.print(f"  [dim]Next: {data['next_action']}[/dim]")
+
+    raise typer.Exit(exit_code)
+
+
 @stack_app.command("skills-check")
 def stack_skills_check_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
