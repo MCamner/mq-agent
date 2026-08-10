@@ -29,9 +29,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   incompatibility. Never modifies dependencies, lockfiles or working trees.
 * `schemas/mq_stack_compatibility.schema.json` with stable finding codes and
   an explicit `blocks_release` flag per finding.
+* Phase 2 — declared compatibility. `.mq/repo-contract.json` accepts an
+  optional `compatibility` block (`protocols`, `dependencies`, `produces`,
+  `consumes`). The gate validates it against `pyproject.toml` and separates
+  missing metadata (`MQC009`, WARN, non-blocking during rollout) from
+  inconsistent metadata (`MQC011`, FAIL) and from a range that contradicts its
+  own protocol track (`MQC012`, FAIL).
 
 ### Changed
 
+* `schemas/mq_stack_repo_contract.schema.json` gained the optional
+  `compatibility` property. Contracts without it stay valid; the schema
+  previously set `additionalProperties: false`, so a repo adding the block
+  would have been rejected by the contract gate.
 * Declare `packaging` explicitly in `dependencies`. It was already imported
   transitively; the compatibility gate parses version specifiers with it.
 

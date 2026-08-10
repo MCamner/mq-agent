@@ -296,12 +296,15 @@ Proposed structure:
 }
 ```
 
-* [ ] Extend the repository contract without breaking existing consumers.
-* [ ] Declare critical protocols and dependency boundaries.
-* [ ] Declare produced and consumed MQ contracts.
-* [ ] Validate declarations against `pyproject.toml`.
-* [ ] Validate that locked versions fit declared ranges.
-* [ ] Distinguish missing metadata from inconsistent metadata.
+* [x] Extend the repository contract without breaking existing consumers.
+* [x] Declare critical protocols and dependency boundaries.
+* [x] Declare produced and consumed MQ contracts.
+* [x] Validate declarations against `pyproject.toml`.
+* [x] Validate that locked versions fit declared ranges.
+* [x] Distinguish missing metadata from inconsistent metadata.
+
+The gate reads and enforces the block. Declaring it in `mq-mcp` and
+`mq-image-analyze` is a separate change in those repos.
 
 #### Definition of done
 

@@ -45,8 +45,13 @@ def _make_repo(
     contract: bool = True,
     nested: bool = False,
     optional_extra: bool = False,
+    compat: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    """Create a synthetic repo and return an MQ_STACK_REPOS-style entry."""
+    """Create a synthetic repo and return an MQ_STACK_REPOS-style entry.
+
+    `compat` is the optional `compatibility` block. Passing None models a repo
+    that has not yet declared its boundary — the normal state during rollout.
+    """
     repo = root / name
     package_dir = repo / name if nested else repo
     package_dir.mkdir(parents=True, exist_ok=True)
@@ -54,10 +59,12 @@ def _make_repo(
     (repo / "VERSION").write_text(f"{version}\n", encoding="utf-8")
 
     if contract:
+        body: dict[str, Any] = {"repo": name, "role": "test", "version": version}
+        if compat is not None:
+            body["compatibility"] = compat
         (repo / ".mq").mkdir(exist_ok=True)
         (repo / ".mq" / "repo-contract.json").write_text(
-            json.dumps({"repo": name, "role": "test", "version": version}),
-            encoding="utf-8",
+            json.dumps(body), encoding="utf-8"
         )
 
     if declared is not None:
@@ -84,6 +91,13 @@ def _make_repo(
 
 def _report(entries: list[dict[str, str]]) -> dict[str, Any]:
     return build_report(repos=entries, slice_only=False)
+
+
+# A repo that has fully declared its boundary, matching its pyproject.toml.
+DECLARED_MCP_1X: dict[str, Any] = {
+    "protocols": {"mcp_api": "1.x-fastmcp"},
+    "dependencies": {"mcp": ">=1.27.1,<2"},
+}
 
 
 # ── Phase 0: contract ──────────────────────────────────────────────────────
@@ -175,7 +189,7 @@ def test_findings_never_carry_pass_severity(tmp_path, validator) -> None:
 
 
 def test_pass_report_has_empty_next_action(tmp_path) -> None:
-    report = _report([_make_repo(tmp_path, "repo-a")])
+    report = _report([_make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X)])
     assert report["status"] == "PASS"
     assert report["next_action"] == ""
 
@@ -349,6 +363,169 @@ def test_no_hardcoded_private_paths_in_source() -> None:
     )
     assert "/Users/" not in source
     assert "/home/" not in source
+
+
+# ── Phase 2: declared compatibility ────────────────────────────────────────
+
+
+def test_repo_contract_schema_accepts_compatibility_block() -> None:
+    """Extending the contract must not break existing consumers."""
+    schema = json.loads(
+        (REPO_ROOT / "schemas" / "mq_stack_repo_contract.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    validator = Draft202012Validator(schema)
+    base = {
+        "repo": "mq-mcp",
+        "role": "runtime",
+        "version": "2.0.2",
+        "status": "active",
+        "contracts": ["x.v1"],
+    }
+
+    # The pre-existing shape stays valid.
+    assert not list(validator.iter_errors(base))
+
+    # And the new optional block is accepted.
+    extended = dict(base, compatibility={
+        "protocols": {"mcp_api": "1.x-fastmcp"},
+        "dependencies": {"mcp": ">=1.27.1,<2"},
+        "produces": ["mq-mcp.tools.v1"],
+        "consumes": ["mq.feedback.v1"],
+    })
+    assert not list(validator.iter_errors(extended))
+
+
+def test_repo_contract_schema_rejects_unknown_compatibility_key() -> None:
+    schema = json.loads(
+        (REPO_ROOT / "schemas" / "mq_stack_repo_contract.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    contract = {
+        "repo": "x", "role": "r", "version": "1.0.0", "status": "active",
+        "contracts": [], "compatibility": {"nonsense": {}},
+    }
+    assert list(Draft202012Validator(schema).iter_errors(contract))
+
+
+def test_missing_metadata_warns_but_does_not_block(tmp_path) -> None:
+    """Absent metadata must stay explicit and non-blocking during rollout."""
+    report = _report([_make_repo(tmp_path, "repo-a", compat=None)])
+    assert report["status"] == "WARN"
+    finding = next(
+        f for f in report["findings"]
+        if f["code"] == "MQC009_COMPATIBILITY_METADATA_MISSING"
+    )
+    assert finding["blocks_release"] is False
+    assert report["components"][0]["compatibility_declared"] is False
+
+
+def test_declared_boundary_matching_pyproject_passes(tmp_path) -> None:
+    entries = [_make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X)]
+    report = _report(entries)
+    assert report["status"] == "PASS"
+    assert report["components"][0]["compatibility_declared"] is True
+    assert report["components"][0]["protocols"] == {"mcp_api": "1.x-fastmcp"}
+
+
+def test_declared_boundary_order_does_not_matter(tmp_path) -> None:
+    """'<2,>=1.27.1' and '>=1.27.1,<2' describe the same boundary."""
+    entries = [
+        _make_repo(
+            tmp_path, "repo-a",
+            declared="mcp<2,>=1.27.1",
+            compat={"dependencies": {"mcp": ">=1.27.1,<2"}},
+        )
+    ]
+    assert _report(entries)["status"] == "PASS"
+
+
+def test_inconsistent_metadata_fails(tmp_path) -> None:
+    """Metadata that contradicts pyproject.toml is a hard failure."""
+    entries = [
+        _make_repo(
+            tmp_path, "repo-a",
+            declared="mcp>=1.0,<3",
+            compat={"dependencies": {"mcp": ">=1.27.1,<2"}},
+        )
+    ]
+    report = _report(entries)
+    assert report["status"] == "FAIL"
+    finding = next(
+        f for f in report["findings"]
+        if f["code"] == "MQC011_DECLARED_DEPENDENCY_MISMATCH"
+    )
+    assert finding["blocks_release"] is True
+
+
+def test_missing_and_inconsistent_metadata_are_distinct(tmp_path) -> None:
+    """The two states must not collapse into one code."""
+    missing = _report([_make_repo(tmp_path, "a", compat=None)])
+    inconsistent = _report([
+        _make_repo(tmp_path, "b", declared="mcp>=1.0,<3",
+                   compat={"dependencies": {"mcp": ">=1.27.1,<2"}})
+    ])
+    assert [f["code"] for f in missing["findings"]] == [
+        "MQC009_COMPATIBILITY_METADATA_MISSING"
+    ]
+    assert "MQC011_DECLARED_DEPENDENCY_MISMATCH" in [
+        f["code"] for f in inconsistent["findings"]
+    ]
+    assert missing["status"] == "WARN"
+    assert inconsistent["status"] == "FAIL"
+
+
+def test_open_range_contradicting_protocol_fails(tmp_path) -> None:
+    """The exact regression: a 1.x FastMCP contract that still allows MCP 2.x."""
+    entries = [
+        _make_repo(
+            tmp_path, "repo-a",
+            declared="mcp>=1.0",
+            compat={
+                "protocols": {"mcp_api": "1.x-fastmcp"},
+                "dependencies": {"mcp": ">=1.0"},
+            },
+        )
+    ]
+    report = _report(entries)
+    assert report["status"] == "FAIL"
+    codes = [f["code"] for f in report["findings"]]
+    assert "MQC012_PROTOCOL_CONTRADICTS_RANGE" in codes
+    finding = next(f for f in report["findings"] if f["code"] == "MQC012_PROTOCOL_CONTRADICTS_RANGE")
+    assert finding["blocks_release"] is True
+
+
+def test_bounded_range_matching_protocol_passes(tmp_path) -> None:
+    entries = [_make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X)]
+    codes = [f["code"] for f in _report(entries)["findings"]]
+    assert "MQC012_PROTOCOL_CONTRADICTS_RANGE" not in codes
+
+
+def test_produces_and_consumes_are_reported(tmp_path) -> None:
+    entries = [
+        _make_repo(
+            tmp_path, "repo-a",
+            compat=dict(DECLARED_MCP_1X, produces=["mq-mcp.tools.v1"],
+                        consumes=["mq.feedback.v1"]),
+        )
+    ]
+    component = _report(entries)["components"][0]
+    assert component["produces"] == ["mq-mcp.tools.v1"]
+    assert component["consumes"] == ["mq.feedback.v1"]
+
+
+def test_phase2_report_still_validates(tmp_path, validator) -> None:
+    entries = [
+        _make_repo(tmp_path, "ok", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "missing", compat=None),
+        _make_repo(tmp_path, "bad", declared="mcp>=1.0",
+                   compat={"protocols": {"mcp_api": "1.x-fastmcp"},
+                           "dependencies": {"mcp": ">=1.0"}}),
+    ]
+    errors = list(validator.iter_errors(_report(entries)))
+    assert not errors, [e.message for e in errors]
 
 
 @pytest.mark.parametrize(

@@ -67,7 +67,9 @@
         "MQC007_DECLARED_RANGES_DISJOINT",
         "MQC008_PROTOCOL_TRACK_MISMATCH",
         "MQC009_COMPATIBILITY_METADATA_MISSING",
-        "MQC010_TOOL_UNAVAILABLE"
+        "MQC010_TOOL_UNAVAILABLE",
+        "MQC011_DECLARED_DEPENDENCY_MISMATCH",
+        "MQC012_PROTOCOL_CONTRADICTS_RANGE"
       ],
       "description": "Stable finding codes. Codes are append-only within v1."
     },
@@ -137,6 +139,20 @@
           "type": "object",
           "additionalProperties": { "type": "string" },
           "description": "Declared protocol tracks, e.g. {\"mcp_api\": \"1.x-fastmcp\"}."
+        },
+        "compatibility_declared": {
+          "type": "boolean",
+          "description": "Whether the repo contract carries a compatibility block. False means the metadata is missing, which is non-blocking during rollout."
+        },
+        "produces": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "MQ contracts this repo declares it produces."
+        },
+        "consumes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "MQ contracts this repo declares it consumes."
         },
         "dependencies": {
           "type": "array",

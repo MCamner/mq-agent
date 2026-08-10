@@ -254,6 +254,79 @@ def _read_contract(root: Path) -> tuple[dict[str, Any] | None, str]:
     return data, ""
 
 
+def _declared_compatibility(contract: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract the optional `compatibility` block from a repo contract.
+
+    Absent metadata is normal during rollout and must stay distinguishable from
+    metadata that is present but contradicts the repo's own pyproject.toml.
+    """
+    empty: dict[str, Any] = {
+        "present": False,
+        "protocols": {},
+        "dependencies": {},
+        "produces": [],
+        "consumes": [],
+    }
+    if not contract:
+        return empty
+
+    block = contract.get("compatibility")
+    if not isinstance(block, dict):
+        return empty
+
+    def _str_map(key: str) -> dict[str, str]:
+        raw = block.get(key)
+        if not isinstance(raw, dict):
+            return {}
+        return {str(k): v for k, v in raw.items() if isinstance(v, str)}
+
+    def _str_list(key: str) -> list[str]:
+        raw = block.get(key)
+        if not isinstance(raw, list):
+            return []
+        return [item for item in raw if isinstance(item, str)]
+
+    return {
+        "present": True,
+        "protocols": _str_map("protocols"),
+        "dependencies": _str_map("dependencies"),
+        "produces": _str_list("produces"),
+        "consumes": _str_list("consumes"),
+    }
+
+
+def _protocol_major(track: str) -> int | None:
+    """Leading major version of a protocol track such as '1.x-fastmcp'."""
+    head = track.strip().split(".", 1)[0]
+    try:
+        return int(head)
+    except ValueError:
+        return None
+
+
+def _protocol_track_for(dependency: str, protocols: dict[str, str]) -> tuple[str, str] | None:
+    """Find the protocol track governing `dependency`, e.g. mcp -> mcp_api."""
+    for key, track in protocols.items():
+        base = key.rsplit("_", 1)[0] if "_" in key else key
+        if canonicalize_name(base) == canonicalize_name(dependency):
+            return key, track
+    return None
+
+
+def _specifiers_agree(left: str, right: str) -> bool:
+    """Whether two specifiers describe the same boundary.
+
+    Compared as normalised sets rather than strings, so '>=1.27.1,<2' and
+    '<2,>=1.27.1' agree.
+    """
+    try:
+        return set(str(s) for s in SpecifierSet(left)) == set(
+            str(s) for s in SpecifierSet(right)
+        )
+    except InvalidSpecifier:
+        return False
+
+
 def _component(
     entry: dict[str, str],
     tracked: tuple[str, ...],
@@ -303,15 +376,9 @@ def _component(
             }
         )
 
-    protocols: dict[str, str] = {}
-    if contract:
-        raw_protocols = contract.get("compatibility", {})
-        if isinstance(raw_protocols, dict):
-            candidate = raw_protocols.get("protocols")
-            if isinstance(candidate, dict):
-                protocols = {
-                    str(k): str(v) for k, v in candidate.items() if isinstance(v, str)
-                }
+    compatibility = _declared_compatibility(contract)
+    protocols = compatibility["protocols"]
+    declared_boundaries = compatibility["dependencies"]
 
     version = _version(root)
     sources = _find_sources(root)
@@ -402,6 +469,67 @@ def _component(
                 }
             )
 
+        # Phase 2: the contract's declared boundary must agree with the code.
+        boundary = declared_boundaries.get(name)
+        if boundary is None:
+            statuses.append("WARN")
+            findings.append(
+                {
+                    "code": "MQC009_COMPATIBILITY_METADATA_MISSING",
+                    "severity": "WARN",
+                    "repo": repo,
+                    "message": (
+                        f"{repo} does not declare a compatibility boundary for "
+                        f"{name} in .mq/repo-contract.json"
+                    ),
+                    "blocks_release": False,
+                    "evidence": provenance,
+                }
+            )
+        elif declared is not None and not _specifiers_agree(boundary, declared):
+            statuses.append("FAIL")
+            findings.append(
+                {
+                    "code": "MQC011_DECLARED_DEPENDENCY_MISMATCH",
+                    "severity": "FAIL",
+                    "repo": repo,
+                    "message": (
+                        f"{repo} declares {name} as {boundary!r} in its contract "
+                        f"but {declared!r} in pyproject.toml"
+                    ),
+                    "blocks_release": True,
+                    "evidence": provenance,
+                }
+            )
+
+        track = _protocol_track_for(name, protocols)
+        if track is not None:
+            key, value = track
+            major = _protocol_major(value)
+            effective = boundary or declared
+            if major is not None and effective:
+                try:
+                    allows_next = SpecifierSet(effective).contains(
+                        Version(f"{major + 1}.0.0"), prereleases=True
+                    )
+                except (InvalidSpecifier, InvalidVersion):
+                    allows_next = False
+                if allows_next:
+                    statuses.append("FAIL")
+                    findings.append(
+                        {
+                            "code": "MQC012_PROTOCOL_CONTRADICTS_RANGE",
+                            "severity": "FAIL",
+                            "repo": repo,
+                            "message": (
+                                f"{repo} is written against {key}={value!r} but "
+                                f"allows {name} {major + 1}.x via {effective!r}"
+                            ),
+                            "blocks_release": True,
+                            "evidence": provenance,
+                        }
+                    )
+
     if pyproject is None and not dependencies:
         findings.append(
             {
@@ -420,10 +548,15 @@ def _component(
         "role": entry.get("role", ""),
         "version": None if version == "?" else version,
         "contract_present": contract is not None,
+        "compatibility_declared": bool(compatibility["present"]),
         "dependencies": dependencies,
     }
     if protocols:
         component["protocols"] = protocols
+    if compatibility["produces"]:
+        component["produces"] = compatibility["produces"]
+    if compatibility["consumes"]:
+        component["consumes"] = compatibility["consumes"]
 
     return component, findings
 

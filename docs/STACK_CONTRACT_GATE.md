@@ -58,6 +58,37 @@ Required fields: `repo`, `role`, `version`, `status`, `contracts`.
 
 Schema: [`schemas/mq_stack_repo_contract.schema.json`](../schemas/mq_stack_repo_contract.schema.json)
 
+## Optional: `compatibility`
+
+A repo may declare its machine-readable compatibility boundary. The field is
+optional and existing contracts stay valid without it.
+
+```json
+{
+  "compatibility": {
+    "protocols": { "mcp_api": "1.x-fastmcp" },
+    "dependencies": { "mcp": ">=1.27.1,<2" },
+    "produces": ["mq-mcp.tools.v1"],
+    "consumes": ["mq.feedback.v1"]
+  }
+}
+```
+
+`mq-agent stack compatibility` reads it and distinguishes two states:
+
+| State | Finding | Blocks release |
+|---|---|---|
+| No `compatibility` block | `MQC009_COMPATIBILITY_METADATA_MISSING` (WARN) | No |
+| Block contradicts `pyproject.toml` | `MQC011_DECLARED_DEPENDENCY_MISMATCH` (FAIL) | Yes |
+| Range allows a major the protocol track excludes | `MQC012_PROTOCOL_CONTRADICTS_RANGE` (FAIL) | Yes |
+
+Missing metadata is expected during rollout and never blocks. Metadata that
+disagrees with the repo's own dependency declaration does block — a contract
+that lies is worse than no contract.
+
+`dependencies` is compared as a normalised specifier set, so `>=1.27.1,<2` and
+`<2,>=1.27.1` are treated as the same boundary.
+
 ## Example output
 
 ```text
