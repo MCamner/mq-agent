@@ -71,6 +71,8 @@ If `.codegraph/` exists, use CodeGraph MCP before broad scans:
 `codegraph_explore` first; use node/callers/callees/impact as the task requires.
 Treat returned source as read; use targeted reads only for missing, stale, or
 unsupported detail. Use `mqobsidian` for durable memory and repo boundaries.
+Never read, edit, or delete `.codegraph/codegraph.db` directly — the daemon
+owns it. Use the CLI (`status`, `sync`, `unlock`) if the index looks wrong.
 
 ## Writing Rules
 
