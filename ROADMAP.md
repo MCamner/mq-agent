@@ -317,13 +317,13 @@ The gate reads and enforces the block. Declaring it in `mq-mcp` and
 
 **Deliverable:** compatibility checks between producers and consumers.
 
-* [ ] Match produced and consumed contracts.
-* [ ] Calculate overlap between shared dependency ranges.
-* [ ] Detect parallel protocol tracks in the same stack.
-* [ ] Detect consumers requiring a contract no producer offers.
+* [x] Match produced and consumed contracts.
+* [x] Calculate overlap between shared dependency ranges.
+* [x] Detect parallel protocol tracks in the same stack.
+* [x] Detect consumers requiring a contract no producer offers.
 * [ ] Detect producer schema changes without corresponding consumer updates.
 * [ ] Check MCP tool names, safety classes, and schema signatures.
-* [ ] Present relationships as evidence, not only a summary status.
+* [x] Present relationships as evidence, not only a summary status.
 
 Example finding:
 

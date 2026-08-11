@@ -230,6 +230,42 @@ def _is_bounded(spec: str | None) -> bool:
     return not specifier_set.contains(probe, prereleases=True)
 
 
+def _ranges_overlap(left: str | None, right: str | None) -> bool | None:
+    """Whether two declared ranges admit at least one common version.
+
+    Emptiness of an arbitrary specifier intersection has no closed form, so the
+    ranges are probed at the versions they name plus the next patch, minor and
+    major above each. Every boundary either side cares about is therefore
+    tested, which covers the shapes that appear in real pyproject files.
+    Returns None when either range is absent or unparseable.
+    """
+    if not left or not right:
+        return None
+    try:
+        left_set = SpecifierSet(left)
+        right_set = SpecifierSet(right)
+    except InvalidSpecifier:
+        return None
+
+    candidates: set[Version] = set()
+    for specifier in list(left_set) + list(right_set):
+        try:
+            version = Version(specifier.version)
+        except InvalidVersion:
+            continue
+        candidates.add(version)
+        candidates.add(Version(f"{version.major}.{version.minor}.{version.micro + 1}"))
+        candidates.add(Version(f"{version.major}.{version.minor + 1}.0"))
+        candidates.add(Version(f"{version.major + 1}.0.0"))
+
+    if not candidates:
+        return None
+    return any(
+        left_set.contains(c, prereleases=True) and right_set.contains(c, prereleases=True)
+        for c in candidates
+    )
+
+
 def _locked_within_declared(locked: str | None, spec: str | None) -> bool | None:
     """Whether the locked version satisfies the declared range."""
     if not locked or not spec:
@@ -561,6 +597,148 @@ def _component(
     return component, findings
 
 
+def _contract_links(
+    components: list[dict[str, Any]],
+) -> tuple[list[tuple[str, str, str]], list[dict[str, Any]]]:
+    """Match consumed contracts to the components that produce them.
+
+    Returns the producer/consumer/contract triples plus a finding for every
+    contract a component consumes that nothing in the stack produces.
+    """
+    producers: dict[str, list[str]] = {}
+    for component in components:
+        for contract in component.get("produces", []):
+            producers.setdefault(contract, []).append(component["repo"])
+
+    links: list[tuple[str, str, str]] = []
+    findings: list[dict[str, Any]] = []
+
+    for component in components:
+        consumer = component["repo"]
+        for contract in sorted(component.get("consumes", [])):
+            offering = sorted(p for p in producers.get(contract, []) if p != consumer)
+            if not offering:
+                findings.append(
+                    {
+                        "code": "MQC013_CONTRACT_UNPRODUCED",
+                        "severity": "WARN",
+                        "repo": consumer,
+                        "message": (
+                            f"{consumer} consumes {contract!r} but no repository in "
+                            "the stack declares it as produced"
+                        ),
+                        "blocks_release": False,
+                    }
+                )
+                continue
+            links.extend((producer, consumer, contract) for producer in offering)
+
+    return sorted(links), findings
+
+
+def _relationships(
+    components: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Assess every producer/consumer and shared-dependency pair in the stack.
+
+    A single repository can be internally consistent while two of them disagree
+    across the boundary, which is the whole reason this gate exists. Components
+    that could not be read are skipped: unknown is not incompatible.
+    """
+    assessable = sorted(
+        (c for c in components if c["status"] != "UNAVAILABLE"),
+        key=lambda c: c["repo"],
+    )
+    links, findings = _contract_links(assessable)
+    wired = {(producer, consumer) for producer, consumer, _ in links}
+
+    relationships: list[dict[str, Any]] = [
+        {
+            "producer": producer,
+            "consumer": consumer,
+            "subject": contract,
+            "status": "PASS",
+            "overlap": None,
+            "detail": f"{producer} produces {contract}; {consumer} consumes it",
+        }
+        for producer, consumer, contract in links
+    ]
+
+    for index, left in enumerate(assessable):
+        for right in assessable[index + 1 :]:
+            left_deps = {d["name"]: d for d in left["dependencies"]}
+            right_deps = {d["name"]: d for d in right["dependencies"]}
+            pair_wired = (left["repo"], right["repo"]) in wired or (
+                right["repo"],
+                left["repo"],
+            ) in wired
+
+            for name in sorted(set(left_deps) & set(right_deps)):
+                left_dep, right_dep = left_deps[name], right_deps[name]
+                left_spec, right_spec = left_dep["declared"], right_dep["declared"]
+                overlap = _ranges_overlap(left_spec, right_spec)
+                evidence = left_dep["sources"] + right_dep["sources"]
+                detail = (
+                    f"{left['repo']} declares {name} {left_spec or '—'}; "
+                    f"{right['repo']} declares {name} {right_spec or '—'}"
+                )
+
+                status = "PASS"
+                if overlap is False:
+                    status = "FAIL"
+                    findings.append(
+                        {
+                            "code": "MQC007_DECLARED_RANGES_DISJOINT",
+                            "severity": "FAIL",
+                            "repo": left["repo"],
+                            "message": (
+                                f"{left['repo']} declares {name} {left_spec!r} and "
+                                f"{right['repo']} declares {right_spec!r} — the "
+                                "ranges share no version"
+                            ),
+                            "blocks_release": True,
+                            "evidence": evidence,
+                        }
+                    )
+
+                relationships.append(
+                    {
+                        "producer": left["repo"],
+                        "consumer": right["repo"],
+                        "subject": name,
+                        "status": status,
+                        "overlap": overlap,
+                        "detail": detail,
+                    }
+                )
+
+                left_track = _protocol_track_for(name, left.get("protocols", {}))
+                right_track = _protocol_track_for(name, right.get("protocols", {}))
+                if left_track is None or right_track is None:
+                    continue
+                if left_track[1] == right_track[1]:
+                    continue
+
+                # Two tracks in the same stack are a warning; two tracks wired
+                # to each other are a runtime path that cannot work.
+                findings.append(
+                    {
+                        "code": "MQC008_PROTOCOL_TRACK_MISMATCH",
+                        "severity": "FAIL" if pair_wired else "WARN",
+                        "repo": left["repo"],
+                        "message": (
+                            f"{left['repo']} targets {name} track "
+                            f"{left_track[1]!r} but {right['repo']} targets "
+                            f"{right_track[1]!r}"
+                        ),
+                        "blocks_release": pair_wired,
+                        "evidence": evidence,
+                    }
+                )
+
+    return relationships, findings
+
+
 def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
     if status == "PASS":
         return ""
@@ -597,16 +775,20 @@ def build_report(
         components.append(component)
         findings.extend(component_findings)
 
-    status = _worst([c["status"] for c in components])
+    relationships, relationship_findings = _relationships(components)
+    findings.extend(relationship_findings)
+
+    status = _worst(
+        [c["status"] for c in components]
+        + [f["severity"] for f in relationship_findings]
+    )
 
     return {
         "schema": COMPATIBILITY_SCHEMA,
         "status": status,
         "mode": "static",
         "components": components,
-        # Producer/consumer assessment is Phase 3; the field stays present and
-        # empty so consumers can rely on the shape from v1 onwards.
-        "relationships": [],
+        "relationships": relationships,
         "findings": findings,
         "next_action": _next_action(status, findings),
         "checked_at": datetime.now(UTC).isoformat(),

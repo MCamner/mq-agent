@@ -4685,6 +4685,17 @@ def stack_compatibility_cmd(
         if component.get("reason"):
             console.print(f"    [dim]{component['reason']}[/dim]")
 
+    if data["relationships"]:
+        console.print()
+        console.print("  [bold]Relationships[/bold]")
+        for rel in data["relationships"]:
+            status_str = _STATUS.get(rel["status"], rel["status"])
+            console.print(
+                f"    {rel['producer']} ↔ {rel['consumer']}  "
+                f"[dim]{rel['subject']}[/dim]  {status_str}"
+            )
+            console.print(f"      [dim]{rel['detail']}[/dim]")
+
     console.print()
     if data["findings"]:
         for finding in data["findings"]:
