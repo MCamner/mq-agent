@@ -33,3 +33,8 @@ jobs:
 
       - name: Docs consistency
         run: bash scripts/check-docs-consistency.sh
+
+      # Blocking: the checked-in command reference must match the live Typer
+      # app. Wiki publishing is warn-only and lives outside CI.
+      - name: Command reference is current
+        run: uv run python tools/generate_command_reference.py --check
