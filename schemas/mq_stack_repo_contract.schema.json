@@ -50,6 +50,35 @@
     "notes": {
       "type": "string",
       "description": "Optional: free-text notes."
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional: machine-readable compatibility boundary consumed by the stack compatibility gate (mq.stack-compatibility.v1). Absent metadata is reported as missing and never blocks; present metadata that contradicts pyproject.toml is inconsistent and does block.",
+      "properties": {
+        "protocols": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Protocol tracks this repo is written against, e.g. {\"mcp_api\": \"1.x-fastmcp\"}. The leading major identifies the track.",
+          "examples": [{ "mcp_api": "1.x-fastmcp" }]
+        },
+        "dependencies": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Declared compatibility boundary per dependency, as a PEP 440 specifier. Must agree with the range declared in pyproject.toml.",
+          "examples": [{ "mcp": ">=1.27.1,<2" }]
+        },
+        "produces": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "MQ contracts this repo produces, e.g. 'mq-mcp.tools.v1'."
+        },
+        "consumes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "MQ contracts this repo consumes, e.g. 'mq.feedback.v1'."
+        }
+      }
     }
   }
 }

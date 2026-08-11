@@ -29,7 +29,7 @@ All release phases complete through v1.25.1.
 | v1.24.1 | Post-release stabilization | Released v1.24.1 |
 | v1.25.0 | Release Cockpit | Released v1.25.0 |
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
-| v1.26.0 | Stack Compatibility Gate | Planned |
+| v1.26.0 | Stack Compatibility Gate | In progress |
 
 ## Completed — v1.24.1 Post-release stabilization
 
@@ -172,7 +172,7 @@ hiding the lower-level release evidence.
 
 ## Next release — v1.26.0 Stack Compatibility Gate
 
-* **Status:** Planned
+* **Status:** In progress — Phase 0 and Phase 1 delivered
 * **Priority:** P1
 * **Owner:** `mq-agent`
 * **Consumers:** `mq-hal`, `macos-scripts`, CI
@@ -226,14 +226,14 @@ boundaries before it reaches installation, release, or runtime.
 
 **Deliverable:** `mq.stack-compatibility.v1`
 
-* [ ] Define the JSON schema for compatibility reports.
-* [ ] Reuse `PASS`, `WARN`, `FAIL`, `SKIPPED`, and `UNAVAILABLE`.
-* [ ] Define structured evidence and `next_action`.
-* [ ] Distinguish declared, locked, installed, mutually compatible, and freshly
+* [x] Define the JSON schema for compatibility reports.
+* [x] Reuse `PASS`, `WARN`, `FAIL`, `SKIPPED`, and `UNAVAILABLE`.
+* [x] Define structured evidence and `next_action`.
+* [x] Distinguish declared, locked, installed, mutually compatible, and freshly
   resolved versions.
-* [ ] Define stable error and warning codes.
-* [ ] Document which findings block release.
-* [ ] Add schema and negative contract tests.
+* [x] Define stable error and warning codes.
+* [x] Document which findings block release.
+* [x] Add schema and negative contract tests.
 
 Example:
 
@@ -259,14 +259,14 @@ Example:
 
 **Deliverable:** discovery of MQ repositories and compatibility metadata.
 
-* [ ] Discover active MQ repositories from configuration or explicit paths.
-* [ ] Read `.mq/repo-contract.json`.
-* [ ] Read supported dependency sources, including `pyproject.toml`, `uv.lock`,
+* [x] Discover active MQ repositories from configuration or explicit paths.
+* [x] Read `.mq/repo-contract.json`.
+* [x] Read supported dependency sources, including `pyproject.toml`, `uv.lock`,
   and `constraints.txt`.
-* [ ] Identify each repository's version and role.
-* [ ] Report missing or invalid contracts.
-* [ ] Preserve repository, file, field, and observed value as provenance.
-* [ ] Support `mq-mcp` and `mq-image-analyze` as the first vertical slice.
+* [x] Identify each repository's version and role.
+* [x] Report missing or invalid contracts.
+* [x] Preserve repository, file, field, and observed value as provenance.
+* [x] Support `mq-mcp` and `mq-image-analyze` as the first vertical slice.
 
 #### Definition of done
 
@@ -296,12 +296,15 @@ Proposed structure:
 }
 ```
 
-* [ ] Extend the repository contract without breaking existing consumers.
-* [ ] Declare critical protocols and dependency boundaries.
-* [ ] Declare produced and consumed MQ contracts.
-* [ ] Validate declarations against `pyproject.toml`.
-* [ ] Validate that locked versions fit declared ranges.
-* [ ] Distinguish missing metadata from inconsistent metadata.
+* [x] Extend the repository contract without breaking existing consumers.
+* [x] Declare critical protocols and dependency boundaries.
+* [x] Declare produced and consumed MQ contracts.
+* [x] Validate declarations against `pyproject.toml`.
+* [x] Validate that locked versions fit declared ranges.
+* [x] Distinguish missing metadata from inconsistent metadata.
+
+The gate reads and enforces the block. Declaring it in `mq-mcp` and
+`mq-image-analyze` is a separate change in those repos.
 
 #### Definition of done
 

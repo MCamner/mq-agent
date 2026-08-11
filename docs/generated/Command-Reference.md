@@ -1591,6 +1591,7 @@ mq-stack repo inventory, status, and Obsidian export.
 | [`mq-agent stack alert`](#mq-agent-stack-alert) | Warn when a repo dropped >= threshold points or is below min-score since the last sweep. Exits 0 when no alerts, exits 1 when alerts are found (CI-friendly). |
 | [`mq-agent stack brain-gate`](#mq-agent-stack-brain-gate) | Brain release gate: contract-check + release-check + truth-export dry-run + vault structure + the review→brain write path, all green before a release. Read-only; exit 1 on NO-GO. |
 | [`mq-agent stack cockpit`](#mq-agent-stack-cockpit) | One-table stack cockpit: repo, version, branch, dirty, contract, release gate, unreleased work, brain-export freshness and next action. Read-only — combines stack status, contract-check, release-check and the latest mqobsidian stack-truth note into a single view. Later the input to mq-hal. |
+| [`mq-agent stack compatibility`](#mq-agent-stack-compatibility) | Assess dependency compatibility across MQ repositories (read-only). A repo can be green while the stack holds a latent incompatibility: an unbounded range, or a lockfile masking what a fresh install would pick. This reads declared and locked versions with provenance and never modifies dependencies, lockfiles or working trees. Exit codes: 0 PASS or WARN, 2 FAIL, 3 UNAVAILABLE. |
 | [`mq-agent stack contract-check`](#mq-agent-stack-contract-check) | Validate that every mq-stack repo declares a contract manifest. Reads .mq/repo-contract.json per repo and checks VERSION sync. No API key required. Exits 1 if any repo is BLOCKED or DRIFT. With --ci, repos missing from the workspace are SKIPPED instead of BLOCKED — the CI checkout itself is still fully validated. |
 | [`mq-agent stack export`](#mq-agent-stack-export) | Write the mq-stack truth snapshot (contract + release gates) to mqobsidian. Primary name: `stack truth-export`. `stack export` is kept as a backwards-compatible alias — both run the same export. Pass ``--rebuild-views`` to refresh agent views at the end of the workflow (opt-in — see docs/AGENT_VIEW_CONTRACT.md phase C). |
 | [`mq-agent stack history`](#mq-agent-stack-history) | Show repo health scores from past stack sweeps. |
@@ -1636,6 +1637,17 @@ One-table stack cockpit: repo, version, branch, dirty, contract, release gate, u
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--json` | No | `false` | — |
+
+## `mq-agent stack compatibility`
+
+Assess dependency compatibility across MQ repositories (read-only). A repo can be green while the stack holds a latent incompatibility: an unbounded range, or a lockfile masking what a fresh install would pick. This reads declared and locked versions with provenance and never modifies dependencies, lockfiles or working trees. Exit codes: 0 PASS or WARN, 2 FAIL, 3 UNAVAILABLE.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+| `--all` | No | `false` | Inventory the whole stack instead of the MCP slice |
 
 ## `mq-agent stack contract-check`
 

@@ -88,7 +88,7 @@ Completed foundation:
 | v1.24.1 | Post-release stabilization                   | Done    |
 | v1.25.0 | Release Cockpit                              | Released |
 | v1.25.1 | Release Cockpit post-release audit fix       | Released |
-| v1.26.0 | Stack Compatibility Gate                     | Planned  |
+| v1.26.0 | Stack Compatibility Gate                     | In progress |
 
 ---
 
