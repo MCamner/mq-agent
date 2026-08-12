@@ -20,6 +20,7 @@ from jsonschema import Draft202012Validator
 from mq_agent.tools.stack_compatibility import (
     COMPATIBILITY_SCHEMA,
     _is_bounded,
+    _ranges_overlap,
     build_report,
     stack_compatibility,
 )
@@ -543,3 +544,324 @@ def test_phase2_report_still_validates(tmp_path, validator) -> None:
 )
 def test_bounded_detection(spec: str | None, expected: bool) -> None:
     assert _is_bounded(spec) is expected
+
+
+# ── Phase 3: stack relationships and overlap ───────────────────────────────
+
+# Two repos on the same protocol track, both bounded to MCP 1.x.
+MCP_2X: dict[str, Any] = {
+    "protocols": {"mcp_api": "2.x-mcp"},
+    "dependencies": {"mcp": ">=2,<3"},
+}
+
+
+@pytest.mark.parametrize(
+    "left,right,expected",
+    [
+        (">=1.27.1,<2", ">=1.27.1,<2", True),
+        (">=1.27.1,<2", ">=1.30,<2", True),
+        (">=1.27.1,<2", ">=2,<3", False),
+        ("==1.27.1", "==1.28.0", False),
+        ("==1.27.1", ">=1.0,<2", True),
+        (">=1.0", ">=2,<3", True),
+        # Upper bounds alone: everything below the bound satisfies both.
+        ("<2", "<2", True),
+        ("<2", "<3", True),
+        ("<2", ">=2", False),
+        ("!=2.0.0", "<1.5", True),
+        (None, ">=1.0,<2", None),
+        ("not a spec", ">=1.0,<2", None),
+    ],
+)
+def test_range_overlap_detection(
+    left: str | None, right: str | None, expected: bool | None
+) -> None:
+    assert _ranges_overlap(left, right) is expected
+
+
+def test_shared_dependency_produces_a_relationship(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "repo-b", compat=DECLARED_MCP_1X),
+    ]
+    report = _report(entries)
+    relationships = [r for r in report["relationships"] if r["subject"] == "mcp"]
+    assert len(relationships) == 1
+    relationship = relationships[0]
+    assert {relationship["producer"], relationship["consumer"]} == {"repo-a", "repo-b"}
+    assert relationship["overlap"] is True
+    assert relationship["status"] == "PASS"
+
+
+def test_single_repo_has_no_relationships(tmp_path) -> None:
+    entries = [_make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X)]
+    assert _report(entries)["relationships"] == []
+
+
+def test_disjoint_ranges_fail(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=MCP_2X
+        ),
+    ]
+    report = _report(entries)
+    assert report["status"] == "FAIL"
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC007_DECLARED_RANGES_DISJOINT"
+    )
+    assert finding["blocks_release"] is True
+    relationship = next(r for r in report["relationships"] if r["subject"] == "mcp")
+    assert relationship["overlap"] is False
+    assert relationship["status"] == "FAIL"
+
+
+def test_disjoint_ranges_name_both_repos_and_observed_values(tmp_path) -> None:
+    """A relationship is evidence, not just a verdict."""
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=MCP_2X
+        ),
+    ]
+    report = _report(entries)
+    # packaging normalises specifier order, so assert against what the report
+    # actually observed rather than how the fixture spelled it.
+    declared = {
+        c["repo"]: c["dependencies"][0]["declared"] for c in report["components"]
+    }
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC007_DECLARED_RANGES_DISJOINT"
+    )
+    assert declared["repo-a"] in finding["message"]
+    assert declared["repo-b"] in finding["message"]
+    repos = {e["repo"] for e in finding["evidence"]}
+    assert repos == {"repo-a", "repo-b"}
+
+    relationship = next(r for r in report["relationships"] if r["subject"] == "mcp")
+    assert declared["repo-a"] in relationship["detail"]
+    assert declared["repo-b"] in relationship["detail"]
+
+
+def test_parallel_protocol_tracks_are_flagged(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=MCP_2X
+        ),
+    ]
+    finding = next(
+        f
+        for f in _report(entries)["findings"]
+        if f["code"] == "MQC008_PROTOCOL_TRACK_MISMATCH"
+    )
+    assert "1.x-fastmcp" in finding["message"]
+    assert "2.x-mcp" in finding["message"]
+
+
+def test_same_protocol_track_raises_no_mismatch(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "repo-b", compat=DECLARED_MCP_1X),
+    ]
+    codes = [f["code"] for f in _report(entries)["findings"]]
+    assert "MQC008_PROTOCOL_TRACK_MISMATCH" not in codes
+    assert "MQC007_DECLARED_RANGES_DISJOINT" not in codes
+
+
+def test_protocol_mismatch_on_a_runtime_path_blocks_release(tmp_path) -> None:
+    """Different tracks warn; different tracks wired together fail."""
+    producer = dict(DECLARED_MCP_1X, produces=["mq-mcp.tools.v1"])
+    consumer = dict(MCP_2X, consumes=["mq-mcp.tools.v1"])
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=producer),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=consumer
+        ),
+    ]
+    report = _report(entries)
+    finding = next(
+        f
+        for f in report["findings"]
+        if f["code"] == "MQC008_PROTOCOL_TRACK_MISMATCH"
+    )
+    assert finding["severity"] == "FAIL"
+    assert finding["blocks_release"] is True
+
+
+def test_protocol_mismatch_without_a_runtime_path_only_warns(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=MCP_2X
+        ),
+    ]
+    finding = next(
+        f
+        for f in _report(entries)["findings"]
+        if f["code"] == "MQC008_PROTOCOL_TRACK_MISMATCH"
+    )
+    assert finding["severity"] == "WARN"
+    assert finding["blocks_release"] is False
+
+
+def test_matched_contract_becomes_a_relationship(tmp_path) -> None:
+    producer = dict(DECLARED_MCP_1X, produces=["mq-mcp.tools.v1"])
+    consumer = dict(DECLARED_MCP_1X, consumes=["mq-mcp.tools.v1"])
+    entries = [
+        _make_repo(tmp_path, "producer", compat=producer),
+        _make_repo(tmp_path, "consumer", compat=consumer),
+    ]
+    report = _report(entries)
+    relationship = next(
+        r for r in report["relationships"] if r["subject"] == "mq-mcp.tools.v1"
+    )
+    assert relationship["producer"] == "producer"
+    assert relationship["consumer"] == "consumer"
+    assert relationship["status"] == "PASS"
+    assert relationship["overlap"] is None
+
+
+def test_consumer_without_a_producer_is_flagged(tmp_path) -> None:
+    entries = [
+        _make_repo(
+            tmp_path, "consumer",
+            compat=dict(DECLARED_MCP_1X, consumes=["mq-mcp.tools.v1"]),
+        ),
+        _make_repo(tmp_path, "bystander", compat=DECLARED_MCP_1X),
+    ]
+    report = _report(entries)
+    finding = next(
+        f
+        for f in report["findings"]
+        if f["code"] == "MQC013_CONTRACT_UNPRODUCED"
+    )
+    assert finding["repo"] == "consumer"
+    assert "mq-mcp.tools.v1" in finding["message"]
+    assert finding["blocks_release"] is False
+    # A relationship needs two parties; an unproduced contract is a finding
+    # against the consumer, not a half-populated edge.
+    subjects = [r["subject"] for r in report["relationships"]]
+    assert "mq-mcp.tools.v1" not in subjects
+
+
+def test_unavailable_repo_creates_no_relationships(tmp_path) -> None:
+    """A missing repo is unknown, not incompatible."""
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        {"name": "gone", "path": str(tmp_path / "gone"), "role": "test"},
+    ]
+    report = _report(entries)
+    assert report["relationships"] == []
+    codes = [f["code"] for f in report["findings"]]
+    assert "MQC007_DECLARED_RANGES_DISJOINT" not in codes
+
+
+def test_relationships_are_deterministic(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-b", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "repo-c", compat=DECLARED_MCP_1X),
+    ]
+    first = _report(entries)["relationships"]
+    second = _report(entries)["relationships"]
+    assert first == second
+    assert [(r["producer"], r["consumer"]) for r in first] == sorted(
+        (r["producer"], r["consumer"]) for r in first
+    )
+
+
+def test_phase3_report_validates_against_schema(tmp_path, validator) -> None:
+    producer = dict(DECLARED_MCP_1X, produces=["mq-mcp.tools.v1"])
+    consumer = dict(MCP_2X, consumes=["mq-mcp.tools.v1", "nobody.produces.this"])
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=producer),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=consumer
+        ),
+        _make_repo(tmp_path, "repo-c", compat=None),
+    ]
+    report = _report(entries)
+    errors = list(validator.iter_errors(report))
+    assert not errors, [e.message for e in errors]
+    assert report["relationships"], "expected relationships to be populated"
+
+
+def test_identical_upper_bounds_do_not_fail(tmp_path) -> None:
+    """Regression: two repos declaring the same range are not disjoint."""
+    entries = [
+        _make_repo(tmp_path, "repo-a", declared="mcp<2", compat=None),
+        _make_repo(tmp_path, "repo-b", declared="mcp<2", compat=None),
+    ]
+    report = _report(entries)
+    codes = [f["code"] for f in report["findings"]]
+    assert "MQC007_DECLARED_RANGES_DISJOINT" not in codes
+    relationship = next(r for r in report["relationships"] if r["subject"] == "mcp")
+    assert relationship["overlap"] is True
+
+
+def test_unproduced_contract_is_not_claimed_from_a_partial_view(tmp_path) -> None:
+    """Unknown is not incompatible: a repo we could not read may produce it."""
+    entries = [
+        _make_repo(
+            tmp_path, "consumer",
+            compat=dict(DECLARED_MCP_1X, consumes=["mq-mcp.tools.v1"]),
+        ),
+        {"name": "gone", "path": str(tmp_path / "gone"), "role": "test"},
+    ]
+    codes = [f["code"] for f in _report(entries)["findings"]]
+    assert "MQC013_CONTRACT_UNPRODUCED" not in codes
+
+
+def test_self_produced_contract_is_not_flagged(tmp_path) -> None:
+    both = dict(
+        DECLARED_MCP_1X,
+        produces=["mq-mcp.tools.v1"],
+        consumes=["mq-mcp.tools.v1"],
+    )
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=both),
+        _make_repo(tmp_path, "repo-b", compat=DECLARED_MCP_1X),
+    ]
+    codes = [f["code"] for f in _report(entries)["findings"]]
+    assert "MQC013_CONTRACT_UNPRODUCED" not in codes
+
+
+def test_relationship_status_reflects_a_protocol_mismatch(tmp_path) -> None:
+    """A pair that raises a blocking finding must not render as PASS."""
+    producer = dict(DECLARED_MCP_1X, produces=["mq-mcp.tools.v1"])
+    consumer = dict(MCP_2X, consumes=["mq-mcp.tools.v1"])
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=producer),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=1.5,<3", locked="2.0.0", compat=consumer
+        ),
+    ]
+    report = _report(entries)
+    relationship = next(r for r in report["relationships"] if r["subject"] == "mcp")
+    assert relationship["overlap"] is True, "ranges do overlap; the tracks do not"
+    assert relationship["status"] == "FAIL"
+
+
+def test_protocol_tracks_compare_without_a_shared_dependency_row(tmp_path) -> None:
+    """Parallel tracks are visible even when one repo pins nothing itself."""
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(
+            tmp_path, "repo-b", declared="requests>=2,<3", locked=None, compat=MCP_2X
+        ),
+    ]
+    codes = [f["code"] for f in _report(entries)["findings"]]
+    assert "MQC008_PROTOCOL_TRACK_MISMATCH" in codes
+
+
+def test_relationships_survive_a_repo_without_metadata(tmp_path) -> None:
+    """Rollout state: one repo declares nothing and must not break the pass."""
+    entries = [
+        _make_repo(tmp_path, "declared", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "undeclared", compat=None),
+    ]
+    report = _report(entries)
+    relationship = next(r for r in report["relationships"] if r["subject"] == "mcp")
+    assert relationship["overlap"] is True
+    assert relationship["status"] == "PASS"

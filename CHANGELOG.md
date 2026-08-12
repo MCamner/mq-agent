@@ -36,6 +36,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   inconsistent metadata (`MQC011`, FAIL) and from a range that contradicts its
   own protocol track (`MQC012`, FAIL).
 
+* Phase 3 — stack relationships. The report's `relationships` array is now
+  populated: produced contracts are matched to the repos that consume them,
+  and every pair of repos sharing a tracked dependency is assessed for range
+  overlap. Ranges that share no version fail as `MQC007`; parallel protocol
+  tracks raise `MQC008` (WARN across the stack, FAIL when the two repos are
+  wired together through a produced/consumed contract); a consumed contract
+  nobody produces raises the new non-blocking `MQC013`. Repos that could not
+  be read are skipped rather than treated as incompatible.
+* `stack compatibility` prints a Relationships section in human mode, so a
+  cross-repo verdict shows the observed ranges on both sides instead of only a
+  summary status.
+
 ### Changed
 
 * `schemas/mq_stack_repo_contract.schema.json` gained the optional
