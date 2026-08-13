@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
@@ -16,7 +17,9 @@ from mq_agent.tools.release_cockpit import (
 
 
 def _evidence(**overrides) -> ReleaseEvidence:
-    values = {
+    # Annotated so **values keeps its per-field types at the call site; an
+    # inferred dict[str, object] makes every keyword argument a type error.
+    values: dict[str, Any] = {
         "repo": "mq-agent",
         "path": "/repo",
         "path_exists": True,

@@ -60,26 +60,32 @@ def _make_repo(
     (repo / "VERSION").write_text(f"{version}\n", encoding="utf-8")
 
     if contract:
-        body: dict[str, Any] = {"repo": name, "role": "test", "version": version}
+        contract_body: dict[str, Any] = {
+            "repo": name,
+            "role": "test",
+            "version": version,
+        }
         if compat is not None:
-            body["compatibility"] = compat
+            contract_body["compatibility"] = compat
         (repo / ".mq").mkdir(exist_ok=True)
         (repo / ".mq" / "repo-contract.json").write_text(
-            json.dumps(body), encoding="utf-8"
+            json.dumps(contract_body), encoding="utf-8"
         )
 
     if declared is not None:
         if optional_extra:
-            body = (
+            pyproject_body = (
                 "[project]\nname = 'x'\nversion = '1'\n"
                 f"[project.optional-dependencies]\nmcp = ['{declared}']\n"
             )
         else:
-            body = (
+            pyproject_body = (
                 "[project]\nname = 'x'\nversion = '1'\n"
                 f"dependencies = ['{declared}']\n"
             )
-        (package_dir / "pyproject.toml").write_text(body, encoding="utf-8")
+        (package_dir / "pyproject.toml").write_text(
+            pyproject_body, encoding="utf-8"
+        )
 
     if locked is not None:
         (package_dir / "uv.lock").write_text(
@@ -105,8 +111,13 @@ DECLARED_MCP_1X: dict[str, Any] = {
 
 
 def test_schema_file_is_valid(validator: Draft202012Validator) -> None:
+    # The fixture already ran check_schema; a JSON Schema may legally be a
+    # bare boolean, so read the title from the file rather than indexing
+    # validator.schema.
     assert SCHEMA_PATH.is_file()
-    assert validator.schema["title"] == COMPATIBILITY_SCHEMA
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    assert schema["title"] == COMPATIBILITY_SCHEMA
+    assert validator.schema is not None
 
 
 def test_report_validates_against_schema(tmp_path, validator) -> None:
