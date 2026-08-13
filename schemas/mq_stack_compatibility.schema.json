@@ -69,11 +69,12 @@
     },
     "severity": {
       "enum": [
+        "SKIPPED",
         "WARN",
         "FAIL",
         "UNAVAILABLE"
       ],
-      "description": "Findings never carry PASS or SKIPPED; absence of findings is the pass signal."
+      "description": "Findings never carry PASS; absence of findings is the pass signal. SKIPPED records something this gate does not cover, such as a repo with no Python dependency source \u2014 distinct from UNAVAILABLE, which means the check itself could not run."
     },
     "code": {
       "enum": [

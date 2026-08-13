@@ -269,10 +269,10 @@ def test_invalid_contract_json_is_reported(tmp_path) -> None:
     assert "MQC003_CONTRACT_INVALID" in [f["code"] for f in report["findings"]]
 
 
-def test_missing_dependency_source_is_unavailable(tmp_path) -> None:
+def test_missing_dependency_source_is_skipped(tmp_path) -> None:
     entries = [_make_repo(tmp_path, "repo-a", declared=None, locked=None)]
     report = _report(entries)
-    assert report["components"][0]["status"] == "UNAVAILABLE"
+    assert report["components"][0]["status"] == "SKIPPED"
     assert "MQC004_DEPENDENCY_SOURCE_MISSING" in [f["code"] for f in report["findings"]]
 
 
@@ -1159,3 +1159,55 @@ def test_repo_verdict_reports_only_what_implicates_the_repo(tmp_path) -> None:
     implicated = repo_verdict(report, "repo-b")
     assert implicated["status"] == "FAIL"
     assert implicated["blocking"][0]["code"] == "MQC007_DECLARED_RANGES_DISJOINT"
+
+
+# ── Phase 6: repos outside this gate's reach ───────────────────────────────
+
+
+def test_a_repo_without_python_dependencies_is_skipped_not_unavailable(
+    tmp_path,
+) -> None:
+    """Shell and Node repos have nothing to assess, which is not the same as a
+    check that could not run. Ranking them UNAVAILABLE exits 3 and fails CI for
+    repositories this gate was never going to cover."""
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(tmp_path, "shell-repo", declared=None, locked=None),
+    ]
+    report = _report(entries)
+
+    statuses = {c["repo"]: c["status"] for c in report["components"]}
+    assert statuses["shell-repo"] == "SKIPPED"
+    assert report["status"] == "SKIPPED"
+
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC004_DEPENDENCY_SOURCE_MISSING"
+    )
+    assert finding["severity"] == "SKIPPED"
+    assert finding["blocks_release"] is False
+
+
+def test_a_skipped_stack_exits_zero() -> None:
+    assert _cli(_fixed("SKIPPED"), "--json").exit_code == 0
+
+
+def test_a_missing_repo_stays_unavailable(tmp_path) -> None:
+    """A repo that is not on this machine is still a check that did not run."""
+    entries = [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        {"name": "gone", "path": str(tmp_path / "gone"), "role": "test"},
+    ]
+    report = _report(entries)
+
+    assert report["status"] == "UNAVAILABLE"
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC001_REPO_NOT_FOUND"
+    )
+    assert finding["severity"] == "UNAVAILABLE"
+
+
+def test_skipped_report_names_what_it_did_not_assess(tmp_path) -> None:
+    entries = [_make_repo(tmp_path, "shell-repo", declared=None, locked=None)]
+    report = _report(entries)
+    assert "shell-repo" in report["next_action"]
+    assert "nothing for this gate to assess" in report["next_action"]

@@ -425,8 +425,10 @@ Proposed exit codes:
 * [ ] Check shared Python and JSON contracts.
 * [ ] Check versioned observations, feedback, and memory schemas.
 * [ ] Add regression fixtures for previous real drift failures.
-* [ ] Document exceptions for components using different package managers or
-  runtimes.
+* [x] Document exceptions for components using different package managers or
+  runtimes. `mqlaunch` (shell), `mq-hal` (shell) and `mq-ums` (Node) declare no
+  Python dependencies and are reported `SKIPPED` — nothing to assess, as
+  opposed to a check that could not run.
 
 ### First regression case
 
