@@ -50,6 +50,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+* CI type-checks `tests/` alongside `mq_agent/`. The test suite already had
+  four type errors that no gate would have caught; they are fixed and the
+  gate now holds the line.
 * `schemas/mq_stack_repo_contract.schema.json` gained the optional
   `compatibility` property. Contracts without it stay valid; the schema
   previously set `additionalProperties: false`, so a repo adding the block

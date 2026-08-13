@@ -29,7 +29,7 @@ jobs:
         run: uv run ruff check --select E4,E7,E9,F mq_agent/
 
       - name: Type check
-        run: uv run mypy mq_agent/ --ignore-missing-imports
+        run: uv run mypy mq_agent/ tests/ --ignore-missing-imports
 
       - name: Docs consistency
         run: bash scripts/check-docs-consistency.sh
