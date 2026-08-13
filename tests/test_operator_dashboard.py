@@ -59,11 +59,47 @@ def _fake_cockpit() -> str:
     })
 
 
-def _patch_dashboard_deps(monkeypatch, cockpit: str | None = None, ollama_ok: bool = True) -> None:
+def _fake_compatibility(status: str = "PASS", blocking: bool = False) -> dict[str, Any]:
+    return {
+        "schema": "mq.stack-compatibility.v1",
+        "status": status,
+        "mode": "static",
+        "components": [],
+        "relationships": [],
+        "findings": (
+            [
+                {
+                    "code": "MQC012_PROTOCOL_CONTRADICTS_RANGE",
+                    "severity": "FAIL",
+                    "repo": "mq-mcp",
+                    "message": "allows mcp 2.x",
+                    "blocks_release": True,
+                }
+            ]
+            if blocking
+            else []
+        ),
+        "next_action": "Resolve MQC012_PROTOCOL_CONTRADICTS_RANGE in mq-mcp" if blocking else "",
+        "checked_at": "2026-06-12T00:00:00+00:00",
+    }
+
+
+def _patch_dashboard_deps(
+    monkeypatch,
+    cockpit: str | None = None,
+    ollama_ok: bool = True,
+    compatibility: dict[str, Any] | None = None,
+) -> None:
     model_runtime = import_module("mq_agent.tools.model_runtime")
     stack_cockpit = import_module("mq_agent.tools.stack_cockpit")
+    compat = import_module("mq_agent.tools.stack_compatibility")
 
     monkeypatch.setattr(stack_cockpit, "stack_cockpit", lambda: cockpit or _fake_cockpit())
+    monkeypatch.setattr(
+        compat,
+        "build_report",
+        lambda **kwargs: compatibility or _fake_compatibility(),
+    )
     monkeypatch.setattr(
         model_runtime,
         "current_model",
@@ -138,6 +174,107 @@ def test_dashboard_cli_json(monkeypatch):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["stack"]["repo_count"] == 2
+
+
+def test_dashboard_reports_stack_compatibility(monkeypatch):
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    _patch_dashboard_deps(monkeypatch)
+    data = json.loads(operator_dashboard())
+
+    assert data["compatibility"]["status"] == "PASS"
+    assert data["compatibility"]["mode"] == "static"
+    assert data["compatibility"]["blocking_count"] == 0
+
+
+def test_incompatible_stack_forces_attention(monkeypatch):
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    clean = json.loads(_fake_cockpit())
+    clean["repos"][1]["dirty"] = False
+    clean["repos"][1]["next_action"] = "up to date"
+    _patch_dashboard_deps(
+        monkeypatch,
+        cockpit=json.dumps(clean),
+        compatibility=_fake_compatibility("FAIL", blocking=True),
+    )
+
+    data = json.loads(operator_dashboard())
+
+    assert data["overall"] == "ATTENTION"
+    assert data["compatibility"]["blocking_count"] == 1
+    assert data["next_action"] == "Resolve MQC012_PROTOCOL_CONTRADICTS_RANGE in mq-mcp"
+
+
+def test_incompatibility_outranks_routine_repo_chores(monkeypatch):
+    # The default fixture has a dirty repo. A release-blocking incompatibility
+    # must not sit behind "commit or stash uncommitted changes".
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    _patch_dashboard_deps(
+        monkeypatch, compatibility=_fake_compatibility("FAIL", blocking=True)
+    )
+    data = json.loads(operator_dashboard())
+
+    assert data["next_action"] == "Resolve MQC012_PROTOCOL_CONTRADICTS_RANGE in mq-mcp"
+    assert data["next_action_contract"]["suggested_route"] == (
+        "mq-agent stack compatibility"
+    )
+
+
+def test_dashboard_assesses_the_whole_stack(monkeypatch):
+    # The dashboard speaks for the stack, so it must not report the MCP slice's
+    # verdict as the stack's.
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    seen: dict[str, Any] = {}
+    _patch_dashboard_deps(monkeypatch)
+    compat = import_module("mq_agent.tools.stack_compatibility")
+
+    def _capture(**kwargs):
+        seen.update(kwargs)
+        return _fake_compatibility()
+
+    monkeypatch.setattr(compat, "build_report", _capture)
+    operator_dashboard()
+
+    assert seen["slice_only"] is False
+
+
+def test_missing_compatibility_metadata_does_not_block_the_dashboard(monkeypatch):
+    # WARN is the normal state while repos are still declaring their boundary.
+    # Letting it force ATTENTION would make the dashboard permanently amber.
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    clean = json.loads(_fake_cockpit())
+    clean["repos"][1]["dirty"] = False
+    clean["repos"][1]["next_action"] = "up to date"
+    _patch_dashboard_deps(
+        monkeypatch,
+        cockpit=json.dumps(clean),
+        compatibility=_fake_compatibility("WARN"),
+    )
+
+    data = json.loads(operator_dashboard())
+
+    assert data["compatibility"]["status"] == "WARN"
+    assert data["overall"] == "READY"
+
+
+def test_dashboard_survives_a_failing_compatibility_read(monkeypatch):
+    from mq_agent.tools.operator_dashboard import operator_dashboard
+
+    _patch_dashboard_deps(monkeypatch)
+    compat = import_module("mq_agent.tools.stack_compatibility")
+
+    def _boom(**kwargs):
+        raise OSError("unreadable")
+
+    monkeypatch.setattr(compat, "build_report", _boom)
+    data = json.loads(operator_dashboard())
+
+    assert data["compatibility"]["status"] == "UNAVAILABLE"
+    assert data["compatibility"]["blocking_count"] == 0
 
 
 def test_dashboard_cli_table(monkeypatch):

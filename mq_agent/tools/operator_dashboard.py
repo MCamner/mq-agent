@@ -32,6 +32,38 @@ def _dashboard_action_contract(
     }
 
 
+def _compatibility_summary() -> dict[str, Any]:
+    """Static compatibility verdict for the dashboard.
+
+    Static only: the dashboard is a fast read-only snapshot, and a fresh
+    resolution shells out to uv and needs a registry. A summary that cannot be
+    produced is UNAVAILABLE — the dashboard must not fail because one section
+    could not be read.
+
+    The whole stack, not the MCP slice: the dashboard speaks for the stack, and
+    reporting two repos' verdict as the stack's would hide an incompatibility
+    between any of the others.
+    """
+    from mq_agent.tools.stack_compatibility import build_report
+
+    try:
+        report = build_report(slice_only=False)
+    except Exception:
+        return {
+            "status": "UNAVAILABLE",
+            "mode": "static",
+            "blocking_count": 0,
+            "next_action": "run mq-agent stack compatibility to see why",
+        }
+
+    return {
+        "status": report["status"],
+        "mode": report["mode"],
+        "blocking_count": sum(1 for f in report["findings"] if f["blocks_release"]),
+        "next_action": report["next_action"],
+    }
+
+
 def operator_dashboard() -> str:
     """Return a read-only operator snapshot for stack, brain, Ollama and contracts."""
     from mq_agent.tools.model_runtime import current_model, list_ollama_models
@@ -56,7 +88,24 @@ def operator_dashboard() -> str:
     brain_status = cockpit.get("brain_export", {}).get("status")
     brain_ready = brain_status in ("fresh", "aging")
 
-    if actionable:
+    # Only a proven incompatibility counts against the dashboard. WARN is the
+    # normal state while repos are still declaring their boundary, and
+    # UNAVAILABLE says the check could not run, not that the stack is broken.
+    compatibility = _compatibility_summary()
+    compatible = compatibility["status"] != "FAIL"
+
+    # A release-blocking incompatibility comes before repo chores: it outranks
+    # a dirty tree or an unswitched branch, and nothing else in the stack can
+    # be finished around it.
+    if not compatible:
+        next_action = compatibility["next_action"] or "resolve the stack incompatibility"
+        next_action_contract = _dashboard_action_contract(
+            next_action,
+            severity="attention",
+            suggested_route="mq-agent stack compatibility",
+            requires_approval=True,
+        )
+    elif actionable:
         cockpit_action = cockpit.get("next_action")
         if cockpit_action and cockpit_action != "all green":
             next_action = cockpit_action
@@ -98,7 +147,11 @@ def operator_dashboard() -> str:
             requires_approval=False,
         )
 
-    overall = "READY" if stack_ready and brain_ready and ollama_ok else "ATTENTION"
+    overall = (
+        "READY"
+        if stack_ready and brain_ready and ollama_ok and compatible
+        else "ATTENTION"
+    )
 
     return json.dumps({
         "schema": OPERATOR_DASHBOARD_SCHEMA,
@@ -113,6 +166,7 @@ def operator_dashboard() -> str:
             "dirty_count": len(dirty),
             "release_blocked_count": len(release_blocked),
         },
+        "compatibility": compatibility,
         "brain": cockpit.get("brain_export", {}),
         "ollama": {
             "ok": ollama_ok,

@@ -78,6 +78,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `pyproject.toml` without the lockfile being regenerated — the gate's own
   repo carrying exactly the drift the gate looks for.
 
+### Added (Phase 5)
+
+* Operator surfaces and gates. `mq-agent dashboard` carries a Compatibility row
+  and the static verdict in its JSON payload; only a proven `FAIL` counts
+  against the dashboard's overall status, since `WARN` is the normal state
+  while repos are still declaring their boundary. The stack gate workflow runs
+  the static check on pushes to `main` and adds `--fresh-resolve` on the
+  nightly schedule and on manual dispatch, where a registry is reachable. Pull
+  requests deliberately do not run it: only the checkout exists there, so every
+  sibling would report `UNAVAILABLE`.
+* `stack compatibility --strict` exits 1 on `WARN`, and an interrupted run
+  exits 130 instead of reporting a verdict it never reached.
+* `docs/STACK_CONTRACT_GATE.md` documents every status, exit code and finding
+  against what it blocks.
+
 ### Fixed
 
 * A dependency declared with no version at all (`dependencies = ['mcp']`) was

@@ -172,7 +172,8 @@ hiding the lower-level release evidence.
 
 ## Next release — v1.26.0 Stack Compatibility Gate
 
-* **Status:** In progress — Phase 0 through Phase 4 delivered; Phase 5 next
+* **Status:** In progress — Phase 0 through Phase 5 delivered in `mq-agent`;
+  the `mq-hal` and `mqlaunch` surfaces are owned by those repos
 * **Priority:** P1
 * **Owner:** `mq-agent`
 * **Consumers:** `mq-hal`, `macos-scripts`, CI
@@ -382,14 +383,17 @@ that have not declared theirs.
 
 **Deliverable:** operator surfaces and automated gates.
 
-* [ ] Add `stack compatibility`, `--json`, and `--fresh-resolve`.
-* [ ] Show the summary in `mq-agent dashboard`.
-* [ ] Expose the result read-only through `mq-hal`.
-* [ ] Delegate from `mqlaunch` without duplicated logic.
-* [ ] Run static checks in relevant PR and release workflows.
-* [ ] Run fresh resolution on a schedule or before release.
-* [ ] Preserve exit codes and human/JSON parity.
-* [ ] Document which statuses block merge or release.
+* [x] Add `stack compatibility`, `--json`, and `--fresh-resolve`.
+* [x] Show the summary in `mq-agent dashboard`.
+* [ ] Expose the result read-only through `mq-hal`. Owned by `mq-hal`.
+* [ ] Delegate from `mqlaunch` without duplicated logic. Owned by
+  `macos-scripts`.
+* [ ] Run static checks in relevant PR and release workflows. Deliberately not
+  on pull requests: only the checkout exists there, so every sibling reports
+  `UNAVAILABLE` and the gate says nothing. It runs on push to `main`.
+* [x] Run fresh resolution on a schedule or before release.
+* [x] Preserve exit codes and human/JSON parity.
+* [x] Document which statuses block merge or release.
 
 Proposed exit codes:
 
@@ -408,6 +412,9 @@ Proposed exit codes:
 
 ### Phase 6 — Extend across the MQ stack
 
+* [ ] Enforce `blocks_release` in `stack release-check` and the release
+  cockpit. The flag is currently a machine-readable signal that only CI acts
+  on, so a FAIL fails the job on `main` rather than refusing a release.
 * [ ] Add `mq-agent`, `mq-hal`, `repo-signal`, `macos-scripts`, and
   `mqobsidian`.
 * [ ] Add `mq-ums` where machine-readable contracts exist.

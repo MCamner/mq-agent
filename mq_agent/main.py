@@ -1624,6 +1624,19 @@ def dashboard_cmd(
     contract_status = "[green]READY[/green]" if stack["contract"] == "READY" else "[red]NOT READY[/red]"
     table.add_row("Contracts", contract_status, ", ".join(f"{k}={v}" for k, v in sorted(data["contracts"].items())))
 
+    compat = data.get("compatibility")
+    if compat:
+        compat_style = {
+            "PASS": "green", "WARN": "yellow", "FAIL": "red",
+            "SKIPPED": "dim", "UNAVAILABLE": "dim",
+        }.get(compat["status"], "dim")
+        blocking = compat["blocking_count"]
+        table.add_row(
+            "Compatibility",
+            f"[{compat_style}]{compat['status']}[/{compat_style}]",
+            f"{blocking} release blocker(s), {compat['mode']} check",
+        )
+
     brain = data["brain"]
     brain_style = {"fresh": "green", "aging": "yellow", "stale": "red", "none": "red"}.get(brain.get("status"), "dim")
     table.add_row("Brain", f"[{brain_style}]{brain.get('status', 'unknown')}[/{brain_style}]", brain.get("path") or "no stack-truth note")
@@ -4636,6 +4649,7 @@ def stack_compatibility_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
     all_repos: Annotated[bool, typer.Option("--all", help="Inventory the whole stack instead of the MCP slice")] = False,
     fresh_resolve: Annotated[bool, typer.Option("--fresh-resolve", help="Also resolve declared ranges in a temporary directory and probe critical imports (needs uv and network)")] = False,
+    strict: Annotated[bool, typer.Option("--strict", help="Exit 1 on WARN instead of 0")] = False,
 ):
     """Assess dependency compatibility across MQ repositories (read-only).
 
@@ -4648,7 +4662,8 @@ def stack_compatibility_cmd(
     resolves outside every working tree, never reads or writes a lockfile, and
     reports an unreachable registry as UNAVAILABLE rather than incompatibility.
 
-    Exit codes: 0 PASS or WARN, 2 FAIL, 3 UNAVAILABLE.
+    Exit codes: 0 PASS or WARN, 1 WARN under --strict, 2 FAIL, 3 UNAVAILABLE,
+    130 interrupted.
     """
     from mq_agent.tools.stack_compatibility import stack_compatibility as _check
 
@@ -4657,13 +4672,22 @@ def stack_compatibility_cmd(
         if fresh_resolve
         else "[cyan]Reading dependency sources...[/cyan]"
     )
-    with console.status(label):
-        raw = _check(slice_only=not all_repos, fresh_resolve=fresh_resolve)
+    try:
+        with console.status(label):
+            raw = _check(slice_only=not all_repos, fresh_resolve=fresh_resolve)
+    except KeyboardInterrupt:
+        # A fresh resolution shells out; Ctrl-C must not read as a verdict.
+        console.print("\n[dim]Interrupted — no verdict was reached.[/dim]")
+        raise typer.Exit(130) from None
 
     data = json.loads(raw)
-    exit_code = {"PASS": 0, "SKIPPED": 0, "WARN": 0, "FAIL": 2, "UNAVAILABLE": 3}.get(
-        data["status"], 0
-    )
+    exit_code = {
+        "PASS": 0,
+        "SKIPPED": 0,
+        "WARN": 1 if strict else 0,
+        "FAIL": 2,
+        "UNAVAILABLE": 3,
+    }.get(data["status"], 0)
 
     if json_out:
         typer.echo(raw)

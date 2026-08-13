@@ -89,6 +89,84 @@ that lies is worse than no contract.
 `dependencies` is compared as a normalised specifier set, so `>=1.27.1,<2` and
 `<2,>=1.27.1` are treated as the same boundary.
 
+### `import_probes`
+
+A repo may declare the statements that prove its contract still holds against a
+freshly resolved dependency:
+
+```json
+{
+  "compatibility": {
+    "import_probes": { "mcp": "from mcp.server.fastmcp import FastMCP" }
+  }
+}
+```
+
+Any Python statement works, so a repo can smoke its own contract rather than
+only its imports. Repos that declare nothing get the default probe above;
+declaring an empty object opts out.
+
+## What blocks merge and release
+
+`mq-agent stack compatibility` maps its verdict onto exit codes:
+
+| Status | Exit | Meaning | Blocks |
+|---|---|---|---|
+| `PASS` | 0 | Everything assessed, nothing wrong | No |
+| `SKIPPED` | 0 | Nothing to assess | No |
+| `WARN` | 0, or 1 with `--strict` | A real observation that is non-blocking during rollout | No |
+| `FAIL` | 2 | A proven incompatibility | Yes |
+| `UNAVAILABLE` | 3 | The check could not be run | Yes, in CI |
+| — | 130 | Interrupted before a verdict | — |
+
+Every finding carries `blocks_release`, and only `FAIL` findings set it. WARN
+and UNAVAILABLE never block on their own.
+
+**Where that is enforced today:** the push-to-`main` job and the nightly job in
+`.github/workflows/mq-stack-gate.yml`. `blocks_release` is the machine-readable
+signal; `mq-agent stack release-check` and the release cockpit do not yet read
+it, so a FAIL fails CI on `main` rather than refusing a release. Wiring it into
+the release gate is Phase 6.
+
+`UNAVAILABLE` deserves the emphasis: it is not a pass. A missing sibling repo
+locally is expected and harmless, but an explicitly requested `--fresh-resolve`
+that could not reach the registry has assessed nothing, and the nightly job
+fails on it deliberately.
+
+| Finding | Severity | Blocks release |
+|---|---|---|
+| `MQC002_CONTRACT_MISSING` | WARN | No |
+| `MQC003_CONTRACT_INVALID` | WARN | No |
+| `MQC005_DECLARED_RANGE_UNBOUNDED` | WARN | No |
+| `MQC006_LOCKED_OUTSIDE_DECLARED` | FAIL | Yes |
+| `MQC007_DECLARED_RANGES_DISJOINT` | FAIL | Yes |
+| `MQC008_PROTOCOL_TRACK_MISMATCH` | WARN, or FAIL when the repos are wired together | Only as FAIL |
+| `MQC009_COMPATIBILITY_METADATA_MISSING` | WARN | No |
+| `MQC011_DECLARED_DEPENDENCY_MISMATCH` | FAIL | Yes |
+| `MQC012_PROTOCOL_CONTRADICTS_RANGE` | FAIL | Yes |
+| `MQC013_CONTRACT_UNPRODUCED` | WARN | No |
+| `MQC015_RESOLVED_DIFFERS_FROM_LOCKED` | WARN | No |
+| `MQC016_IMPORT_PROBE_FAILED` | FAIL | Yes |
+| `MQC017_RESOLVE_CONFLICT` | FAIL | Yes |
+| `MQC001`, `MQC004`, `MQC010`, `MQC014` | UNAVAILABLE | No, but never green |
+
+Finding codes are append-only within `mq.stack-compatibility.v1`.
+
+## Where the gate runs
+
+* **Pull requests** — not run. Only the mq-agent checkout exists there, so
+  every sibling would report `UNAVAILABLE` and the gate would say nothing.
+* **Push to `main`** — the static check, with every stack repo checked out.
+* **Nightly and manual dispatch** — the static check plus
+  `--fresh-resolve`, which needs a package registry.
+
+```bash
+mq-agent stack compatibility                  # declared and locked versions
+mq-agent stack compatibility --fresh-resolve  # what a new install would select
+mq-agent stack compatibility --strict         # WARN exits 1
+mq-agent stack compatibility --all            # whole stack, not just the MCP slice
+```
+
 ## Example output
 
 ```text
