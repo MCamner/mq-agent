@@ -785,6 +785,7 @@ def _relationships(
                     "code": "MQC008_PROTOCOL_TRACK_MISMATCH",
                     "severity": mismatch_severity,
                     "repo": left["repo"],
+                    "repos": [left["repo"], right["repo"]],
                     "message": (
                         f"{left['repo']} targets {key}={left_track!r} but "
                         f"{right['repo']} targets {right_track!r}"
@@ -826,6 +827,7 @@ def _relationships(
                             "code": "MQC007_DECLARED_RANGES_DISJOINT",
                             "severity": "FAIL",
                             "repo": left["repo"],
+                            "repos": [left["repo"], right["repo"]],
                             "message": (
                                 f"{left['repo']} declares {name} {left_spec!r} and "
                                 f"{right['repo']} declares {right_spec!r} — the "
@@ -963,6 +965,50 @@ def build_report(
         "findings": findings,
         "next_action": _next_action(status, findings),
         "checked_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def release_blockers(report: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Group the findings that block a release by every repository they implicate.
+
+    A pairwise finding names one repo in `repo` so its message reads naturally,
+    but it implicates both. Keying only on `repo` would block the left-hand repo
+    and let the other half of the same incompatible pair release.
+
+    Only `blocks_release` findings appear here. A warning is a real observation
+    and an unavailable check is an absence of one — neither is a proven
+    incompatibility, and neither may refuse a release.
+    """
+    blockers: dict[str, list[dict[str, Any]]] = {}
+    for finding in report.get("findings", []):
+        if not finding.get("blocks_release"):
+            continue
+        for repo in finding.get("repos") or [finding["repo"]]:
+            blockers.setdefault(repo, []).append(finding)
+    return blockers
+
+
+def repo_verdict(report: dict[str, Any], repo: str) -> dict[str, Any]:
+    """Return one repository's own compatibility verdict.
+
+    `status` covers only the findings that implicate `repo`, so it can be read
+    beside that repository's other checks: a proven incompatibility elsewhere in
+    the stack is not this repository's verdict. The whole-stack status is kept
+    alongside it rather than folded into it.
+    """
+    implicated = [
+        f
+        for f in report.get("findings", [])
+        if repo in (f.get("repos") or [f["repo"]])
+    ]
+    return {
+        "status": _worst([f["severity"] for f in implicated]),
+        "stack_status": report.get("status", "UNAVAILABLE"),
+        "blocking": [
+            {"code": f["code"], "message": f["message"]}
+            for f in implicated
+            if f.get("blocks_release")
+        ],
     }
 
 

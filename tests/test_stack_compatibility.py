@@ -22,6 +22,8 @@ from mq_agent.tools.stack_compatibility import (
     _is_bounded,
     _ranges_overlap,
     build_report,
+    release_blockers,
+    repo_verdict,
     stack_compatibility,
 )
 
@@ -971,3 +973,189 @@ def test_interruption_exits_130() -> None:
         result = CliRunner().invoke(app, ["stack", "compatibility"])
 
     assert result.exit_code == 130
+
+
+# ── Phase 6: release enforcement ───────────────────────────────────────────
+
+
+def _disjoint_stack(tmp_path: Path) -> list[dict[str, str]]:
+    """Two repos whose declared ranges share no version — a proven FAIL."""
+    return [
+        _make_repo(tmp_path, "repo-a", compat=DECLARED_MCP_1X),
+        _make_repo(
+            tmp_path, "repo-b", declared="mcp>=2,<3", locked="2.0.0", compat=MCP_2X
+        ),
+    ]
+
+
+def _release_ready(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Give each synthetic repo the files release-check requires."""
+    for entry in entries:
+        (Path(entry["path"]) / "README.md").write_text("# x\n", encoding="utf-8")
+    return entries
+
+
+def _release_check(entries: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+    from mq_agent.tools import stack_tools
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(stack_tools, "MQ_STACK_REPOS", entries)
+        return json.loads(stack_tools.stack_release_check(**kwargs))
+
+
+def test_pairwise_finding_names_every_repo_it_implicates(tmp_path) -> None:
+    report = _report(_disjoint_stack(tmp_path))
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC007_DECLARED_RANGES_DISJOINT"
+    )
+    assert finding["repos"] == ["repo-a", "repo-b"]
+
+
+def test_release_blockers_block_both_halves_of_an_incompatible_pair(tmp_path) -> None:
+    """Keying on `repo` alone would let the right-hand repo release."""
+    blockers = release_blockers(_report(_disjoint_stack(tmp_path)))
+    assert set(blockers) == {"repo-a", "repo-b"}
+    assert blockers["repo-b"][0]["code"] == "MQC007_DECLARED_RANGES_DISJOINT"
+
+
+def test_release_blockers_ignore_warnings_and_unavailable(tmp_path) -> None:
+    entries = [
+        _make_repo(tmp_path, "repo-a"),
+        {"name": "gone", "path": str(tmp_path / "gone"), "role": "test"},
+    ]
+    report = _report(entries)
+    assert report["status"] in ("WARN", "UNAVAILABLE")
+    assert release_blockers(report) == {}
+
+
+def test_release_check_refuses_a_repo_with_a_compatibility_failure(tmp_path) -> None:
+    data = _release_check(_release_ready(_disjoint_stack(tmp_path)))
+
+    assert data["overall"] == "NO-GO"
+    assert set(data["blocked"]) == {"repo-a", "repo-b"}
+    assert data["compatibility"]["status"] == "FAIL"
+    blockers = [b for repo in data["repos"] for b in repo["blockers"]]
+    assert any("MQC007_DECLARED_RANGES_DISJOINT" in b for b in blockers)
+
+
+def test_release_check_stays_green_on_compatibility_warnings(tmp_path) -> None:
+    entries = _release_ready(
+        [_make_repo(tmp_path, "repo-a"), _make_repo(tmp_path, "repo-b")]
+    )
+    data = _release_check(entries)
+
+    assert data["overall"] == "GO"
+    assert data["compatibility"]["status"] == "WARN"
+    assert data["compatibility"]["blocked_repos"] == []
+
+
+def test_release_check_survives_an_unreadable_compatibility_report(tmp_path) -> None:
+    """A gate that cannot run must not silently refuse every release."""
+    import mq_agent.tools.stack_compatibility as compatibility
+    from mq_agent.tools import stack_tools
+
+    def _boom(**kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("index unreadable")
+
+    entries = _release_ready([_make_repo(tmp_path, "repo-a")])
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(stack_tools, "MQ_STACK_REPOS", entries)
+        patch.setattr(compatibility, "build_report", _boom)
+        data = json.loads(stack_tools.stack_release_check())
+
+    assert data["overall"] == "GO"
+    assert data["compatibility"]["status"] == "UNAVAILABLE"
+    assert "index unreadable" in data["compatibility"]["reason"]
+
+
+def test_release_check_refuses_a_blocker_outside_its_repo_list(tmp_path) -> None:
+    """mqobsidian is excluded from the release inventory, not from the stack."""
+    entries = _release_ready(
+        [
+            _make_repo(
+                tmp_path,
+                "mqobsidian",
+                declared="mcp>=1.27.1,<2",
+                compat={"dependencies": {"mcp": ">=2,<3"}},
+            )
+        ]
+    )
+    data = _release_check(entries)
+
+    assert data["repos"] == []
+    assert data["overall"] == "NO-GO"
+    assert data["compatibility"]["unassigned"] == ["mqobsidian"]
+
+
+def test_release_check_validates_against_its_schema(tmp_path) -> None:
+    schema = json.loads(
+        (REPO_ROOT / "schemas" / "mq_stack_release_check.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    data = _release_check(_release_ready(_disjoint_stack(tmp_path)))
+    errors = list(Draft202012Validator(schema).iter_errors(data))
+    assert not errors, [e.message for e in errors]
+
+
+def test_release_check_names_a_blocker_it_cannot_place_in_the_inventory(
+    tmp_path,
+) -> None:
+    """A NO-GO with nothing named as its cause is a refusal nobody can act on."""
+    entries = _release_ready(
+        [
+            _make_repo(
+                tmp_path,
+                "mqobsidian",
+                declared="mcp>=1.27.1,<2",
+                compat={"dependencies": {"mcp": ">=2,<3"}},
+            )
+        ]
+    )
+    data = _release_check(entries)
+
+    assert data["overall"] == "NO-GO"
+    assert data["blocked"] == ["mqobsidian"]
+
+
+def test_release_check_ci_mode_assesses_the_checkout_under_test(
+    tmp_path, monkeypatch
+) -> None:
+    """A PR checkout does not live at its configured path; reading that path
+    would report the repo under test as UNAVAILABLE and gate nothing."""
+    checkout = tmp_path / "mq-mcp"
+    entry = _make_repo(
+        tmp_path,
+        "mq-mcp",
+        declared="mcp>=1.27.1,<2",
+        compat={"dependencies": {"mcp": ">=2,<3"}},
+    )
+    _release_ready([entry])
+    (checkout / ".git").mkdir()
+    monkeypatch.chdir(checkout)
+
+    configured = [{"name": "mq-mcp", "path": str(tmp_path / "absent"), "role": "test"}]
+    data = _release_check(configured, ci=True)
+
+    assert data["compatibility"]["status"] == "FAIL"
+    assert data["blocked"] == ["mq-mcp"]
+    assert data["overall"] == "NO-GO"
+
+
+def test_repo_verdict_reports_only_what_implicates_the_repo(tmp_path) -> None:
+    # repo-c tracks no shared dependency, so the disjoint pair says nothing
+    # about it. A repo on the 1.x track would genuinely be implicated.
+    report = _report(
+        _disjoint_stack(tmp_path)
+        + [_make_repo(tmp_path, "repo-c", declared=None, locked=None)]
+    )
+    assert report["status"] == "FAIL"
+
+    verdict = repo_verdict(report, "repo-c")
+    assert verdict["status"] != "FAIL"
+    assert verdict["blocking"] == []
+    assert verdict["stack_status"] == "FAIL"
+
+    implicated = repo_verdict(report, "repo-b")
+    assert implicated["status"] == "FAIL"
+    assert implicated["blocking"][0]["code"] == "MQC007_DECLARED_RANGES_DISJOINT"

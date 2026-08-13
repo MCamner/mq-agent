@@ -9,6 +9,7 @@
     "blocked",
     "warned",
     "repos",
+    "compatibility",
     "checked_at"
   ],
   "properties": {
@@ -75,6 +76,44 @@
         },
         "additionalProperties": true
       }
+    },
+    "compatibility": {
+      "type": "object",
+      "description": "Static mq.stack-compatibility.v1 verdict. Only blocks_release findings refuse a release.",
+      "required": [
+        "status",
+        "reason",
+        "blocked_repos",
+        "unassigned"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "WARN",
+            "FAIL",
+            "SKIPPED",
+            "UNAVAILABLE"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "blocked_repos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unassigned": {
+          "type": "array",
+          "description": "Blocked repositories outside this gate's own inventory.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "checked_at": {
       "type": "string",

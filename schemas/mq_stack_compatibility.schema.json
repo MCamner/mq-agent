@@ -319,6 +319,15 @@
           "type": "string",
           "minLength": 1
         },
+        "repos": {
+          "type": "array",
+          "description": "Every repository the finding implicates. Absent when that is exactly the one named in `repo`.",
+          "minItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "message": {
           "type": "string",
           "minLength": 1

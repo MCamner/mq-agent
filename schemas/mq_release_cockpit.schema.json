@@ -48,12 +48,13 @@
     "checks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["release", "contract", "stack_preflight", "main_ci", "unavailable", "evidence"],
+      "required": ["release", "contract", "stack_preflight", "main_ci", "compatibility", "unavailable", "evidence"],
       "properties": {
         "release": {"type": "string"},
         "contract": {"type": "string"},
         "stack_preflight": {"type": "string"},
         "main_ci": {"type": "string"},
+        "compatibility": {"enum": ["PASS", "WARN", "FAIL", "SKIPPED", "UNAVAILABLE"]},
         "evidence": {"type": "object"},
         "unavailable": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
       }

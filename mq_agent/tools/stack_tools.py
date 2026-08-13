@@ -265,16 +265,84 @@ def _release_notes_entry(entry: dict[str, str]) -> dict[str, Any]:
     }
 
 
+def _compatibility_repos(ci: bool) -> list[dict[str, str]]:
+    """Resolve the stack inventory the way the release entries resolve it.
+
+    In CI only one repo is checked out, and not at its configured path. Reading
+    the configured path there would report the repo under test as UNAVAILABLE,
+    so its own single-repo findings would never gate the pull request.
+    """
+    resolved: list[dict[str, str]] = []
+    for entry in MQ_STACK_REPOS:
+        if ci and not _expand(entry["path"]).exists():
+            ci_path = _ci_repo_path(entry)
+            if ci_path is not None:
+                resolved.append({**entry, "path": str(ci_path)})
+                continue
+        resolved.append(entry)
+    return resolved
+
+
+def _compatibility_gate(ci: bool = False) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+    """Return blocking compatibility findings per repo, plus a summary.
+
+    The static check only: no network, no resolution. A gate that cannot run
+    must not refuse every release, so any failure to produce a report is
+    reported as UNAVAILABLE and blocks nothing.
+    """
+    from mq_agent.tools import stack_compatibility as compatibility
+
+    try:
+        report = compatibility.build_report(
+            repos=_compatibility_repos(ci), slice_only=False
+        )
+    except Exception as exc:  # pragma: no cover - defensive boundary
+        return {}, {
+            "status": "UNAVAILABLE",
+            "reason": str(exc),
+            "blocked_repos": [],
+            "unassigned": [],
+        }
+    blockers = compatibility.release_blockers(report)
+    return blockers, {
+        "status": report["status"],
+        "reason": report["next_action"],
+        "blocked_repos": sorted(blockers),
+        "unassigned": [],
+    }
+
+
 def stack_release_check(ci: bool = False) -> str:
     """Cross-repo release readiness check for all mq-stack repos.
 
-    Checks VERSION, CHANGELOG, README, working tree, branch state.
-    In CI mode, sibling repos missing from the workspace are skipped
-    instead of blocking. Returns JSON with per-repo status and overall go/no-go.
+    Checks VERSION, CHANGELOG, README, working tree, branch state, and stack
+    compatibility. In CI mode, sibling repos missing from the workspace are
+    skipped instead of blocking. Returns JSON with per-repo status and overall
+    go/no-go.
     """
     entries = [_release_entry(r, ci=ci) for r in MQ_STACK_REPOS if r["name"] != "mqobsidian"]
-    all_go = all(e.get("go", False) for e in entries)
+    compat_blockers, compatibility = _compatibility_gate(ci)
+
+    for entry in entries:
+        findings = compat_blockers.pop(entry["name"], [])
+        if not findings:
+            continue
+        entry["blockers"].extend(
+            f"compatibility: {f['code']} — {f['message']}" for f in findings
+        )
+        entry["go"] = False
+
+    # A proven incompatibility in a repo this gate does not inventory — the
+    # excluded mqobsidian, or a repo dropped from the release list — is still a
+    # proven incompatibility. Surfacing it beats silently discarding it.
+    compatibility["unassigned"] = sorted(compat_blockers)
+
+    all_go = all(e.get("go", False) for e in entries) and not compatibility["unassigned"]
+    # The unassigned repos belong in `blocked` too. They have no entry to carry
+    # a blocker, so leaving them out reports NO-GO with nothing named as its
+    # cause — a refusal the operator cannot act on.
     blocked = [e["name"] for e in entries if not e.get("go", False)]
+    blocked += compatibility["unassigned"]
     warned = [e["name"] for e in entries if e.get("warnings")]
     return json.dumps({
         "schema": STACK_RELEASE_CHECK_SCHEMA,
@@ -283,6 +351,7 @@ def stack_release_check(ci: bool = False) -> str:
         "blocked": blocked,
         "warned": warned,
         "repos": entries,
+        "compatibility": compatibility,
         "checked_at": datetime.now(UTC).isoformat(),
     }, indent=2)
 
