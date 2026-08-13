@@ -858,6 +858,13 @@ def _relationships(
     return relationships, findings
 
 
+# UNAVAILABLE findings that mean "the check itself did not run", as opposed to
+# "this repo has nothing to check".
+_CHECK_FAILED_CODES = frozenset(
+    {"MQC010_TOOL_UNAVAILABLE", "MQC014_FRESH_RESOLVE_UNAVAILABLE"}
+)
+
+
 def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
     if status == "PASS":
         return ""
@@ -865,9 +872,13 @@ def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
     # not point at a warning as the thing to do next.
     order = [status] + [s for s in ("FAIL", "WARN", "UNAVAILABLE") if s != status]
     for severity in order:
-        for finding in findings:
-            if finding["severity"] != severity:
-                continue
+        candidates = [f for f in findings if f["severity"] == severity]
+        if severity == "UNAVAILABLE":
+            # A check that could not run outranks a repo that has nothing to
+            # check. Repos without Python dependency sources are permanently
+            # UNAVAILABLE by design and would otherwise mask every other cause.
+            candidates.sort(key=lambda f: f["code"] not in _CHECK_FAILED_CODES)
+        for finding in candidates:
             if severity == "FAIL":
                 return f"Resolve {finding['code']} in {finding['repo']}"
             if severity == "WARN":
@@ -876,6 +887,11 @@ def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
                 return "Install uv, then re-run with --fresh-resolve"
             if finding["code"] == "MQC014_FRESH_RESOLVE_UNAVAILABLE":
                 return "Re-run --fresh-resolve once the package registry is reachable"
+            if finding["code"] == "MQC004_DEPENDENCY_SOURCE_MISSING":
+                return (
+                    f"{finding['repo']} declares no Python dependencies — "
+                    "nothing for this gate to assess"
+                )
             return f"Make {finding['repo']} available, then re-run the check"
     return ""
 

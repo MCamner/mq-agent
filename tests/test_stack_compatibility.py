@@ -900,3 +900,74 @@ def test_relationships_survive_a_repo_without_metadata(tmp_path) -> None:
     relationship = next(r for r in report["relationships"] if r["subject"] == "mcp")
     assert relationship["overlap"] is True
     assert relationship["status"] == "PASS"
+
+
+# ── Phase 5: CLI surface ───────────────────────────────────────────────────
+
+
+def _cli(report: dict[str, Any], *args: str):
+    """Invoke the CLI against a fixed report and return the result."""
+    from typer.testing import CliRunner
+
+    import mq_agent.tools.stack_compatibility as module
+    from mq_agent.main import app
+
+    runner = CliRunner()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(module, "stack_compatibility", lambda **kwargs: json.dumps(report))
+        return runner.invoke(app, ["stack", "compatibility", *args])
+
+
+def _fixed(status: str) -> dict[str, Any]:
+    return {
+        "schema": COMPATIBILITY_SCHEMA,
+        "status": status,
+        "mode": "static",
+        "components": [],
+        "relationships": [],
+        "findings": [],
+        "next_action": "",
+        "checked_at": "2026-08-13T00:00:00+00:00",
+    }
+
+
+@pytest.mark.parametrize(
+    "status,expected",
+    [("PASS", 0), ("SKIPPED", 0), ("WARN", 0), ("FAIL", 2), ("UNAVAILABLE", 3)],
+)
+def test_exit_codes_follow_the_report_status(status: str, expected: int) -> None:
+    assert _cli(_fixed(status), "--json").exit_code == expected
+
+
+@pytest.mark.parametrize(
+    "status,expected",
+    [("PASS", 0), ("WARN", 1), ("FAIL", 2), ("UNAVAILABLE", 3)],
+)
+def test_strict_mode_makes_warnings_fail(status: str, expected: int) -> None:
+    assert _cli(_fixed(status), "--strict", "--json").exit_code == expected
+
+
+@pytest.mark.parametrize("status", ["PASS", "WARN", "FAIL", "UNAVAILABLE"])
+def test_human_and_json_output_carry_the_same_verdict(status: str) -> None:
+    human = _cli(_fixed(status))
+    machine = _cli(_fixed(status), "--json")
+
+    assert human.exit_code == machine.exit_code
+    assert status in human.stdout
+    assert json.loads(machine.stdout)["status"] == status
+
+
+def test_interruption_exits_130() -> None:
+    from typer.testing import CliRunner
+
+    import mq_agent.tools.stack_compatibility as module
+    from mq_agent.main import app
+
+    def _interrupt(**kwargs):
+        raise KeyboardInterrupt
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(module, "stack_compatibility", _interrupt)
+        result = CliRunner().invoke(app, ["stack", "compatibility"])
+
+    assert result.exit_code == 130

@@ -300,6 +300,21 @@ def test_a_proven_incompatibility_still_outranks_an_unrun_probe(tmp_path) -> Non
     assert report["status"] == "FAIL"
 
 
+def test_a_check_that_did_not_run_outranks_a_repo_with_nothing_to_check(
+    tmp_path,
+) -> None:
+    # A repo with no Python dependency sources is permanently UNAVAILABLE by
+    # design. It must not mask the reason the requested resolution failed.
+    shell_repo = _make_repo(tmp_path, "repo-shell", declared=None, locked=None)
+    runner = FakeRunner(compile_result=(1, "", OFFLINE_STDERR))
+    report = _fresh([shell_repo, _make_repo(tmp_path, "repo-a", compat=BOUNDED)], runner)
+
+    assert "MQC004_DEPENDENCY_SOURCE_MISSING" in _codes(report)
+    assert report["next_action"] == (
+        "Re-run --fresh-resolve once the package registry is reachable"
+    )
+
+
 def test_unavailable_component_is_never_resolved(tmp_path) -> None:
     runner = FakeRunner()
     missing = {"name": "repo-gone", "path": str(tmp_path / "nope"), "role": "test"}

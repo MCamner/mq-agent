@@ -101,6 +101,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      # The fresh-resolve step below shells out to uv. Without it the check
+      # reports MQC010_TOOL_UNAVAILABLE and exits 3 — a red job every night for
+      # a missing binary rather than a real incompatibility.
+      - uses: astral-sh/setup-uv@v5
+
       - name: Install mq-agent
         working-directory: mq-agent
         run: |
@@ -125,3 +130,20 @@ jobs:
       - name: Run stack release gate
         working-directory: mq-agent
         run: mq-agent stack release-check --json
+
+      # Static: reads declared and locked versions only. `--all` inventories
+      # every repo checked out above rather than the MCP slice, so a FAIL here
+      # is a real cross-repo incompatibility. WARN stays green while repos are
+      # still declaring their boundary.
+      - name: Run stack compatibility gate
+        working-directory: mq-agent
+        run: mq-agent stack compatibility --all --json
+
+      # Dynamic: what a fresh install would select today, which no lockfile can
+      # answer. Needs a registry, so it is kept off pull requests and runs on
+      # the nightly schedule and on manual dispatch. Exit 3 (UNAVAILABLE) fails
+      # the job on purpose: a check that could not run is not a passing check.
+      - name: Run fresh dependency resolution
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        working-directory: mq-agent
+        run: mq-agent stack compatibility --all --fresh-resolve --json

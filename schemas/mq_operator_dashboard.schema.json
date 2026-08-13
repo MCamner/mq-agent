@@ -66,6 +66,41 @@
       },
       "additionalProperties": true
     },
+    "compatibility": {
+      "type": "object",
+      "description": "Static stack compatibility verdict (mq.stack-compatibility.v1). Only FAIL counts against the dashboard's overall status; WARN is the normal rollout state and UNAVAILABLE means the check could not run.",
+      "required": [
+        "status",
+        "mode",
+        "blocking_count",
+        "next_action"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "WARN",
+            "FAIL",
+            "SKIPPED",
+            "UNAVAILABLE"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "static",
+            "fresh-resolve"
+          ]
+        },
+        "blocking_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_action": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
     "brain": {
       "type": "object"
     },
