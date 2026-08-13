@@ -117,6 +117,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+* A repository with no Python dependency source is now `SKIPPED`, not
+  `UNAVAILABLE`. `mqlaunch` and `mq-hal` are shell, `mq-ums` is Node; the gate
+  reads them successfully and simply has nothing to assess. Calling that "could
+  not assess" exited 3 and would have failed the `main` job the moment the two
+  MCP repos declared their boundary and their `WARN` — which outranks
+  `UNAVAILABLE` — stopped masking it. It also masked the repos whose check
+  genuinely did not run. Findings may now carry `SKIPPED` severity.
 * A dependency declared with no version at all (`dependencies = ['mcp']`) was
   read as *not declared*: it vanished from the report and the repo came back
   `PASS` with no findings. That is the most exposed declaration there is —

@@ -149,6 +149,13 @@ locally is expected and harmless, but an explicitly requested `--fresh-resolve`
 that could not reach the registry has assessed nothing, and the nightly job
 fails on it deliberately.
 
+`SKIPPED` is the separate case: the repository was read successfully and simply
+has nothing this gate assesses. `mqlaunch` (shell), `mq-hal` (shell) and
+`mq-ums` (Node) declare no Python dependencies, so they are outside its reach
+by design rather than by failure. Reporting them as `UNAVAILABLE` would exit 3
+and fail CI for repositories the gate was never going to cover, and it would
+mask the repos whose check genuinely did not run.
+
 | Finding | Severity | Blocks release |
 |---|---|---|
 | `MQC002_CONTRACT_MISSING` | WARN | No |
@@ -164,7 +171,8 @@ fails on it deliberately.
 | `MQC015_RESOLVED_DIFFERS_FROM_LOCKED` | WARN | No |
 | `MQC016_IMPORT_PROBE_FAILED` | FAIL | Yes |
 | `MQC017_RESOLVE_CONFLICT` | FAIL | Yes |
-| `MQC001`, `MQC004`, `MQC010`, `MQC014` | UNAVAILABLE | No, but never green |
+| `MQC004_DEPENDENCY_SOURCE_MISSING` | SKIPPED | No |
+| `MQC001`, `MQC010`, `MQC014` | UNAVAILABLE | No, but never green |
 
 Finding codes are append-only within `mq.stack-compatibility.v1`.
 

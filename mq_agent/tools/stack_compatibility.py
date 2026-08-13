@@ -618,16 +618,24 @@ def _component(
                     )
 
     if pyproject is None and not dependencies:
+        # SKIPPED, not UNAVAILABLE. The repo was read successfully; it simply
+        # declares no Python dependencies, which is the normal state for the
+        # shell and Node repos in this stack. Calling that "could not assess"
+        # exits 3 and fails CI for repositories the gate was never going to
+        # cover, and it masks the repos whose check genuinely did not run.
         findings.append(
             {
                 "code": "MQC004_DEPENDENCY_SOURCE_MISSING",
-                "severity": "UNAVAILABLE",
+                "severity": "SKIPPED",
                 "repo": repo,
-                "message": f"{repo}: no pyproject.toml found — declared versions unknown",
+                "message": (
+                    f"{repo}: no Python dependency source — "
+                    "nothing for this gate to assess"
+                ),
                 "blocks_release": False,
             }
         )
-        statuses.append("UNAVAILABLE")
+        statuses.append("SKIPPED")
 
     component: dict[str, Any] = {
         "repo": repo,
