@@ -11,6 +11,13 @@ This module implements the static half of the gate:
 * Phase 0 — the `mq.stack-compatibility.v1` report contract.
 * Phase 1 — repository inventory: discover repos, read their contracts and
   dependency sources, and report declared and locked versions with provenance.
+* Phase 2 — declared compatibility: validate the contract's `compatibility`
+  block against the repo's own pyproject.toml.
+* Phase 3 — relationships: match produced and consumed contracts, and assess
+  range overlap and protocol tracks between every pair of repos.
+
+Phase 4 (fresh resolve) is the dynamic half and lives in
+`stack_fresh_resolve`; this module calls it only when explicitly asked.
 
 It never modifies dependencies, lockfiles or working trees. Missing
 repositories, files or tools are reported as UNAVAILABLE rather than being
@@ -30,6 +37,12 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
+from mq_agent.tools.stack_fresh_resolve import (
+    AUTO_UV,
+    DEFAULT_PROBES,
+    Runner,
+    apply_fresh_resolve,
+)
 from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, _version
 
 COMPATIBILITY_SCHEMA = "mq.stack-compatibility.v1"
@@ -114,7 +127,12 @@ def _find_sources(root: Path) -> dict[str, Path]:
 
 
 def _declared_spec(pyproject: Path, dependency: str) -> tuple[str | None, str]:
-    """Return the declared specifier for `dependency` and the field it came from."""
+    """Return the declared specifier for `dependency` and the field it came from.
+
+    None means the dependency is not declared at all. An empty string means it
+    is declared with no version constraint — the most exposed form there is, so
+    it must stay distinguishable from absence rather than collapsing into it.
+    """
     target = canonicalize_name(dependency)
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
@@ -136,7 +154,7 @@ def _declared_spec(pyproject: Path, dependency: str) -> tuple[str | None, str]:
             except InvalidRequirement:
                 continue
             if canonicalize_name(requirement.name) == target:
-                return str(requirement.specifier) or None, field
+                return str(requirement.specifier), field
         return None, ""
 
     spec, field = _match(project.get("dependencies"), "project.dependencies")
@@ -153,6 +171,19 @@ def _declared_spec(pyproject: Path, dependency: str) -> tuple[str | None, str]:
                 return spec, field
 
     return None, ""
+
+
+def _requires_python(pyproject: Path) -> str:
+    """The repo's declared `requires-python`, or an empty string."""
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return ""
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return ""
+    value = project.get("requires-python")
+    return value if isinstance(value, str) else ""
 
 
 def _locked_version(uv_lock: Path, dependency: str) -> str | None:
@@ -305,6 +336,7 @@ def _declared_compatibility(contract: dict[str, Any] | None) -> dict[str, Any]:
         "dependencies": {},
         "produces": [],
         "consumes": [],
+        "import_probes": dict(DEFAULT_PROBES),
     }
     if not contract:
         return empty
@@ -325,12 +357,21 @@ def _declared_compatibility(contract: dict[str, Any] | None) -> dict[str, Any]:
             return []
         return [item for item in raw if isinstance(item, str)]
 
+    # A repo that declares `import_probes` owns the list outright, including
+    # declaring it empty. Only an absent key falls back to the default probe.
+    probes = (
+        _str_map("import_probes")
+        if isinstance(block.get("import_probes"), dict)
+        else dict(DEFAULT_PROBES)
+    )
+
     return {
         "present": True,
         "protocols": _str_map("protocols"),
         "dependencies": _str_map("dependencies"),
         "produces": _str_list("produces"),
         "consumes": _str_list("consumes"),
+        "import_probes": probes,
     }
 
 
@@ -424,6 +465,7 @@ def _component(
     pyproject = sources.get("pyproject.toml")
     uv_lock = sources.get("uv.lock")
     constraints = sources.get("constraints.txt")
+    requires_python = _requires_python(pyproject) if pyproject is not None else ""
 
     dependencies: list[dict[str, Any]] = []
     statuses: list[str] = []
@@ -483,8 +525,12 @@ def _component(
                     "severity": "WARN",
                     "repo": repo,
                     "message": (
-                        f"{repo} declares {name} as {declared!r}, which does not "
-                        "exclude the next major version"
+                        f"{repo} declares {name} with no version constraint at all"
+                        if declared == ""
+                        else (
+                            f"{repo} declares {name} as {declared!r}, which does "
+                            "not exclude the next major version"
+                        )
                     ),
                     "blocks_release": False,
                     "evidence": provenance,
@@ -545,8 +591,10 @@ def _component(
         if track is not None:
             key, value = track
             major = _protocol_major(value)
-            effective = boundary or declared
-            if major is not None and effective:
+            # An empty specifier is a declaration, not a missing one: it admits
+            # every major, so it must reach the check below.
+            effective = boundary if boundary is not None else declared
+            if major is not None and effective is not None:
                 try:
                     allows_next = SpecifierSet(effective).contains(
                         Version(f"{major + 1}.0.0"), prereleases=True
@@ -592,6 +640,21 @@ def _component(
     }
     if protocols:
         component["protocols"] = protocols
+    # Keyed by the dependency name as reported, so a contract spelling it
+    # "MCP" cannot silently skip its own probe.
+    declared_probes = {
+        canonicalize_name(key): statement
+        for key, statement in compatibility["import_probes"].items()
+    }
+    probes = {
+        d["name"]: declared_probes[canonicalize_name(d["name"])]
+        for d in dependencies
+        if canonicalize_name(d["name"]) in declared_probes
+    }
+    if probes:
+        component["import_probes"] = probes
+    if requires_python:
+        component["requires_python"] = requires_python
     if compatibility["produces"]:
         component["produces"] = compatibility["produces"]
     if compatibility["consumes"]:
@@ -798,14 +861,22 @@ def _relationships(
 def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
     if status == "PASS":
         return ""
-    for severity in ("FAIL", "WARN", "UNAVAILABLE"):
+    # The report's own verdict comes first: a report that says UNAVAILABLE must
+    # not point at a warning as the thing to do next.
+    order = [status] + [s for s in ("FAIL", "WARN", "UNAVAILABLE") if s != status]
+    for severity in order:
         for finding in findings:
-            if finding["severity"] == severity:
-                if severity == "FAIL":
-                    return f"Resolve {finding['code']} in {finding['repo']}"
-                if severity == "WARN":
-                    return f"Declare the actual compatibility boundary in {finding['repo']}"
-                return f"Make {finding['repo']} available, then re-run the check"
+            if finding["severity"] != severity:
+                continue
+            if severity == "FAIL":
+                return f"Resolve {finding['code']} in {finding['repo']}"
+            if severity == "WARN":
+                return f"Declare the actual compatibility boundary in {finding['repo']}"
+            if finding["code"] == "MQC010_TOOL_UNAVAILABLE":
+                return "Install uv, then re-run with --fresh-resolve"
+            if finding["code"] == "MQC014_FRESH_RESOLVE_UNAVAILABLE":
+                return "Re-run --fresh-resolve once the package registry is reachable"
+            return f"Make {finding['repo']} available, then re-run the check"
     return ""
 
 
@@ -813,11 +884,19 @@ def build_report(
     repos: list[dict[str, str]] | None = None,
     tracked: tuple[str, ...] = DEFAULT_TRACKED,
     slice_only: bool = True,
+    fresh_resolve: bool = False,
+    runner: Runner | None = None,
+    uv_path: str | None = AUTO_UV,
 ) -> dict[str, Any]:
     """Assemble an `mq.stack-compatibility.v1` report.
 
     `slice_only` limits the inventory to the roadmap's first vertical slice
     (mq-mcp and mq-image-analyze). Set it to False to inventory the whole stack.
+
+    `fresh_resolve` additionally resolves the declared ranges in a temporary
+    directory and probes the declared critical imports. It shells out to `uv`
+    and needs a registry, so it runs only when explicitly requested. `runner`
+    and `uv_path` exist so that can be driven deterministically in tests.
     """
     entries = repos if repos is not None else MQ_STACK_REPOS
     if slice_only:
@@ -836,15 +915,33 @@ def build_report(
     )
     findings.extend(relationship_findings)
 
+    fresh_findings: list[dict[str, Any]] = []
+    if fresh_resolve:
+        fresh_findings = apply_fresh_resolve(components, runner, uv_path)
+        findings.extend(fresh_findings)
+
     status = _worst(
         [c["status"] for c in components]
         + [f["severity"] for f in relationship_findings]
+        + [f["severity"] for f in fresh_findings]
     )
+
+    # _STATUS_ORDER ranks WARN above UNAVAILABLE, which is right for the static
+    # gate: a warning is a real observation, an unavailable repo is not. It is
+    # wrong here. A resolution the caller explicitly asked for and that never
+    # ran must not be reported as a mere warning — that is an exit code of 0 for
+    # a check that did not happen. A proven incompatibility still outranks it.
+    if (
+        fresh_resolve
+        and status != "FAIL"
+        and any(f["severity"] == "UNAVAILABLE" for f in fresh_findings)
+    ):
+        status = "UNAVAILABLE"
 
     return {
         "schema": COMPATIBILITY_SCHEMA,
         "status": status,
-        "mode": "static",
+        "mode": "fresh-resolve" if fresh_resolve else "static",
         "components": components,
         "relationships": relationships,
         "findings": findings,
@@ -857,6 +954,9 @@ def stack_compatibility(
     repos: list[dict[str, str]] | None = None,
     tracked: tuple[str, ...] = DEFAULT_TRACKED,
     slice_only: bool = True,
+    fresh_resolve: bool = False,
 ) -> str:
     """Return the compatibility report as indented JSON."""
-    return json.dumps(build_report(repos, tracked, slice_only), indent=2)
+    return json.dumps(
+        build_report(repos, tracked, slice_only, fresh_resolve), indent=2
+    )

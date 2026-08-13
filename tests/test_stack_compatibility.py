@@ -557,6 +557,30 @@ def test_bounded_detection(spec: str | None, expected: bool) -> None:
     assert _is_bounded(spec) is expected
 
 
+def test_dependency_declared_with_no_version_at_all_is_reported(tmp_path) -> None:
+    # `dependencies = ['mcp']` is the most exposed declaration there is: it
+    # admits every future major. Reading it as "not declared" made the repo
+    # disappear from the report entirely — the exact shape of the incident this
+    # gate exists to catch.
+    entry = _make_repo(
+        tmp_path,
+        "repo-a",
+        declared="mcp",
+        compat={"protocols": {"mcp_api": "1.x-fastmcp"}},
+    )
+    report = _report([entry])
+
+    dependency = report["components"][0]["dependencies"][0]
+    assert dependency["name"] == "mcp"
+    assert dependency["declared"] == ""
+    assert dependency["bounded"] is False
+
+    codes = [f["code"] for f in report["findings"]]
+    assert "MQC005_DECLARED_RANGE_UNBOUNDED" in codes
+    assert "MQC012_PROTOCOL_CONTRADICTS_RANGE" in codes
+    assert report["status"] == "FAIL"
+
+
 # ── Phase 3: stack relationships and overlap ───────────────────────────────
 
 # Two repos on the same protocol track, both bounded to MCP 1.x.
