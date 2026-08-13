@@ -4529,8 +4529,14 @@ def stack_release_check_cmd(
     if all_go:
         console.print("\n[bold green]✓ All repos clear — stack is GO.[/bold green]")
     else:
-        blocked = [e["name"] for e in entries if not e.get("go", False)]
+        blocked = data["blocked"]
         console.print(f"\n[bold red]✗ NO-GO — blocked: {', '.join(blocked)}[/bold red]")
+        unassigned = data.get("compatibility", {}).get("unassigned", [])
+        if unassigned:
+            console.print(
+                f"[red]  compatibility blocks {', '.join(unassigned)} — "
+                "run mq-agent stack compatibility --all[/red]"
+            )
         raise typer.Exit(1)
 
 

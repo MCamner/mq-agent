@@ -122,11 +122,27 @@ declaring an empty object opts out.
 Every finding carries `blocks_release`, and only `FAIL` findings set it. WARN
 and UNAVAILABLE never block on their own.
 
-**Where that is enforced today:** the push-to-`main` job and the nightly job in
-`.github/workflows/mq-stack-gate.yml`. `blocks_release` is the machine-readable
-signal; `mq-agent stack release-check` and the release cockpit do not yet read
-it, so a FAIL fails CI on `main` rather than refusing a release. Wiring it into
-the release gate is Phase 6.
+**Where that is enforced today:**
+
+* `.github/workflows/mq-stack-gate.yml` — the push-to-`main` job and the
+  nightly job fail on a `FAIL`, and the nightly also fails on `UNAVAILABLE`.
+* `mq-agent stack release-check` — a repository implicated in a blocking
+  finding is reported `NO-GO` with the finding as its blocker. The verdict
+  appears under `compatibility` in the JSON output.
+* `mq-agent ship status|proof|audit` — a blocking finding for that repository
+  becomes a `COMPATIBILITY_BLOCKED` blocker, so the release state resolves to
+  `BLOCKED` and the recommended next action is the compatibility command.
+  `checks.compatibility` is that repository's own verdict, read from the
+  checkout under review rather than from its configured path; the whole-stack
+  status sits beside it in `checks.evidence.compatibility.stack_status`.
+
+Both release surfaces run the **static** check only: no network, no resolution.
+A report that could not be produced is `UNAVAILABLE` and blocks nothing — a
+gate that cannot run must not refuse every release.
+
+A finding that implicates two repositories blocks both. `repo` names one of
+them so the message reads naturally; `repos` lists every repository the finding
+implicates, and that is what the release gates key on.
 
 `UNAVAILABLE` deserves the emphasis: it is not a pass. A missing sibling repo
 locally is expected and harmless, but an explicitly requested `--fresh-resolve`

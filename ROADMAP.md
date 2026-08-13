@@ -172,7 +172,8 @@ hiding the lower-level release evidence.
 
 ## Next release — v1.26.0 Stack Compatibility Gate
 
-* **Status:** In progress — Phase 0 through Phase 5 delivered in `mq-agent`;
+* **Status:** In progress — Phase 0 through Phase 5 delivered in `mq-agent`,
+  plus release-gate enforcement from Phase 6;
   the `mq-hal` and `mqlaunch` surfaces are owned by those repos
 * **Priority:** P1
 * **Owner:** `mq-agent`
@@ -412,9 +413,12 @@ Proposed exit codes:
 
 ### Phase 6 — Extend across the MQ stack
 
-* [ ] Enforce `blocks_release` in `stack release-check` and the release
-  cockpit. The flag is currently a machine-readable signal that only CI acts
-  on, so a FAIL fails the job on `main` rather than refusing a release.
+* [x] Enforce `blocks_release` in `stack release-check` and the release
+  cockpit. Both read the static check only and refuse a release for every
+  repository a blocking finding implicates; a report that could not be
+  produced is `UNAVAILABLE` and blocks nothing. Pairwise findings gained a
+  `repos` list, because naming only the left-hand repo blocked one half of an
+  incompatible pair and let the other half release.
 * [ ] Add `mq-agent`, `mq-hal`, `repo-signal`, `macos-scripts`, and
   `mqobsidian`.
 * [ ] Add `mq-ums` where machine-readable contracts exist.

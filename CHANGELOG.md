@@ -93,6 +93,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 * `docs/STACK_CONTRACT_GATE.md` documents every status, exit code and finding
   against what it blocks.
 
+### Added (Phase 6)
+
+* `blocks_release` is now enforced by the release path, not only by CI.
+  `mq-agent stack release-check` refuses a repository implicated in a proven
+  incompatibility, and the release cockpit (`mq-agent ship status|proof|audit`)
+  reports `COMPATIBILITY_BLOCKED` with the compatibility command as its next
+  action. Both read the static check only — no network, no resolution.
+* `release_blockers()` groups blocking findings by every repository they
+  implicate. Pairwise findings (`MQC007`, `MQC008`) now carry a `repos` list
+  alongside `repo`: naming only the left-hand repo would have blocked one half
+  of an incompatible pair and let the other half release.
+* Both surfaces treat a compatibility report that could not be produced as
+  `UNAVAILABLE` and let the release proceed. Unknown is not incompatible, and a
+  gate that cannot run must not refuse every release.
+* `release-check --ci` resolves the checkout under test the same way its repo
+  entries do, so a pull request is gated on its own single-repo findings
+  instead of reporting the repo under test as `UNAVAILABLE`.
+* The cockpit reads the repository from the checkout under review, so
+  `ship status --repo <worktree>` no longer judges whatever sits in
+  `~/<repo>`. `checks.compatibility` is that repository's own verdict; the
+  whole-stack status is kept in `checks.evidence.compatibility.stack_status`.
+
 ### Fixed
 
 * A dependency declared with no version at all (`dependencies = ['mcp']`) was

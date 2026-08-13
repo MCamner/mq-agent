@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
@@ -188,3 +189,64 @@ def test_ship_audit_exits_nonzero_when_not_audited(monkeypatch):
     result = CliRunner().invoke(app, ["ship", "audit", "--json"])
     assert result.exit_code == 1
     assert json.loads(result.stdout)["state"] == "BLOCKED"
+
+
+# ── Phase 6: compatibility enforcement ─────────────────────────────────────
+
+BLOCKING_COMPATIBILITY: dict[str, Any] = {
+    "status": "FAIL",
+    "stack_status": "FAIL",
+    "blocking": [
+        {
+            "code": "MQC007_DECLARED_RANGES_DISJOINT",
+            "message": "mq-agent declares mcp '<2,>=1.27.1' and mq-mcp declares '<3,>=2'",
+        }
+    ],
+}
+
+
+def test_compatibility_failure_blocks_the_release():
+    result = resolve_release_state(_evidence(compatibility=BLOCKING_COMPATIBILITY))
+
+    assert result.state == "BLOCKED"
+    assert [b["code"] for b in result.blockers] == ["COMPATIBILITY_BLOCKED"]
+    assert "MQC007_DECLARED_RANGES_DISJOINT" in result.blockers[0]["message"]
+
+
+def test_compatibility_blocker_points_at_the_compatibility_command():
+    result = resolve_release_state(_evidence(compatibility=BLOCKING_COMPATIBILITY))
+
+    assert result.next_action["command"] == "mq-agent stack compatibility --all --json"
+    assert result.next_action["requires_human"] is False
+
+
+@pytest.mark.parametrize("status", ["WARN", "UNAVAILABLE", "PASS"])
+def test_only_blocking_findings_stop_a_release(status: str):
+    """Unknown is not incompatible: a check that said nothing blocks nothing."""
+    result = resolve_release_state(
+        _evidence(compatibility={"status": status, "blocking": []})
+    )
+    assert result.state == "IDLE"
+
+
+def test_compatibility_status_is_reported_as_evidence():
+    payload = build_release_cockpit(
+        _evidence(compatibility=BLOCKING_COMPATIBILITY), command="status"
+    )
+    assert payload["checks"]["compatibility"] == "FAIL"
+    evidence = payload["checks"]["evidence"]["compatibility"]
+    assert evidence["blocking"] == BLOCKING_COMPATIBILITY["blocking"]
+    assert evidence["stack_status"] == "FAIL"
+
+
+def test_a_stack_failure_elsewhere_is_not_this_repos_verdict():
+    """checks.compatibility sits beside repo-scoped checks, so it must be
+    repo-scoped: FAIL here alongside an empty blocker list is unreadable."""
+    payload = build_release_cockpit(
+        _evidence(compatibility={"status": "WARN", "stack_status": "FAIL", "blocking": []}),
+        command="status",
+    )
+    assert payload["checks"]["compatibility"] == "WARN"
+    assert payload["checks"]["evidence"]["compatibility"]["stack_status"] == "FAIL"
+    assert payload["blockers"] == []
+    assert payload["state"] != "BLOCKED"

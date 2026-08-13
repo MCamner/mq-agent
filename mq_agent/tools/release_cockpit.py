@@ -39,6 +39,12 @@ class ReleaseEvidence:
     github_release: dict[str, Any]
     unavailable: list[str] = field(default_factory=list)
     check_evidence: dict[str, Any] = field(default_factory=dict)
+    # Defaults to a check that said nothing, which blocks nothing. Callers that
+    # cannot collect it are then indistinguishable from callers that ran it and
+    # found no proven incompatibility to report.
+    compatibility: dict[str, Any] = field(
+        default_factory=lambda: {"status": "UNAVAILABLE", "blocking": []}
+    )
 
 
 @dataclass(frozen=True)
@@ -73,6 +79,13 @@ def _blockers(evidence: ReleaseEvidence) -> list[dict[str, str]]:
         add("PREFLIGHT_BLOCKED", f"{evidence.repo}: stack preflight is blocked")
     if evidence.main_ci == "FAIL":
         add("CI_FAILED", f"{evidence.repo}: main CI is failing")
+    blocking = evidence.compatibility.get("blocking") or []
+    if blocking:
+        codes = ", ".join(sorted({str(item["code"]) for item in blocking}))
+        add(
+            "COMPATIBILITY_BLOCKED",
+            f"{evidence.repo}: stack compatibility blocks release ({codes})",
+        )
     if evidence.unavailable:
         add(
             "EVIDENCE_UNAVAILABLE",
@@ -116,6 +129,7 @@ def _action(state: str, evidence: ReleaseEvidence, blockers: list[dict[str, str]
             "CONTRACT_CHECK_FAILED": ("Fix the repository contract", "mq-agent stack contract-check --json", False),
             "PREFLIGHT_BLOCKED": ("Resolve stack preflight blockers", "mq-agent stack release --all --preflight --json", False),
             "CI_FAILED": ("Fix failing main CI", None, True),
+            "COMPATIBILITY_BLOCKED": ("Resolve the stack compatibility failure", "mq-agent stack compatibility --all --json", False),
             "VERSION_TAG_MISMATCH": ("Align VERSION and the latest release tag", None, True),
             "TARGET_VERSION_MISMATCH": ("Align VERSION with the release target", None, True),
             "EVIDENCE_UNAVAILABLE": ("Restore unavailable release evidence", None, True),
@@ -210,8 +224,15 @@ def build_release_cockpit(
             "contract": evidence.contract_check,
             "stack_preflight": evidence.stack_preflight,
             "main_ci": evidence.main_ci,
+            "compatibility": evidence.compatibility.get("status", "UNAVAILABLE"),
             "unavailable": sorted(set(evidence.unavailable)),
-            "evidence": evidence.check_evidence,
+            "evidence": {
+                **evidence.check_evidence,
+                "compatibility": {
+                    "stack_status": evidence.compatibility.get("stack_status", "UNAVAILABLE"),
+                    "blocking": evidence.compatibility.get("blocking") or [],
+                },
+            },
         },
         "pull_request": evidence.pull_request,
         "github_release": evidence.github_release,
@@ -340,6 +361,31 @@ def _stack_preflight_status(
     return ("READY" if plan.get("go") else "BLOCKED"), {"blockers": blockers}
 
 
+def _compatibility_status(repo_name: str, path: Path) -> dict[str, Any]:
+    """Return the static compatibility verdict for exactly this checkout.
+
+    The whole stack is inventoried so cross-repo relationships are still
+    assessed, but `repo_name` is read from `path` rather than from its
+    configured location: every other check here judges the tree under review,
+    and a worktree must not be judged by what sits in `~/<repo>`.
+
+    Only findings that implicate this repository are reported. A proven
+    incompatibility elsewhere in the stack is that repo's release blocker, not
+    this one's, and a report that could not be built blocks nothing.
+    """
+    from mq_agent.tools.stack_compatibility import build_report, repo_verdict
+    from mq_agent.tools.stack_tools import MQ_STACK_REPOS
+
+    entry = {"name": repo_name, "path": str(path), "role": "release cockpit"}
+    repos = [entry] + [e for e in MQ_STACK_REPOS if e["name"] != repo_name]
+    try:
+        report = build_report(repos=repos, slice_only=False)
+    except Exception as exc:  # pragma: no cover - defensive boundary
+        return {"status": "UNAVAILABLE", "reason": str(exc), "blocking": []}
+    verdict = repo_verdict(report, repo_name)
+    return {**verdict, "reason": report["next_action"]}
+
+
 def collect_release_evidence(repo_path: str = ".", target: str | None = None) -> ReleaseEvidence:
     """Collect bounded local and GitHub evidence without changing repository state."""
     path = Path(repo_path).resolve()
@@ -431,7 +477,7 @@ def collect_release_evidence(repo_path: str = ".", target: str | None = None) ->
         release_mode=contract.get("release_mode"), release_check=release_status,
         contract_check=contract_status, stack_preflight=preflight,
         main_ci=main_ci, pull_request=pr, github_release=github_release,
-        unavailable=unavailable,
+        unavailable=unavailable, compatibility=_compatibility_status(repo_name, path),
         check_evidence={
             "release": {"blockers": release_blockers},
             "contract": contract_result,

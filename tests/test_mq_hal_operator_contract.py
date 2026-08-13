@@ -151,6 +151,12 @@ def test_missing_local_release_repo_validates(monkeypatch, tmp_path):
         "blocked": ["missing-repo"],
         "warned": [],
         "repos": [stack_tools._release_entry(entry)],
+        "compatibility": {
+            "status": "UNAVAILABLE",
+            "reason": "",
+            "blocked_repos": [],
+            "unassigned": [],
+        },
         "checked_at": "2026-07-16T00:00:00+00:00",
     }
 
