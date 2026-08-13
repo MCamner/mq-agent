@@ -77,6 +77,12 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "MQ contracts this repo consumes, e.g. 'mq.feedback.v1'."
+        },
+        "import_probes": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Python statements run against a freshly resolved dependency to prove the contract still holds, keyed by dependency name. Any statement works, so a repo can smoke its own contract rather than only its imports. Declaring an empty object opts out of the default probe.",
+          "examples": [{ "mcp": "from mcp.server.fastmcp import FastMCP" }]
         }
       }
     }

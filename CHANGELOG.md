@@ -48,6 +48,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   cross-repo verdict shows the observed ranges on both sides instead of only a
   summary status.
 
+* Phase 4 — fresh resolve. `mq-agent stack compatibility --fresh-resolve`
+  answers what a *new* installation would select, which a lockfile can hide
+  indefinitely. It compiles the declared ranges with `uv` in a temporary
+  directory outside every working tree, records the result as each
+  dependency's `resolved` version, and runs the repository's declared critical
+  import against that pin. New codes: `MQC015` (WARN — the lockfile masks what
+  a fresh install picks), `MQC016` (FAIL — the declared import breaks against
+  the resolved version), `MQC017` (FAIL — the declared ranges cannot be
+  resolved together) and `MQC014` (UNAVAILABLE — the check could not be run).
+* `.mq/repo-contract.json` accepts `compatibility.import_probes`, a map of
+  dependency to import statement. Any Python statement works, so a repo can
+  smoke its own contract rather than only its imports. Repos that declare
+  nothing get `mcp` → `from mcp.server.fastmcp import FastMCP`; declaring an
+  empty map opts out.
+
 ### Changed
 
 * CI type-checks `tests/` alongside `mq_agent/`. The test suite already had
@@ -59,6 +74,34 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   would have been rejected by the contract gate.
 * Declare `packaging` explicitly in `dependencies`. It was already imported
   transitively; the compatibility gate parses version specifiers with it.
+* `uv.lock` records `packaging` as a direct dependency. It was declared in
+  `pyproject.toml` without the lockfile being regenerated — the gate's own
+  repo carrying exactly the drift the gate looks for.
+
+### Fixed
+
+* A dependency declared with no version at all (`dependencies = ['mcp']`) was
+  read as *not declared*: it vanished from the report and the repo came back
+  `PASS` with no findings. That is the most exposed declaration there is —
+  it admits every future major — and it is the shape of the incident this gate
+  exists to catch. An empty specifier is now distinguished from absence and
+  raises `MQC005`, plus `MQC012` when a protocol track contradicts it.
+* An explicitly requested `--fresh-resolve` that could not run no longer
+  collapses into an unrelated `WARN` and exits 0. `UNAVAILABLE` ranks below
+  `WARN` in the static ladder, which is right for an unreadable repo and wrong
+  for a check the caller asked for; the report now says `UNAVAILABLE` (exit 3)
+  unless something actually failed, and `next_action` points at the check that
+  did not run.
+* An import probe is only `FAIL` when Python ran and the declared statement
+  failed. uv failing to build a wheel or reach the registry previously read as
+  a broken repository contract, blaming the repo for the machine's problem.
+* A fresh resolution targets the repository's own `requires-python` rather than
+  the interpreter running the gate. uv reports an unsatisfiable interpreter
+  through the same "No solution found" headline as a range conflict, so the
+  mismatch was reported as `MQC017` — a release-blocking FAIL against ranges
+  that were fine.
+* `import_probes` keys are matched by canonical package name, so a contract
+  spelling it `MCP` no longer silently skips its own probe.
 
 ## [v1.25.1] — 2026-08-10
 

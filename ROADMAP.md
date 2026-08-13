@@ -172,7 +172,7 @@ hiding the lower-level release evidence.
 
 ## Next release — v1.26.0 Stack Compatibility Gate
 
-* **Status:** In progress — Phase 0 and Phase 1 delivered
+* **Status:** In progress — Phase 0 through Phase 4 delivered; Phase 5 next
 * **Priority:** P1
 * **Owner:** `mq-agent`
 * **Consumers:** `mq-hal`, `macos-scripts`, CI
@@ -351,15 +351,15 @@ FAIL  mq-mcp ↔ mq-image-analyze
 mq-agent stack compatibility --fresh-resolve
 ```
 
-* [ ] Run only when explicitly requested.
-* [ ] Create temporary environments outside repository working trees.
-* [ ] Never modify existing lockfiles.
-* [ ] Resolve dependencies from declared specifications.
-* [ ] Compare freshly resolved and locked versions.
-* [ ] Test critical imports and bounded, declared contract smokes.
-* [ ] Clean temporary environments after the run.
-* [ ] Support timeouts and explicit network-error handling.
-* [ ] Report network or registry failures as `UNAVAILABLE`, not incompatibility.
+* [x] Run only when explicitly requested.
+* [x] Create temporary environments outside repository working trees.
+* [x] Never modify existing lockfiles.
+* [x] Resolve dependencies from declared specifications.
+* [x] Compare freshly resolved and locked versions.
+* [x] Test critical imports and bounded, declared contract smokes.
+* [x] Clean temporary environments after the run.
+* [x] Support timeouts and explicit network-error handling.
+* [x] Report network or registry failures as `UNAVAILABLE`, not incompatibility.
 
 Initial critical import:
 
@@ -367,8 +367,9 @@ Initial critical import:
 from mcp.server.fastmcp import FastMCP
 ```
 
-Import probes should later be declared by each repository instead of being
-hardcoded centrally.
+Import probes are declared by each repository under
+`compatibility.import_probes`; the central map is only the fallback for repos
+that have not declared theirs.
 
 #### Definition of done
 

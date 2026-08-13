@@ -4635,6 +4635,7 @@ def stack_contract_check_cmd(
 def stack_compatibility_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
     all_repos: Annotated[bool, typer.Option("--all", help="Inventory the whole stack instead of the MCP slice")] = False,
+    fresh_resolve: Annotated[bool, typer.Option("--fresh-resolve", help="Also resolve declared ranges in a temporary directory and probe critical imports (needs uv and network)")] = False,
 ):
     """Assess dependency compatibility across MQ repositories (read-only).
 
@@ -4643,12 +4644,21 @@ def stack_compatibility_cmd(
     This reads declared and locked versions with provenance and never modifies
     dependencies, lockfiles or working trees.
 
+    --fresh-resolve answers what a new installation would select today. It
+    resolves outside every working tree, never reads or writes a lockfile, and
+    reports an unreachable registry as UNAVAILABLE rather than incompatibility.
+
     Exit codes: 0 PASS or WARN, 2 FAIL, 3 UNAVAILABLE.
     """
     from mq_agent.tools.stack_compatibility import stack_compatibility as _check
 
-    with console.status("[cyan]Reading dependency sources...[/cyan]"):
-        raw = _check(slice_only=not all_repos)
+    label = (
+        "[cyan]Resolving dependencies in a temporary environment...[/cyan]"
+        if fresh_resolve
+        else "[cyan]Reading dependency sources...[/cyan]"
+    )
+    with console.status(label):
+        raw = _check(slice_only=not all_repos, fresh_resolve=fresh_resolve)
 
     data = json.loads(raw)
     exit_code = {"PASS": 0, "SKIPPED": 0, "WARN": 0, "FAIL": 2, "UNAVAILABLE": 3}.get(
@@ -4678,9 +4688,10 @@ def stack_compatibility_cmd(
             declared = dep["declared"] or "—"
             locked = dep["locked"] or "—"
             bound = "" if dep["bounded"] else " [yellow](unbounded)[/yellow]"
+            fresh = f"  resolved {dep['resolved']}" if dep.get("resolved") else ""
             console.print(
                 f"    [dim]{dep['name']}[/dim]  declared {declared}  "
-                f"locked {locked}{bound}"
+                f"locked {locked}{fresh}{bound}"
             )
         if component.get("reason"):
             console.print(f"    [dim]{component['reason']}[/dim]")

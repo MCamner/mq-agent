@@ -89,7 +89,11 @@
         "MQC010_TOOL_UNAVAILABLE",
         "MQC011_DECLARED_DEPENDENCY_MISMATCH",
         "MQC012_PROTOCOL_CONTRADICTS_RANGE",
-        "MQC013_CONTRACT_UNPRODUCED"
+        "MQC013_CONTRACT_UNPRODUCED",
+        "MQC014_FRESH_RESOLVE_UNAVAILABLE",
+        "MQC015_RESOLVED_DIFFERS_FROM_LOCKED",
+        "MQC016_IMPORT_PROBE_FAILED",
+        "MQC017_RESOLVE_CONFLICT"
       ],
       "description": "Stable finding codes. Codes are append-only within v1."
     },
@@ -214,6 +218,17 @@
             "type": "string"
           },
           "description": "Declared protocol tracks, e.g. {\"mcp_api\": \"1.x-fastmcp\"}."
+        },
+        "requires_python": {
+          "type": "string",
+          "description": "The repository's declared requires-python. A fresh resolution targets it rather than the interpreter running the gate."
+        },
+        "import_probes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Critical imports probed against freshly resolved versions, e.g. {\"mcp\": \"from mcp.server.fastmcp import FastMCP\"}. Declared by the repository; a default applies until it does."
         },
         "compatibility_declared": {
           "type": "boolean",
