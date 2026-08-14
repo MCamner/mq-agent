@@ -89,6 +89,52 @@ that lies is worse than no contract.
 `dependencies` is compared as a normalised specifier set, so `>=1.27.1,<2` and
 `<2,>=1.27.1` are treated as the same boundary.
 
+### Which dependencies get assessed
+
+The gate does not read a fixed list. It assesses:
+
+* every dependency declared by **two or more** repos — the only ones that can
+  disagree across a repository boundary; and
+* every dependency **named in any repo's `compatibility` block**, plus `mcp`,
+  which is critical by default because it is the dependency the original
+  incident was about.
+
+The second group is *critical*, and it is the only group that raises
+`MQC005_DECLARED_RANGE_UNBOUNDED` and `MQC009_COMPATIBILITY_METADATA_MISSING`.
+Nearly every `>=` range in the stack is technically unbounded; warning about all
+of them would bury the one dependency the stack declared as mattering. Declaring
+a boundary in one repo makes that dependency critical **stack-wide** — the
+exposure lives in whichever repo left its range open, not in the repo that
+declared its own.
+
+Discovered-but-not-declared dependencies are still assessed for proven pairwise
+incompatibility (`MQC006`, `MQC007`). Those need no declaration to be true.
+
+## Versioned JSON contracts
+
+`produces` falls back to the contract's own `contracts` list when no
+`compatibility.produces` is declared, so every repo already contributes its
+produced contracts — including the shell and Node repos, whose Python status is
+`SKIPPED`.
+
+Contract ids are matched on family and version with separators normalised:
+mq-agent reads mqobsidian's `inbox-manifest.v1` while mqobsidian registers it as
+`inbox_manifest.v1`. Both spellings resolve to the same contract; matching raw
+strings would report a correctly wired contract as produced by nobody.
+
+| State | Finding | Blocks release |
+|---|---|---|
+| Consumed contract nobody produces | `MQC013_CONTRACT_UNPRODUCED` (WARN) | No |
+| Producer moved to `X.v2`, consumer still on `X.v1` | `MQC018_CONTRACT_VERSION_SKEW` (FAIL) | Yes |
+
+The two are separated because the diagnoses differ. An unproduced contract may
+simply be owned outside this stack. A producer that changed version underneath
+its consumer is a break with a named cause on both sides, so the finding
+implicates both repos and blocks both.
+
+Unlike `MQC013`, a skew is reported even from a narrowed inventory: it needs
+both halves present to be observed at all, so seeing it is already proof.
+
 ### `import_probes`
 
 A repo may declare the statements that prove its contract still holds against a
@@ -171,6 +217,7 @@ mask the repos whose check genuinely did not run.
 | `MQC015_RESOLVED_DIFFERS_FROM_LOCKED` | WARN | No |
 | `MQC016_IMPORT_PROBE_FAILED` | FAIL | Yes |
 | `MQC017_RESOLVE_CONFLICT` | FAIL | Yes |
+| `MQC018_CONTRACT_VERSION_SKEW` | FAIL | Yes |
 | `MQC004_DEPENDENCY_SOURCE_MISSING` | SKIPPED | No |
 | `MQC001`, `MQC010`, `MQC014` | UNAVAILABLE | No, but never green |
 

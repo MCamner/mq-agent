@@ -121,6 +121,14 @@ Delivery order:
    `mqlaunch` without duplicating policy.
 6. Expand incrementally across the remaining MQ repositories.
 
+Status: steps 1–6 are delivered in `mq-agent`. The gate assesses every repo in
+the stack against the dependencies they actually share and against their
+versioned JSON contracts, and the MCP incident is preserved as a permanent
+regression fixture. Remaining work sits in other repos: the `mq-hal` read-only
+surface and the `mqlaunch` delegation. Checking MCP tool names, safety classes
+and schema signatures is deferred to v1.27 — it reads a live tool registry
+rather than declared files.
+
 `mq-agent` owns aggregation and assessment. Each repository owns dependency
 declarations and compatibility metadata. `mq-hal` may present results and
 `mqlaunch` may delegate, but neither owns compatibility logic. The detailed

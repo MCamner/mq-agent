@@ -4717,7 +4717,12 @@ def stack_compatibility_cmd(
         for dep in component["dependencies"]:
             declared = dep["declared"] or "—"
             locked = dep["locked"] or "—"
-            bound = "" if dep["bounded"] else " [yellow](unbounded)[/yellow]"
+            # Only flagged where the gate actually warns. Every `>=` range in
+            # the stack is unbounded; marking all of them in yellow implies an
+            # action the gate does not ask for on dependencies nobody declared
+            # as protocol-critical.
+            unbounded = dep.get("critical", True) and not dep["bounded"]
+            bound = " [yellow](unbounded)[/yellow]" if unbounded else ""
             fresh = f"  resolved {dep['resolved']}" if dep.get("resolved") else ""
             console.print(
                 f"    [dim]{dep['name']}[/dim]  declared {declared}  "
@@ -4727,15 +4732,31 @@ def stack_compatibility_cmd(
             console.print(f"    [dim]{component['reason']}[/dim]")
 
     if data["relationships"]:
+        # Every pair of repos sharing any dependency is a relationship, so the
+        # full list runs to dozens of rows that all say the same thing. The ones
+        # worth an operator's attention are those that disagree; the rest are
+        # counted, and --json still carries all of them for anything reading the
+        # contract.
+        divergent = [r for r in data["relationships"] if r["status"] != "PASS"]
+        agreed = len(data["relationships"]) - len(divergent)
+
         console.print()
         console.print("  [bold]Relationships[/bold]")
-        for rel in data["relationships"]:
+        for rel in divergent:
             status_str = _STATUS.get(rel["status"], rel["status"])
             console.print(
                 f"    {rel['producer']} ↔ {rel['consumer']}  "
                 f"[dim]{rel['subject']}[/dim]  {status_str}"
             )
             console.print(f"      [dim]{rel['detail']}[/dim]")
+        if agreed:
+            noun = "pair" if agreed == 1 else "pairs"
+            summary = (
+                f"{agreed} further {noun} agree"
+                if divergent
+                else f"{agreed} {noun} assessed, none disagree"
+            )
+            console.print(f"    [dim]{summary} — see --json for all of them[/dim]")
 
     console.print()
     if data["findings"]:

@@ -15,6 +15,10 @@ This module implements the static half of the gate:
   block against the repo's own pyproject.toml.
 * Phase 3 — relationships: match produced and consumed contracts, and assess
   range overlap and protocol tracks between every pair of repos.
+* Phase 6 — the whole stack: track every dependency shared across a repository
+  boundary rather than one hardcoded name, read each repo's registered
+  `contracts` as the contracts it produces, and fail a consumer left behind by
+  a producer's schema version.
 
 Phase 4 (fresh resolve) is the dynamic half and lives in
 `stack_fresh_resolve`; this module calls it only when explicitly asked.
@@ -27,7 +31,9 @@ treated as incompatibility.
 from __future__ import annotations
 
 import json
+import re
 import tomllib
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -47,9 +53,9 @@ from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, _version
 
 COMPATIBILITY_SCHEMA = "mq.stack-compatibility.v1"
 
-# Shared dependencies tracked by the first vertical slice. Phase 2 moves this
-# declaration into each repository's own contract; it is centralised here only
-# until that metadata exists.
+# Always critical, whatever any contract declares: this is the dependency the
+# incident was about, and a repo that has declared nothing at all must still be
+# warned about it. Everything else becomes critical by being declared.
 DEFAULT_TRACKED: tuple[str, ...] = ("mcp",)
 
 # The first vertical slice named by the roadmap.
@@ -171,6 +177,41 @@ def _declared_spec(pyproject: Path, dependency: str) -> tuple[str | None, str]:
                 return spec, field
 
     return None, ""
+
+
+def _all_declared(pyproject: Path) -> set[str]:
+    """Every dependency name a pyproject declares, canonicalised.
+
+    Extras included: a dependency shared only through an optional extra still
+    crosses the repository boundary the moment that extra is installed.
+    """
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return set()
+
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return set()
+
+    raw_entries: list[Any] = []
+    if isinstance(project.get("dependencies"), list):
+        raw_entries.extend(project["dependencies"])
+    optional = project.get("optional-dependencies")
+    if isinstance(optional, dict):
+        for entries in optional.values():
+            if isinstance(entries, list):
+                raw_entries.extend(entries)
+
+    names: set[str] = set()
+    for raw in raw_entries:
+        if not isinstance(raw, str):
+            continue
+        try:
+            names.add(canonicalize_name(Requirement(raw).name))
+        except InvalidRequirement:
+            continue
+    return names
 
 
 def _requires_python(pyproject: Path) -> str:
@@ -330,11 +371,19 @@ def _declared_compatibility(contract: dict[str, Any] | None) -> dict[str, Any]:
     Absent metadata is normal during rollout and must stay distinguishable from
     metadata that is present but contradicts the repo's own pyproject.toml.
     """
+    # Every repo in the stack already registers what it produces under
+    # `contracts`. Requiring a parallel `produces` block before the gate can see
+    # anything at all would leave the JSON side dead until all eight repos are
+    # changed, so the registered list is the fallback.
+    registered = [
+        c for c in (contract or {}).get("contracts", []) if isinstance(c, str)
+    ]
+
     empty: dict[str, Any] = {
         "present": False,
         "protocols": {},
         "dependencies": {},
-        "produces": [],
+        "produces": registered,
         "consumes": [],
         "import_probes": dict(DEFAULT_PROBES),
     }
@@ -369,10 +418,81 @@ def _declared_compatibility(contract: dict[str, Any] | None) -> dict[str, Any]:
         "present": True,
         "protocols": _str_map("protocols"),
         "dependencies": _str_map("dependencies"),
-        "produces": _str_list("produces"),
+        "produces": _str_list("produces") or registered,
         "consumes": _str_list("consumes"),
         "import_probes": probes,
     }
+
+
+def _protocol_dependency(key: str) -> str:
+    """The dependency a protocol key governs: `mcp_api` -> `mcp`."""
+    return key.rsplit("_", 1)[0] if "_" in key else key
+
+
+def _discover_tracked(
+    entries: list[dict[str, str]],
+) -> tuple[tuple[str, ...], frozenset[str]]:
+    """Decide which dependencies this run assesses, and which are critical.
+
+    Returns `(tracked, critical)`.
+
+    Tracked is every dependency that crosses a repository boundary — declared by
+    at least two repos — plus every dependency any contract names. A repo that
+    happens not to use the one hardcoded name would otherwise be reported PASS
+    having had nothing assessed at all, which reads as a verdict but is the
+    absence of one.
+
+    Critical is the subset the stack has explicitly declared, and it is the only
+    subset that raises unbounded-range and missing-metadata warnings. Every `>=`
+    range in the stack is technically unbounded; warning about all of them
+    buries the one dependency that was declared to matter. Discovered
+    dependencies are still assessed for proven pairwise incompatibility, which
+    needs no declaration to be true.
+    """
+    critical = {canonicalize_name(name) for name in DEFAULT_TRACKED}
+    seen: Counter[str] = Counter()
+
+    for entry in entries:
+        root = _expand(entry["path"])
+        if not root.exists():
+            continue
+
+        contract, _ = _read_contract(root)
+        compatibility = _declared_compatibility(contract)
+        critical |= {
+            canonicalize_name(name) for name in compatibility["dependencies"]
+        }
+        critical |= {
+            canonicalize_name(_protocol_dependency(key))
+            for key in compatibility["protocols"]
+        }
+
+        pyproject = _find_sources(root).get("pyproject.toml")
+        if pyproject is not None:
+            seen.update(_all_declared(pyproject))
+
+    shared = {name for name, count in seen.items() if count >= 2}
+    return tuple(sorted(critical | shared)), frozenset(critical)
+
+
+_CONTRACT_VERSION = re.compile(r"^(?P<family>.+?)[.\-_]v(?P<version>\d+)$")
+
+
+def _contract_key(contract: str) -> tuple[str, str]:
+    """Split an MQ contract id into (family, version).
+
+    Separators are normalised because the same contract is spelled both ways
+    across the stack: mq-agent reads mqobsidian's `inbox-manifest.v1` while
+    mqobsidian's own contract registers it as `inbox_manifest.v1`. Matching the
+    raw strings reports a correctly wired contract as produced by nobody.
+
+    A version-less id keeps an empty version and matches only its own spelling
+    family, so nothing is invented for ids that never carried one.
+    """
+    match = _CONTRACT_VERSION.match(contract.strip())
+    family = match.group("family") if match else contract.strip()
+    version = match.group("version") if match else ""
+    return re.sub(r"[.\-_]+", "_", family).lower(), version
 
 
 def _protocol_major(track: str) -> int | None:
@@ -387,8 +507,7 @@ def _protocol_major(track: str) -> int | None:
 def _protocol_track_for(dependency: str, protocols: dict[str, str]) -> tuple[str, str] | None:
     """Find the protocol track governing `dependency`, e.g. mcp -> mcp_api."""
     for key, track in protocols.items():
-        base = key.rsplit("_", 1)[0] if "_" in key else key
-        if canonicalize_name(base) == canonicalize_name(dependency):
+        if canonicalize_name(_protocol_dependency(key)) == canonicalize_name(dependency):
             return key, track
     return None
 
@@ -410,6 +529,7 @@ def _specifiers_agree(left: str, right: str) -> bool:
 def _component(
     entry: dict[str, str],
     tracked: tuple[str, ...],
+    critical: frozenset[str],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Build one component entry plus any findings it raises."""
     repo = entry["name"]
@@ -505,6 +625,7 @@ def _component(
             continue
 
         bounded = _is_bounded(declared)
+        is_critical = canonicalize_name(name) in critical
         dependencies.append(
             {
                 "name": name,
@@ -513,11 +634,12 @@ def _component(
                 "installed": None,
                 "resolved": None,
                 "bounded": bounded,
+                "critical": is_critical,
                 "sources": provenance,
             }
         )
 
-        if declared is not None and not bounded:
+        if is_critical and declared is not None and not bounded:
             statuses.append("WARN")
             findings.append(
                 {
@@ -557,20 +679,21 @@ def _component(
         # Phase 2: the contract's declared boundary must agree with the code.
         boundary = declared_boundaries.get(name)
         if boundary is None:
-            statuses.append("WARN")
-            findings.append(
-                {
-                    "code": "MQC009_COMPATIBILITY_METADATA_MISSING",
-                    "severity": "WARN",
-                    "repo": repo,
-                    "message": (
-                        f"{repo} does not declare a compatibility boundary for "
-                        f"{name} in .mq/repo-contract.json"
-                    ),
-                    "blocks_release": False,
-                    "evidence": provenance,
-                }
-            )
+            if is_critical:
+                statuses.append("WARN")
+                findings.append(
+                    {
+                        "code": "MQC009_COMPATIBILITY_METADATA_MISSING",
+                        "severity": "WARN",
+                        "repo": repo,
+                        "message": (
+                            f"{repo} does not declare a compatibility boundary for "
+                            f"{name} in .mq/repo-contract.json"
+                        ),
+                        "blocks_release": False,
+                        "evidence": provenance,
+                    }
+                )
         elif declared is not None and not _specifiers_agree(boundary, declared):
             statuses.append("FAIL")
             findings.append(
@@ -673,35 +796,71 @@ def _component(
 
 def _contract_links(
     components: list[dict[str, Any]],
-) -> tuple[list[tuple[str, str, str]], list[tuple[str, str]]]:
+) -> tuple[
+    list[tuple[str, str, str, str]],
+    list[tuple[str, str]],
+    list[tuple[str, str, str, str]],
+]:
     """Match consumed contracts to the components that produce them.
 
-    Returns the producer/consumer/contract triples plus the (consumer,
-    contract) pairs nothing in the stack produces. A component that both
-    produces and consumes a contract satisfies itself and is not reported.
+    Returns the producer/consumer/consumed-id/produced-id links, the (consumer,
+    contract) pairs nothing in the stack produces, and the version skews — a
+    consumer on `X.v1` where the producer has moved to `X.v2`. A component that
+    both produces and consumes a contract satisfies itself and is not reported.
+
+    Consumed and produced ids are both carried because the two sides spell the
+    same contract differently; quoting only the consumer's spelling as what the
+    producer offers would make the evidence wrong.
+
+    Skew is separated from absence because the diagnoses differ: an unproduced
+    contract may simply be owned outside this stack, while a producer that
+    changed version underneath its consumer is a break with a named cause on
+    both sides.
     """
-    producers: dict[str, list[str]] = {}
+    producers: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    families: dict[str, list[tuple[str, str, str]]] = {}
     for component in components:
         for contract in component.get("produces", []):
-            producers.setdefault(contract, []).append(component["repo"])
+            family, version = _contract_key(contract)
+            producers.setdefault((family, version), []).append(
+                (component["repo"], contract)
+            )
+            families.setdefault(family, []).append(
+                (component["repo"], contract, version)
+            )
 
-    links: list[tuple[str, str, str]] = []
+    links: list[tuple[str, str, str, str]] = []
     unproduced: list[tuple[str, str]] = []
+    skews: list[tuple[str, str, str, str]] = []
 
     for component in components:
         consumer = component["repo"]
         for contract in sorted(set(component.get("consumes", []))):
-            offering = sorted(producers.get(contract, []))
-            if not offering:
-                unproduced.append((consumer, contract))
+            family, version = _contract_key(contract)
+            offering = sorted(producers.get((family, version), []))
+            if offering:
+                links.extend(
+                    (producer, consumer, contract, produced)
+                    for producer, produced in offering
+                    if producer != consumer
+                )
                 continue
-            links.extend(
-                (producer, consumer, contract)
-                for producer in offering
-                if producer != consumer
-            )
 
-    return sorted(links), sorted(unproduced)
+            other_versions = sorted(
+                (producer, produced)
+                for producer, produced, produced_version in families.get(family, [])
+                if producer != consumer and produced_version != version
+            )
+            if other_versions:
+                skews.extend(
+                    (producer, consumer, contract, produced)
+                    for producer, produced in other_versions
+                )
+                continue
+
+            unproduced.append((consumer, contract))
+
+    return sorted(links), sorted(unproduced), sorted(skews)
 
 
 def _track_mismatches(
@@ -736,8 +895,26 @@ def _relationships(
         key=lambda c: c["repo"],
     )
     findings: list[dict[str, Any]] = []
-    links, unproduced = _contract_links(assessable)
-    wired = {(producer, consumer) for producer, consumer, _ in links}
+    links, unproduced, skews = _contract_links(assessable)
+    wired = {(producer, consumer) for producer, consumer, _, _ in links}
+    wired |= {(producer, consumer) for producer, consumer, _, _ in skews}
+
+    # A skew needs both halves present to be observed at all, so unlike an
+    # unproduced contract it is not weakened by a narrowed inventory.
+    findings.extend(
+        {
+            "code": "MQC018_CONTRACT_VERSION_SKEW",
+            "severity": "FAIL",
+            "repo": consumer,
+            "repos": sorted({consumer, producer}),
+            "message": (
+                f"{consumer} consumes {consumed!r} but {producer} produces "
+                f"{produced!r} — the producer changed version underneath it"
+            ),
+            "blocks_release": True,
+        }
+        for producer, consumer, consumed, produced in skews
+    )
 
     if complete_view and len(assessable) == len(components):
         findings.extend(
@@ -758,13 +935,28 @@ def _relationships(
         {
             "producer": producer,
             "consumer": consumer,
-            "subject": contract,
+            "subject": consumed,
             "status": "PASS",
             "overlap": None,
-            "detail": f"{producer} produces {contract}; {consumer} consumes it",
+            "detail": (
+                f"{producer} produces {produced}; {consumer} consumes it"
+                if produced == consumed
+                else f"{producer} produces {produced}; {consumer} consumes {consumed}"
+            ),
         }
-        for producer, consumer, contract in links
+        for producer, consumer, consumed, produced in links
     ]
+    relationships.extend(
+        {
+            "producer": producer,
+            "consumer": consumer,
+            "subject": consumed,
+            "status": "FAIL",
+            "overlap": None,
+            "detail": f"{producer} produces {produced}; {consumer} consumes {consumed}",
+        }
+        for producer, consumer, consumed, produced in skews
+    )
 
     for index, left in enumerate(assessable):
         for right in assessable[index + 1 :]:
@@ -820,6 +1012,12 @@ def _relationships(
             for name in shared:
                 left_dep, right_dep = left_deps[name], right_deps[name]
                 left_spec, right_spec = left_dep["declared"], right_dep["declared"]
+                if left_spec is None and right_spec is None:
+                    # Both sides only have the dependency transitively, through
+                    # their lockfiles. Neither has asserted a boundary, so the
+                    # pair states nothing — reporting it as PASS is noise on a
+                    # question nobody asked.
+                    continue
                 overlap = _ranges_overlap(left_spec, right_spec)
                 evidence = left_dep["sources"] + right_dep["sources"]
                 detail = (
@@ -908,7 +1106,7 @@ def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
 
 def build_report(
     repos: list[dict[str, str]] | None = None,
-    tracked: tuple[str, ...] = DEFAULT_TRACKED,
+    tracked: tuple[str, ...] | None = None,
     slice_only: bool = True,
     fresh_resolve: bool = False,
     runner: Runner | None = None,
@@ -919,6 +1117,11 @@ def build_report(
     `slice_only` limits the inventory to the roadmap's first vertical slice
     (mq-mcp and mq-image-analyze). Set it to False to inventory the whole stack.
 
+    `tracked` defaults to whatever the inventory turns out to share — see
+    `_discover_tracked`. Passing an explicit tuple pins the assessment to those
+    dependencies and makes every one of them critical, which is what a caller
+    asking about one named dependency means.
+
     `fresh_resolve` additionally resolves the declared ranges in a temporary
     directory and probes the declared critical imports. It shells out to `uv`
     and needs a registry, so it runs only when explicitly requested. `runner`
@@ -928,11 +1131,17 @@ def build_report(
     if slice_only:
         entries = [e for e in entries if e["name"] in SLICE_REPOS]
 
+    if tracked is None:
+        names, critical = _discover_tracked(entries)
+    else:
+        names = tracked
+        critical = frozenset(canonicalize_name(name) for name in tracked)
+
     components: list[dict[str, Any]] = []
     findings: list[dict[str, Any]] = []
 
     for entry in entries:
-        component, component_findings = _component(entry, tracked)
+        component, component_findings = _component(entry, names, critical)
         components.append(component)
         findings.extend(component_findings)
 
@@ -1022,7 +1231,7 @@ def repo_verdict(report: dict[str, Any], repo: str) -> dict[str, Any]:
 
 def stack_compatibility(
     repos: list[dict[str, str]] | None = None,
-    tracked: tuple[str, ...] = DEFAULT_TRACKED,
+    tracked: tuple[str, ...] | None = None,
     slice_only: bool = True,
     fresh_resolve: bool = False,
 ) -> str:
