@@ -9,6 +9,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.26.0] — 2026-08-14
+
+* 941368f feat(stack): extend the compatibility gate across the whole stack — Phase 6 (#202)
+* 477f270 fix(stack): a repo with no Python dependencies is SKIPPED, not UNAVAILABLE (#201)
+* c8ec7ea feat(stack): enforce blocks_release in the release path — Phase 6 (#200)
+* ca9116c feat(stack): operator surfaces and CI gates for compatibility — Phase 5 (#199)
+* 0cfcd47 feat(stack): fresh resolve for the compatibility gate — Phase 4 (#198)
+* 82bccaf ci(tests): type-check tests/ and fix the errors it surfaced (#197)
+* 9e6f64b feat(stack): compatibility relationships and range overlap — Phase 3 (#196)
+* c9fa38d docs(agents): forbid direct access to the CodeGraph database (#195)
+* bbe8536 feat(stack): stack compatibility gate — Phase 0-2 (#194)
+* 505ad9f feat(docs): generate the command reference from the Typer app (#193)
+* 5331ccc docs: sync roadmaps after v1.25.1 and open v1.26.0 (#192)
+
 ### Added
 
 * Generated command reference: `tools/generate_command_reference.py`
