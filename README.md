@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.25.1-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.26.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -285,6 +285,20 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.26.0 status
+
+- [x] feat(stack): extend the compatibility gate across the whole stack — Phase 6 (#202)
+- [x] fix(stack): a repo with no Python dependencies is SKIPPED, not UNAVAILABLE (#201)
+- [x] feat(stack): enforce blocks_release in the release path — Phase 6 (#200)
+- [x] feat(stack): operator surfaces and CI gates for compatibility — Phase 5 (#199)
+- [x] feat(stack): fresh resolve for the compatibility gate — Phase 4 (#198)
+- [x] ci(tests): type-check tests/ and fix the errors it surfaced (#197)
+- [x] feat(stack): compatibility relationships and range overlap — Phase 3 (#196)
+- [x] docs(agents): forbid direct access to the CodeGraph database (#195)
+- [x] feat(stack): stack compatibility gate — Phase 0-2 (#194)
+- [x] feat(docs): generate the command reference from the Typer app (#193)
+- [x] docs: sync roadmaps after v1.25.1 and open v1.26.0 (#192)
 
 ## v1.25.1 status
 
