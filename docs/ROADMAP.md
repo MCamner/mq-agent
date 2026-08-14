@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.25.1 — Release Cockpit post-release audit fix
-Current:  v1.26.0 — Stack Compatibility Gate
+Released: v1.26.0 — Stack Compatibility Gate
+Current:  v1.27.0 — MCP tool contract checking
 ```
 
 Completed foundation:
@@ -88,7 +88,7 @@ Completed foundation:
 | v1.24.1 | Post-release stabilization                   | Done    |
 | v1.25.0 | Release Cockpit                              | Released |
 | v1.25.1 | Release Cockpit post-release audit fix       | Released |
-| v1.26.0 | Stack Compatibility Gate                     | In progress |
+| v1.26.0 | Stack Compatibility Gate                     | Released |
 
 ---
 

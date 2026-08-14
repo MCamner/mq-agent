@@ -1,11 +1,11 @@
 # mq-agent Roadmap
 
-Released: v1.25.1 — Release Cockpit post-release audit fix.
-Next: v1.26.0 — Stack Compatibility Gate.
+Released: v1.26.0 — Stack Compatibility Gate.
+Next: v1.27.0 — MCP tool contract checking.
 
 ## Current status
 
-All release phases complete through v1.25.1.
+All release phases complete through v1.26.0.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ All release phases complete through v1.25.1.
 | v1.24.1 | Post-release stabilization | Released v1.24.1 |
 | v1.25.0 | Release Cockpit | Released v1.25.0 |
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
-| v1.26.0 | Stack Compatibility Gate | In progress |
+| v1.26.0 | Stack Compatibility Gate | Released v1.26.0 |
 
 ## Completed — v1.24.1 Post-release stabilization
 
@@ -170,9 +170,28 @@ hiding the lower-level release evidence.
 3. `ship proof` and `ship audit`.
 4. Command reference, release-cockpit guide, README, and Pages links.
 
-## Next release — v1.26.0 Stack Compatibility Gate
+## Next release — v1.27.0 MCP tool contract checking
 
-* **Status:** In progress — Phase 0 through Phase 6 delivered in `mq-agent`;
+* **Status:** Open. The only compatibility work v1.26.0 deferred that
+  `mq-agent` owns: checking MCP tool names, safety classes and schema
+  signatures across the stack. Every check that shipped reads declared files;
+  this one has to read `mq-mcp`'s live tool registry, which is a different
+  class of work and a different ownership boundary. Nothing else is scoped yet.
+* **Priority:** P2
+* **Owner:** `mq-agent`
+* **Producer of the registry:** `mq-mcp`
+
+Still open in other repos, unchanged by this release: the `mq-hal` read-only
+compatibility surface and the `mqlaunch` delegation. Neither may reimplement
+the assessment.
+
+## Completed — v1.26.0 Stack Compatibility Gate
+
+Released 2026-08-14. `mq-agent stack compatibility` assesses dependency and
+contract drift across repository boundaries, read-only and deterministic, with
+`blocks_release` enforced by CI and the release path.
+
+* **Status:** Released — Phase 0 through Phase 6 delivered in `mq-agent`;
   the `mq-hal` and `mqlaunch` surfaces are owned by those repos, and MCP tool
   signature checking is deferred to v1.27
 * **Priority:** P1
