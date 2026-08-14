@@ -172,9 +172,9 @@ hiding the lower-level release evidence.
 
 ## Next release — v1.26.0 Stack Compatibility Gate
 
-* **Status:** In progress — Phase 0 through Phase 5 delivered in `mq-agent`,
-  plus release-gate enforcement from Phase 6;
-  the `mq-hal` and `mqlaunch` surfaces are owned by those repos
+* **Status:** In progress — Phase 0 through Phase 6 delivered in `mq-agent`;
+  the `mq-hal` and `mqlaunch` surfaces are owned by those repos, and MCP tool
+  signature checking is deferred to v1.27
 * **Priority:** P1
 * **Owner:** `mq-agent`
 * **Consumers:** `mq-hal`, `macos-scripts`, CI
@@ -323,8 +323,13 @@ The gate reads and enforces the block. Declaring it in `mq-mcp` and
 * [x] Calculate overlap between shared dependency ranges.
 * [x] Detect parallel protocol tracks in the same stack.
 * [x] Detect consumers requiring a contract no producer offers.
-* [ ] Detect producer schema changes without corresponding consumer updates.
-* [ ] Check MCP tool names, safety classes, and schema signatures.
+* [x] Detect producer schema changes without corresponding consumer updates.
+  `MQC018_CONTRACT_VERSION_SKEW` — delivered with Phase 6, since it needed the
+  contract matching that phase added.
+* [ ] Check MCP tool names, safety classes, and schema signatures. **Deferred
+  to v1.27.** Every other check reads declared files; this one has to read
+  mq-mcp's live tool registry, which is a different class of work and a
+  different ownership boundary.
 * [x] Present relationships as evidence, not only a summary status.
 
 Example finding:
@@ -389,7 +394,7 @@ that have not declared theirs.
 * [ ] Expose the result read-only through `mq-hal`. Owned by `mq-hal`.
 * [ ] Delegate from `mqlaunch` without duplicated logic. Owned by
   `macos-scripts`.
-* [ ] Run static checks in relevant PR and release workflows. Deliberately not
+* [x] Run static checks in relevant PR and release workflows. Deliberately not
   on pull requests: only the checkout exists there, so every sibling reports
   `UNAVAILABLE` and the gate says nothing. It runs on push to `main`.
 * [x] Run fresh resolution on a schedule or before release.
@@ -419,12 +424,28 @@ Proposed exit codes:
   produced is `UNAVAILABLE` and blocks nothing. Pairwise findings gained a
   `repos` list, because naming only the left-hand repo blocked one half of an
   incompatible pair and let the other half release.
-* [ ] Add `mq-agent`, `mq-hal`, `repo-signal`, `macos-scripts`, and
-  `mqobsidian`.
-* [ ] Add `mq-ums` where machine-readable contracts exist.
-* [ ] Check shared Python and JSON contracts.
-* [ ] Check versioned observations, feedback, and memory schemas.
-* [ ] Add regression fixtures for previous real drift failures.
+* [x] Add `mq-agent`, `mq-hal`, `repo-signal`, `macos-scripts`, and
+  `mqobsidian`. They were already in the inventory but were assessed against a
+  single hardcoded dependency, so a repo that does not use `mcp` reported
+  `PASS` having had nothing assessed — a verdict shape for an absence of one.
+  The gate now discovers what to track: every dependency declared by two or
+  more repos, plus every dependency any contract names.
+* [x] Add `mq-ums` where machine-readable contracts exist. It declares no
+  Python dependencies and stays `SKIPPED` for them, but its registered
+  contracts now enter the stack's producer set, so the JSON side assesses it.
+* [x] Check shared Python and JSON contracts. Python: the discovery pass above.
+  JSON: `produces` falls back to the contract's existing `contracts` list, so
+  all eight repos contribute without a parallel declaration first.
+* [x] Check versioned observations, feedback, and memory schemas.
+  `MQC018_CONTRACT_VERSION_SKEW` fails a consumer left on `X.v1` when the
+  producer moved to `X.v2`, and blocks both repos. Contract ids match on family
+  and version with separators normalised, because the same contract is spelled
+  `inbox-manifest.v1` in mq-agent and `inbox_manifest.v1` in mqobsidian —
+  matching raw strings called a correctly wired contract unproduced.
+* [x] Add regression fixtures for previous real drift failures. The MCP
+  incident is preserved exactly as stated below, including the check that a
+  green lockfile does not make it pass and that the same stack with the
+  boundary actually declared does.
 * [x] Document exceptions for components using different package managers or
   runtimes. `mqlaunch` (shell), `mq-hal` (shell) and `mq-ums` (Node) declare no
   Python dependencies and are reported `SKIPPED` — nothing to assess, as
@@ -470,17 +491,19 @@ The first version will not:
 
 ### Final definition of done
 
-* [ ] `mq-agent stack compatibility` works without network access.
-* [ ] `--json` conforms to `mq.stack-compatibility.v1`.
-* [ ] `--fresh-resolve` changes no repositories or lockfiles.
-* [ ] Latent major-version exposure is detected even when the lockfile is green.
-* [ ] Producer and consumer contracts are compared across repositories.
-* [ ] Every assessment contains evidence and `next_action`.
-* [ ] Human, JSON, dashboard, and HAL results are semantically identical.
-* [ ] `mqlaunch` and `mq-hal` duplicate no compatibility logic.
-* [ ] The MCP regression case remains permanently tested.
-* [ ] Documentation, command references, and architecture maps are updated.
-* [ ] The full `mq-agent` suite and relevant stack contracts are green.
+* [x] `mq-agent stack compatibility` works without network access.
+* [x] `--json` conforms to `mq.stack-compatibility.v1`.
+* [x] `--fresh-resolve` changes no repositories or lockfiles.
+* [x] Latent major-version exposure is detected even when the lockfile is green.
+* [x] Producer and consumer contracts are compared across repositories.
+* [x] Every assessment contains evidence and `next_action`.
+* [x] Human, JSON and dashboard results are semantically identical. The `mq-hal`
+  surface is owned by `mq-hal` and is not part of this repo's release.
+* [ ] `mqlaunch` and `mq-hal` duplicate no compatibility logic. Owned by
+  `macos-scripts` and `mq-hal`; both delegate or do not present it yet.
+* [x] The MCP regression case remains permanently tested.
+* [x] Documentation, command references, and architecture maps are updated.
+* [x] The full `mq-agent` suite and relevant stack contracts are green.
 
 ### Recommended starting point
 

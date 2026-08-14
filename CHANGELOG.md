@@ -114,6 +114,52 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `ship status --repo <worktree>` no longer judges whatever sits in
   `~/<repo>`. `checks.compatibility` is that repository's own verdict; the
   whole-stack status is kept in `checks.evidence.compatibility.stack_status`.
+* The gate now discovers which dependencies to assess instead of reading one
+  hardcoded name. It tracks every dependency declared by two or more repos —
+  the only ones that can disagree across a repository boundary — plus every
+  dependency any contract names. `mq-agent`, `repo-signal` and `mqobsidian`
+  were previously reported `PASS` having had nothing assessed at all, which is
+  a verdict shape for an absence of one; they are now assessed against the
+  seven dependencies the stack actually shares.
+* Dependencies carry `critical`. Only critical ones — those named in a
+  `compatibility` block, plus `mcp` by default — raise `MQC005` (unbounded
+  range) and `MQC009` (missing metadata). Nearly every `>=` range in the stack
+  is technically unbounded, and warning about all of them would bury the one
+  dependency the stack declared as mattering. Discovered dependencies are still
+  assessed for proven pairwise incompatibility, which needs no declaration to
+  be true. Declaring a boundary in one repo makes that dependency critical
+  stack-wide: the exposure lives in whichever repo left its range open.
+* `produces` falls back to the contract's existing `contracts` list when no
+  `compatibility.produces` is declared. All eight repos already register what
+  they produce; requiring a parallel declaration first left the JSON side of
+  the gate dead. `mq-ums` and the shell repos now contribute their contracts
+  even though their Python status is `SKIPPED`.
+* New code `MQC018_CONTRACT_VERSION_SKEW` (FAIL, blocks both repos): a consumer
+  still on `X.v1` when the producer has moved to `X.v2`. Previously this
+  surfaced as `MQC013_CONTRACT_UNPRODUCED` (WARN), which is the wrong
+  diagnosis — the contract exists, it changed underneath its consumer. Unlike
+  `MQC013`, a skew is reported even from a narrowed inventory: it needs both
+  halves present to be observed, so seeing it is already proof.
+* Contract ids match on family and version with separators normalised.
+  mq-agent reads mqobsidian's `inbox-manifest.v1` while mqobsidian registers it
+  as `inbox_manifest.v1` — matching raw strings reported a correctly wired
+  contract as produced by nobody.
+* `.mq/repo-contract.json` declares the five mqobsidian export contracts
+  `mq_agent/memory/inbox_pipeline.py` reads, so that wiring is now assessed
+  rather than assumed.
+* Human output collapses the Relationships section to the pairs that disagree,
+  with the rest counted on one line. Every pair of repos sharing any dependency
+  is a relationship, so the full list is dozens of rows that all say the same
+  thing and bury the one that does not. `--json` still carries all of them.
+* The `(unbounded)` marker is shown only for critical dependencies — the ones
+  the gate actually warns about. Marking every `>=` range implied an action the
+  gate does not ask for.
+* The MCP incident is preserved as a regression fixture: both repos on the
+  FastMCP 1.x track with open ranges, one with no lock and one held green by
+  `uv.lock`. The fixture asserts the gate still fails, that the locked repo is
+  blocked from releasing, and that the same stack with `<2` actually declared
+  passes — the distinction between *works with today's lock* and *declares a
+  genuinely compatible future resolution*.
 
 ### Fixed
 

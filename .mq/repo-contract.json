@@ -34,6 +34,15 @@
     "inbox_promotion_orchestration.v1",
     "mq.stack-compatibility.v1"
   ],
+  "compatibility": {
+    "consumes": [
+      "truth-export-index.v1",
+      "inbox-manifest.v1",
+      "memory-score-manifest.v1",
+      "memory-evidence-manifest.v1",
+      "promotion-policy.v1"
+    ]
+  },
   "next_focus": "Post-v1.24 release planning, contract coverage, and documentation stabilization",
   "release_mode": "pull_request"
 }

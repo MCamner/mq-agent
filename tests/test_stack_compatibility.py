@@ -959,6 +959,44 @@ def test_human_and_json_output_carry_the_same_verdict(status: str) -> None:
     assert json.loads(machine.stdout)["status"] == status
 
 
+def _with_relationships(*statuses: str) -> dict[str, Any]:
+    report = _fixed("WARN")
+    report["relationships"] = [
+        {
+            "producer": f"p{index}",
+            "consumer": f"c{index}",
+            "subject": "rich",
+            "status": status,
+            "overlap": None,
+            "detail": f"detail-{index}",
+        }
+        for index, status in enumerate(statuses)
+    ]
+    return report
+
+
+def test_human_output_shows_only_relationships_that_disagree() -> None:
+    """Every pair sharing any dependency is a relationship. Printing dozens of
+    identical PASS rows buries the one row that says something."""
+    result = _cli(_with_relationships("PASS", "PASS", "FAIL"))
+
+    assert "detail-2" in result.stdout
+    assert "detail-0" not in result.stdout
+    assert "2 further pairs agree" in result.stdout
+
+
+def test_human_output_still_counts_a_fully_agreeing_stack() -> None:
+    """With nothing shown above it, 'further' would refer to nothing."""
+    result = _cli(_with_relationships("PASS", "PASS"))
+    assert "2 pairs assessed, none disagree" in result.stdout
+
+
+def test_json_output_keeps_every_relationship() -> None:
+    report = _with_relationships("PASS", "PASS", "FAIL")
+    data = json.loads(_cli(report, "--json").stdout)
+    assert len(data["relationships"]) == 3
+
+
 def test_interruption_exits_130() -> None:
     from typer.testing import CliRunner
 
@@ -1211,3 +1249,366 @@ def test_skipped_report_names_what_it_did_not_assess(tmp_path) -> None:
     report = _report(entries)
     assert "shell-repo" in report["next_action"]
     assert "nothing for this gate to assess" in report["next_action"]
+
+
+# ── Phase 6: the whole stack ───────────────────────────────────────────────
+#
+# The gate started on one dependency in two repos. A repo that does not use
+# `mcp` was reported PASS having had nothing assessed at all, which reads as a
+# verdict but is an absence of one. These tests cover the two things that make
+# the remaining repos assessable: dependencies shared across repository
+# boundaries, and the versioned JSON contracts they exchange.
+
+
+def _pyproject(root: Path, name: str, deps: list[str], *, contracts: list[str] | None = None,
+               compat: dict[str, Any] | None = None) -> dict[str, str]:
+    """A synthetic repo declaring an arbitrary dependency set.
+
+    `_make_repo` speaks only mcp; the stack's other repos share pytest, rich,
+    openai and typer, and those are what the discovery pass has to find.
+    """
+    repo = root / name
+    repo.mkdir(parents=True, exist_ok=True)
+    (repo / "VERSION").write_text("1.0.0\n", encoding="utf-8")
+    rendered = ", ".join(f"'{d}'" for d in deps)
+    (repo / "pyproject.toml").write_text(
+        f"[project]\nname = '{name}'\nversion = '1'\ndependencies = [{rendered}]\n",
+        encoding="utf-8",
+    )
+    body: dict[str, Any] = {"repo": name, "role": "test", "version": "1.0.0"}
+    if contracts is not None:
+        body["contracts"] = contracts
+    if compat is not None:
+        body["compatibility"] = compat
+    (repo / ".mq").mkdir(exist_ok=True)
+    (repo / ".mq" / "repo-contract.json").write_text(json.dumps(body), encoding="utf-8")
+    return {"name": name, "path": str(repo), "role": "test"}
+
+
+def _deps_of(report: dict[str, Any], repo: str) -> dict[str, dict[str, Any]]:
+    component = next(c for c in report["components"] if c["repo"] == repo)
+    return {d["name"]: d for d in component["dependencies"]}
+
+
+def test_a_dependency_shared_between_repos_is_discovered(tmp_path) -> None:
+    """Neither repo touches mcp. Without discovery both report PASS on nothing."""
+    entries = [
+        _pyproject(tmp_path, "repo-a", ["rich>=13.0.0"]),
+        _pyproject(tmp_path, "repo-b", ["rich>=13.0"]),
+    ]
+    report = _report(entries)
+
+    assert "rich" in _deps_of(report, "repo-a")
+    assert "rich" in _deps_of(report, "repo-b")
+    assert any(r["subject"] == "rich" for r in report["relationships"])
+
+
+def test_a_dependency_only_one_repo_uses_is_not_tracked(tmp_path) -> None:
+    """Nothing crosses a repository boundary there, so the gate has no claim."""
+    entries = [
+        _pyproject(tmp_path, "repo-a", ["rich>=13.0.0", "httpx>=0.27"]),
+        _pyproject(tmp_path, "repo-b", ["rich>=13.0"]),
+    ]
+    assert "httpx" not in _deps_of(_report(entries), "repo-a")
+
+
+def test_disjoint_ranges_on_a_shared_dependency_still_fail(tmp_path) -> None:
+    entries = [
+        _pyproject(tmp_path, "repo-a", ["openai>=1.0,<2"]),
+        _pyproject(tmp_path, "repo-b", ["openai>=2.36"]),
+    ]
+    report = _report(entries)
+
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC007_DECLARED_RANGES_DISJOINT"
+    )
+    assert finding["repos"] == ["repo-a", "repo-b"]
+    assert report["status"] == "FAIL"
+
+
+def test_a_discovered_dependency_does_not_demand_metadata(tmp_path) -> None:
+    """Every `>=` range in the stack is unbounded. Warning about all of them
+    buries the one dependency the stack actually declared as critical."""
+    entries = [
+        _pyproject(tmp_path, "repo-a", ["rich>=13.0.0"]),
+        _pyproject(tmp_path, "repo-b", ["rich>=13.0"]),
+    ]
+    report = _report(entries)
+
+    assert report["findings"] == []
+    assert report["status"] == "PASS"
+    assert _deps_of(report, "repo-a")["rich"]["critical"] is False
+
+
+def test_a_declared_dependency_is_critical_in_every_repo_that_uses_it(tmp_path) -> None:
+    """One repo naming the boundary makes it critical stack-wide: the exposure
+    lives in whichever repo left the range open, not in the one that declared it."""
+    entries = [
+        _pyproject(
+            tmp_path,
+            "repo-a",
+            ["openai>=1.0,<2"],
+            compat={"dependencies": {"openai": ">=1.0,<2"}},
+        ),
+        _pyproject(tmp_path, "repo-b", ["openai>=1.5"]),
+    ]
+    report = _report(entries)
+
+    assert _deps_of(report, "repo-b")["openai"]["critical"] is True
+    codes = {f["code"] for f in report["findings"] if f["repo"] == "repo-b"}
+    assert "MQC005_DECLARED_RANGE_UNBOUNDED" in codes
+    assert "MQC009_COMPATIBILITY_METADATA_MISSING" in codes
+
+
+def test_mcp_stays_critical_without_any_declaration(tmp_path) -> None:
+    """The dependency the incident was about is critical by default, so a repo
+    that declares nothing at all is still warned about it."""
+    report = _report([_make_repo(tmp_path, "repo-a", declared="mcp>=1.0")])
+    assert _deps_of(report, "repo-a")["mcp"]["critical"] is True
+    assert "MQC005_DECLARED_RANGE_UNBOUNDED" in {f["code"] for f in report["findings"]}
+
+
+# ── Phase 6: versioned JSON contracts ──────────────────────────────────────
+
+
+def test_the_contracts_list_is_read_as_produced_contracts(tmp_path) -> None:
+    """Every repo already registers its contracts under `contracts`. Requiring a
+    parallel `produces` block first leaves the JSON side of the gate dead."""
+    entries = [
+        _pyproject(tmp_path, "producer", [], contracts=["inbox_manifest.v1"]),
+        _pyproject(
+            tmp_path, "consumer", [], compat={"consumes": ["inbox_manifest.v1"]}
+        ),
+    ]
+    report = _report(entries)
+
+    link = next(r for r in report["relationships"] if r["subject"] == "inbox_manifest.v1")
+    assert (link["producer"], link["consumer"]) == ("producer", "consumer")
+    assert link["status"] == "PASS"
+    assert "MQC013_CONTRACT_UNPRODUCED" not in {f["code"] for f in report["findings"]}
+
+
+def test_an_explicit_produces_block_wins_over_the_contracts_list(tmp_path) -> None:
+    entries = [
+        _pyproject(
+            tmp_path,
+            "producer",
+            [],
+            contracts=["legacy.v1"],
+            compat={"produces": ["inbox_manifest.v1"]},
+        ),
+        _pyproject(
+            tmp_path, "consumer", [], compat={"consumes": ["inbox_manifest.v1"]}
+        ),
+    ]
+    report = _report(entries)
+    producer = next(c for c in report["components"] if c["repo"] == "producer")
+    assert producer["produces"] == ["inbox_manifest.v1"]
+
+
+def test_contract_ids_match_across_spellings(tmp_path) -> None:
+    """mq-agent reads mqobsidian's `inbox-manifest.v1`; mqobsidian registers it
+    as `inbox_manifest.v1`. Matching the raw strings reports it as produced by
+    nobody, which is a false alarm on a contract that is wired correctly."""
+    entries = [
+        _pyproject(tmp_path, "producer", [], contracts=["inbox_manifest.v1"]),
+        _pyproject(
+            tmp_path, "consumer", [], compat={"consumes": ["inbox-manifest.v1"]}
+        ),
+    ]
+    report = _report(entries)
+
+    assert "MQC013_CONTRACT_UNPRODUCED" not in {f["code"] for f in report["findings"]}
+    assert any(r["subject"] == "inbox-manifest.v1" for r in report["relationships"])
+
+
+def test_a_producer_moving_to_v2_fails_its_v1_consumer(tmp_path) -> None:
+    """The producer-side schema change the roadmap names: the contract still
+    exists, so 'nobody produces it' is the wrong diagnosis."""
+    entries = [
+        _pyproject(tmp_path, "producer", [], contracts=["memory_observation.v2"]),
+        _pyproject(
+            tmp_path, "consumer", [], compat={"consumes": ["memory_observation.v1"]}
+        ),
+    ]
+    report = _report(entries)
+
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC018_CONTRACT_VERSION_SKEW"
+    )
+    assert finding["severity"] == "FAIL"
+    assert finding["blocks_release"] is True
+    assert finding["repos"] == ["consumer", "producer"]
+    assert "memory_observation.v2" in finding["message"]
+    assert report["status"] == "FAIL"
+
+
+def test_contract_version_skew_blocks_both_repos(tmp_path) -> None:
+    entries = [
+        _pyproject(tmp_path, "producer", [], contracts=["feedback_signal.v2"]),
+        _pyproject(
+            tmp_path, "consumer", [], compat={"consumes": ["feedback_signal.v1"]}
+        ),
+    ]
+    assert set(release_blockers(_report(entries))) == {"consumer", "producer"}
+
+
+def test_a_contract_nobody_produces_is_still_only_a_warning(tmp_path) -> None:
+    """Absent is not the same as changed underneath you."""
+    entries = [
+        _pyproject(tmp_path, "producer", [], contracts=["other.v1"]),
+        _pyproject(
+            tmp_path, "consumer", [], compat={"consumes": ["memory_query.v1"]}
+        ),
+    ]
+    report = _report(entries)
+
+    finding = next(
+        f for f in report["findings"] if f["code"] == "MQC013_CONTRACT_UNPRODUCED"
+    )
+    assert finding["severity"] == "WARN"
+    assert finding["blocks_release"] is False
+    assert "MQC018_CONTRACT_VERSION_SKEW" not in {f["code"] for f in report["findings"]}
+
+
+def test_version_skew_is_reported_from_a_partial_view(tmp_path) -> None:
+    """Unlike an unproduced contract, a skew needs both halves present — and
+    when they are, a narrowed inventory does not weaken the proof."""
+    entries = [
+        _pyproject(tmp_path, "producer", [], contracts=["stack_truth.v2"]),
+        _pyproject(tmp_path, "consumer", [], compat={"consumes": ["stack_truth.v1"]}),
+    ]
+    report = build_report(
+        repos=entries + [{"name": "gone", "path": str(tmp_path / "gone"), "role": "t"}],
+        slice_only=False,
+    )
+    assert "MQC018_CONTRACT_VERSION_SKEW" in {f["code"] for f in report["findings"]}
+    assert "MQC013_CONTRACT_UNPRODUCED" not in {f["code"] for f in report["findings"]}
+
+
+def test_a_node_repo_still_contributes_its_json_contracts(tmp_path) -> None:
+    """mq-ums declares no Python dependencies and is SKIPPED for them, which
+    must not remove its contracts from the stack's producer set."""
+    node_repo = _pyproject(tmp_path, "mq-ums", [], contracts=["ums_command.v1"])
+    (Path(node_repo["path"]) / "pyproject.toml").unlink()
+    entries = [
+        node_repo,
+        _pyproject(tmp_path, "consumer", [], compat={"consumes": ["ums_command.v1"]}),
+    ]
+    report = _report(entries)
+
+    statuses = {c["repo"]: c["status"] for c in report["components"]}
+    assert statuses["mq-ums"] == "SKIPPED"
+    assert any(r["subject"] == "ums_command.v1" for r in report["relationships"])
+    assert "MQC013_CONTRACT_UNPRODUCED" not in {f["code"] for f in report["findings"]}
+
+
+def test_phase6_report_validates_against_schema(tmp_path, validator) -> None:
+    entries = [
+        _pyproject(
+            tmp_path,
+            "producer",
+            ["openai>=1.0,<2"],
+            contracts=["memory_observation.v2"],
+        ),
+        _pyproject(
+            tmp_path,
+            "consumer",
+            ["openai>=2.36"],
+            compat={"consumes": ["memory_observation.v1"]},
+        ),
+    ]
+    errors = list(validator.iter_errors(_report(entries)))
+    assert not errors, [e.message for e in errors]
+
+
+# ── Phase 6: the MCP incident, preserved as a fixture ──────────────────────
+#
+# The roadmap states the case exactly: both repos import FastMCP from MCP 1.x,
+# both declare an open range that accepts MCP 2.x, one has no protective lock,
+# the other has an older locked version, local CI is green in the locked repo,
+# and the stack check must still report the exposure.
+
+
+def _fastmcp_1x(declared: str) -> dict[str, Any]:
+    """A repo written against the FastMCP 1.x contract, declaring `declared`."""
+    return {
+        "protocols": {"mcp_api": "1.x-fastmcp"},
+        "dependencies": {"mcp": declared},
+    }
+
+
+def _mcp_incident(tmp_path: Path, *, bounded: bool) -> list[dict[str, str]]:
+    """The incident, or the same stack with the boundary actually declared."""
+    upper = ",<2" if bounded else ""
+    return [
+        # The repo whose dependencies were resolved again: no protective lock.
+        _make_repo(
+            tmp_path,
+            "unlocked-repo",
+            declared=f"mcp>=1.0{upper}",
+            locked=None,
+            compat=_fastmcp_1x(f">=1.0{upper}"),
+        ),
+        # The repo that stayed green only because uv.lock held MCP 1.27.1.
+        _make_repo(
+            tmp_path,
+            "locked-repo",
+            declared=f"mcp>=1.27.1{upper}",
+            locked="1.27.1",
+            compat=_fastmcp_1x(f">=1.27.1{upper}"),
+        ),
+    ]
+
+
+def test_mcp_incident_is_reported_despite_a_green_lockfile(tmp_path) -> None:
+    report = _report(_mcp_incident(tmp_path, bounded=False))
+
+    assert report["status"] == "FAIL"
+    exposed = {
+        f["repo"]
+        for f in report["findings"]
+        if f["code"] == "MQC012_PROTOCOL_CONTRADICTS_RANGE"
+    }
+    assert exposed == {"unlocked-repo", "locked-repo"}
+
+
+def test_mcp_incident_blocks_the_repo_whose_lock_kept_it_green(tmp_path) -> None:
+    """Local CI passed in that repo. The stack gate must still refuse it."""
+    blockers = release_blockers(_report(_mcp_incident(tmp_path, bounded=False)))
+    assert "locked-repo" in blockers
+    assert _deps_of(_report(_mcp_incident(tmp_path, bounded=False)), "locked-repo")[
+        "mcp"
+    ]["locked"] == "1.27.1"
+
+
+def test_the_static_check_never_reaches_the_network(tmp_path, monkeypatch) -> None:
+    """The gate has to work on a machine with no registry access, so the static
+    path must not open a socket or shell out to anything."""
+    import socket
+    import subprocess
+
+    def _forbidden(*args: Any, **kwargs: Any):
+        raise AssertionError(f"static check reached out: {args!r}")
+
+    monkeypatch.setattr(socket.socket, "connect", _forbidden)
+    monkeypatch.setattr(subprocess, "run", _forbidden)
+    monkeypatch.setattr(subprocess, "Popen", _forbidden)
+    monkeypatch.setattr(subprocess, "check_output", _forbidden)
+
+    report = _report(_mcp_incident(tmp_path, bounded=False))
+    assert report["mode"] == "static"
+    assert report["status"] == "FAIL"
+
+
+def test_mcp_incident_fixture_distinguishes_a_lock_from_a_declared_boundary(
+    tmp_path,
+) -> None:
+    """Works with today's lock is not the same claim as declares a genuinely
+    compatible future resolution. Only the second one may pass."""
+    open_report = _report(_mcp_incident(tmp_path / "open", bounded=False))
+    bounded_report = _report(_mcp_incident(tmp_path / "bounded", bounded=True))
+
+    assert open_report["status"] == "FAIL"
+    assert bounded_report["status"] == "PASS"
+    assert release_blockers(bounded_report) == {}

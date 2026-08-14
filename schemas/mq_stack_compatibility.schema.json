@@ -94,7 +94,8 @@
         "MQC014_FRESH_RESOLVE_UNAVAILABLE",
         "MQC015_RESOLVED_DIFFERS_FROM_LOCKED",
         "MQC016_IMPORT_PROBE_FAILED",
-        "MQC017_RESOLVE_CONFLICT"
+        "MQC017_RESOLVE_CONFLICT",
+        "MQC018_CONTRACT_VERSION_SKEW"
       ],
       "description": "Stable finding codes. Codes are append-only within v1."
     },
@@ -172,6 +173,10 @@
         "bounded": {
           "type": "boolean",
           "description": "True when the declared range excludes the next major version."
+        },
+        "critical": {
+          "type": "boolean",
+          "description": "True when the stack has named this dependency as protocol-critical, in a repo contract's compatibility block. Critical dependencies additionally raise unbounded-range and missing-metadata warnings; dependencies discovered only by being shared between repos are assessed for proven pairwise incompatibility alone."
         },
         "sources": {
           "type": "array",
