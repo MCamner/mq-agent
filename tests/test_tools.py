@@ -172,17 +172,15 @@ def test_version_guard_min_version_is_0_7_0():
     assert _MIN_VERSION >= (0, 7, 0)
 
 
-def test_version_guard_old_version_triggers_error_message():
+def test_version_guard_old_version_triggers_error_message(monkeypatch):
     from mq_agent.tools import signal_tools
-    original_available = signal_tools._AVAILABLE
-    original_error = signal_tools._VERSION_ERROR
 
-    signal_tools._AVAILABLE = False
-    signal_tools._VERSION_ERROR = "repo-signal 0.6.0 is too old (need >= 0.7.0). Run: uv pip install --upgrade repo-signal"
+    stale = "/tmp/mq-agent/.venv/bin/repo-signal"
+    monkeypatch.setattr(signal_tools, "_candidate_bins", lambda: [stale])
+    monkeypatch.setattr(signal_tools, "_probe_version", lambda _executable: (1, 0, 0))
 
     msg = signal_tools._not_available_msg()
     assert "too old" in msg
-    assert "0.7.0" in msg
-
-    signal_tools._AVAILABLE = original_available
-    signal_tools._VERSION_ERROR = original_error
+    assert "1.4.2" in msg
+    assert stale in msg
+    assert "uv tool install" in msg
