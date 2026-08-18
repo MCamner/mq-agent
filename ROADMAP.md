@@ -190,11 +190,13 @@ the assessment.
 
 * **Status:** Open. Proposed, not scheduled. Independent of v1.27.0: neither
   blocks the other.
-* **Priority:** P1 — every learning feature on the wishlist reads this data.
+* **Priority:** P1 — foundation contract required by route evaluation, learned
+  routing, skill evaluation, and execution learning. Implement before consumers
+  create independent outcome representations.
 * **Owner:** `mq-agent`
 * **Consumers:** `mq-hal` (presentation), `mqobsidian` (retention of promoted
   findings)
-* **Contract:** `mq.model-route-outcome.v2`
+* **Contract:** `mq.execution-outcome.v1`
 
 ### Problem
 
@@ -230,9 +232,9 @@ Coverage alone does not fix it. The required fields in v1 —
 `schema_valid`, `verification`, `accepted_by_agent`, `accepted_by_operator`,
 `escalated` — describe a shadow experiment. A release run or a swarm run has no
 `schema_valid` and no `accepted_by_operator`. With `additionalProperties: false`
-in the schema, writing real runs into v1 means inventing values for fields that
-do not apply. Instrumentation and the schema version are therefore one change,
-not two.
+in the schema, writing real runs into it means inventing values for fields that
+do not apply. Instrumenting the execution paths and defining a contract for
+execution outcomes are therefore one change, not two.
 
 ### Goal
 
@@ -258,26 +260,45 @@ mq-agent route readiness          # how far the data is from learned routing
 * `mq-hal` may read and present the result but must not duplicate the logic.
 * v1 records stay readable. The file is append-only and is never rewritten.
 
-### Phase 0 — Contract v2
+### Phase 0 — Contract
 
-**Deliverable:** `mq.model-route-outcome.v2`
+**Deliverable:** `mq.execution-outcome.v1`
 
-* [ ] Decide whether the contract keeps its name or becomes
-  `mq.execution-outcome.v1`. It now covers runs, not only routing decisions;
-  the name should be settled before the first writer exists, not after.
-* [ ] Add a `kind` discriminator: `shadow` or `execution`.
-* [ ] Make the shadow-specific fields required only when `kind = shadow`.
+A new contract at v1, not a v2 of the route contract. The record describes the
+outcome of a run, and routing is one dimension of it alongside agent, model,
+tools, cost, and result. Naming it after routing would lock the semantics
+before skill evaluation, Pulse, or tool performance start reading it.
+
+Routing therefore becomes a field, not the subject:
+
+```json
+{
+  "route": {
+    "selected": "codex",
+    "policy": "static",
+    "confidence": null
+  }
+}
+```
+
+* [ ] Define `mq.execution-outcome.v1` covering task, route, agent, model,
+  tools, latency, retries, fallbacks, cost, result, and loop or budget events.
 * [ ] Require `run_id` on every record so a run can be correlated across repos.
-* [ ] Add `latency_ms`, `tool_calls`, `retries`, `fallbacks`, and exit status.
-* [ ] Add optional `tokens` and `cost`, populated only when the runtime reports
-  them; absent is not zero.
-* [ ] Add the skill or agent that handled the run.
-* [ ] Extend the `task_class` enum with the classes real runs actually produce,
-  derived from the existing agents (`audit`, `ci`, `docs`, `release`,
+* [ ] Require `latency_ms`, `tool_calls`, `retries`, `fallbacks`, and exit
+  status.
+* [ ] Make `tokens` and `cost` optional, populated only when the runtime
+  reports them; absent is not zero.
+* [ ] Record the skill or agent that handled the run.
+* [ ] Define the `task_class` values from the classes real runs actually
+  produce, derived from the existing agents (`audit`, `ci`, `docs`, `release`,
   `signal`) — not invented ahead of the emit points.
-* [ ] Keep `route_report` and `route_history` reading both v1 and v2 records
-  from the same JSONL file.
-* [ ] Schema tests, including negative tests for a v1 record and a mixed file.
+* [ ] Leave `mq.model-route-outcome.v1` untouched. Shadow experiments keep
+  writing it; the separation between experiment and production is by contract,
+  so no `kind` discriminator is needed and no historical record is migrated.
+* [ ] Teach `route report` and `route history` to read both contracts and
+  present them separately, never merged into one rate.
+* [ ] Schema tests, including negative tests for a route record read as an
+  execution record and for a file holding both.
 
 ### Phase 1 — One emit point
 
@@ -317,15 +338,42 @@ mq-agent route readiness          # how far the data is from learned routing
 Learned routing, skill benchmarking, and any recommendation engine stay blocked
 until the data can support them. The gate is explicit and machine-checked:
 
-* at least **30 records per `(task_class, route)` pair**;
-* at least **two routes** with that volume for the same `task_class`;
-* spanning at least **14 days**, so one afternoon's batch does not qualify.
+```yaml
+eligibility:
+  minimum_observations: 30       # total records for the task class
+  minimum_candidate_routes: 2    # distinct routes observed
+  minimum_window_days: 14        # so one afternoon's batch cannot qualify
+  minimum_samples_per_route: 10  # each compared route, not just the winner
+```
 
-`mq-agent route readiness` reports how far each task class is from the
-threshold. Until a class passes, `route learn` refuses and says what is
+The fourth gate is what makes the other three mean anything. Without it,
+28 Codex runs and 2 Claude runs pass a 30/2/14 check and the comparison is
+still noise.
+
+These are eligibility thresholds, not statistical proof. Thirty observations do
+not make a conclusion safe; they make the system allowed to open its mouth.
+Nothing in the implementation or the documentation may present a passing gate
+as evidence that a difference is real.
+
+Larger consequences take stricter gates:
+
+| Decision | observations | routes | window | per route |
+| --- | --- | --- | --- | --- |
+| Model selection | 30 | 2 | 14 days | 10 |
+| Agent selection | 50 | 2 | 21 days | 15 |
+| Tool policy | 100 | 2 | 30 days | 25 |
+| Privilege and safety | learned routing must not decide | | | |
+
+**The thresholds govern when the system may produce a recommendation, not when
+it may change routing on its own.** Passing every gate still yields a proposal
+that a person promotes.
+
+`mq-agent route readiness` reports how far each task class is from its
+thresholds. Until a class passes, `route learn` refuses and says which gate is
 missing rather than training on what happens to be there.
 
-Applied to the current file, every class fails: one class, one route, two days.
+Applied to the current file, every class fails every gate: one class, one
+route, two days, and nothing to compare against.
 
 ### Non-goals
 
@@ -342,11 +390,13 @@ Applied to the current file, every class fails: one class, one route, two days.
 
 * [ ] Every significant run emits exactly one record.
 * [ ] Telemetry cannot fail or slow a run, and can be turned off.
-* [ ] Shadow and execution records are distinguishable and never merged.
-* [ ] v1 records remain readable alongside v2.
+* [ ] Shadow and execution records stay in separate contracts and are never
+  merged into one rate.
+* [ ] Existing `mq.model-route-outcome.v1` records remain readable.
 * [ ] `route report` answers "which route works better for this task class"
   from production data, or states that it cannot yet.
-* [ ] `route readiness` reports the distance to the learned-routing threshold.
+* [ ] `route readiness` reports the distance to every eligibility threshold.
+* [ ] A passing gate yields a recommendation, never an automatic change.
 
 ### Recommended starting point
 
