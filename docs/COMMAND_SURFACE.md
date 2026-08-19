@@ -269,6 +269,11 @@ Each swarm runs multiple agents in sequence with declared safety contracts.
 | `mq-agent swarm release-check [path]` | yes | Shorthand: CI + audit + release |
 | `mq-agent swarm release-check [path] --approve` | yes | Enable release agent |
 
+Every non-dry swarm run appends one `mq.execution-outcome.v1` record to
+`$MQ_AGENT_EXECUTION_OUTCOMES`, default `~/.mq-agent/execution-outcomes.jsonl`.
+Set `MQ_AGENT_TELEMETRY=off` to disable it. Telemetry observes the run: a
+failed write costs the record, never the run, and a dry run records nothing.
+
 ### Built-in swarm configs
 
 | Config | Agents | Approve needed? |

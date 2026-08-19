@@ -110,6 +110,19 @@ class SwarmResult:
         }
 
 
+#: An agent only has a latency if it actually ran. A skipped or dry-run agent
+#: was never timed, and reporting 0 ms would read as "it ran instantly".
+_TIMED_AGENT_STATUSES = frozenset({"ok", "error"})
+
+
+def _agent_record(result: AgentResult) -> dict:
+    """Describe one agent for the execution outcome, omitting what was not measured."""
+    record: dict = {"name": result.agent, "status": result.status}
+    if result.status in _TIMED_AGENT_STATUSES:
+        record["latency_ms"] = int(result.elapsed_s * 1000)
+    return record
+
+
 class SwarmRunner:
     """Coordinates multiple specialist agents in a swarm run.
 
@@ -172,12 +185,51 @@ class SwarmRunner:
                     elapsed_s=elapsed,
                 ))
 
-        return SwarmResult(
+        swarm_result = SwarmResult(
             config=config.name,
             path=path,
             dry_run=dry_run,
             results=results,
             elapsed_s=time.monotonic() - swarm_start,
+        )
+
+        # A dry run executed nothing, so it has no outcome to record.
+        if not dry_run:
+            self._record_outcome(config, swarm_result)
+
+        return swarm_result
+
+    @staticmethod
+    def _record_outcome(config: SwarmConfig, result: SwarmResult) -> None:
+        """Emit one mq.execution-outcome.v1 record for a completed swarm run.
+
+        Telemetry observes the run; it never changes it. emit_execution_outcome
+        swallows every failure, so a broken evidence store costs a record and
+        nothing else.
+        """
+        from ..tools.execution_outcome import emit_execution_outcome
+
+        statuses = [r.status for r in result.results]
+        if not statuses:
+            outcome, exit_status = "SKIPPED", "skipped"
+        elif any(status == "error" for status in statuses):
+            # An `abort` manifest breaks the loop, so fewer results than agents
+            # means the run stopped early rather than merely failing.
+            stopped_early = len(result.results) < len(config.manifests)
+            outcome, exit_status = "FAIL", "aborted" if stopped_early else "error"
+        elif all(status == "skipped" for status in statuses):
+            outcome, exit_status = "SKIPPED", "skipped"
+        else:
+            outcome, exit_status = "PASS", "ok"
+
+        emit_execution_outcome(
+            runtime="swarm",
+            task_class=config.name,
+            result=outcome,
+            exit_status=exit_status,
+            latency_ms=int(result.elapsed_s * 1000),
+            route={"selected": config.name, "policy": "static", "confidence": None},
+            agents=[_agent_record(r) for r in result.results],
         )
 
     def plan(self, config: SwarmConfig, path: str = ".") -> list[dict]:

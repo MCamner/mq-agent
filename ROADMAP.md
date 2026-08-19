@@ -188,8 +188,9 @@ the assessment.
 
 ## Proposed — v1.28.0 Execution instrumentation
 
-* **Status:** Open. Proposed, not scheduled. Independent of v1.27.0: neither
-  blocks the other.
+* **Status:** In progress. Phase 0 landed except the report surface, and
+  Phase 1 landed on `Swarm.run`. Independent of v1.27.0: neither blocks the
+  other.
 * **Priority:** P1 — foundation contract required by route evaluation, learned
   routing, skill evaluation, and execution learning. Implement before consumers
   create independent outcome representations.
@@ -281,34 +282,50 @@ Routing therefore becomes a field, not the subject:
 }
 ```
 
-* [ ] Define `mq.execution-outcome.v1` covering task, route, agent, model,
+* [x] Define `mq.execution-outcome.v1` covering task, route, agent, model,
   tools, latency, retries, fallbacks, cost, result, and loop or budget events.
-* [ ] Require `run_id` on every record so a run can be correlated across repos.
-* [ ] Require `latency_ms`, `tool_calls`, `retries`, `fallbacks`, and exit
-  status.
-* [ ] Make `tokens` and `cost` optional, populated only when the runtime
+* [x] Require `run_id` on every record so a run can be correlated across repos.
+* [x] Require `latency_ms`, `result`, and exit status — the values every
+  runtime has. `tool_calls`, `retries`, and `fallbacks` are **optional**, not
+  required as first planned: `Swarm.run` measures none of them, and requiring
+  them would mean writing zeros. The same rule as `tokens` and `cost` applies
+  to every counter — absent is not zero, and a runtime that starts measuring
+  one simply begins sending it.
+* [x] Make `tokens` and `cost` optional, populated only when the runtime
   reports them; absent is not zero.
-* [ ] Record the skill or agent that handled the run.
-* [ ] Define the `task_class` values from the classes real runs actually
+* [x] Record the skill or agent that handled the run.
+* [x] Define the `task_class` values from the classes real runs actually
   produce, derived from the existing agents (`audit`, `ci`, `docs`, `release`,
-  `signal`) — not invented ahead of the emit points.
-* [ ] Leave `mq.model-route-outcome.v1` untouched. Shadow experiments keep
+  `signal`). An operator can name a swarm anything, so an unrecognized class is
+  recorded as `unclassified` rather than failing validation.
+* [x] Leave `mq.model-route-outcome.v1` untouched. Shadow experiments keep
   writing it; the separation between experiment and production is by contract,
   so no `kind` discriminator is needed and no historical record is migrated.
 * [ ] Teach `route report` and `route history` to read both contracts and
   present them separately, never merged into one rate.
-* [ ] Schema tests, including negative tests for a route record read as an
+* [x] Schema tests, including negative tests for a route record read as an
   execution record and for a file holding both.
 
 ### Phase 1 — One emit point
 
-* [ ] Instrument a single path end to end. `Swarm.run` is the richest
+* [x] Instrument a single path end to end. `Swarm.run` is the richest
   candidate: it already has agents, elapsed time, safety classes, and pass or
   fail per agent.
-* [ ] Prove one real run appends exactly one record.
-* [ ] Prove a failing run still records, with the failure classified.
-* [ ] Prove telemetry off writes nothing and changes no exit code.
-* [ ] Prove a write failure — read-only path, full disk — does not fail the run.
+* [x] Prove one real run appends exactly one record. Verified against a live
+  `mq-agent swarm run ci .`: 40.7 s, two agents, one record with per-agent
+  latencies.
+* [x] Prove a failing run still records, with the failure classified as
+  `error` or `aborted`.
+* [x] Prove telemetry off writes nothing and changes no exit code.
+* [x] Prove a write failure — read-only path, full disk — does not fail the run.
+* [x] Prove a dry run records nothing: it executed nothing, so it has no
+  outcome.
+* [x] Prove an agent that never ran reports no latency. A skipped agent was
+  never timed, and `0 ms` would read as "it ran instantly".
+* [x] Ship the schema inside the wheel. Without the `force-include` the
+  installed schema path does not exist, the emit swallows the
+  `FileNotFoundError`, and every installed runtime records nothing while
+  looking healthy. Verified against a built wheel, not only a checkout.
 
 ### Phase 2 — Remaining execution paths
 
