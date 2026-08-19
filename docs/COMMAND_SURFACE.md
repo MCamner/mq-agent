@@ -193,6 +193,15 @@ output is never executed, and these commands do not persist outcomes.
 | `mq-agent route report --json` | no | no | Preserve attempted, output, schema-valid, verified, accepted, and escalated counts |
 | `mq-agent route history [--source FILE]` | no | no | List individual validated outcomes newest first; `--limit 0` returns all |
 | `mq-agent route history --decision-id ID --json` | no | no | Emit `mq.model-route-history.v1` for one decision, including every run of it |
+
+`route report` and `route history` read both `mq.model-route-outcome.v1` and
+`mq.execution-outcome.v1` and present them in separate tables, under an
+`execution` key in `--json`. The two are never merged into one rate: a route
+verification rate says whether a local model could be trusted, an execution
+result says whether a run worked. With `--source` both contracts are read from
+that file; without it each is read from its own store. An execution record
+found in a routing source counts as neither valid routing outcome nor invalid
+record — it is a valid record of another contract.
 | `mq-agent route evidence-review <task-class> [--source FILE]` | no | no | Apply the per-class promotion evidence gate; never changes routing policy |
 | `mq-agent route evidence-review <task-class> --json` | no | no | Emit `mq.model-route-evidence-review.v1`; exits 1 for `NOT_ELIGIBLE` |
 

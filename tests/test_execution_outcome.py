@@ -254,3 +254,12 @@ def test_an_agent_that_never_ran_reports_no_latency(tmp_path, monkeypatch) -> No
     agent = _records(destination)[0]["agents"][0]
     assert agent["status"] == "skipped"
     assert "latency_ms" not in agent
+
+
+# Several tests drive a real swarm run. Without isolation each pytest run
+# appends records to the operator's real store that are indistinguishable from
+# real runs — corrupted evidence, not untidiness.
+def test_the_suite_never_writes_to_the_operators_real_store() -> None:
+    path = execution_outcome.outcome_path()
+
+    assert Path.home() not in path.parents

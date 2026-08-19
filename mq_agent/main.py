@@ -3076,6 +3076,28 @@ def route_report_cmd(
     console.print(table)
     console.print(f"Source: {data['source']}")
 
+    # A second table, not more rows in the first one: the two contracts measure
+    # different things and must never be read as one rate.
+    execution = data["execution"]
+    execution_table = Table(title="Execution Outcomes")
+    execution_table.add_column("Task class")
+    execution_table.add_column("Runs", justify="right")
+    execution_table.add_column("Pass", justify="right")
+    execution_table.add_column("Fail", justify="right")
+    execution_table.add_column("Skipped", justify="right")
+    for name, counts in sorted(execution["by_task_class"].items()):
+        execution_table.add_row(
+            name,
+            str(counts["outcomes"]),
+            str(counts["PASS"]),
+            str(counts["FAIL"]),
+            str(counts["SKIPPED"]),
+        )
+    if not execution["by_task_class"]:
+        execution_table.add_row("—", "0", "0", "0", "0")
+    console.print(execution_table)
+    console.print(f"Source: {execution['source']}")
+
 
 @route_app.command("history")
 def route_history_cmd(
@@ -3120,6 +3142,29 @@ def route_history_cmd(
     console.print(table)
     console.print(f"Showing {data['returned']} of {data['matched']} matched outcomes")
     console.print(f"Source: {data['source']}")
+
+    execution = data["execution"]
+    execution_table = Table(title="Execution Outcomes")
+    execution_table.add_column("Recorded")
+    execution_table.add_column("Run")
+    execution_table.add_column("Runtime")
+    execution_table.add_column("Task class")
+    execution_table.add_column("Result")
+    execution_table.add_column("Exit")
+    for entry in execution["entries"]:
+        execution_table.add_row(
+            str(entry["recorded_at"]),
+            str(entry["run_id"]),
+            str(entry["runtime"]),
+            str(entry["task_class"]),
+            str(entry["result"]),
+            str(entry["exit_status"]),
+        )
+    console.print(execution_table)
+    console.print(
+        f"Showing {execution['returned']} of {execution['matched']} matched executions"
+    )
+    console.print(f"Source: {execution['source']}")
 
 
 @route_app.command("evidence-review")

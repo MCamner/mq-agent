@@ -301,8 +301,11 @@ Routing therefore becomes a field, not the subject:
 * [x] Leave `mq.model-route-outcome.v1` untouched. Shadow experiments keep
   writing it; the separation between experiment and production is by contract,
   so no `kind` discriminator is needed and no historical record is migrated.
-* [ ] Teach `route report` and `route history` to read both contracts and
-  present them separately, never merged into one rate.
+* [x] Teach `route report` and `route history` to read both contracts and
+  present them separately, never merged into one rate. An execution record in a
+  routing source is a valid record of another contract, so it counts as neither
+  a valid routing outcome nor an invalid record. Execution is reported as counts
+  only: a rate is a judgement, and it belongs to the phase that acts on it.
 * [x] Schema tests, including negative tests for a route record read as an
   execution record and for a file holding both.
 
@@ -322,6 +325,12 @@ Routing therefore becomes a field, not the subject:
   outcome.
 * [x] Prove an agent that never ran reports no latency. A skipped agent was
   never timed, and `0 ms` would read as "it ran instantly".
+* [x] Keep the test suite out of the operator's evidence store. Three tests
+  drive a real `SwarmRunner.run`, so every `pytest` run appended records
+  indistinguishable from real runs to `~/.mq-agent/execution-outcomes.jsonl`.
+  Learned routing is meant to read that file — test data in it is corrupted
+  evidence, not untidiness. An autouse fixture isolates it, so emit points added
+  in Phase 2 are isolated by default rather than by remembering to opt in.
 * [x] Ship the schema inside the wheel. Without the `force-include` the
   installed schema path does not exist, the emit swallows the
   `FileNotFoundError`, and every installed runtime records nothing while

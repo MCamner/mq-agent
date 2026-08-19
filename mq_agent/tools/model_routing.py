@@ -13,6 +13,9 @@ from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
+from mq_agent.tools.execution_outcome import SCHEMA_FILE as EXECUTION_SCHEMA_FILE
+from mq_agent.tools.execution_outcome import SCHEMA_ID as EXECUTION_SCHEMA_ID
+from mq_agent.tools.execution_outcome import outcome_path as execution_outcome_path
 from mq_agent.tools.model_runtime import _ollama_generate, current_model
 
 
@@ -381,12 +384,77 @@ def record_route_outcome(outcome: dict[str, Any], destination: Path | None = Non
     return path
 
 
+def _split_contracts(records: list[Any]) -> tuple[list[Any], list[Any], int]:
+    """Sort records into route outcomes, execution outcomes, and genuine junk.
+
+    Both contracts pin `schema` to a `const`, so no record can satisfy both and
+    the split is unambiguous. An execution record found in a routing source is a
+    valid record of another contract, not a broken one — counting it as invalid
+    would make a healthy store look corrupt and bury real corruption in noise.
+    """
+    route_validator = _validator("model_route_outcome.schema.json")
+    execution_validator = _validator(EXECUTION_SCHEMA_FILE)
+    route: list[Any] = []
+    execution: list[Any] = []
+    invalid = 0
+    for record in records:
+        if not list(route_validator.iter_errors(record)):
+            route.append(record)
+        elif not list(execution_validator.iter_errors(record)):
+            execution.append(record)
+        else:
+            invalid += 1
+    return route, execution, invalid
+
+
+def _execution_records(source: Path | None, from_source: list[Any]) -> tuple[list[Any], Path]:
+    """Return the execution outcomes to present, and where they came from.
+
+    An explicit `--source` is the operator naming one file, so both contracts
+    are read out of it. With no source the two stores are separate files and
+    each contract is read from its own.
+    """
+    if source is not None:
+        return from_source, source
+    path = execution_outcome_path()
+    records, _ = _read_records(path)
+    _, execution, _ = _split_contracts(records)
+    return execution, path
+
+
+def _execution_summary(records: list[Any], path: Path) -> dict[str, Any]:
+    """Aggregate execution outcomes on their own terms.
+
+    Deliberately counts only. A route verification rate says whether a local
+    model could be trusted; an execution result says whether a run worked. One
+    rate spanning both would mean neither — and a rate over executions alone is
+    a judgement that belongs to the phase that acts on it, not to this report.
+    """
+    by_result = {"PASS": 0, "FAIL": 0, "SKIPPED": 0}
+    by_task: dict[str, dict[str, int]] = {}
+    for record in records:
+        result = str(record["result"])
+        by_result[result] = by_result.get(result, 0) + 1
+        bucket = by_task.setdefault(
+            str(record["task_class"]), {"outcomes": 0, "PASS": 0, "FAIL": 0, "SKIPPED": 0}
+        )
+        bucket["outcomes"] += 1
+        bucket[result] = bucket.get(result, 0) + 1
+    return {
+        "schema": EXECUTION_SCHEMA_ID,
+        "source": str(path),
+        "outcomes": len(records),
+        "by_result": by_result,
+        "by_task_class": by_task,
+    }
+
+
 def route_report(source: Path | None = None) -> dict[str, Any]:
     """Aggregate validated outcomes from a JSON or JSONL source, read-only."""
     path = _outcome_path(source)
     records, total = _read_records(path)
-    validator = _validator("model_route_outcome.schema.json")
-    outcomes = [record for record in records if not list(validator.iter_errors(record))]
+    outcomes, execution_in_source, invalid = _split_contracts(records)
+    execution, execution_path = _execution_records(source, execution_in_source)
     by_task: dict[str, dict[str, int]] = {}
     for outcome in outcomes:
         task_class = str(outcome["task_class"])
@@ -425,7 +493,7 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
         "source": str(path),
         "total_records": total,
         "valid_outcomes": len(outcomes),
-        "invalid_records": total - len(outcomes),
+        "invalid_records": invalid,
         "attempted": sum(int(item["attempted"]) for item in outcomes),
         "model_output_received": sum(int(item["model_output_received"]) for item in outcomes),
         "schema_valid": sum(int(item["schema_valid"]) for item in outcomes),
@@ -434,6 +502,8 @@ def route_report(source: Path | None = None) -> dict[str, Any]:
         "accepted_by_operator": sum(int(item["accepted_by_operator"]) for item in outcomes),
         "escalated": sum(int(item["escalated"]) for item in outcomes),
         "by_task_class": report_by_task,
+        # Presented beside the routing counts, never folded into them.
+        "execution": _execution_summary(execution, execution_path),
     }
 
 
@@ -452,8 +522,8 @@ def route_history(
     """
     path = _outcome_path(source)
     records, total = _read_records(path)
-    validator = _validator("model_route_outcome.schema.json")
-    outcomes = [record for record in records if not list(validator.iter_errors(record))]
+    outcomes, execution_in_source, invalid = _split_contracts(records)
+    execution, execution_path = _execution_records(source, execution_in_source)
     matched = [
         outcome
         for outcome in outcomes
@@ -462,16 +532,36 @@ def route_history(
     ]
     matched.sort(key=lambda outcome: str(outcome["recorded_at"]), reverse=True)
     entries = matched if limit <= 0 else matched[:limit]
+
+    # A decision id names one routing decision, and no execution record carries
+    # one, so that filter empties this list rather than being ignored.
+    execution_matched = [
+        record
+        for record in execution
+        if decision_id is None and (task_class is None or record["task_class"] == task_class)
+    ]
+    execution_matched.sort(key=lambda record: str(record["recorded_at"]), reverse=True)
+    execution_entries = (
+        execution_matched if limit <= 0 else execution_matched[:limit]
+    )
     return {
         "schema": "mq.model-route-history.v1",
         "source": str(path),
         "total_records": total,
         "valid_outcomes": len(outcomes),
-        "invalid_records": total - len(outcomes),
+        "invalid_records": invalid,
         "filters": {"decision_id": decision_id, "task_class": task_class},
         "matched": len(matched),
         "returned": len(entries),
         "entries": entries,
+        # Listed beside the routing decisions, never interleaved with them.
+        "execution": {
+            "schema": EXECUTION_SCHEMA_ID,
+            "source": str(execution_path),
+            "matched": len(execution_matched),
+            "returned": len(execution_entries),
+            "entries": execution_entries,
+        },
     }
 
 
