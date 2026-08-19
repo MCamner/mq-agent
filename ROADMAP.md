@@ -338,11 +338,37 @@ Routing therefore becomes a field, not the subject:
 
 ### Phase 2 — Remaining execution paths
 
-* [ ] `Executor.run_plan`.
-* [ ] `run_task`.
-* [ ] `audit_agent`, `ci_agent`, `docs_agent`, `release_agent`, `signal_agent`.
-* [ ] Each path names its own `task_class`; no path fills in verification or
-  acceptance fields that do not apply to it.
+One execution is one operator action, and the outermost level owns the record.
+The paths below are nested — `Swarm.run` calls the agents, every agent calls
+`Executor.run_plan`, and `run_task` is reachable as a registered tool — so
+instrumenting each one separately would write five records for a single
+`swarm run ci` and make every later rate count a wide swarm as more runs than a
+narrow one. Entrypoints are therefore instrumented, never the shared code they
+share, which makes nesting impossible by construction rather than by
+convention.
+
+* [x] `run_task` — at the `task run` entrypoint, not in the function. It is
+  reachable through `run_task_tool` in the tool registry, so an agent can call
+  it; instrumenting the function would nest a record inside an agent execution.
+* [x] `audit_agent`, `ci_agent`, `docs_agent`, `release_agent`, `signal_agent`
+  — at their CLI commands, not in the agent classes. The same agent runs
+  standalone and inside a swarm, and a swarm record already carries per-agent
+  results.
+* [x] `Executor.run_plan` — deliberately not instrumented. It is only ever
+  reached from inside an agent, so it is never an execution in its own right.
+* [x] Each path names its own `task_class`; no path fills in verification or
+  acceptance fields that do not apply to it. `task` joins the enum for the task
+  runner.
+* [x] The record answers "could the run be carried out", not "is the repo
+  healthy". An audit that finds problems ran perfectly well, so it records
+  `PASS`; conflating the two would make every future success rate a measure of
+  the repositories rather than of the runtime. A failing task step is the
+  opposite case: the runtime could not do what it was asked.
+* [x] `--dry-run` on an agent means "make no writes", not "run nothing" — the
+  planner, the repo reads and the read-only steps all execute — so those runs
+  record. `release-check` and `fix-ci` default to `dry_run=True`, so skipping
+  them would have left the most common invocation invisible. Only the swarm and
+  task-runner dry runs execute nothing, and only those record nothing.
 
 ### Phase 3 — Report on production data
 

@@ -4,6 +4,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -84,6 +87,47 @@ ship_app = typer.Typer(help="Inspect release state, proof, and audit evidence (r
 app.add_typer(ship_app, name="ship")
 
 console = Console()
+
+
+@contextmanager
+def _execution_outcome(
+    task_class: str, runtime: str = "agent", *, dry_run: bool = False
+) -> Iterator[dict[str, str]]:
+    """Record one `mq.execution-outcome.v1` for a CLI entrypoint.
+
+    One execution is one operator action, and the outermost level owns the
+    record. Agents are instrumented here rather than in the agent classes: the
+    same agent runs standalone and inside a swarm, and a swarm record already
+    carries per-agent results — emitting from both would count a wide swarm as
+    more runs than a narrow one. For the same reason `Executor.run_plan` is
+    never instrumented; it is only ever reached from inside an agent.
+
+    Wrap the run itself, not the rendering that follows it, so a `typer.Exit`
+    raised to set the shell status is not mistaken for an aborted run. The
+    yielded dict lets a caller correct the result before it is written. A dry
+    run executed nothing and so has no outcome.
+    """
+    from mq_agent.tools.execution_outcome import emit_execution_outcome
+
+    record = {"result": "PASS", "exit_status": "ok"}
+    start = time.monotonic()
+    try:
+        yield record
+    except (KeyboardInterrupt, SystemExit):
+        record.update(result="FAIL", exit_status="aborted")
+        raise
+    except BaseException:
+        record.update(result="FAIL", exit_status="error")
+        raise
+    finally:
+        if not dry_run:
+            emit_execution_outcome(
+                runtime=runtime,
+                task_class=task_class,
+                result=record["result"],
+                exit_status=record["exit_status"],
+                latency_ms=int((time.monotonic() - start) * 1000),
+            )
 
 
 def _render_ship(payload: dict[str, Any]) -> None:
@@ -189,7 +233,8 @@ def audit(
     from mq_agent.agents.audit_agent import AuditAgent
 
     with console.status("[bold cyan]Auditing...[/bold cyan]"):
-        result = AuditAgent(_client()).run(path, dry_run=dry_run)
+        with _execution_outcome("audit"):
+            result = AuditAgent(_client()).run(path, dry_run=dry_run)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -263,7 +308,8 @@ def release_check(
     from mq_agent.agents.release_agent import ReleaseAgent
 
     with console.status("[bold cyan]Running release checks...[/bold cyan]"):
-        result = ReleaseAgent(_client()).run_check(path, dry_run=dry_run, approve=approve)
+        with _execution_outcome("release"):
+            result = ReleaseAgent(_client()).run_check(path, dry_run=dry_run, approve=approve)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -365,7 +411,8 @@ def fix_ci(
     from mq_agent.agents.ci_agent import CIAgent
 
     with console.status("[bold cyan]Diagnosing CI...[/bold cyan]"):
-        result = CIAgent(_client()).diagnose(path, dry_run=dry_run, approve=approve)
+        with _execution_outcome("ci"):
+            result = CIAgent(_client()).diagnose(path, dry_run=dry_run, approve=approve)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -1462,7 +1509,8 @@ def signal(
         raise typer.Exit(code=1)
 
     with console.status("[bold cyan]Running repo-signal assessment...[/bold cyan]"):
-        result = SignalAgent(_client()).run(path, dry_run=dry_run)
+        with _execution_outcome("signal"):
+            result = SignalAgent(_client()).run(path, dry_run=dry_run)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -1569,7 +1617,8 @@ def docs_audit(
     from mq_agent.agents.docs_agent import DocsAgent
 
     with console.status("[bold cyan]Auditing docs...[/bold cyan]"):
-        result = DocsAgent(_client()).audit(path)
+        with _execution_outcome("docs"):
+            result = DocsAgent(_client()).audit(path)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -3442,7 +3491,12 @@ def task_run(
         console.print(f"[bold red]Failed to load task:[/bold red] {exc}")
         raise typer.Exit(1)
 
-    results = run_task(task, dry_run=dry_run)
+    with _execution_outcome("task", runtime="task-runner", dry_run=dry_run) as record:
+        results = run_task(task, dry_run=dry_run)
+        # Unlike an audit finding, a failed step means the runtime could not
+        # carry out what it was asked to do.
+        if any(r.status not in ("ok", "dry-run") for r in results):
+            record.update(result="FAIL", exit_status="error")
 
     passed = all(r.status in ("ok", "dry-run") for r in results)
 

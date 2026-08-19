@@ -27,6 +27,7 @@
         "release",
         "release-check",
         "signal",
+        "task",
         "unclassified"
       ]
     },

@@ -263,3 +263,244 @@ def test_the_suite_never_writes_to_the_operators_real_store() -> None:
     path = execution_outcome.outcome_path()
 
     assert Path.home() not in path.parents
+
+
+# --- Phase 2: the remaining entrypoints ------------------------------------
+#
+# One execution is one operator action, and the outermost level owns the
+# record. Agents are instrumented at the CLI, never in the agent classes: the
+# same AuditAgent runs standalone and inside a swarm, and a swarm record
+# already carries per-agent results. Executor.run_plan is never instrumented —
+# it is only ever reached from inside an agent.
+
+from typer.testing import CliRunner  # noqa: E402
+
+from mq_agent.main import app  # noqa: E402
+
+cli = CliRunner()
+
+
+@pytest.fixture()
+def store(tmp_path, monkeypatch) -> Path:
+    destination = tmp_path / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(destination))
+    monkeypatch.setattr("mq_agent.main._client", lambda: None)
+    return destination
+
+
+def test_a_standalone_audit_records_one_agent_execution(store, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {"summary": "s", "steps": [], "passed": True, "verification": {}},
+    )
+
+    result = cli.invoke(app, ["audit", ".", "--json"])
+
+    assert result.exit_code == 0
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["runtime"] == "agent"
+    assert records[0]["task_class"] == "audit"
+    assert records[0]["result"] == "PASS"
+
+
+# The record answers "could the run be carried out", not "is the repo healthy".
+# An audit that finds problems ran perfectly well; conflating the two would
+# make every future success rate a measure of the repos, not of the runtime.
+def test_an_agent_that_finds_problems_still_records_a_passing_execution(
+    store, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {
+            "summary": "s",
+            "steps": [],
+            "passed": False,
+            "verification": {"failures": [{"step": "x", "note": "n"}]},
+        },
+    )
+
+    cli.invoke(app, ["audit", "."])
+
+    assert _records(store)[0]["result"] == "PASS"
+
+
+def test_a_crashing_agent_records_a_failed_execution(store, monkeypatch) -> None:
+    def boom(*a, **k):
+        raise RuntimeError("agent exploded")
+
+    monkeypatch.setattr("mq_agent.agents.audit_agent.AuditAgent.run", boom)
+
+    result = cli.invoke(app, ["audit", "."])
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, RuntimeError)
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["result"] == "FAIL"
+    assert records[0]["exit_status"] == "error"
+
+
+# On an agent `--dry-run` means "make no writes", not "run nothing": the agent
+# still plans, reads the repo and executes its read-only steps. Skipping the
+# record would leave the most common `release-check` and `fix-ci` invocation
+# invisible — both default to dry_run=True.
+def test_an_agent_dry_run_still_records_because_it_still_runs(store, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {"summary": "s", "steps": [], "passed": True, "verification": {}},
+    )
+
+    cli.invoke(app, ["audit", ".", "--dry-run", "--json"])
+
+    assert len(_records(store)) == 1
+
+
+# The task runner is the opposite case: a dry run never calls the tool, so
+# nothing executed and there is no outcome to record.
+def test_a_task_dry_run_records_nothing(store, tmp_path, monkeypatch) -> None:
+    task_file = tmp_path / "tasks" / "demo.yaml"
+    task_file.parent.mkdir()
+    task_file.write_text(
+        "name: demo\nsteps:\n  - name: s\n    tool: repo_summary\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    cli.invoke(app, ["task", "run", "demo", "--dry-run", "--json"])
+
+    assert _records(store) == []
+
+
+# repo-signal missing aborts before the agent is constructed. The execution
+# never started, so it has no outcome — a SKIPPED record would claim a run was
+# measured and found empty.
+def test_an_entrypoint_that_never_starts_records_nothing(store, monkeypatch) -> None:
+    monkeypatch.setattr("mq_agent.tools.signal_tools.signal_available", lambda: False)
+
+    result = cli.invoke(app, ["signal", "."])
+
+    assert result.exit_code == 1
+    assert _records(store) == []
+
+
+@pytest.mark.parametrize(
+    ("argv", "task_class"),
+    [
+        (["docs-audit", ".", "--json"], "docs"),
+        (["release-check", ".", "--json", "--dry-run"], "release"),
+        (["fix-ci", ".", "--json", "--dry-run"], "ci"),
+    ],
+)
+def test_each_entrypoint_names_its_own_task_class(store, monkeypatch, argv, task_class) -> None:
+    monkeypatch.setattr(
+        "mq_agent.agents.docs_agent.DocsAgent.audit",
+        lambda *a, **k: {"steps": [], "verification": {"all_passed": True}},
+    )
+    monkeypatch.setattr(
+        "mq_agent.agents.release_agent.ReleaseAgent.run_check",
+        lambda *a, **k: {"steps": [], "ready": True, "verification": {}},
+    )
+    monkeypatch.setattr(
+        "mq_agent.agents.ci_agent.CIAgent.diagnose",
+        lambda *a, **k: {"ci_context": {}, "steps": [], "mode": "read-only"},
+    )
+
+    cli.invoke(app, argv)
+
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["task_class"] == task_class
+    assert records[0]["runtime"] == "agent"
+
+
+# A swarm runs the same agents. If the agent classes emitted, one `swarm run
+# ci` would write five records and every later rate would count a wide swarm
+# as more runs than a narrow one.
+def test_a_swarm_still_records_exactly_one_execution(store, monkeypatch) -> None:
+    monkeypatch.setattr(SwarmRunner, "_run_agent", lambda *a, **k: {"ok": True})
+    config = SwarmConfig(
+        name="ci",
+        description="two agents",
+        manifests=[
+            AgentManifest(name=n, purpose="p", safety_class="read-only", allowed_tools=[])
+            for n in ("ci", "audit")
+        ],
+    )
+
+    SwarmRunner(client=None).run(config, path=".")
+
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["runtime"] == "swarm"
+    assert [a["name"] for a in records[0]["agents"]] == ["ci", "audit"]
+
+
+def test_a_task_run_records_the_task_runner(store, monkeypatch, tmp_path) -> None:
+    from mq_agent.core import task_runner
+
+    monkeypatch.setattr(
+        task_runner,
+        "run_task",
+        lambda task, dry_run=False: [
+            task_runner.StepResult(step="s", tool="t", status="ok", output="o")
+        ],
+    )
+    task_file = tmp_path / "tasks" / "demo.yaml"
+    task_file.parent.mkdir()
+    task_file.write_text(
+        "name: demo\nsteps:\n  - name: s\n    tool: repo_summary\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    cli.invoke(app, ["task", "run", "demo", "--json"])
+
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["runtime"] == "task-runner"
+    assert records[0]["task_class"] == "task"
+    assert records[0]["result"] == "PASS"
+
+
+# A failing task step is an execution failure, unlike an audit finding: the
+# runtime could not carry out what it was asked to do.
+def test_a_failing_task_step_records_a_failed_execution(store, monkeypatch, tmp_path) -> None:
+    from mq_agent.core import task_runner
+
+    monkeypatch.setattr(
+        task_runner,
+        "run_task",
+        lambda task, dry_run=False: [
+            task_runner.StepResult(step="s", tool="t", status="error", output="boom")
+        ],
+    )
+    task_file = tmp_path / "tasks" / "demo.yaml"
+    task_file.parent.mkdir()
+    task_file.write_text(
+        "name: demo\nsteps:\n  - name: s\n    tool: repo_summary\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    cli.invoke(app, ["task", "run", "demo", "--json"])
+
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["result"] == "FAIL"
+    assert records[0]["exit_status"] == "error"
+
+
+# run_task is reachable as a registered tool, so an agent can reach it. Only
+# the entrypoint records; instrumenting run_task itself would nest a record
+# inside an agent execution.
+def test_a_task_reached_through_the_tool_registry_records_nothing(store, tmp_path, monkeypatch) -> None:
+    from mq_agent.tools.repo_tools import run_task_tool
+
+    task_file = tmp_path / "tasks" / "demo.yaml"
+    task_file.parent.mkdir()
+    task_file.write_text(
+        "name: demo\nsteps:\n  - name: s\n    tool: repo_summary\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    run_task_tool("demo")
+
+    assert _records(store) == []

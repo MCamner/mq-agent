@@ -283,6 +283,14 @@ Every non-dry swarm run appends one `mq.execution-outcome.v1` record to
 Set `MQ_AGENT_TELEMETRY=off` to disable it. Telemetry observes the run: a
 failed write costs the record, never the run, and a dry run records nothing.
 
+`audit`, `fix-ci`, `docs-audit`, `release-check`, `signal` and `task run`
+record one outcome each as well. One execution is one operator action: an agent
+run inside a swarm is already covered by the swarm's record and does not emit
+its own. On an agent `--dry-run` suppresses writes but still runs, so it
+records; a swarm or task-runner dry run executes nothing and records nothing.
+The result says whether the run could be carried out, not whether the repo is
+healthy — an audit that finds problems records `PASS`.
+
 ### Built-in swarm configs
 
 | Config | Agents | Approve needed? |
