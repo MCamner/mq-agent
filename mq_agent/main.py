@@ -923,6 +923,11 @@ def learn_search_cmd(
         ))
         raise typer.Exit(1)
 
+    text_result = _extract_mcp_text_result(result)
+    if text_result:
+        console.print(Text(text_result))
+        return
+
     items: list[Any] = result if isinstance(result, list) else result.get("patterns") or result.get("items") or []
     if not items:
         console.print(Panel(f"No patterns found for: [bold]{query}[/bold]", border_style="dim"))
