@@ -195,9 +195,15 @@ def build_notebook_pack(
                 "dirty": relative in dirty_paths,
             }
         manifest_sources.append(entry)
-        header = (
-            f"<!-- notebook-source: {relative}; sha256: {digest} -->\n\n"
-        ).encode("utf-8")
+        # Plain text, never markup: a file opening with `<!--` is sniffed as
+        # HTML by NotebookLM, yields no body, and is rejected as invalid. Plain
+        # lines also let the reading model cite the originating vault path,
+        # which a comment cannot.
+        header_lines = [f"Source: {relative}", f"SHA-256: {digest}"]
+        if revision:
+            state = " (uncommitted changes)" if relative in dirty_paths else ""
+            header_lines.append(f"Repository: {vault.name} @ {revision}{state}")
+        header = ("\n".join(header_lines) + "\n\n").encode("utf-8")
         rendered[f"sources/{relative}"] = header + content
 
     canonical = json.dumps(manifest_sources, sort_keys=True, separators=(",", ":")).encode()
