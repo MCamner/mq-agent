@@ -26,6 +26,7 @@ This page is a projection of it.
 | [`mq-agent mcp`](#mq-agent-mcp) | group | Inspect and manage the local mq-mcp tool server. |
 | [`mq-agent memory`](#mq-agent-memory) | group | Semantic repository memory commands. |
 | [`mq-agent models`](#mq-agent-models) | group | Ollama model runtime commands. |
+| [`mq-agent notebook`](#mq-agent-notebook) | group | Build local source packs for optional synthesis providers. |
 | [`mq-agent obsidian`](#mq-agent-obsidian) | group | Read and action the mqobsidian promotion inbox. |
 | [`mq-agent plan`](#mq-agent-plan) | command | Create a plan for a goal using the AI planner. |
 | [`mq-agent release-check`](#mq-agent-release-check) | command | Validate the repo is ready for a release. |
@@ -1063,6 +1064,36 @@ Switch the active profile, or assign a model to a profile.
 |---|---:|---|---|
 | `--profile` | No | — | Assign model to this profile |
 | `--approve` | No | `false` | Write ~/.mq-agent/models.json |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook`
+
+Build local source packs for optional synthesis providers.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
+
+## `mq-agent notebook pack`
+
+Preview or build one local, provenance-bearing notebook source pack.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `NOTEBOOK` | Yes | — | Logical notebook ID |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--vault` | No | `""` | mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian) |
+| `--output-root` | No | `""` | Local output root (default: `<vault>`/.notebooklm) |
+| `--write` | No | `false` | Materialize the local pack; preview is the default |
+| `--replace` | No | `false` | Replace an existing owned pack; requires --write |
 | `--json` | No | `false` | — |
 
 ## `mq-agent obsidian`

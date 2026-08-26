@@ -74,6 +74,9 @@ app.add_typer(agent_views_app, name="agent-views")
 context_app = typer.Typer(help="Export compact repo-local .mq/context snapshots.")
 app.add_typer(context_app, name="context")
 
+notebook_app = typer.Typer(help="Build local source packs for optional synthesis providers.")
+app.add_typer(notebook_app, name="notebook")
+
 models_app = typer.Typer(help="Ollama model runtime commands.")
 app.add_typer(models_app, name="models")
 
@@ -2682,6 +2685,54 @@ def agent_views_check_cmd(
 
 
 # ── context export ───────────────────────────────────────────────────────────
+
+@notebook_app.command("pack")
+def notebook_pack_cmd(
+    notebook: Annotated[str, typer.Argument(help="Logical notebook ID")],
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    output_root: Annotated[str, typer.Option("--output-root", help="Local output root (default: <vault>/.notebooklm)")] = "",
+    write: Annotated[bool, typer.Option("--write", help="Materialize the local pack; preview is the default")] = False,
+    replace: Annotated[bool, typer.Option("--replace", help="Replace an existing owned pack; requires --write")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Preview or build one local, provenance-bearing notebook source pack."""
+    from mq_agent.tools.notebook_export import build_notebook_pack
+
+    if replace and not write:
+        console.print("[bold red]--replace requires --write[/bold red]")
+        raise typer.Exit(2)
+    try:
+        report = build_notebook_pack(
+            notebook,
+            vault=Path(vault).expanduser() if vault else None,
+            output_root=Path(output_root).expanduser() if output_root else None,
+            write=write,
+            replace=replace,
+        )
+    except ValueError as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        return
+    mode = "wrote" if write else "would write"
+    console.rule("[bold]notebook pack[/bold]")
+    console.print(f"notebook: {report['display_name']} ({report['notebook']})")
+    console.print(f"sources: {report['source_count']}")
+    if report["dirty_source_count"]:
+        console.print(
+            f"[bold yellow]dirty: {report['dirty_source_count']}[/bold yellow] "
+            "source(s) differ from the recorded commit — review before upload"
+        )
+        for path in report["dirty_sources"]:
+            console.print(f"  [yellow]~[/yellow] {path}")
+    console.print(f"content hash: {report['content_hash']}")
+    console.print(f"{mode}: {report['pack_dir']}")
+
 
 @context_app.command("export")
 def context_export_cmd(
