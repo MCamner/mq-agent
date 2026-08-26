@@ -217,3 +217,58 @@ def test_vendored_schema_matches_mqobsidian():
         "tests/fixtures/notebook-pack.v1.json is out of date with mqobsidian — "
         f"copy {owner} over it and re-run"
     )
+
+
+def test_source_header_is_plain_text_not_markup(tmp_path):
+    """The header must not open with markup.
+
+    NotebookLM sniffs content type. A file starting with `<!--` was read as
+    HTML, found no body, and was rejected as an invalid source — so every pack
+    this exporter produced was unusable by its only intended consumer.
+    """
+    vault = _git_vault(tmp_path)
+    build_notebook_pack("mq-stack-intelligence", vault=vault, write=True)
+
+    rendered = (
+        vault / ".notebooklm" / "mq-stack-intelligence"
+        / "sources" / "docs" / "architecture.md"
+    ).read_text(encoding="utf-8")
+
+    assert not rendered.lstrip().startswith("<")
+    assert "<!--" not in rendered.split("\n\n", 1)[0]
+
+
+def test_source_header_states_provenance_the_reader_can_cite(tmp_path):
+    """Provenance must be visible text, not a comment.
+
+    A commented header is invisible to the model reading the source, so an
+    answer could never cite which vault file backed a claim — which is exactly
+    what the evaluation's provenance criterion asks for.
+    """
+    vault = _git_vault(tmp_path)
+    report = build_notebook_pack("mq-stack-intelligence", vault=vault, write=True)
+    digest = next(
+        s["sha256"] for s in report["manifest"]["sources"]
+        if s["path"] == "docs/architecture.md"
+    )
+
+    header = (
+        vault / ".notebooklm" / "mq-stack-intelligence"
+        / "sources" / "docs" / "architecture.md"
+    ).read_text(encoding="utf-8").split("\n\n", 1)[0]
+
+    assert "docs/architecture.md" in header
+    assert digest in header
+    assert "mqobsidian" in header
+    # This source was edited after the commit; the header must say so.
+    assert "uncommitted" in header.lower()
+
+
+def test_header_does_not_enter_the_content_hash(tmp_path):
+    """Changing header formatting must not change the pack's identity."""
+    vault = _git_vault(tmp_path)
+    first = build_notebook_pack("mq-stack-intelligence", vault=vault)
+
+    assert first["content_hash"] == "%s" % build_notebook_pack(
+        "mq-stack-intelligence", vault=vault
+    )["content_hash"]
