@@ -2795,6 +2795,62 @@ def context_export_cmd(
 
 # ── context pack (task-specific, Phase 5) ──────────────────────────────────────
 
+@context_app.command("feedback")
+def context_feedback_cmd(
+    task: Annotated[str, typer.Argument(help="The task the pack was built for")],
+    outcome: Annotated[str, typer.Option("--outcome", help="sufficient or insufficient — did the pack carry the task")] = "",
+    repo: Annotated[str, typer.Option("--repo", help="Primary repo for the task")] = "",
+    judgment: Annotated[list[str], typer.Option("--judgment", help="Per-block verdict as `block:judgment[:reason]` where judgment is useful|noise|missing|stale (repeatable)")] = [],
+    notes: Annotated[str, typer.Option("--notes", help="Free-text note kept local")] = "",
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Record one `feedback-signal.v1` pack-usage event in the vault's local log.
+
+    Phase 11c: mqobsidian owns the vocabulary and the promotion/downgrade
+    policy; this emits the signal. Records land in the gitignored `feedback/`
+    surface and are never committed.
+    """
+    from mq_agent.tools.feedback_signal import count_signals, record_feedback_signal
+
+    parsed: list[tuple[str, str, str | None]] = []
+    for spec in judgment:
+        block, separator, rest = spec.partition(":")
+        if not separator or not block.strip():
+            console.print(f"[bold red]--judgment must be `block:judgment[:reason]`, got:[/bold red] {spec}")
+            raise typer.Exit(2)
+        verdict, _, reason = rest.partition(":")
+        parsed.append((block.strip(), verdict.strip(), reason.strip() or None))
+
+    try:
+        path = record_feedback_signal(
+            task,
+            outcome=outcome,
+            repo=repo or None,
+            judgments=parsed or None,
+            notes=notes or None,
+            vault=Path(vault).expanduser() if vault else None,
+        )
+    except ValueError as exc:
+        if json_out:
+            typer.echo(json.dumps({"recorded": False, "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    total = count_signals(Path(vault).expanduser() if vault else None)
+    if json_out:
+        typer.echo(json.dumps({"recorded": True, "path": str(path), "signals": total}, indent=2))
+        return
+    console.rule("[bold]feedback signal[/bold]")
+    console.print(f"task: {task}")
+    console.print(f"outcome: {outcome}")
+    if parsed:
+        console.print(f"judgments: {len(parsed)}")
+    console.print(f"recorded to: {path}")
+    console.print(f"signals on this surface: {total}")
+
+
 @context_app.command("pack")
 def context_pack_cmd(
     task: Annotated[str, typer.Argument(help="Short task description")],
