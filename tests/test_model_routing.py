@@ -740,7 +740,10 @@ def test_evidence_review_cli_returns_nonzero_when_not_eligible(tmp_path) -> None
 
 
 def _execution_record(
-    task_class: str = "ci", result: str = "PASS", recorded_at: str = "2026-08-07T13:00:00Z"
+    task_class: str = "ci",
+    result: str = "PASS",
+    recorded_at: str = "2026-08-07T13:00:00Z",
+    route: str | None = None,
 ) -> dict:
     from mq_agent.tools import execution_outcome
 
@@ -750,6 +753,11 @@ def _execution_record(
         result=result,
         exit_status="ok" if result == "PASS" else "error",
         latency_ms=1000,
+        route=(
+            {"selected": route, "policy": "static", "confidence": None}
+            if route is not None
+            else None
+        ),
     )
     record["recorded_at"] = recorded_at
     return record
@@ -814,6 +822,32 @@ def test_report_presents_execution_outcomes_as_their_own_contract(tmp_path) -> N
     assert execution["by_result"] == {"PASS": 1, "FAIL": 1, "SKIPPED": 0}
     assert execution["by_task_class"]["ci"]["PASS"] == 1
     assert execution["by_task_class"]["audit"]["FAIL"] == 1
+
+
+def test_report_groups_execution_outcomes_by_task_class_and_route(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    source.write_text(
+        "\n".join(
+            json.dumps(record)
+            for record in (
+                _execution_record(route="codex"),
+                _execution_record(result="FAIL", route="claude"),
+                _execution_record(task_class="audit"),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    by_task = model_routing.route_report(source)["execution"]["by_task_class"]
+
+    assert by_task["ci"]["by_route"] == {
+        "codex": {"outcomes": 1, "PASS": 1, "FAIL": 0, "SKIPPED": 0},
+        "claude": {"outcomes": 1, "PASS": 0, "FAIL": 1, "SKIPPED": 0},
+    }
+    assert by_task["audit"]["by_route"] == {
+        "unreported": {"outcomes": 1, "PASS": 1, "FAIL": 0, "SKIPPED": 0}
+    }
 
 
 # Scoring is a later phase. Counts are evidence; a rate is a judgement, and
@@ -908,6 +942,17 @@ def test_report_cli_shows_both_contracts_without_merging_them(tmp_path) -> None:
     assert result.exit_code == 0
     assert "Model Route Report" in result.output
     assert "Execution Outcomes" in result.output
+
+
+def test_report_cli_shows_execution_route_groups(tmp_path) -> None:
+    source = tmp_path / "execution.jsonl"
+    source.write_text(json.dumps(_execution_record(route="codex")) + "\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["route", "report", "--source", str(source)])
+
+    assert result.exit_code == 0
+    assert "Route" in result.output
+    assert "codex" in result.output
 
 
 def test_history_cli_shows_execution_entries_in_their_own_table(tmp_path) -> None:

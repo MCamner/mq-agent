@@ -3135,20 +3135,23 @@ def route_report_cmd(
     execution = data["execution"]
     execution_table = Table(title="Execution Outcomes")
     execution_table.add_column("Task class")
+    execution_table.add_column("Route")
     execution_table.add_column("Runs", justify="right")
     execution_table.add_column("Pass", justify="right")
     execution_table.add_column("Fail", justify="right")
     execution_table.add_column("Skipped", justify="right")
     for name, counts in sorted(execution["by_task_class"].items()):
-        execution_table.add_row(
-            name,
-            str(counts["outcomes"]),
-            str(counts["PASS"]),
-            str(counts["FAIL"]),
-            str(counts["SKIPPED"]),
-        )
+        for route, route_counts in sorted(counts["by_route"].items()):
+            execution_table.add_row(
+                name,
+                route,
+                str(route_counts["outcomes"]),
+                str(route_counts["PASS"]),
+                str(route_counts["FAIL"]),
+                str(route_counts["SKIPPED"]),
+            )
     if not execution["by_task_class"]:
-        execution_table.add_row("—", "0", "0", "0", "0")
+        execution_table.add_row("—", "—", "0", "0", "0", "0")
     console.print(execution_table)
     console.print(f"Source: {execution['source']}")
 

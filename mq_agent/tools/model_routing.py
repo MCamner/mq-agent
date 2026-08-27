@@ -435,15 +435,22 @@ def _execution_summary(records: list[Any], path: Path) -> dict[str, Any]:
     a judgement that belongs to the phase that acts on it, not to this report.
     """
     by_result = {"PASS": 0, "FAIL": 0, "SKIPPED": 0}
-    by_task: dict[str, dict[str, int]] = {}
+    by_task: dict[str, dict[str, Any]] = {}
     for record in records:
         result = str(record["result"])
         by_result[result] = by_result.get(result, 0) + 1
         bucket = by_task.setdefault(
-            str(record["task_class"]), {"outcomes": 0, "PASS": 0, "FAIL": 0, "SKIPPED": 0}
+            str(record["task_class"]),
+            {"outcomes": 0, "PASS": 0, "FAIL": 0, "SKIPPED": 0, "by_route": {}},
         )
         bucket["outcomes"] += 1
         bucket[result] = bucket.get(result, 0) + 1
+        route = str(record.get("route", {}).get("selected", "unreported"))
+        route_bucket = bucket["by_route"].setdefault(
+            route, {"outcomes": 0, "PASS": 0, "FAIL": 0, "SKIPPED": 0}
+        )
+        route_bucket["outcomes"] += 1
+        route_bucket[result] = route_bucket.get(result, 0) + 1
     return {
         "schema": EXECUTION_SCHEMA_ID,
         "source": str(path),

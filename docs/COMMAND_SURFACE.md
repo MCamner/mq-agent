@@ -190,7 +190,7 @@ output is never executed, and these commands do not persist outcomes.
 | `mq-agent route shadow <task> --json` | yes | local Ollama | Decision, validated candidate or `null`, and `mq.model-route-outcome.v1` |
 | `mq-agent route shadow <task> --context-file FILE` | yes | local Ollama | Verify every `evidence` entry is a verbatim quote from FILE; adds the `evidence-grounded` check |
 | `mq-agent route report [--source FILE]` | no | no | Aggregate validated JSON/JSONL outcomes without persisting them |
-| `mq-agent route report --json` | no | no | Preserve attempted, output, schema-valid, verified, accepted, and escalated counts |
+| `mq-agent route report --json` | no | no | Preserve routing-stage counts and group execution outcomes by task class and measured route (`unreported` when absent) |
 | `mq-agent route history [--source FILE]` | no | no | List individual validated outcomes newest first; `--limit 0` returns all |
 | `mq-agent route history --decision-id ID --json` | no | no | Emit `mq.model-route-history.v1` for one decision, including every run of it |
 

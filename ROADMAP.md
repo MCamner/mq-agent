@@ -188,9 +188,8 @@ the assessment.
 
 ## Proposed — v1.28.0 Execution instrumentation
 
-* **Status:** In progress. Phase 0 landed except the report surface, and
-  Phase 1 landed on `Swarm.run`. Independent of v1.27.0: neither blocks the
-  other.
+* **Status:** In progress. Phases 0–2 landed, and Phase 3 report grouping has
+  started. Independent of v1.27.0: neither blocks the other.
 * **Priority:** P1 — foundation contract required by route evaluation, learned
   routing, skill evaluation, and execution learning. Implement before consumers
   create independent outcome representations.
@@ -372,7 +371,8 @@ convention.
 
 ### Phase 3 — Report on production data
 
-* [ ] Group `route report` by `task_class` and route.
+* [x] Group `route report` by `task_class` and route. Records without measured
+  route data are shown as `unreported`, never inferred as `none`.
 * [ ] Add time windows: 7, 30, and 90 days.
 * [ ] Report success rate, median and p90 latency, tool calls, retries, and
   fallbacks.
