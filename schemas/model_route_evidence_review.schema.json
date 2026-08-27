@@ -5,48 +5,171 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "task_class", "source", "decision", "automatic_routing_enabled",
-    "operator_approval_required", "valid_outcomes", "verified_outcomes",
-    "attempted_outcomes", "verification_success_rate", "unauthorized_writes",
-    "safety_contract_violations", "malformed_outputs", "malformed_outputs_escalated",
-    "ollama_unavailable_path_proven", "gates", "failed_gates"
+    "schema",
+    "task_class",
+    "source",
+    "decision",
+    "automatic_routing_enabled",
+    "operator_approval_required",
+    "valid_outcomes",
+    "verified_outcomes",
+    "attempted_outcomes",
+    "verification_success_rate",
+    "unauthorized_writes",
+    "safety_contract_violations",
+    "malformed_outputs",
+    "malformed_outputs_escalated",
+    "ollama_unavailable_path_proven",
+    "gates",
+    "failed_gates",
+    "grounded_items",
+    "grounding_items_measured",
+    "grounding_item_rate"
   ],
   "properties": {
-    "schema": {"const": "mq.model-route-evidence-review.v1"},
-    "task_class": {"type": "string", "minLength": 1},
-    "source": {"type": "string", "minLength": 1},
-    "decision": {"enum": ["NOT_ELIGIBLE", "AWAITING_OPERATOR_APPROVAL"]},
-    "automatic_routing_enabled": {"const": false},
-    "operator_approval_required": {"const": true},
-    "valid_outcomes": {"type": "integer", "minimum": 0},
-    "verified_outcomes": {"type": "integer", "minimum": 0},
-    "distinct_verified_tasks": {"type": "integer", "minimum": 0},
-    "grounded_verified_outcomes": {"type": "integer", "minimum": 0},
-    "attempted_outcomes": {"type": "integer", "minimum": 0},
-    "responded_outcomes": {"type": "integer", "minimum": 0},
-    "verification_success_rate": {"type": "number", "minimum": 0, "maximum": 1},
-    "unauthorized_writes": {"type": "integer", "minimum": 0},
-    "safety_contract_violations": {"type": "integer", "minimum": 0},
-    "malformed_outputs": {"type": "integer", "minimum": 0},
-    "malformed_outputs_escalated": {"type": "integer", "minimum": 0},
-    "ollama_unavailable_path_proven": {"type": "boolean"},
+    "schema": {
+      "const": "mq.model-route-evidence-review.v1"
+    },
+    "task_class": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "enum": [
+        "NOT_ELIGIBLE",
+        "AWAITING_OPERATOR_APPROVAL"
+      ]
+    },
+    "automatic_routing_enabled": {
+      "const": false
+    },
+    "operator_approval_required": {
+      "const": true
+    },
+    "valid_outcomes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "verified_outcomes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "distinct_verified_tasks": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "grounded_verified_outcomes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "attempted_outcomes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "responded_outcomes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "verification_success_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "unauthorized_writes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "safety_contract_violations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "malformed_outputs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "malformed_outputs_escalated": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ollama_unavailable_path_proven": {
+      "type": "boolean"
+    },
     "gates": {
       "type": "array",
       "minItems": 7,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "passed", "actual", "required"],
+        "required": [
+          "id",
+          "passed",
+          "actual",
+          "required"
+        ],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
-          "passed": {"type": "boolean"},
-          "actual": {"type": ["string", "number", "integer", "boolean"]},
-          "required": {"type": ["string", "number", "integer", "boolean"]},
-          "vacuous": {"type": "boolean"}
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "actual": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean"
+            ]
+          },
+          "required": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean"
+            ]
+          },
+          "vacuous": {
+            "type": "boolean"
+          }
         }
       }
     },
-    "failed_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-    "vacuous_gates": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+    "failed_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "vacuous_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "grounded_items": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "grounding_items_measured": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "grounding_item_rate": {
+      "description": "Verbatim citations over citations measured, or null when no outcome measured grounding. Reported beside verification_success_rate, never folded into it: one counts accepted answers, the other counts correct citations, and a conjunctive gate makes them diverge sharply.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    }
   }
 }

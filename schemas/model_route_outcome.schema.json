@@ -22,9 +22,17 @@
     "recorded_at"
   ],
   "properties": {
-    "schema": {"const": "mq.model-route-outcome.v1"},
-    "decision_id": {"type": "string", "minLength": 1},
-    "run_id": {"type": "string", "minLength": 1},
+    "schema": {
+      "const": "mq.model-route-outcome.v1"
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "task_class": {
       "enum": [
         "diff-summary",
@@ -42,32 +50,92 @@
       ]
     },
     "selected_route": {
-      "enum": ["local-shadow", "cloud-required", "approved-local"]
+      "enum": [
+        "local-shadow",
+        "cloud-required",
+        "approved-local"
+      ]
     },
-    "local_model": {"type": ["string", "null"]},
-    "authoritative_agent": {"enum": ["codex", "claude"]},
-    "attempted": {"type": "boolean"},
-    "model_output_received": {"type": "boolean"},
-    "schema_valid": {"type": "boolean"},
+    "local_model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "authoritative_agent": {
+      "enum": [
+        "codex",
+        "claude"
+      ]
+    },
+    "attempted": {
+      "type": "boolean"
+    },
+    "model_output_received": {
+      "type": "boolean"
+    },
+    "schema_valid": {
+      "type": "boolean"
+    },
     "verification": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "checks"],
+      "required": [
+        "status",
+        "checks"
+      ],
       "properties": {
-        "status": {"enum": ["PASS", "FAIL", "SKIPPED", "UNAVAILABLE"]},
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "SKIPPED",
+            "UNAVAILABLE"
+          ]
+        },
         "checks": {
           "type": "array",
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "grounding": {
+          "description": "How much of the candidate's evidence was verbatim. Optional: records predating this field carry no grounding, and its absence means unmeasured, never zero. Present so a FAIL can distinguish an invented citation from one paraphrased item out of five.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "grounded_items",
+            "total_items"
+          ],
+          "properties": {
+            "grounded_items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "total_items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         }
       }
     },
-    "accepted_by_agent": {"type": "boolean"},
-    "accepted_by_operator": {"type": "boolean"},
-    "escalated": {"type": "boolean"},
+    "accepted_by_agent": {
+      "type": "boolean"
+    },
+    "accepted_by_operator": {
+      "type": "boolean"
+    },
+    "escalated": {
+      "type": "boolean"
+    },
     "escalation_reason": {
       "oneOf": [
-        {"type": "null"},
+        {
+          "type": "null"
+        },
         {
           "enum": [
             "model-unavailable",
@@ -80,6 +148,9 @@
         }
       ]
     },
-    "recorded_at": {"type": "string", "format": "date-time"}
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
   }
 }
