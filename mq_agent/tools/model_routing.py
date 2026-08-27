@@ -47,10 +47,14 @@ _CANDIDATE_SCHEMA: dict[str, Any] = {
         # Ollama enforces this schema as a decoding grammar, so maxItems is a hard
         # bound on generation length: an unbounded evidence array made one 10 KB diff
         # generate ~2800 tokens in 100s+, and identical input varied 473 to 3143
-        # tokens. Bounding the count holds a typical run near 30s. Deliberately no
-        # maxLength on the items: a truncated quote is no longer verbatim and fails
-        # the grounding check.
-        "evidence": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
+        # tokens. Bounding the count and each quote limits generation. Truncating a
+        # verbatim quote to 200 characters preserves a grounded substring and stays
+        # well above the 12-character minimum enforced below.
+        "evidence": {
+            "type": "array",
+            "items": {"type": "string", "maxLength": 200},
+            "maxItems": 5,
+        },
         "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
     },
 }

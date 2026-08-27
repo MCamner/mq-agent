@@ -130,16 +130,40 @@ CONTEXT = (
 )
 
 
-def test_candidate_schema_bounds_list_length_but_never_item_length() -> None:
+def test_candidate_schema_bounds_list_and_evidence_item_length() -> None:
     evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
     suggestions = model_routing._CANDIDATE_SCHEMA["properties"]["suggestions"]
 
     assert evidence["maxItems"] == 5
+    assert evidence["items"]["maxLength"] == 200
     assert suggestions["maxItems"] == 3
-    # A per-item maxLength truncates a quote mid-string, which fails the grounding
-    # check on every run. Bound how many quotes are returned, never how long one is.
-    assert "maxLength" not in evidence["items"]
     assert "maxLength" not in suggestions["items"]
+
+
+def _evidence_item_limit() -> int:
+    evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
+    return int(evidence["items"]["maxLength"])
+
+
+def test_grounding_accepts_a_truncated_verbatim_prefix() -> None:
+    # Why a per-item maxLength is safe: the grounding check is a substring match,
+    # so the prefix left by truncation is still verbatim. Measured on qwen3:4b over
+    # docs/architecture.md, bounding items at 200 took the run PASS-rate from 0/15
+    # to 8/15 (Fisher one-sided p = 0.001) by cutting the model's habit of running
+    # the document's tail into one 930-character "quote".
+    limit = _evidence_item_limit()
+    material = "It stores durable knowledge that should survive beyond a single run."
+
+    assert model_routing._evidence_is_grounded([material[:limit]], material)
+
+
+def test_evidence_item_limit_cannot_truncate_below_the_grounding_floor() -> None:
+    # These two constants are only safe as a pair. Lowering maxLength under the
+    # minimum quote length truncates every quote below the floor, so grounding
+    # fails on every run while the rest of the suite stays green.
+    limit = _evidence_item_limit()
+
+    assert limit > model_routing._MIN_QUOTE_LENGTH
 
 
 def test_shadow_timeout_default_covers_measured_generation_time() -> None:
