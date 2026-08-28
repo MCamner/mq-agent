@@ -161,19 +161,19 @@ def build_codegraph_queries(
         return []
 
     queries = [
-        f"* `codegraph_explore` — map task \"{_sanitize_query(task)}\" in `{target}` first."
+        f"* Map task \"{_sanitize_query(task)}\" in `{target}` with CodeGraph first."
     ]
     for symbol in symbols:
         symbol = symbol.strip()
         if not symbol:
             continue
-        queries.append(f"* `codegraph_callers` — inspect callers of `{symbol}`.")
-        queries.append(f"* `codegraph_impact` — inspect the impact of changing `{symbol}`.")
+        queries.append(f"* Inspect the callers of `{symbol}`.")
+        queries.append(f"* Assess the blast radius of changing `{symbol}`.")
     for path in relevant_files:
         if path.split("/", 1)[0] == target and path.lower().endswith(SOURCE_EXTS):
             queries.append(
-                f"* `codegraph_node` — inspect `{_repo_relative(path, target)}` "
-                "only if the context result omitted it."
+                f"* Inspect `{_repo_relative(path, target)}` only if the earlier "
+                "result omitted it."
             )
 
     bounded: list[str] = []
@@ -186,14 +186,16 @@ def build_codegraph_queries(
 
 
 def _codegraph_section(queries: list[str]) -> str:
-    """Render optional MCP-native CodeGraph guidance, or empty when unused."""
+    """Render optional CodeGraph guidance as intentions, or empty when unused."""
     if not queries:
         return ""
     body = "\n".join(queries)
     return (
         "\n## CodeGraph queries\n\n"
-        "Use the installed CodeGraph MCP tools directly; these are tool "
-        "intentions, not shell commands. Treat source returned by CodeGraph as "
+        "These are intentions, not tool names or shell commands: satisfy each "
+        "with whatever CodeGraph surface you have, since the MCP tool set varies "
+        "by installed version while the CLI keeps separate commands. Treat "
+        "source returned by CodeGraph as "
         "already read and do not repeat it with a broad grep/read loop. Fall "
         "back to targeted source reads only when the index is missing, the "
         "language is unsupported, or the result reports missing/stale detail. "
