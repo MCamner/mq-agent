@@ -4,10 +4,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from typer.testing import CliRunner
 
 from mq_agent.main import app
-from mq_agent.tools.context_pack import build_task_pack, task_is_source_heavy
+from mq_agent.tools.context_pack import (
+    build_task_pack,
+    load_selection_vocabulary,
+    task_is_source_heavy,
+)
 
 runner = CliRunner()
 
@@ -54,19 +60,59 @@ MQ-stack runtime and brain writer.
 """
 
 
+# mqobsidian owns the real vocabulary and tests its values (DEC-005). These
+# fixtures carry only the few words each assertion needs, so mq-agent tests the
+# mechanism -- read the contract, apply it, bound the queries -- without keeping
+# a copy of the vocabulary that could drift from the published one.
+VOCABULARY = {
+    "schema": "context-selection-vocabulary.v1",
+    "source_heavy_hints": ["caller", "trace", "writer path", "fix "],
+    "source_heavy_suppress": ["readme", "roadmap", "release note"],
+    "max_codegraph_queries": 5,
+}
+
+
+def _write_vocabulary(vault: Path, **overrides: object) -> None:
+    contract = vault / ".mq"
+    contract.mkdir(parents=True, exist_ok=True)
+    (contract / "context-selection-vocabulary.json").write_text(
+        json.dumps({**VOCABULARY, **overrides}), encoding="utf-8"
+    )
+
+
 def _vault(tmp_path: Path) -> Path:
     vault = tmp_path / "mqobsidian"
     cards = vault / "memory" / "context-cards"
     cards.mkdir(parents=True)
     (cards / "mq-mcp-card.md").write_text(CARD, encoding="utf-8")
+    _write_vocabulary(vault)
     return vault
 
 
-def test_source_heavy_heuristic():
-    assert task_is_source_heavy("fix mq-mcp brain writer paths")
-    assert task_is_source_heavy("trace callers of store_learn_record")
-    assert not task_is_source_heavy("update README and roadmap")
-    assert not task_is_source_heavy("write release notes for v1.4")
+def test_source_heavy_heuristic(tmp_path):
+    vocabulary = load_selection_vocabulary(_vault(tmp_path))
+
+    assert task_is_source_heavy("fix mq-mcp brain writer paths", vocabulary)
+    assert task_is_source_heavy("trace callers of store_learn_record", vocabulary)
+    assert not task_is_source_heavy("update README and roadmap", vocabulary)
+    assert not task_is_source_heavy("write release notes for v1.4", vocabulary)
+
+
+def test_missing_vocabulary_contract_is_an_error_not_a_default(tmp_path):
+    # No fallback on purpose: a private default would be the second source of
+    # truth DEC-005 removes, and it would fail silently rather than loudly.
+    bare = tmp_path / "mqobsidian"
+    bare.mkdir()
+
+    with pytest.raises(ValueError, match="missing selection vocabulary contract"):
+        load_selection_vocabulary(bare)
+
+
+def test_query_bound_comes_from_the_contract(tmp_path):
+    vault = _vault(tmp_path)
+    _write_vocabulary(vault, max_codegraph_queries=2)
+
+    assert load_selection_vocabulary(vault).max_codegraph_queries == 2
 
 
 def _write_card(vault: Path, repo: str, *, frontmatter_extra: str = "") -> None:
