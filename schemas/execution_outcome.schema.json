@@ -49,7 +49,10 @@
         }
       }
     },
-    "model": {"type": ["string", "null"]},
+    "model": {
+      "description": "The primary execution model: the model the run's planner actually called. A run may also use a secondary model for another role (verification), which this field deliberately does not cover — the contract has one model slot, so it names the model that carried out the work rather than blending several. Absent when the entrypoint called no model.",
+      "type": ["string", "null"]
+    },
     "context": {
       "type": "object",
       "additionalProperties": false,

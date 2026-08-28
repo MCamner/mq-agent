@@ -20,6 +20,15 @@ class Planner:
             PROMPT_PATH.read_text() if PROMPT_PATH.exists() else _FALLBACK_SYSTEM
         )
 
+    @property
+    def model(self) -> str:
+        """The model this planner actually calls.
+
+        Exposed so execution telemetry can read the model the run used instead
+        of resolving the configuration a second time and hoping the two agree.
+        """
+        return self._model
+
     def create_plan(self, state: AgentState, available_tools: list[str]) -> list[PlanStep]:
         user_msg = json.dumps(
             {

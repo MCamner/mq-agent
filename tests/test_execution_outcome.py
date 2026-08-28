@@ -527,3 +527,163 @@ def test_a_task_reached_through_the_tool_registry_records_nothing(store, tmp_pat
     run_task_tool("demo")
 
     assert _records(store) == []
+
+
+# --- Phase 3: runtime provenance -------------------------------------------
+#
+# The record said which class of work ran but not what carried it out. These
+# tests pin the two halves of that: the model is the one the run actually
+# used, and nothing invents a route. Routing is advisory today — `inspect_route`
+# and `shadow_route` have no caller outside the `route` CLI commands — so an
+# execution that claims a route would be claiming a decision nothing made.
+
+AGENT_ENTRYPOINTS = [
+    (["audit", ".", "--json"], "mq_agent.agents.audit_agent.AuditAgent.run",
+     {"summary": "s", "steps": [], "passed": True, "verification": {}}),
+    (["docs-audit", ".", "--json"], "mq_agent.agents.docs_agent.DocsAgent.audit",
+     {"steps": [], "verification": {"all_passed": True}}),
+    (["release-check", ".", "--json", "--dry-run"],
+     "mq_agent.agents.release_agent.ReleaseAgent.run_check",
+     {"steps": [], "ready": True, "verification": {}}),
+    (["fix-ci", ".", "--json", "--dry-run"], "mq_agent.agents.ci_agent.CIAgent.diagnose",
+     {"ci_context": {}, "steps": [], "mode": "read-only"}),
+]
+
+
+def test_an_agent_execution_records_the_model_it_actually_used(store, monkeypatch) -> None:
+    monkeypatch.setenv("MQ_AGENT_MODEL", "gpt-4o-provenance-test")
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {"summary": "s", "steps": [], "passed": True, "verification": {}},
+    )
+
+    cli.invoke(app, ["audit", ".", "--json"])
+
+    assert _records(store)[0]["model"] == "gpt-4o-provenance-test"
+
+
+# The recorded value must come from the configuration the runtime reads, not
+# from a second resolution that could drift away from it.
+def test_the_recorded_model_is_the_one_the_runtime_resolves(store, monkeypatch) -> None:
+    from typing import cast
+
+    from openai import OpenAI
+
+    from mq_agent.core.planner import Planner
+
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {"summary": "s", "steps": [], "passed": True, "verification": {}},
+    )
+
+    cli.invoke(app, ["audit", ".", "--json"])
+
+    # The planner never calls the client here; it is built only to read the
+    # model it would use, which is the same resolution the CLI records.
+    assert _records(store)[0]["model"] == Planner(cast(OpenAI, None)).model
+
+
+@pytest.mark.parametrize(("argv", "target", "payload"), AGENT_ENTRYPOINTS)
+def test_every_agent_entrypoint_records_its_model(
+    store, monkeypatch, argv, target, payload
+) -> None:
+    monkeypatch.setenv("MQ_AGENT_MODEL", "gpt-4o-provenance-test")
+    monkeypatch.setattr(target, lambda *a, **k: payload)
+
+    cli.invoke(app, argv)
+
+    records = _records(store)
+    assert len(records) == 1
+    assert records[0]["model"] == "gpt-4o-provenance-test"
+
+
+# A run can call more than one model — the verifier has its own, overridable
+# separately. The contract has a single `model` slot, so it names the primary
+# execution model and leaves the second role out rather than blending the two
+# or silently recording whichever was resolved last.
+def test_the_recorded_model_is_the_primary_one_not_the_verifiers(store, monkeypatch) -> None:
+    monkeypatch.setenv("MQ_AGENT_MODEL", "primary-model")
+    monkeypatch.setenv("MQ_AGENT_VERIFIER_MODEL", "verifier-model")
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {"summary": "s", "steps": [], "passed": True, "verification": {}},
+    )
+
+    cli.invoke(app, ["audit", ".", "--json"])
+
+    record = _records(store)[0]
+    assert record["model"] == "primary-model"
+    assert record["model"] != "verifier-model"
+
+
+# The model is set before the run starts, so a failure still says what it was
+# attempted with. A FAIL with no model would be the least useful evidence.
+def test_a_failed_run_still_records_the_model_it_attempted(store, monkeypatch) -> None:
+    monkeypatch.setenv("MQ_AGENT_MODEL", "gpt-4o-provenance-test")
+
+    def _boom(*a, **k):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("mq_agent.agents.audit_agent.AuditAgent.run", _boom)
+
+    cli.invoke(app, ["audit", ".", "--json"])
+
+    record = _records(store)[0]
+    assert record["result"] == "FAIL"
+    assert record["model"] == "gpt-4o-provenance-test"
+
+
+# An entrypoint that calls no model has no model to report. Absent, not a
+# placeholder — the same rule the counters follow.
+def test_a_task_run_records_no_model(store, monkeypatch, tmp_path) -> None:
+    from mq_agent.core import task_runner
+
+    monkeypatch.setattr(
+        task_runner,
+        "run_task",
+        lambda task, dry_run=False: [
+            task_runner.StepResult(step="s", tool="t", status="ok", output="o")
+        ],
+    )
+    task_file = tmp_path / "tasks" / "demo.yaml"
+    task_file.parent.mkdir()
+    task_file.write_text(
+        "name: demo\nsteps:\n  - name: s\n    tool: repo_summary\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    cli.invoke(app, ["task", "run", "demo", "--json"])
+
+    assert "model" not in _records(store)[0]
+
+
+@pytest.mark.parametrize(("argv", "target", "payload"), AGENT_ENTRYPOINTS)
+def test_no_cli_execution_claims_a_route(store, monkeypatch, argv, target, payload) -> None:
+    monkeypatch.setattr(target, lambda *a, **k: payload)
+
+    cli.invoke(app, argv)
+
+    assert "route" not in _records(store)[0]
+
+
+# `signal` is the fifth agent entrypoint. It is not in AGENT_ENTRYPOINTS
+# because it refuses to start unless repo-signal is installed.
+def test_the_signal_entrypoint_records_its_model(store, monkeypatch) -> None:
+    monkeypatch.setenv("MQ_AGENT_MODEL", "gpt-4o-provenance-test")
+    monkeypatch.setattr("mq_agent.tools.signal_tools.signal_available", lambda: True)
+    monkeypatch.setattr(
+        "mq_agent.agents.signal_agent.SignalAgent.run",
+        lambda *a, **k: {
+            "scores": {"overall": 80},
+            "readme": {},
+            "publish": {},
+            "steps": [],
+        },
+    )
+
+    cli.invoke(app, ["signal", ".", "--json"])
+
+    record = _records(store)[0]
+    assert record["task_class"] == "signal"
+    assert record["model"] == "gpt-4o-provenance-test"
+    assert "route" not in record
