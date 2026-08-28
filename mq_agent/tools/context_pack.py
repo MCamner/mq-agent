@@ -12,9 +12,10 @@ mqobsidian-side heuristic so both ends stay consistent.
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from mq_agent.tools.context_export import (
     CORE_MQ_REPOS,
@@ -38,47 +39,49 @@ EXCLUSION_KINDS = ("forbidden", "fallback", "irrelevant")
 NON_PUBLISHABLE_PUBLISHABILITY = {"local-rich"}
 NON_PUBLISHABLE_SCOPE = {"local-only"}
 
-# Signals that a task is about source-code structure, where CodeGraph
-# (callers/callees, impact, code-flow, symbol search) beats broad grep/read.
-# Kept in sync with mqobsidian/scripts/generate-context-pack.py.
-CODEGRAPH_TASK_HINTS = (
-    "caller",
-    "callee",
-    "impact",
-    "blast radius",
-    "call graph",
-    "code flow",
-    "code-flow",
-    "refactor",
-    "rename",
-    "trace",
-    "symbol",
-    "where is",
-    "implement",
-    "writer path",
-    "wire ",
-    "fix ",
-)
-
-# Doc-shaped tasks never need CodeGraph; suppress even if a hint also matches so
-# non-source packs stay clean.
-CODEGRAPH_TASK_SUPPRESS = (
-    "readme",
-    "roadmap",
-    "release note",
-    "changelog",
-    "docstring",
-    "doc ",
-    "docs ",
-    "docs/",
-)
+# The vocabulary that marks a task source-heavy is mqobsidian's, not ours
+# (DEC-005). It is read from the vault's published contract and threaded through
+# explicitly — no module constant, and deliberately no default, because a local
+# fallback would be the second source of truth that decision removes. This
+# mirrors the rule already stated above for card metadata: the values live in
+# the vault, the selection logic lives here.
+VOCABULARY_CONTRACT = Path(".mq") / "context-selection-vocabulary.json"
 
 
-def task_is_source_heavy(task: str) -> bool:
+class SelectionVocabulary(NamedTuple):
+    source_heavy_hints: tuple[str, ...]
+    source_heavy_suppress: tuple[str, ...]
+    max_codegraph_queries: int
+
+
+def load_selection_vocabulary(vault: Path | None = None) -> SelectionVocabulary:
+    """Read `context-selection-vocabulary.v1` from the vault. Never cached copy."""
+    root = (vault or default_vault()).expanduser().resolve()
+    path = root / VOCABULARY_CONTRACT
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(
+            f"missing selection vocabulary contract: {path}. mqobsidian owns this "
+            "contract; mq-agent does not keep a copy (DEC-005)."
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid selection vocabulary contract {path}: {exc}") from exc
+    try:
+        return SelectionVocabulary(
+            tuple(data["source_heavy_hints"]),
+            tuple(data["source_heavy_suppress"]),
+            int(data["max_codegraph_queries"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"malformed selection vocabulary contract {path}: {exc}") from exc
+
+
+def task_is_source_heavy(task: str, vocabulary: SelectionVocabulary) -> bool:
     key = task.lower()
-    if any(token in key for token in CODEGRAPH_TASK_SUPPRESS):
+    if any(token in key for token in vocabulary.source_heavy_suppress):
         return False
-    return any(token in key for token in CODEGRAPH_TASK_HINTS)
+    return any(token in key for token in vocabulary.source_heavy_hints)
 
 
 def _dedupe(items: list[str]) -> list[str]:
@@ -124,9 +127,6 @@ def _bullet_lines(items: list[str], fallback: str) -> str:
 SOURCE_EXTS = (".py", ".js", ".ts", ".tsx", ".jsx")
 
 # Hard cap so CodeGraph guidance can never become a token sink in the pack.
-MAX_CODEGRAPH_QUERIES = 5
-
-
 def _sanitize_query(task: str) -> str:
     return " ".join(task.split()).replace('"', "'")[:80]
 
@@ -144,6 +144,7 @@ def build_codegraph_queries(
     relevant_files: list[str],
     symbols: list[str],
     mode: str,
+    vocabulary: SelectionVocabulary,
 ) -> list[str]:
     """Build bounded MCP tool intentions for a source-heavy task.
 
@@ -153,46 +154,48 @@ def build_codegraph_queries(
     """
     if mode == "off":
         return []
-    if mode == "auto" and not task_is_source_heavy(task):
+    if mode == "auto" and not task_is_source_heavy(task, vocabulary):
         return []
     target = repos[0] if repos else None
     if not target:
         return []
 
     queries = [
-        f"* `codegraph_explore` — map task \"{_sanitize_query(task)}\" in `{target}` first."
+        f"* Map task \"{_sanitize_query(task)}\" in `{target}` with CodeGraph first."
     ]
     for symbol in symbols:
         symbol = symbol.strip()
         if not symbol:
             continue
-        queries.append(f"* `codegraph_callers` — inspect callers of `{symbol}`.")
-        queries.append(f"* `codegraph_impact` — inspect the impact of changing `{symbol}`.")
+        queries.append(f"* Inspect the callers of `{symbol}`.")
+        queries.append(f"* Assess the blast radius of changing `{symbol}`.")
     for path in relevant_files:
         if path.split("/", 1)[0] == target and path.lower().endswith(SOURCE_EXTS):
             queries.append(
-                f"* `codegraph_node` — inspect `{_repo_relative(path, target)}` "
-                "only if the context result omitted it."
+                f"* Inspect `{_repo_relative(path, target)}` only if the earlier "
+                "result omitted it."
             )
 
     bounded: list[str] = []
     for query in queries:
         if query not in bounded:
             bounded.append(query)
-        if len(bounded) >= MAX_CODEGRAPH_QUERIES:
+        if len(bounded) >= vocabulary.max_codegraph_queries:
             break
     return bounded
 
 
 def _codegraph_section(queries: list[str]) -> str:
-    """Render optional MCP-native CodeGraph guidance, or empty when unused."""
+    """Render optional CodeGraph guidance as intentions, or empty when unused."""
     if not queries:
         return ""
     body = "\n".join(queries)
     return (
         "\n## CodeGraph queries\n\n"
-        "Use the installed CodeGraph MCP tools directly; these are tool "
-        "intentions, not shell commands. Treat source returned by CodeGraph as "
+        "These are intentions, not tool names or shell commands: satisfy each "
+        "with whatever CodeGraph surface you have, since the MCP tool set varies "
+        "by installed version while the CLI keeps separate commands. Treat "
+        "source returned by CodeGraph as "
         "already read and do not repeat it with a broad grep/read loop. Fall "
         "back to targeted source reads only when the index is missing, the "
         "language is unsupported, or the result reports missing/stale detail. "
@@ -283,6 +286,7 @@ def build_task_pack(
     whether a CodeGraph hint was applied. Pure: writing is the caller's job.
     """
     vault = (vault or default_vault()).expanduser().resolve()
+    vocabulary = load_selection_vocabulary(vault)
 
     repos = select_relevant_repos(task, repo, list(relevant_repos or []))
 
@@ -352,7 +356,12 @@ def build_task_pack(
     note_items.extend(stale_notes)
 
     codegraph_queries = build_codegraph_queries(
-        task, repos, list(relevant_files or []), list(codegraph_symbols or []), codegraph
+        task,
+        repos,
+        list(relevant_files or []),
+        list(codegraph_symbols or []),
+        codegraph,
+        vocabulary,
     )
 
     pack_exclusions = _merge_exclusions(

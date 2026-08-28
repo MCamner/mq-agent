@@ -27,6 +27,7 @@ This page is a projection of it.
 | [`mq-agent mcp`](#mq-agent-mcp) | group | Inspect and manage the local mq-mcp tool server. |
 | [`mq-agent memory`](#mq-agent-memory) | group | Semantic repository memory commands. |
 | [`mq-agent models`](#mq-agent-models) | group | Ollama model runtime commands. |
+| [`mq-agent notebook`](#mq-agent-notebook) | group | Build local source packs for optional synthesis providers. |
 | [`mq-agent obsidian`](#mq-agent-obsidian) | group | Read and action the mqobsidian promotion inbox. |
 | [`mq-agent plan`](#mq-agent-plan) | command | Create a plan for a goal using the AI planner. |
 | [`mq-agent release-check`](#mq-agent-release-check) | command | Validate the repo is ready for a release. |
@@ -292,6 +293,7 @@ Export compact repo-local .mq/context snapshots.
 | Subcommand | Description |
 |---|---|
 | [`mq-agent context export`](#mq-agent-context-export) | Export small `.mq/context/` snapshots from mqobsidian context cards. This is Phase 4 orchestration: mqobsidian owns the card content; mq-agent selects repos and writes repo-local context files. Use `--output-root` for staging/tests before writing into real sibling repos. |
+| [`mq-agent context feedback`](#mq-agent-context-feedback) | Record one `feedback-signal.v1` pack-usage event in the vault's local log. Phase 11c: mqobsidian owns the vocabulary and the promotion/downgrade policy; this emits the signal. Records land in the gitignored `feedback/` surface and are never committed. |
 | [`mq-agent context pack`](#mq-agent-context-pack) | Generate a small task-specific `context-pack.v1` pack from mqobsidian cards. Phase 5 orchestration: mqobsidian owns the durable cards and the pack contract; mq-agent selects the relevant repos, cards, and do-not-read guidance for one task and adds an optional CodeGraph source-intelligence hint when the task is source-structure heavy. |
 
 ## `mq-agent context export`
@@ -309,6 +311,27 @@ Export small `.mq/context/` snapshots from mqobsidian context cards. This is Pha
 | `--target` | No | `both` | Compatibility flag for roadmap command shape: codex, claude, or both |
 | `--dry-run` | No | `false` | Show what would be written without writing |
 | `--clean` | No | `false` | Replace existing generated context directory before writing |
+| `--json` | No | `false` | — |
+
+## `mq-agent context feedback`
+
+Record one `feedback-signal.v1` pack-usage event in the vault's local log. Phase 11c: mqobsidian owns the vocabulary and the promotion/downgrade policy; this emits the signal. Records land in the gitignored `feedback/` surface and are never committed.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK` | Yes | — | The task the pack was built for |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--outcome` | No | `""` | sufficient or insufficient — did the pack carry the task |
+| `--repo` | No | `""` | Primary repo for the task |
+| `--judgment` | No | — | Per-block verdict as `block:judgment[:reason]` where judgment is useful\|noise\|missing\|stale (repeatable) |
+| `--notes` | No | `""` | Free-text note kept local |
+| `--vault` | No | `""` | mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian) |
 | `--json` | No | `false` | — |
 
 ## `mq-agent context pack`
@@ -1103,6 +1126,36 @@ Switch the active profile, or assign a model to a profile.
 |---|---:|---|---|
 | `--profile` | No | — | Assign model to this profile |
 | `--approve` | No | `false` | Write ~/.mq-agent/models.json |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook`
+
+Build local source packs for optional synthesis providers.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
+
+## `mq-agent notebook pack`
+
+Preview or build one local, provenance-bearing notebook source pack.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `NOTEBOOK` | Yes | — | Logical notebook ID |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--vault` | No | `""` | mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian) |
+| `--output-root` | No | `""` | Local output root (default: `<vault>`/.notebooklm) |
+| `--write` | No | `false` | Materialize the local pack; preview is the default |
+| `--replace` | No | `false` | Replace an existing owned pack; requires --write |
 | `--json` | No | `false` | — |
 
 ## `mq-agent obsidian`

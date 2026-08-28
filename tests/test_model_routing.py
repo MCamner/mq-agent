@@ -1080,3 +1080,93 @@ def test_history_cli_shows_execution_entries_in_their_own_table(tmp_path) -> Non
     assert result.exit_code == 0
     assert "Model Route History" in result.output
     assert "Execution Outcomes" in result.output
+# ── grounding detail ─────────────────────────────────────────────────────────
+#
+# A binary verdict made the 0.434 verification rate uninterpretable: it could
+# not distinguish a model inventing citations from one paraphrasing a single
+# item out of five. Every failure discarded the partial result, so 130 stored
+# outcomes could not be diagnosed after the fact.
+
+
+def _grounded_outcome(task_class: str, status: str, grounded, total) -> dict:
+    decision = model_routing.inspect_route("Summarize this git diff")
+    decision["task_class"] = task_class
+    return model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status=status,
+        verification_checks=["candidate-schema", "task-class-match"]
+        + (["evidence-grounded"] if status == "PASS" else []),
+        escalated=status != "PASS",
+        escalation_reason=None if status == "PASS" else "verification-failed",
+        grounding=(grounded, total) if grounded is not None else None,
+    )
+
+
+def test_evidence_grounding_reports_counts() -> None:
+    context = "The producer's validator could not see it. The consumer caught it."
+    assert model_routing.evidence_grounding(
+        ["The producer's validator could not see it.", "a paraphrase nobody wrote"],
+        context,
+    ) == (1, 2)
+
+
+def test_empty_evidence_is_zero_of_zero() -> None:
+    assert model_routing.evidence_grounding([], "anything") == (0, 0)
+
+
+def test_short_quotes_do_not_count_as_grounded() -> None:
+    # Below _MIN_QUOTE_LENGTH: matches too much of any material to be a citation.
+    assert model_routing.evidence_grounding(["the"], "the quick brown fox") == (0, 1)
+
+
+def test_outcome_carries_grounding_when_measured() -> None:
+    outcome = _grounded_outcome("diff-summary", "FAIL", 3, 5)
+
+    assert outcome["verification"]["grounding"] == {
+        "grounded_items": 3,
+        "total_items": 5,
+    }
+    Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_grounding_is_optional_so_stored_outcomes_stay_valid() -> None:
+    """The 130 existing records predate this field and must stay valid."""
+    outcome = model_routing._outcome(model_routing.inspect_route("Summarize this git diff"))
+
+    assert "grounding" not in outcome["verification"]
+    Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_review_reports_item_level_rate_beside_the_answer_rate(tmp_path) -> None:
+    records = [
+        _grounded_outcome("diff-summary", "FAIL", 3, 5),
+        _grounded_outcome("diff-summary", "FAIL", 4, 5),
+        _grounded_outcome("diff-summary", "PASS", 5, 5),
+    ]
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text("\n".join(json.dumps(r) for r in records), encoding="utf-8")
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+
+    # 1 of 3 answers accepted, but 12 of 15 citations were verbatim.
+    assert review["verification_success_rate"] == 0.333
+    assert review["grounded_items"] == 12
+    assert review["grounding_items_measured"] == 15
+    assert review["grounding_item_rate"] == 0.8
+    Draft202012Validator(_schema("model_route_evidence_review.schema.json")).validate(review)
+
+
+def test_item_rate_is_null_when_nothing_measured_it(tmp_path) -> None:
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text(
+        json.dumps(_grounded_outcome("diff-summary", "PASS", None, None)), encoding="utf-8"
+    )
+
+    review = model_routing.review_route_evidence("diff-summary", source)
+
+    # 0.0 would read as "nothing was grounded" rather than "nothing measured it".
+    assert review["grounding_item_rate"] is None
+    assert review["grounding_items_measured"] == 0

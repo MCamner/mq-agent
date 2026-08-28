@@ -162,6 +162,7 @@ def _outcome(
     accepted_by_operator: bool = False,
     escalated: bool = False,
     escalation_reason: str | None = None,
+    grounding: tuple[int, int] | None = None,
 ) -> dict[str, Any]:
     """Build and validate one routing outcome without persisting it."""
     outcome = {
@@ -187,6 +188,12 @@ def _outcome(
         "escalation_reason": escalation_reason,
         "recorded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
+    if grounding is not None:
+        # Absent means unmeasured, never zero — so it is only set when measured.
+        outcome["verification"]["grounding"] = {
+            "grounded_items": grounding[0],
+            "total_items": grounding[1],
+        }
     _validator("model_route_outcome.schema.json").validate(outcome)
     return outcome
 
@@ -213,16 +220,27 @@ def _normalize(text: str) -> str:
     return " ".join(text.split())
 
 
-def _evidence_is_grounded(evidence: list[str], context: str) -> bool:
-    """Check every evidence item is a long-enough verbatim quote from the material."""
-    if not evidence:
-        return False
+def evidence_grounding(evidence: list[str], context: str) -> tuple[int, int]:
+    """Count how many evidence items are long-enough verbatim quotes.
+
+    Counting rather than short-circuiting: the gate below still requires every
+    item, but a bare pass/fail throws away the only number that explains it. A
+    model paraphrasing one citation of five and a model inventing all five both
+    recorded FAIL, which made the aggregate verification rate uninterpretable.
+    """
     haystack = _normalize(context)
+    grounded = 0
     for item in evidence:
         quote = _normalize(item)
-        if len(quote) < _MIN_QUOTE_LENGTH or quote not in haystack:
-            return False
-    return True
+        if len(quote) >= _MIN_QUOTE_LENGTH and quote in haystack:
+            grounded += 1
+    return grounded, len(evidence)
+
+
+def _evidence_is_grounded(evidence: list[str], context: str) -> bool:
+    """Every item must be verbatim. Empty evidence is not grounding."""
+    grounded, total = evidence_grounding(evidence, context)
+    return bool(total) and grounded == total
 
 
 def _shadow_prompt(task: str, task_class: str, context: str | None = None) -> str:
@@ -328,8 +346,11 @@ def shadow_route(
         }
 
     checks = ["candidate-schema", "task-class-match"]
+    grounding: tuple[int, int] | None = None
     if context is not None:
-        if not _evidence_is_grounded(candidate["evidence"], context):
+        grounding = evidence_grounding(candidate["evidence"], context)
+        grounded, total = grounding
+        if not total or grounded != total:
             return {
                 "decision": decision,
                 "candidate": None,
@@ -341,6 +362,9 @@ def shadow_route(
                     verification_status="FAIL",
                     escalated=True,
                     escalation_reason="verification-failed",
+                    # Kept on the failure too: this is the record that explains
+                    # how close the candidate came.
+                    grounding=grounding,
                 ),
             }
         checks.append("evidence-grounded")
@@ -355,6 +379,7 @@ def shadow_route(
             schema_valid=True,
             verification_status="PASS",
             verification_checks=checks,
+            grounding=grounding,
         ),
     }
 
@@ -864,6 +889,15 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
     ]
     failed = [gate["id"] for gate in gates if not gate["passed"]]
     vacuous_gates = [gate["id"] for gate in gates if gate["vacuous"]]
+    # Counted over whatever measured it: an outcome without grounding predates
+    # the field, so it must not drag the rate toward zero.
+    measured = [
+        item["verification"]["grounding"]
+        for item in outcomes
+        if "grounding" in item["verification"]
+    ]
+    grounded_items = sum(int(item["grounded_items"]) for item in measured)
+    items_measured = sum(int(item["total_items"]) for item in measured)
     review = {
         "schema": "mq.model-route-evidence-review.v1",
         "task_class": task_class,
@@ -878,6 +912,12 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         "attempted_outcomes": attempted,
         "responded_outcomes": responded,
         "verification_success_rate": verification_rate,
+        "grounded_items": grounded_items,
+        "grounding_items_measured": items_measured,
+        # None, not 0.0: nothing measured is not the same as nothing grounded.
+        "grounding_item_rate": (
+            round(grounded_items / items_measured, 3) if items_measured else None
+        ),
         "unauthorized_writes": unauthorized_writes,
         "safety_contract_violations": safety_violations,
         "malformed_outputs": len(malformed),
