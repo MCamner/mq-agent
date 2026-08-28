@@ -2898,19 +2898,26 @@ def context_pack_cmd(
             {"kind": kind, "item": item.strip(), "reason": reason.strip()}
         )
 
-    result = build_task_pack(
-        task,
-        target=target,
-        repo=repo or None,
-        relevant_repos=relevant_repo,
-        relevant_files=relevant_file,
-        notes=note,
-        exclusions=parsed_exclusions,
-        vault=Path(vault).expanduser() if vault else None,
-        repos_root=Path(repos_root).expanduser() if repos_root else None,
-        codegraph=codegraph,
-        codegraph_symbols=symbol,
-    )
+    try:
+        result = build_task_pack(
+            task,
+            target=target,
+            repo=repo or None,
+            relevant_repos=relevant_repo,
+            relevant_files=relevant_file,
+            notes=note,
+            exclusions=parsed_exclusions,
+            vault=Path(vault).expanduser() if vault else None,
+            repos_root=Path(repos_root).expanduser() if repos_root else None,
+            codegraph=codegraph,
+            codegraph_symbols=symbol,
+        )
+    except ValueError as exc:
+        # Chiefly a missing or malformed selection-vocabulary contract. The vault
+        # is a sibling repo, so pointing at the wrong one is an ordinary mistake
+        # and deserves a readable error rather than a traceback.
+        console.print(f"[bold red]{exc}[/bold red]")
+        raise typer.Exit(2) from exc
 
     if output:
         path = write_task_pack(result["content"], Path(output))
