@@ -188,8 +188,8 @@ the assessment.
 
 ## Proposed — v1.28.0 Execution instrumentation
 
-* **Status:** In progress. Phases 0–2 landed, and Phase 3 report grouping has
-  started. Independent of v1.27.0: neither blocks the other.
+* **Status:** Implemented on the v1.28 branch. Phases 0–4 and the readiness
+  gate are complete; rollout still requires review and merge.
 * **Priority:** P1 — foundation contract required by route evaluation, learned
   routing, skill evaluation, and execution learning. Implement before consumers
   create independent outcome representations.
@@ -373,17 +373,18 @@ convention.
 
 * [x] Group `route report` by `task_class` and route. Records without measured
   route data are shown as `unreported`, never inferred as `none`.
-* [ ] Add time windows: 7, 30, and 90 days.
-* [ ] Report success rate, median and p90 latency, tool calls, retries, and
+* [x] Add time windows: 7, 30, and 90 days.
+* [x] Report success rate, median and p90 latency, tool calls, retries, and
   fallbacks.
-* [ ] Show shadow and execution records in separate sections, never merged.
-* [ ] Keep JSON output stable for `mq-hal`.
+* [x] Show shadow and execution records in separate sections, never merged.
+* [x] Keep JSON output stable for `mq-hal` through versioned report shapes.
 
 ### Phase 4 — Retention
 
-* [ ] Bound the outcome file by size or age with rotation.
-* [ ] Document the retention window and what is kept after rotation.
-* [ ] Confirm no field can carry prompt or file content.
+* [x] Bound the outcome file by size with rotation (10 MiB, three prior files).
+* [x] Document retention and the `MQ_AGENT_OUTCOME_MAX_BYTES` override.
+* [x] Confirm no field can carry prompt or file content; the closed schema has
+  no arbitrary event-detail field.
 
 ### Data requirement for learned routing
 
@@ -440,15 +441,16 @@ route, two days, and nothing to compare against.
 
 ### Definition of done
 
-* [ ] Every significant run emits exactly one record.
-* [ ] Telemetry cannot fail or slow a run, and can be turned off.
-* [ ] Shadow and execution records stay in separate contracts and are never
+* [x] Every significant run emits exactly one record.
+* [x] Telemetry cannot fail or slow a run, and can be turned off.
+* [x] Shadow and execution records stay in separate contracts and are never
   merged into one rate.
-* [ ] Existing `mq.model-route-outcome.v1` records remain readable.
-* [ ] `route report` answers "which route works better for this task class"
+* [x] Existing `mq.model-route-outcome.v1` records remain readable.
+* [x] `route report` answers "which route works better for this task class"
   from production data, or states that it cannot yet.
-* [ ] `route readiness` reports the distance to every eligibility threshold.
-* [ ] A passing gate yields a recommendation, never an automatic change.
+* [x] `route readiness` reports the distance to every eligibility threshold.
+* [x] A passing gate yields `AWAITING_OPERATOR_APPROVAL`, never an automatic
+  route change.
 
 ### Recommended starting point
 

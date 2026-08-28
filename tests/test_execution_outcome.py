@@ -10,7 +10,6 @@ from jsonschema.exceptions import ValidationError
 from mq_agent.core.swarm import AgentManifest, SwarmConfig, SwarmRunner
 from mq_agent.tools import execution_outcome
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_NAME = "execution_outcome.schema.json"
 
@@ -27,6 +26,7 @@ def _outcome(**overrides) -> dict:
         exit_status="ok",
         latency_ms=1200,
         route={"selected": "swarm", "policy": "static", "confidence": None},
+        context={"sources": ["repo-card", "codegraph"], "size": 18200},
         agents=[{"name": "audit", "status": "ok", "latency_ms": 1100}],
     )
     outcome.update(overrides)
@@ -139,6 +139,29 @@ def test_record_appends_one_line_per_outcome(tmp_path) -> None:
     execution_outcome.record_execution_outcome(_outcome(), destination)
 
     assert len(_records(destination)) == 2
+
+
+def test_record_rotates_before_the_store_exceeds_the_configured_bound(
+    tmp_path, monkeypatch
+) -> None:
+    destination = tmp_path / "execution-outcomes.jsonl"
+    first = _outcome()
+    line_size = len((json.dumps(first, ensure_ascii=False) + "\n").encode("utf-8"))
+    monkeypatch.setenv("MQ_AGENT_OUTCOME_MAX_BYTES", str(line_size + 10))
+
+    execution_outcome.record_execution_outcome(first, destination)
+    execution_outcome.record_execution_outcome(_outcome(), destination)
+
+    assert len(_records(destination)) == 1
+    assert len(_records(destination.with_suffix(".jsonl.1"))) == 1
+
+
+def test_contract_has_no_prompt_or_arbitrary_event_detail_field(tmp_path) -> None:
+    with pytest.raises(ValidationError):
+        execution_outcome.record_execution_outcome(
+            _outcome(events=[{"kind": "budget", "detail": "raw prompt content"}]),
+            tmp_path / "out.jsonl",
+        )
 
 
 # --- Phase 1: one emit point ----------------------------------------------
@@ -273,9 +296,9 @@ def test_the_suite_never_writes_to_the_operators_real_store() -> None:
 # already carries per-agent results. Executor.run_plan is never instrumented —
 # it is only ever reached from inside an agent.
 
-from typer.testing import CliRunner  # noqa: E402
+from typer.testing import CliRunner
 
-from mq_agent.main import app  # noqa: E402
+from mq_agent.main import app
 
 cli = CliRunner()
 

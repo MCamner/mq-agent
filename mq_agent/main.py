@@ -83,6 +83,9 @@ app.add_typer(models_app, name="models")
 route_app = typer.Typer(help="Inspect advisory local-first model routing.")
 app.add_typer(route_app, name="route")
 
+execution_app = typer.Typer(help="Inspect observed execution outcomes.")
+app.add_typer(execution_app, name="execution")
+
 ship_app = typer.Typer(help="Inspect release state, proof, and audit evidence (read-only).")
 app.add_typer(ship_app, name="ship")
 
@@ -3102,12 +3105,18 @@ def route_report_cmd(
     source: Annotated[
         Path | None, typer.Option("--source", help="JSON or JSONL outcome source")
     ] = None,
+    since: Annotated[
+        str | None, typer.Option("--since", help="Time window: 7d, 30d, or 90d")
+    ] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Aggregate validated routing outcomes from a read-only source."""
     from mq_agent.tools.model_routing import route_report
 
-    data = route_report(source)
+    try:
+        data = route_report(source, since=since)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     if json_out:
         typer.echo(json.dumps(data, indent=2))
         return
@@ -3140,6 +3149,10 @@ def route_report_cmd(
     execution_table.add_column("Pass", justify="right")
     execution_table.add_column("Fail", justify="right")
     execution_table.add_column("Skipped", justify="right")
+    execution_table.add_column("Success", justify="right")
+    execution_table.add_column("Median", justify="right")
+    execution_table.add_column("P90", justify="right")
+    execution_table.add_column("Fallbacks", justify="right")
     for name, counts in sorted(execution["by_task_class"].items()):
         for route, route_counts in sorted(counts["by_route"].items()):
             execution_table.add_row(
@@ -3149,11 +3162,138 @@ def route_report_cmd(
                 str(route_counts["PASS"]),
                 str(route_counts["FAIL"]),
                 str(route_counts["SKIPPED"]),
+                f"{route_counts['success_rate']:.1%}",
+                str(route_counts["median_latency_ms"]),
+                str(route_counts["p90_latency_ms"]),
+                str(route_counts["fallbacks"] if route_counts["fallbacks"] is not None else "—"),
             )
     if not execution["by_task_class"]:
-        execution_table.add_row("—", "—", "0", "0", "0", "0")
+        execution_table.add_row("—", "—", "0", "0", "0", "0", "—", "—", "—", "—")
     console.print(execution_table)
     console.print(f"Source: {execution['source']}")
+
+
+@route_app.command("readiness")
+def route_readiness_cmd(
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL execution outcome source")
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show distance to evidence thresholds without changing routing."""
+    from mq_agent.tools.model_routing import route_readiness
+
+    data = route_readiness(source)
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    table = Table(title="Route Readiness")
+    table.add_column("Task class")
+    table.add_column("Runs", justify="right")
+    table.add_column("Routes", justify="right")
+    table.add_column("Window", justify="right")
+    table.add_column("Min/route", justify="right")
+    table.add_column("Decision")
+    for task_class, item in data["task_classes"].items():
+        actual = item["actual"]
+        table.add_row(
+            task_class,
+            str(actual["observations"]),
+            str(actual["candidate_routes"]),
+            f"{actual['window_days']}d",
+            str(actual["minimum_samples_per_route"]),
+            str(item["recommendation"]),
+        )
+    if not data["task_classes"]:
+        table.add_row("—", "0", "0", "0d", "0", "NOT_ELIGIBLE")
+    console.print(table)
+    console.print("[dim]Automatic routing remains disabled; eligibility only permits an operator review.[/dim]")
+
+
+@execution_app.command("report")
+def execution_report_cmd(
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL execution outcome source")
+    ] = None,
+    since: Annotated[
+        str | None, typer.Option("--since", help="Time window: 7d, 30d, or 90d")
+    ] = None,
+    task_class: Annotated[
+        str | None, typer.Option("--task-class", help="Limit report to one task class")
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Report execution metrics without mixing in shadow outcomes."""
+    from mq_agent.tools.model_routing import execution_report
+
+    try:
+        data = execution_report(source, since=since, task_class=task_class)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+    table = Table(title="Execution Report")
+    for column in ("Task class", "Route", "Runs", "Success", "Median", "P90", "Fallbacks"):
+        table.add_column(column, justify="right" if column not in {"Task class", "Route"} else "left")
+    for name, task in sorted(data["by_task_class"].items()):
+        for route, metrics in sorted(task["by_route"].items()):
+            table.add_row(
+                name,
+                route,
+                str(metrics["outcomes"]),
+                f"{metrics['success_rate']:.1%}",
+                str(metrics["median_latency_ms"]),
+                str(metrics["p90_latency_ms"]),
+                str(metrics["fallbacks"] if metrics["fallbacks"] is not None else "—"),
+            )
+    if not data["by_task_class"]:
+        table.add_row("—", "—", "0", "—", "—", "—", "—")
+    console.print(table)
+
+
+@execution_app.command("compare")
+def execution_compare_cmd(
+    task_class: Annotated[str, typer.Option("--task-class", help="Task class to compare")],
+    left_route: Annotated[str, typer.Option("--left", help="First route")],
+    right_route: Annotated[str, typer.Option("--right", help="Second route")],
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL execution outcome source")
+    ] = None,
+    since: Annotated[
+        str | None, typer.Option("--since", help="Time window: 7d, 30d, or 90d")
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Compare two observed routes without selecting a winner."""
+    from mq_agent.tools.model_routing import execution_compare
+
+    try:
+        data = execution_compare(
+            task_class, left_route, right_route, source, since=since
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+    table = Table(title=f"Execution Compare — {task_class}")
+    table.add_column("Route")
+    table.add_column("Runs", justify="right")
+    table.add_column("Success", justify="right")
+    table.add_column("Median", justify="right")
+    table.add_column("P90", justify="right")
+    for route, metrics in data["routes"].items():
+        table.add_row(
+            route,
+            str(metrics["outcomes"]) if metrics else "0",
+            f"{metrics['success_rate']:.1%}" if metrics else "—",
+            str(metrics["median_latency_ms"]) if metrics else "—",
+            str(metrics["p90_latency_ms"]) if metrics else "—",
+        )
+    console.print(table)
+    console.print("[dim]Observed data only; no route has been promoted.[/dim]")
 
 
 @route_app.command("history")

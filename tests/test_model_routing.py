@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
 from mq_agent.main import app
 from mq_agent.tools import model_routing
-
 
 ROOT = Path(__file__).resolve().parents[1]
 runner = CliRunner()
@@ -744,6 +745,7 @@ def _execution_record(
     result: str = "PASS",
     recorded_at: str = "2026-08-07T13:00:00Z",
     route: str | None = None,
+    **metrics: Any,
 ) -> dict:
     from mq_agent.tools import execution_outcome
 
@@ -752,12 +754,14 @@ def _execution_record(
         task_class=task_class,
         result=result,
         exit_status="ok" if result == "PASS" else "error",
-        latency_ms=1000,
+        latency_ms=metrics.pop("latency_ms", 1000),
         route=(
             {"selected": route, "policy": "static", "confidence": None}
             if route is not None
             else None
         ),
+        context=metrics.pop("context", None),
+        **metrics,
     )
     record["recorded_at"] = recorded_at
     return record
@@ -841,13 +845,128 @@ def test_report_groups_execution_outcomes_by_task_class_and_route(tmp_path) -> N
 
     by_task = model_routing.route_report(source)["execution"]["by_task_class"]
 
-    assert by_task["ci"]["by_route"] == {
-        "codex": {"outcomes": 1, "PASS": 1, "FAIL": 0, "SKIPPED": 0},
-        "claude": {"outcomes": 1, "PASS": 0, "FAIL": 1, "SKIPPED": 0},
-    }
-    assert by_task["audit"]["by_route"] == {
-        "unreported": {"outcomes": 1, "PASS": 1, "FAIL": 0, "SKIPPED": 0}
-    }
+    assert by_task["ci"]["by_route"]["codex"]["PASS"] == 1
+    assert by_task["ci"]["by_route"]["claude"]["FAIL"] == 1
+    assert by_task["audit"]["by_route"]["unreported"]["outcomes"] == 1
+
+
+def test_report_filters_both_contracts_by_supported_time_window(tmp_path) -> None:
+    source = tmp_path / "mixed.jsonl"
+    recent = _execution_record(recorded_at="2026-08-27T12:00:00Z")
+    old = _execution_record(recorded_at="2026-07-01T12:00:00Z")
+    source.write_text("\n".join(map(json.dumps, (recent, old))) + "\n", encoding="utf-8")
+
+    report = model_routing.route_report(
+        source, since="30d", now=datetime(2026, 8, 28, tzinfo=UTC)
+    )
+
+    assert report["window"] == "30d"
+    assert report["execution"]["outcomes"] == 1
+
+
+def test_execution_report_includes_route_metrics(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    records = [
+        _execution_record(
+            route="codex", latency_ms=100, tool_calls=2, retries=1,
+            context={"sources": ["repo-card"], "size": 1000},
+        ),
+        _execution_record(route="codex", latency_ms=300, tool_calls=4, fallbacks=1),
+        _execution_record(route="codex", latency_ms=200, result="FAIL"),
+    ]
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+
+    metrics = model_routing.route_report(source)["execution"]["by_task_class"]["ci"][
+        "by_route"
+    ]["codex"]
+
+    assert metrics["success_rate"] == 0.667
+    assert metrics["median_latency_ms"] == 200
+    assert metrics["p90_latency_ms"] == 300
+    assert metrics["tool_calls"] == 6
+    assert metrics["retries"] == 1
+    assert metrics["fallbacks"] == 1
+    assert metrics["median_context_size"] == 1000
+
+
+def test_route_readiness_reports_each_threshold_without_enabling_routing(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    records = []
+    for index in range(15):
+        records.append(
+            _execution_record(
+                route="codex", recorded_at=f"2026-08-{index + 1:02d}T12:00:00Z"
+            )
+        )
+        records.append(
+            _execution_record(
+                route="claude", recorded_at=f"2026-08-{index + 1:02d}T13:00:00Z"
+            )
+        )
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+
+    readiness = model_routing.route_readiness(source)
+
+    assert readiness["task_classes"]["ci"]["eligible"] is True
+    assert readiness["task_classes"]["ci"]["recommendation"] == "AWAITING_OPERATOR_APPROVAL"
+    assert readiness["automatic_routing_enabled"] is False
+
+
+def test_execution_compare_never_recommends_a_winner(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    source.write_text(
+        "\n".join(
+            map(
+                json.dumps,
+                (_execution_record(route="codex"), _execution_record(route="claude")),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    comparison = model_routing.execution_compare("ci", "codex", "claude", source)
+
+    assert comparison["comparable"] is True
+    assert comparison["recommendation"] is None
+    assert set(comparison["routes"]) == {"codex", "claude"}
+
+
+def test_execution_report_and_compare_cli_are_machine_readable(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    source.write_text(
+        "\n".join(
+            map(
+                json.dumps,
+                (_execution_record(route="codex"), _execution_record(route="claude")),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = runner.invoke(app, ["execution", "report", "--source", str(source), "--json"])
+    compare = runner.invoke(
+        app,
+        [
+            "execution",
+            "compare",
+            "--task-class",
+            "ci",
+            "--left",
+            "codex",
+            "--right",
+            "claude",
+            "--source",
+            str(source),
+            "--json",
+        ],
+    )
+
+    assert report.exit_code == 0
+    assert json.loads(report.output)["schema"] == "mq.execution-report.v1"
+    assert compare.exit_code == 0
+    assert json.loads(compare.output)["comparable"] is True
 
 
 # Scoring is a later phase. Counts are evidence; a rate is a judgement, and

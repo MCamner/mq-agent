@@ -22,7 +22,6 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-
 SCHEMA_ID = "mq.execution-outcome.v1"
 SCHEMA_FILE = "execution_outcome.schema.json"
 
@@ -35,6 +34,8 @@ KNOWN_TASK_CLASSES = frozenset(
 UNCLASSIFIED = "unclassified"
 
 _OFF_VALUES = frozenset({"0", "off", "false", "no"})
+DEFAULT_MAX_BYTES = 10 * 1024 * 1024
+MAX_ROTATED_FILES = 3
 
 
 def telemetry_enabled() -> bool:
@@ -73,6 +74,7 @@ def build_execution_outcome(
     run_id: str | None = None,
     route: dict[str, Any] | None = None,
     model: str | None = None,
+    context: dict[str, Any] | None = None,
     agents: list[dict[str, Any]] | None = None,
     skills: list[str] | None = None,
     tool_calls: int | None = None,
@@ -99,6 +101,7 @@ def build_execution_outcome(
     optional: dict[str, Any] = {
         "route": route,
         "model": model,
+        "context": context,
         "agents": agents,
         "skills": skills,
         "tool_calls": tool_calls,
@@ -121,8 +124,18 @@ def record_execution_outcome(
     _validator().validate(outcome)
     path = outcome_path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = (json.dumps(outcome, ensure_ascii=False) + "\n").encode("utf-8")
+    max_bytes = int(os.environ.get("MQ_AGENT_OUTCOME_MAX_BYTES", DEFAULT_MAX_BYTES))
+    if path.exists() and max_bytes > 0 and path.stat().st_size + len(encoded) > max_bytes:
+        for index in range(MAX_ROTATED_FILES, 0, -1):
+            older = Path(f"{path}.{index}")
+            if index == MAX_ROTATED_FILES:
+                older.unlink(missing_ok=True)
+            previous = path if index == 1 else Path(f"{path}.{index - 1}")
+            if previous.exists():
+                previous.replace(older)
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(outcome, ensure_ascii=False) + "\n")
+        handle.write(encoded.decode("utf-8"))
     return path
 
 
