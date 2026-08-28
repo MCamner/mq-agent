@@ -143,7 +143,8 @@ def test_pack_selects_card_and_do_not_read(tmp_path):
     # source-heavy task -> bounded MCP-native CodeGraph guidance
     assert result["codegraph_applied"]
     assert "## CodeGraph queries" in content
-    assert "`codegraph_explore`" in content
+    assert "with CodeGraph first" in content
+    assert "codegraph_" not in content, "guidance must not name an MCP tool"
     assert "codegraph explore" not in content
 
 
@@ -243,8 +244,9 @@ def test_codegraph_on_forces_queries_on_non_source_task(tmp_path):
     )
     assert result["codegraph_applied"]
     assert "## CodeGraph queries" in result["content"]
-    assert "`codegraph_explore`" in result["content"]
-    assert "tool intentions, not shell commands" in result["content"]
+    assert "with CodeGraph first" in result["content"]
+    assert "codegraph_" not in result["content"]
+    assert "These are intentions, not tool names" in result["content"]
 
 
 def test_codegraph_queries_are_bounded_and_scoped(tmp_path):
@@ -260,11 +262,13 @@ def test_codegraph_queries_are_bounded_and_scoped(tmp_path):
     queries = result["codegraph_queries"]
     assert queries  # source-heavy -> emitted
     assert len(queries) <= 5  # bounded, never a token sink
-    assert "`codegraph_explore`" in queries[0]
-    assert sum("`codegraph_explore`" in q for q in queries) == 1
-    assert any("`codegraph_callers`" in q and "`store_learn_record`" in q for q in queries)
-    assert any("`codegraph_impact`" in q and "`store_learn_record`" in q for q in queries)
-    assert any("`codegraph_node`" in q and "`runtime/memory/obsidian_writer.py`" in q for q in queries)
+    # Intentions, never tool names: the MCP surface varies by installed version.
+    assert "with CodeGraph first" in queries[0]
+    assert sum("with CodeGraph first" in q for q in queries) == 1
+    assert not any("codegraph_" in q for q in queries)
+    assert any("callers of" in q and "`store_learn_record`" in q for q in queries)
+    assert any("blast radius" in q and "`store_learn_record`" in q for q in queries)
+    assert any("`runtime/memory/obsidian_writer.py`" in q for q in queries)
     assert all(not q.startswith("codegraph ") for q in queries)
 
 
