@@ -112,6 +112,17 @@ def _execution_outcome(
     raised to set the shell status is not mistaken for an aborted run. The
     yielded dict lets a caller correct the result before it is written. A dry
     run executed nothing and so has no outcome.
+
+    A caller that knows which model carried out the run sets `record["model"]`
+    before starting it, so a failed run still records what it was attempted
+    with. That is the primary execution model — the one the planner calls —
+    not any secondary model a run may also use; see the `model` field in
+    `schemas/execution_outcome.schema.json`. An entrypoint that calls no model
+    leaves it unset, and the field is then absent rather than guessed.
+
+    `route` is never set here. No execution path applies a route today
+    (routing is advisory: `route inspect` and `route shadow` are its only
+    callers), so claiming one would record a decision nothing made.
     """
     from mq_agent.tools.execution_outcome import emit_execution_outcome
 
@@ -133,6 +144,7 @@ def _execution_outcome(
                 result=record["result"],
                 exit_status=record["exit_status"],
                 latency_ms=int((time.monotonic() - start) * 1000),
+                model=record.get("model"),
             )
 
 
@@ -239,8 +251,10 @@ def audit(
     from mq_agent.agents.audit_agent import AuditAgent
 
     with console.status("[bold cyan]Auditing...[/bold cyan]"):
-        with _execution_outcome("audit"):
-            result = AuditAgent(_client()).run(path, dry_run=dry_run)
+        with _execution_outcome("audit") as record:
+            agent = AuditAgent(_client())
+            record["model"] = agent.planner.model
+            result = agent.run(path, dry_run=dry_run)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -314,8 +328,10 @@ def release_check(
     from mq_agent.agents.release_agent import ReleaseAgent
 
     with console.status("[bold cyan]Running release checks...[/bold cyan]"):
-        with _execution_outcome("release"):
-            result = ReleaseAgent(_client()).run_check(path, dry_run=dry_run, approve=approve)
+        with _execution_outcome("release") as record:
+            agent = ReleaseAgent(_client())
+            record["model"] = agent.planner.model
+            result = agent.run_check(path, dry_run=dry_run, approve=approve)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -417,8 +433,10 @@ def fix_ci(
     from mq_agent.agents.ci_agent import CIAgent
 
     with console.status("[bold cyan]Diagnosing CI...[/bold cyan]"):
-        with _execution_outcome("ci"):
-            result = CIAgent(_client()).diagnose(path, dry_run=dry_run, approve=approve)
+        with _execution_outcome("ci") as record:
+            agent = CIAgent(_client())
+            record["model"] = agent.planner.model
+            result = agent.diagnose(path, dry_run=dry_run, approve=approve)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -1520,8 +1538,10 @@ def signal(
         raise typer.Exit(code=1)
 
     with console.status("[bold cyan]Running repo-signal assessment...[/bold cyan]"):
-        with _execution_outcome("signal"):
-            result = SignalAgent(_client()).run(path, dry_run=dry_run)
+        with _execution_outcome("signal") as record:
+            agent = SignalAgent(_client())
+            record["model"] = agent.planner.model
+            result = agent.run(path, dry_run=dry_run)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
@@ -1628,8 +1648,10 @@ def docs_audit(
     from mq_agent.agents.docs_agent import DocsAgent
 
     with console.status("[bold cyan]Auditing docs...[/bold cyan]"):
-        with _execution_outcome("docs"):
-            result = DocsAgent(_client()).audit(path)
+        with _execution_outcome("docs") as record:
+            agent = DocsAgent(_client())
+            record["model"] = agent.planner.model
+            result = agent.audit(path)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
