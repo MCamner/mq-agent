@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
 from mq_agent.main import app
 from mq_agent.tools import model_routing
-
 
 ROOT = Path(__file__).resolve().parents[1]
 runner = CliRunner()
@@ -130,16 +131,40 @@ CONTEXT = (
 )
 
 
-def test_candidate_schema_bounds_list_length_but_never_item_length() -> None:
+def test_candidate_schema_bounds_list_and_evidence_item_length() -> None:
     evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
     suggestions = model_routing._CANDIDATE_SCHEMA["properties"]["suggestions"]
 
     assert evidence["maxItems"] == 5
+    assert evidence["items"]["maxLength"] == 200
     assert suggestions["maxItems"] == 3
-    # A per-item maxLength truncates a quote mid-string, which fails the grounding
-    # check on every run. Bound how many quotes are returned, never how long one is.
-    assert "maxLength" not in evidence["items"]
     assert "maxLength" not in suggestions["items"]
+
+
+def _evidence_item_limit() -> int:
+    evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
+    return int(evidence["items"]["maxLength"])
+
+
+def test_grounding_accepts_a_truncated_verbatim_prefix() -> None:
+    # Why a per-item maxLength is safe: the grounding check is a substring match,
+    # so the prefix left by truncation is still verbatim. Measured on qwen3:4b over
+    # docs/architecture.md, bounding items at 200 took the run PASS-rate from 0/15
+    # to 8/15 (Fisher one-sided p = 0.001) by cutting the model's habit of running
+    # the document's tail into one 930-character "quote".
+    limit = _evidence_item_limit()
+    material = "It stores durable knowledge that should survive beyond a single run."
+
+    assert model_routing._evidence_is_grounded([material[:limit]], material)
+
+
+def test_evidence_item_limit_cannot_truncate_below_the_grounding_floor() -> None:
+    # These two constants are only safe as a pair. Lowering maxLength under the
+    # minimum quote length truncates every quote below the floor, so grounding
+    # fails on every run while the rest of the suite stays green.
+    limit = _evidence_item_limit()
+
+    assert limit > model_routing._MIN_QUOTE_LENGTH
 
 
 def test_shadow_timeout_default_covers_measured_generation_time() -> None:
@@ -712,6 +737,349 @@ def test_evidence_review_cli_returns_nonzero_when_not_eligible(tmp_path) -> None
     assert json.loads(result.output)["decision"] == "NOT_ELIGIBLE"
 
 
+# --- both contracts, presented separately ---------------------------------
+
+
+def _execution_record(
+    task_class: str = "ci",
+    result: str = "PASS",
+    recorded_at: str = "2026-08-07T13:00:00Z",
+    route: str | None = None,
+    **metrics: Any,
+) -> dict:
+    from mq_agent.tools import execution_outcome
+
+    record = execution_outcome.build_execution_outcome(
+        runtime="swarm",
+        task_class=task_class,
+        result=result,
+        exit_status="ok" if result == "PASS" else "error",
+        latency_ms=metrics.pop("latency_ms", 1000),
+        route=(
+            {"selected": route, "policy": "static", "confidence": None}
+            if route is not None
+            else None
+        ),
+        context=metrics.pop("context", None),
+        **metrics,
+    )
+    record["recorded_at"] = recorded_at
+    return record
+
+
+def _mixed_source(tmp_path: Path) -> Path:
+    """One file holding both contracts plus a line belonging to neither."""
+    source = tmp_path / "mixed.jsonl"
+    route = model_routing._outcome(
+        model_routing.inspect_route("Summarize this diff"),
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status="PASS",
+        verification_checks=["candidate-schema", "task-class-match"],
+        accepted_by_agent=True,
+    )
+    source.write_text(
+        "\n".join(
+            (
+                json.dumps(route),
+                json.dumps(_execution_record()),
+                json.dumps(_execution_record(task_class="audit", result="FAIL")),
+                "not-json",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return source
+
+
+# An execution record in the source is a valid record of a different contract,
+# not a broken one. Counting it as invalid would make a healthy store look
+# corrupt and hide real corruption behind the noise.
+def test_report_does_not_call_an_execution_record_invalid(tmp_path) -> None:
+    report = model_routing.route_report(_mixed_source(tmp_path))
+
+    assert report["total_records"] == 4
+    assert report["valid_outcomes"] == 1
+    assert report["invalid_records"] == 1
+
+
+# The two contracts measure different things: a route verification rate says
+# whether a local model could be trusted, an execution result says whether a
+# run worked. One number over both would mean neither.
+def test_report_keeps_route_rates_free_of_execution_records(tmp_path) -> None:
+    mixed = model_routing.route_report(_mixed_source(tmp_path))
+
+    assert mixed["verified"] == 1
+    assert mixed["attempted"] == 1
+    assert mixed["by_task_class"]["diff-summary"]["verification_rate"] == 1.0
+    assert set(mixed["by_task_class"]) == {"diff-summary"}
+
+
+def test_report_presents_execution_outcomes_as_their_own_contract(tmp_path) -> None:
+    report = model_routing.route_report(_mixed_source(tmp_path))
+    execution = report["execution"]
+
+    assert execution["schema"] == "mq.execution-outcome.v1"
+    assert execution["outcomes"] == 2
+    assert execution["by_result"] == {"PASS": 1, "FAIL": 1, "SKIPPED": 0}
+    assert execution["by_task_class"]["ci"]["PASS"] == 1
+    assert execution["by_task_class"]["audit"]["FAIL"] == 1
+
+
+def test_report_groups_execution_outcomes_by_task_class_and_route(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    source.write_text(
+        "\n".join(
+            json.dumps(record)
+            for record in (
+                _execution_record(route="codex"),
+                _execution_record(result="FAIL", route="claude"),
+                _execution_record(task_class="audit"),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    by_task = model_routing.route_report(source)["execution"]["by_task_class"]
+
+    assert by_task["ci"]["by_route"]["codex"]["PASS"] == 1
+    assert by_task["ci"]["by_route"]["claude"]["FAIL"] == 1
+    assert by_task["audit"]["by_route"]["unreported"]["outcomes"] == 1
+
+
+def test_report_filters_both_contracts_by_supported_time_window(tmp_path) -> None:
+    source = tmp_path / "mixed.jsonl"
+    recent = _execution_record(recorded_at="2026-08-27T12:00:00Z")
+    old = _execution_record(recorded_at="2026-07-01T12:00:00Z")
+    source.write_text("\n".join(map(json.dumps, (recent, old))) + "\n", encoding="utf-8")
+
+    report = model_routing.route_report(
+        source, since="30d", now=datetime(2026, 8, 28, tzinfo=UTC)
+    )
+
+    assert report["window"] == "30d"
+    assert report["execution"]["outcomes"] == 1
+
+
+def test_execution_report_includes_route_metrics(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    records = [
+        _execution_record(
+            route="codex", latency_ms=100, tool_calls=2, retries=1,
+            context={"sources": ["repo-card"], "size": 1000},
+        ),
+        _execution_record(route="codex", latency_ms=300, tool_calls=4, fallbacks=1),
+        _execution_record(route="codex", latency_ms=200, result="FAIL"),
+    ]
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+
+    metrics = model_routing.route_report(source)["execution"]["by_task_class"]["ci"][
+        "by_route"
+    ]["codex"]
+
+    assert metrics["success_rate"] == 0.667
+    assert metrics["median_latency_ms"] == 200
+    assert metrics["p90_latency_ms"] == 300
+    assert metrics["tool_calls"] == 6
+    assert metrics["retries"] == 1
+    assert metrics["fallbacks"] == 1
+    assert metrics["median_context_size"] == 1000
+
+
+def test_route_readiness_reports_each_threshold_without_enabling_routing(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    records = []
+    for index in range(15):
+        records.append(
+            _execution_record(
+                route="codex", recorded_at=f"2026-08-{index + 1:02d}T12:00:00Z"
+            )
+        )
+        records.append(
+            _execution_record(
+                route="claude", recorded_at=f"2026-08-{index + 1:02d}T13:00:00Z"
+            )
+        )
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+
+    readiness = model_routing.route_readiness(source)
+
+    assert readiness["task_classes"]["ci"]["eligible"] is True
+    assert readiness["task_classes"]["ci"]["recommendation"] == "AWAITING_OPERATOR_APPROVAL"
+    assert readiness["automatic_routing_enabled"] is False
+
+
+def test_execution_compare_never_recommends_a_winner(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    source.write_text(
+        "\n".join(
+            map(
+                json.dumps,
+                (_execution_record(route="codex"), _execution_record(route="claude")),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    comparison = model_routing.execution_compare("ci", "codex", "claude", source)
+
+    assert comparison["comparable"] is True
+    assert comparison["recommendation"] is None
+    assert set(comparison["routes"]) == {"codex", "claude"}
+
+
+def test_execution_report_and_compare_cli_are_machine_readable(tmp_path) -> None:
+    source = tmp_path / "executions.jsonl"
+    source.write_text(
+        "\n".join(
+            map(
+                json.dumps,
+                (_execution_record(route="codex"), _execution_record(route="claude")),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = runner.invoke(app, ["execution", "report", "--source", str(source), "--json"])
+    compare = runner.invoke(
+        app,
+        [
+            "execution",
+            "compare",
+            "--task-class",
+            "ci",
+            "--left",
+            "codex",
+            "--right",
+            "claude",
+            "--source",
+            str(source),
+            "--json",
+        ],
+    )
+
+    assert report.exit_code == 0
+    assert json.loads(report.output)["schema"] == "mq.execution-report.v1"
+    assert compare.exit_code == 0
+    assert json.loads(compare.output)["comparable"] is True
+
+
+# Scoring is a later phase. Counts are evidence; a rate is a judgement, and
+# emitting one here would invite exactly the merged number this split avoids.
+def test_report_does_not_score_execution_outcomes(tmp_path) -> None:
+    execution = model_routing.route_report(_mixed_source(tmp_path))["execution"]
+
+    assert not [key for key in execution if key.endswith("_rate")]
+
+
+def test_history_keeps_execution_entries_in_their_own_list(tmp_path) -> None:
+    history = model_routing.route_history(_mixed_source(tmp_path))
+
+    assert [entry["schema"] for entry in history["entries"]] == [
+        "mq.model-route-outcome.v1"
+    ]
+    assert len(history["execution"]["entries"]) == 2
+    assert history["execution"]["matched"] == 2
+
+
+# A decision id names one routing decision. No execution record carries one, so
+# filtering by it must empty the execution list rather than ignore the filter.
+def test_history_decision_filter_excludes_execution_entries(tmp_path) -> None:
+    source = _mixed_source(tmp_path)
+    decision_id = model_routing.route_history(source)["entries"][0]["decision_id"]
+
+    history = model_routing.route_history(source, decision_id=decision_id)
+
+    assert len(history["entries"]) == 1
+    assert history["execution"]["entries"] == []
+
+
+def test_history_task_class_filter_applies_to_each_contract_separately(tmp_path) -> None:
+    history = model_routing.route_history(_mixed_source(tmp_path), task_class="ci")
+
+    assert history["entries"] == []
+    assert [e["task_class"] for e in history["execution"]["entries"]] == ["ci"]
+
+
+def test_history_orders_execution_entries_newest_first(tmp_path) -> None:
+    source = tmp_path / "execution.jsonl"
+    source.write_text(
+        "\n".join(
+            (
+                json.dumps(_execution_record(recorded_at="2026-08-07T10:00:00Z")),
+                json.dumps(_execution_record(recorded_at="2026-08-07T12:00:00Z")),
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    entries = model_routing.route_history(source)["execution"]["entries"]
+
+    assert [e["recorded_at"] for e in entries] == [
+        "2026-08-07T12:00:00Z",
+        "2026-08-07T10:00:00Z",
+    ]
+
+
+# Without an explicit source the two stores are separate files, and each
+# contract is read from its own.
+def test_each_contract_falls_back_to_its_own_default_store(tmp_path, monkeypatch) -> None:
+    route_store = tmp_path / "route-outcomes.jsonl"
+    execution_store = tmp_path / "execution-outcomes.jsonl"
+    route_store.write_text("", encoding="utf-8")
+    execution_store.write_text(json.dumps(_execution_record()) + "\n", encoding="utf-8")
+    monkeypatch.setenv("MQ_AGENT_ROUTE_OUTCOMES", str(route_store))
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(execution_store))
+
+    report = model_routing.route_report()
+
+    assert report["source"] == str(route_store)
+    assert report["valid_outcomes"] == 0
+    assert report["execution"]["source"] == str(execution_store)
+    assert report["execution"]["outcomes"] == 1
+
+
+def test_a_missing_execution_store_is_empty_not_an_error(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("MQ_AGENT_ROUTE_OUTCOMES", str(tmp_path / "nope.jsonl"))
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(tmp_path / "also-nope.jsonl"))
+
+    report = model_routing.route_report()
+
+    assert report["execution"]["outcomes"] == 0
+    assert model_routing.route_history()["execution"]["entries"] == []
+
+
+def test_report_cli_shows_both_contracts_without_merging_them(tmp_path) -> None:
+    result = runner.invoke(app, ["route", "report", "--source", str(_mixed_source(tmp_path))])
+
+    assert result.exit_code == 0
+    assert "Model Route Report" in result.output
+    assert "Execution Outcomes" in result.output
+
+
+def test_report_cli_shows_execution_route_groups(tmp_path) -> None:
+    source = tmp_path / "execution.jsonl"
+    source.write_text(json.dumps(_execution_record(route="codex")) + "\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["route", "report", "--source", str(source)])
+
+    assert result.exit_code == 0
+    assert "Route" in result.output
+    assert "codex" in result.output
+
+
+def test_history_cli_shows_execution_entries_in_their_own_table(tmp_path) -> None:
+    result = runner.invoke(app, ["route", "history", "--source", str(_mixed_source(tmp_path))])
+
+    assert result.exit_code == 0
+    assert "Model Route History" in result.output
+    assert "Execution Outcomes" in result.output
 # ── grounding detail ─────────────────────────────────────────────────────────
 #
 # A binary verdict made the 0.434 verification rate uninterpretable: it could

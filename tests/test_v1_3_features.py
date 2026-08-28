@@ -189,6 +189,27 @@ def test_learn_search_renders_patterns():
     assert "p-2" in result.output
 
 
+def test_learn_search_renders_nested_mcp_text_result():
+    nested_result = [
+        [
+            {
+                "type": "text",
+                "text": "Found 1 match(es):\n[learn-1] mqobsidian lesson",
+                "annotations": None,
+                "meta": None,
+            }
+        ],
+        {"result": "Found 1 match(es):\n[learn-1] mqobsidian lesson"},
+    ]
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.search_learned_patterns.return_value = nested_result
+        result = runner.invoke(app, ["learn", "search", "mqobsidian"])
+
+    assert result.exit_code == 0
+    assert "learn-1" in result.output
+    assert "mqobsidian lesson" in result.output
+
+
 def test_learn_search_empty_results():
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
         MockBridge.return_value.search_learned_patterns.return_value = {"patterns": []}

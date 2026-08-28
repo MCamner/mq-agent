@@ -21,6 +21,7 @@ This page is a projection of it.
 | [`mq-agent decide`](#mq-agent-decide) | command | Record an architecture decision to mqobsidian/decisions/. Class C write. |
 | [`mq-agent docs-audit`](#mq-agent-docs-audit) | command | Audit repository documentation: README, CHANGELOG, docstrings, /docs. |
 | [`mq-agent doctor`](#mq-agent-doctor) | command | Check mq-agent environment and dependencies. |
+| [`mq-agent execution`](#mq-agent-execution) | group | Inspect observed execution outcomes. |
 | [`mq-agent fix-ci`](#mq-agent-fix-ci) | command | Diagnose CI failures and suggest fixes. |
 | [`mq-agent learn`](#mq-agent-learn) | group | Learn commands — extraction, storage and promotion of review patterns. |
 | [`mq-agent mcp`](#mq-agent-mcp) | group | Inspect and manage the local mq-mcp tool server. |
@@ -411,6 +412,45 @@ Audit repository documentation: README, CHANGELOG, docstrings, /docs.
 ## `mq-agent doctor`
 
 Check mq-agent environment and dependencies.
+
+## `mq-agent execution`
+
+Inspect observed execution outcomes.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent execution compare`](#mq-agent-execution-compare) | Compare two observed routes without selecting a winner. |
+| [`mq-agent execution report`](#mq-agent-execution-report) | Report execution metrics without mixing in shadow outcomes. |
+
+## `mq-agent execution compare`
+
+Compare two observed routes without selecting a winner.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--task-class` | Yes | — | Task class to compare |
+| `--left` | Yes | — | First route |
+| `--right` | Yes | — | Second route |
+| `--source` | No | — | JSON or JSONL execution outcome source |
+| `--since` | No | — | Time window: 7d, 30d, or 90d |
+| `--json` | No | `false` | — |
+
+## `mq-agent execution report`
+
+Report execution metrics without mixing in shadow outcomes.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--source` | No | — | JSON or JSONL execution outcome source |
+| `--since` | No | — | Time window: 7d, 30d, or 90d |
+| `--task-class` | No | — | Limit report to one task class |
+| `--json` | No | `false` | — |
 
 ## `mq-agent fix-ci`
 
@@ -1427,6 +1467,7 @@ Inspect advisory local-first model routing.
 | [`mq-agent route evidence-review`](#mq-agent-route-evidence-review) | Review one task class without promoting it or changing routing policy. |
 | [`mq-agent route history`](#mq-agent-route-history) | List individual routing outcomes newest first, read-only. |
 | [`mq-agent route inspect`](#mq-agent-route-inspect) | Recommend a route without model calls or writes. |
+| [`mq-agent route readiness`](#mq-agent-route-readiness) | Show distance to evidence thresholds without changing routing. |
 | [`mq-agent route report`](#mq-agent-route-report) | Aggregate validated routing outcomes from a read-only source. |
 | [`mq-agent route shadow`](#mq-agent-route-shadow) | Run and verify an advisory Ollama candidate without accepting it. |
 
@@ -1478,6 +1519,17 @@ Recommend a route without model calls or writes.
 | `--agent` | No | `codex` | Authoritative coding agent: codex or claude |
 | `--json` | No | `false` | — |
 
+## `mq-agent route readiness`
+
+Show distance to evidence thresholds without changing routing.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--source` | No | — | JSON or JSONL execution outcome source |
+| `--json` | No | `false` | — |
+
 ## `mq-agent route report`
 
 Aggregate validated routing outcomes from a read-only source.
@@ -1487,6 +1539,7 @@ Aggregate validated routing outcomes from a read-only source.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--source` | No | — | JSON or JSONL outcome source |
+| `--since` | No | — | Time window: 7d, 30d, or 90d |
 | `--json` | No | `false` | — |
 
 ## `mq-agent route shadow`

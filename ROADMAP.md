@@ -2,6 +2,7 @@
 
 Released: v1.26.0 — Stack Compatibility Gate.
 Next: v1.27.0 — MCP tool contract checking.
+Proposed: v1.28.0 — Execution instrumentation.
 
 ## Current status
 
@@ -184,6 +185,278 @@ hiding the lower-level release evidence.
 Still open in other repos, unchanged by this release: the `mq-hal` read-only
 compatibility surface and the `mqlaunch` delegation. Neither may reimplement
 the assessment.
+
+## Proposed — v1.28.0 Execution instrumentation
+
+* **Status:** Implemented on the v1.28 branch. Phases 0–4 and the readiness
+  gate are complete; rollout still requires review and merge.
+* **Priority:** P1 — foundation contract required by route evaluation, learned
+  routing, skill evaluation, and execution learning. Implement before consumers
+  create independent outcome representations.
+* **Owner:** `mq-agent`
+* **Consumers:** `mq-hal` (presentation), `mqobsidian` (retention of promoted
+  findings)
+* **Contract:** `mq.execution-outcome.v1`
+
+### Problem
+
+The routing contract and the commands that read it already exist:
+`route report`, `route history`, `route review`, and the schema
+`schemas/model_route_outcome.schema.json`. What does not exist is anything
+that writes to it during real work.
+
+`record_route_outcome` has exactly one call site in production code:
+`mq_agent/main.py:3022`, inside `route shadow`. No execution path emits an
+outcome — not `Executor.run_plan`, not `run_task`, not `Swarm.run`, and none
+of the five agents in `mq_agent/agents/`.
+
+The result, measured on 2026-08-18 in `~/.mq-agent/route-outcomes.jsonl`:
+
+```text
+130 records
+130  task_class = diff-summary      (every record)
+130  selected_route = local-shadow  (every record)
+recorded 2026-08-06 to 2026-08-07, nothing since
+```
+
+That is 130 invocations of one debug command, not production data. So:
+
+* `route report` describes a shadow experiment, not how the system behaves.
+* There is no comparison between routes or agents anywhere in the data, because
+  every record is the same route.
+* Learned routing, skill evaluation, and any learning orchestrator would read
+  this well and learn nothing — or worse, learn from one task class.
+
+Coverage alone does not fix it. The required fields in v1 —
+`selected_route`, `authoritative_agent`, `model_output_received`,
+`schema_valid`, `verification`, `accepted_by_agent`, `accepted_by_operator`,
+`escalated` — describe a shadow experiment. A release run or a swarm run has no
+`schema_valid` and no `accepted_by_operator`. With `additionalProperties: false`
+in the schema, writing real runs into it means inventing values for fields that
+do not apply. Instrumenting the execution paths and defining a contract for
+execution outcomes are therefore one change, not two.
+
+### Goal
+
+Every significant agent run emits exactly one outcome record, and
+`route report` describes production behaviour rather than an experiment.
+
+```bash
+mq-agent route report --since 30d
+mq-agent route report --task-class repo-review --json
+mq-agent route readiness          # how far the data is from learned routing
+```
+
+### Ownership and boundaries
+
+* `mq-agent` owns the contract, the emit points, and the report.
+* Telemetry must never change execution: a failed write is logged and dropped,
+  never raised into the run.
+* Telemetry must be switchable off with a documented environment variable.
+* Records carry classifications and counters only — no prompt bodies, no diff
+  or file content, no secrets.
+* Shadow records and execution records must never be averaged into one success
+  rate.
+* `mq-hal` may read and present the result but must not duplicate the logic.
+* v1 records stay readable. The file is append-only and is never rewritten.
+
+### Phase 0 — Contract
+
+**Deliverable:** `mq.execution-outcome.v1`
+
+A new contract at v1, not a v2 of the route contract. The record describes the
+outcome of a run, and routing is one dimension of it alongside agent, model,
+tools, cost, and result. Naming it after routing would lock the semantics
+before skill evaluation, Pulse, or tool performance start reading it.
+
+Routing therefore becomes a field, not the subject:
+
+```json
+{
+  "route": {
+    "selected": "codex",
+    "policy": "static",
+    "confidence": null
+  }
+}
+```
+
+* [x] Define `mq.execution-outcome.v1` covering task, route, agent, model,
+  tools, latency, retries, fallbacks, cost, result, and loop or budget events.
+* [x] Require `run_id` on every record so a run can be correlated across repos.
+* [x] Require `latency_ms`, `result`, and exit status — the values every
+  runtime has. `tool_calls`, `retries`, and `fallbacks` are **optional**, not
+  required as first planned: `Swarm.run` measures none of them, and requiring
+  them would mean writing zeros. The same rule as `tokens` and `cost` applies
+  to every counter — absent is not zero, and a runtime that starts measuring
+  one simply begins sending it.
+* [x] Make `tokens` and `cost` optional, populated only when the runtime
+  reports them; absent is not zero.
+* [x] Record the skill or agent that handled the run.
+* [x] Define the `task_class` values from the classes real runs actually
+  produce, derived from the existing agents (`audit`, `ci`, `docs`, `release`,
+  `signal`). An operator can name a swarm anything, so an unrecognized class is
+  recorded as `unclassified` rather than failing validation.
+* [x] Leave `mq.model-route-outcome.v1` untouched. Shadow experiments keep
+  writing it; the separation between experiment and production is by contract,
+  so no `kind` discriminator is needed and no historical record is migrated.
+* [x] Teach `route report` and `route history` to read both contracts and
+  present them separately, never merged into one rate. An execution record in a
+  routing source is a valid record of another contract, so it counts as neither
+  a valid routing outcome nor an invalid record. Execution is reported as counts
+  only: a rate is a judgement, and it belongs to the phase that acts on it.
+* [x] Schema tests, including negative tests for a route record read as an
+  execution record and for a file holding both.
+
+### Phase 1 — One emit point
+
+* [x] Instrument a single path end to end. `Swarm.run` is the richest
+  candidate: it already has agents, elapsed time, safety classes, and pass or
+  fail per agent.
+* [x] Prove one real run appends exactly one record. Verified against a live
+  `mq-agent swarm run ci .`: 40.7 s, two agents, one record with per-agent
+  latencies.
+* [x] Prove a failing run still records, with the failure classified as
+  `error` or `aborted`.
+* [x] Prove telemetry off writes nothing and changes no exit code.
+* [x] Prove a write failure — read-only path, full disk — does not fail the run.
+* [x] Prove a dry run records nothing: it executed nothing, so it has no
+  outcome.
+* [x] Prove an agent that never ran reports no latency. A skipped agent was
+  never timed, and `0 ms` would read as "it ran instantly".
+* [x] Keep the test suite out of the operator's evidence store. Three tests
+  drive a real `SwarmRunner.run`, so every `pytest` run appended records
+  indistinguishable from real runs to `~/.mq-agent/execution-outcomes.jsonl`.
+  Learned routing is meant to read that file — test data in it is corrupted
+  evidence, not untidiness. An autouse fixture isolates it, so emit points added
+  in Phase 2 are isolated by default rather than by remembering to opt in.
+* [x] Ship the schema inside the wheel. Without the `force-include` the
+  installed schema path does not exist, the emit swallows the
+  `FileNotFoundError`, and every installed runtime records nothing while
+  looking healthy. Verified against a built wheel, not only a checkout.
+
+### Phase 2 — Remaining execution paths
+
+One execution is one operator action, and the outermost level owns the record.
+The paths below are nested — `Swarm.run` calls the agents, every agent calls
+`Executor.run_plan`, and `run_task` is reachable as a registered tool — so
+instrumenting each one separately would write five records for a single
+`swarm run ci` and make every later rate count a wide swarm as more runs than a
+narrow one. Entrypoints are therefore instrumented, never the shared code they
+share, which makes nesting impossible by construction rather than by
+convention.
+
+* [x] `run_task` — at the `task run` entrypoint, not in the function. It is
+  reachable through `run_task_tool` in the tool registry, so an agent can call
+  it; instrumenting the function would nest a record inside an agent execution.
+* [x] `audit_agent`, `ci_agent`, `docs_agent`, `release_agent`, `signal_agent`
+  — at their CLI commands, not in the agent classes. The same agent runs
+  standalone and inside a swarm, and a swarm record already carries per-agent
+  results.
+* [x] `Executor.run_plan` — deliberately not instrumented. It is only ever
+  reached from inside an agent, so it is never an execution in its own right.
+* [x] Each path names its own `task_class`; no path fills in verification or
+  acceptance fields that do not apply to it. `task` joins the enum for the task
+  runner.
+* [x] The record answers "could the run be carried out", not "is the repo
+  healthy". An audit that finds problems ran perfectly well, so it records
+  `PASS`; conflating the two would make every future success rate a measure of
+  the repositories rather than of the runtime. A failing task step is the
+  opposite case: the runtime could not do what it was asked.
+* [x] `--dry-run` on an agent means "make no writes", not "run nothing" — the
+  planner, the repo reads and the read-only steps all execute — so those runs
+  record. `release-check` and `fix-ci` default to `dry_run=True`, so skipping
+  them would have left the most common invocation invisible. Only the swarm and
+  task-runner dry runs execute nothing, and only those record nothing.
+
+### Phase 3 — Report on production data
+
+* [x] Group `route report` by `task_class` and route. Records without measured
+  route data are shown as `unreported`, never inferred as `none`.
+* [x] Add time windows: 7, 30, and 90 days.
+* [x] Report success rate, median and p90 latency, tool calls, retries, and
+  fallbacks.
+* [x] Show shadow and execution records in separate sections, never merged.
+* [x] Keep JSON output stable for `mq-hal` through versioned report shapes.
+
+### Phase 4 — Retention
+
+* [x] Bound the outcome file by size with rotation (10 MiB, three prior files).
+* [x] Document retention and the `MQ_AGENT_OUTCOME_MAX_BYTES` override.
+* [x] Confirm no field can carry prompt or file content; the closed schema has
+  no arbitrary event-detail field.
+
+### Data requirement for learned routing
+
+Learned routing, skill benchmarking, and any recommendation engine stay blocked
+until the data can support them. The gate is explicit and machine-checked:
+
+```yaml
+eligibility:
+  minimum_observations: 30       # total records for the task class
+  minimum_candidate_routes: 2    # distinct routes observed
+  minimum_window_days: 14        # so one afternoon's batch cannot qualify
+  minimum_samples_per_route: 10  # each compared route, not just the winner
+```
+
+The fourth gate is what makes the other three mean anything. Without it,
+28 Codex runs and 2 Claude runs pass a 30/2/14 check and the comparison is
+still noise.
+
+These are eligibility thresholds, not statistical proof. Thirty observations do
+not make a conclusion safe; they make the system allowed to open its mouth.
+Nothing in the implementation or the documentation may present a passing gate
+as evidence that a difference is real.
+
+Larger consequences take stricter gates:
+
+| Decision | observations | routes | window | per route |
+| --- | --- | --- | --- | --- |
+| Model selection | 30 | 2 | 14 days | 10 |
+| Agent selection | 50 | 2 | 21 days | 15 |
+| Tool policy | 100 | 2 | 30 days | 25 |
+| Privilege and safety | learned routing must not decide | | | |
+
+**The thresholds govern when the system may produce a recommendation, not when
+it may change routing on its own.** Passing every gate still yields a proposal
+that a person promotes.
+
+`mq-agent route readiness` reports how far each task class is from its
+thresholds. Until a class passes, `route learn` refuses and says which gate is
+missing rather than training on what happens to be there.
+
+Applied to the current file, every class fails every gate: one class, one
+route, two days, and nothing to compare against.
+
+### Non-goals
+
+* No learned routing in this release. It is what the release makes possible.
+* No loop guard. `Planner.create_plan` makes one model call and `Executor`
+  runs the resulting steps, so mq-agent has no open tool-calling loop to guard;
+  the loops happen inside the delegated Claude Code and Codex sessions, where
+  budgets and cancellation are the right control, not tool-call pattern
+  detection.
+* No new dashboard. A panel belongs in `mq-hal` after the data exists.
+* No change to routing behaviour. This release only observes.
+
+### Definition of done
+
+* [x] Every significant run emits exactly one record.
+* [x] Telemetry cannot fail or slow a run, and can be turned off.
+* [x] Shadow and execution records stay in separate contracts and are never
+  merged into one rate.
+* [x] Existing `mq.model-route-outcome.v1` records remain readable.
+* [x] `route report` answers "which route works better for this task class"
+  from production data, or states that it cannot yet.
+* [x] `route readiness` reports the distance to every eligibility threshold.
+* [x] A passing gate yields `AWAITING_OPERATOR_APPROVAL`, never an automatic
+  route change.
+
+### Recommended starting point
+
+Phase 0 and Phase 1 together, on `Swarm.run` alone. One instrumented path with
+a settled contract is worth more than seven paths writing a shape that has to
+change.
 
 ## Completed — v1.26.0 Stack Compatibility Gate
 

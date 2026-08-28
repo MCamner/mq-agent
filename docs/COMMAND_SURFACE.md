@@ -189,10 +189,29 @@ output is never executed, and these commands do not persist outcomes.
 | `mq-agent route shadow <task>` | yes | local Ollama | Validate an advisory candidate; cloud-required tasks skip the model call. Appends the outcome to `$MQ_AGENT_ROUTE_OUTCOMES` |
 | `mq-agent route shadow <task> --json` | yes | local Ollama | Decision, validated candidate or `null`, and `mq.model-route-outcome.v1` |
 | `mq-agent route shadow <task> --context-file FILE` | yes | local Ollama | Verify every `evidence` entry is a verbatim quote from FILE; adds the `evidence-grounded` check |
+| `mq-agent route report --since 7d\|30d\|90d` | no | no | Separate shadow and execution summaries with route/task metrics |
+| `mq-agent route readiness` | no | no | Evidence distance to 30/2/14/10 eligibility gates; never changes routing |
+| `mq-agent execution report [--task-class CLASS] [--since WINDOW]` | no | no | Execution-only success, latency, retry, fallback and tool-call metrics |
+| `mq-agent execution compare --task-class CLASS --left ROUTE --right ROUTE` | no | no | Side-by-side observed route metrics; never selects a winner |
+
+Execution outcomes default to `~/.mq-agent/execution-outcomes.jsonl`. The store
+rotates by size at 10 MiB and keeps three prior files. Set
+`MQ_AGENT_OUTCOME_MAX_BYTES` to another positive byte limit, or `0` to disable
+rotation. Records contain classifications and counters only; the closed schema
+has no prompt, file-content, or arbitrary event-detail field.
 | `mq-agent route report [--source FILE]` | no | no | Aggregate validated JSON/JSONL outcomes without persisting them |
-| `mq-agent route report --json` | no | no | Preserve attempted, output, schema-valid, verified, accepted, and escalated counts |
+| `mq-agent route report --json` | no | no | Preserve routing-stage counts and group execution outcomes by task class and measured route (`unreported` when absent) |
 | `mq-agent route history [--source FILE]` | no | no | List individual validated outcomes newest first; `--limit 0` returns all |
 | `mq-agent route history --decision-id ID --json` | no | no | Emit `mq.model-route-history.v1` for one decision, including every run of it |
+
+`route report` and `route history` read both `mq.model-route-outcome.v1` and
+`mq.execution-outcome.v1` and present them in separate tables, under an
+`execution` key in `--json`. The two are never merged into one rate: a route
+verification rate says whether a local model could be trusted, an execution
+result says whether a run worked. With `--source` both contracts are read from
+that file; without it each is read from its own store. An execution record
+found in a routing source counts as neither valid routing outcome nor invalid
+record — it is a valid record of another contract.
 | `mq-agent route evidence-review <task-class> [--source FILE]` | no | no | Apply the per-class promotion evidence gate; never changes routing policy |
 | `mq-agent route evidence-review <task-class> --json` | no | no | Emit `mq.model-route-evidence-review.v1`; exits 1 for `NOT_ELIGIBLE` |
 
@@ -268,6 +287,19 @@ Each swarm runs multiple agents in sequence with declared safety contracts.
 | `mq-agent swarm audit [path] --dry-run` | no | Preview |
 | `mq-agent swarm release-check [path]` | yes | Shorthand: CI + audit + release |
 | `mq-agent swarm release-check [path] --approve` | yes | Enable release agent |
+
+Every non-dry swarm run appends one `mq.execution-outcome.v1` record to
+`$MQ_AGENT_EXECUTION_OUTCOMES`, default `~/.mq-agent/execution-outcomes.jsonl`.
+Set `MQ_AGENT_TELEMETRY=off` to disable it. Telemetry observes the run: a
+failed write costs the record, never the run, and a dry run records nothing.
+
+`audit`, `fix-ci`, `docs-audit`, `release-check`, `signal` and `task run`
+record one outcome each as well. One execution is one operator action: an agent
+run inside a swarm is already covered by the swarm's record and does not emit
+its own. On an agent `--dry-run` suppresses writes but still runs, so it
+records; a swarm or task-runner dry run executes nothing and records nothing.
+The result says whether the run could be carried out, not whether the repo is
+healthy — an audit that finds problems records `PASS`.
 
 ### Built-in swarm configs
 
