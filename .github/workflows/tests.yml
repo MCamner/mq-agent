@@ -22,6 +22,22 @@ jobs:
       - name: Install repo-signal
         run: uv pip install "repo-signal @ git+https://github.com/MCamner/repo-signal.git@main"
 
+      # mqobsidian owns these contracts; this repo vendors them so an installed
+      # mq-agent needs no vault checkout. Blocking here, on the consumer, and
+      # deliberately not mirrored in mqobsidian: two blocking cross-repo gates
+      # would deadlock, each comparing against the other's unmerged branch.
+      # A contract change lands in mqobsidian first; this repo goes red until
+      # its copy catches up.
+      - name: Check out canonical contracts
+        uses: actions/checkout@v4
+        with:
+          repository: MCamner/mqobsidian
+          ref: main
+          path: .canonical-contracts
+
+      - name: Vendored contracts match canonical
+        run: uv run python scripts/check-vendored-contracts.py --canonical-root .canonical-contracts
+
       - name: Run tests
         run: uv run pytest -v
 
