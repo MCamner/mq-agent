@@ -1,0 +1,16 @@
+{
+  "comment": "Contracts owned by mqobsidian and vendored here so an installed mq-agent needs no vault checkout. The vendored copy must match canonical exactly; scripts/check-vendored-contracts.py proves it in CI. Adding a contract is one entry here, not new code. Filenames differ between the repos on purpose: the vendored names are what the wheel and the runtime already look up, and renaming them is a packaging change that does not belong in a contract change.",
+  "canonical_repo": "https://github.com/MCamner/mqobsidian",
+  "contracts": [
+    {
+      "contract": "mq.execution-outcome.v1",
+      "canonical": "schemas/mq.execution-outcome.v1.json",
+      "vendored": "schemas/execution_outcome.schema.json"
+    },
+    {
+      "contract": "mq.model-route-outcome.v1",
+      "canonical": "schemas/mq.model-route-outcome.v1.json",
+      "vendored": "schemas/model_route_outcome.schema.json"
+    }
+  ]
+}

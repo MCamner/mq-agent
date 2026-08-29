@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mq.local/schemas/model_route_outcome.schema.json",
-  "title": "MQ model route outcome",
+  "title": "mq.model-route-outcome.v1",
   "type": "object",
   "additionalProperties": false,
   "required": [

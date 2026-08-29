@@ -1,7 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mq.local/schemas/execution_outcome.schema.json",
-  "title": "MQ execution outcome",
+  "title": "mq.execution-outcome.v1",
   "description": "The outcome of one agent run. Routing is one dimension of the record, not its subject, so skill evaluation and tool performance can read the same contract. Counters the runtime does not measure are absent; absent is not zero.",
   "type": "object",
   "additionalProperties": false,
@@ -16,9 +15,21 @@
     "recorded_at"
   ],
   "properties": {
-    "schema": {"const": "mq.execution-outcome.v1"},
-    "run_id": {"type": "string", "minLength": 1},
-    "runtime": {"enum": ["swarm", "executor", "task-runner", "agent"]},
+    "schema": {
+      "const": "mq.execution-outcome.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime": {
+      "enum": [
+        "swarm",
+        "executor",
+        "task-runner",
+        "agent"
+      ]
+    },
     "task_class": {
       "enum": [
         "audit",
@@ -31,39 +42,87 @@
         "unclassified"
       ]
     },
-    "result": {"enum": ["PASS", "FAIL", "SKIPPED"]},
-    "exit_status": {"enum": ["ok", "error", "aborted", "skipped"]},
-    "latency_ms": {"type": "integer", "minimum": 0},
+    "result": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "SKIPPED"
+      ]
+    },
+    "exit_status": {
+      "enum": [
+        "ok",
+        "error",
+        "aborted",
+        "skipped"
+      ]
+    },
+    "latency_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
     "route": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["selected", "policy", "confidence"],
+      "required": [
+        "selected",
+        "policy",
+        "confidence"
+      ],
       "properties": {
-        "selected": {"type": "string", "minLength": 1},
-        "policy": {"enum": ["static", "learned", "none"]},
+        "selected": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy": {
+          "enum": [
+            "static",
+            "learned",
+            "none"
+          ]
+        },
         "confidence": {
           "oneOf": [
-            {"type": "null"},
-            {"type": "number", "minimum": 0, "maximum": 1}
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
           ]
         }
       }
     },
     "model": {
       "description": "The primary execution model: the model the run's planner actually called. A run may also use a secondary model for another role (verification), which this field deliberately does not cover — the contract has one model slot, so it names the model that carried out the work rather than blending several. Absent when the entrypoint called no model.",
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "context": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sources", "size"],
+      "required": [
+        "sources",
+        "size"
+      ],
       "properties": {
         "sources": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1, "maxLength": 80},
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
           "uniqueItems": true
         },
-        "size": {"type": "integer", "minimum": 0}
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "agents": {
@@ -71,41 +130,87 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "status"],
+        "required": [
+          "name",
+          "status"
+        ],
         "properties": {
-          "name": {"type": "string", "minLength": 1},
-          "status": {"enum": ["ok", "error", "skipped", "dry-run"]},
-          "latency_ms": {"type": "integer", "minimum": 0}
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "error",
+              "skipped",
+              "dry-run"
+            ]
+          },
+          "latency_ms": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     },
     "skills": {
       "type": "array",
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-    "tool_calls": {"type": "integer", "minimum": 0},
-    "retries": {"type": "integer", "minimum": 0},
-    "fallbacks": {"type": "integer", "minimum": 0},
+    "tool_calls": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "retries": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fallbacks": {
+      "type": "integer",
+      "minimum": 0
+    },
     "tokens": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "input": {"type": "integer", "minimum": 0},
-        "output": {"type": "integer", "minimum": 0}
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
-    "cost": {"type": "number", "minimum": 0},
+    "cost": {
+      "type": "number",
+      "minimum": 0
+    },
     "events": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["kind"],
+        "required": [
+          "kind"
+        ],
         "properties": {
-          "kind": {"type": "string", "minLength": 1, "maxLength": 80}
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
         }
       }
     },
-    "recorded_at": {"type": "string", "format": "date-time"}
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
   }
 }
