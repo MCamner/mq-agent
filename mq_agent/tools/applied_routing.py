@@ -117,14 +117,24 @@ def apply_route(
     if not applied_routing_enabled():
         return rejected("operator-required")
 
-    if task_class not in APPLIED_ROUTE_ALLOWLIST:
-        # Not an error and not a safety failure: the operator has simply not
-        # authorized this class. The canonical route keeps the work.
-        return rejected("policy-requires-cloud")
-
+    # Order matters, because the reason is evidence rather than a label. The
+    # policy check runs first: when the policy forbids the local route, that is
+    # true whatever the allowlist says, and it is the more informative fact.
+    # Checking the allowlist first would record every cloud-required class as
+    # merely unauthorized and hide the policy refusal underneath it.
     allowed, reason = route_level_safety(decision, safety_mode)
     if not allowed:
         return rejected(str(reason))
+
+    if task_class not in APPLIED_ROUTE_ALLOWLIST:
+        # Not an error and not a safety failure: the operator has simply not
+        # authorized this class. The canonical route keeps the work.
+        #
+        # `operator-required`, not `policy-requires-cloud`. The policy did
+        # recommend the local route here; only the human authorization is
+        # missing. Recording the policy's reason for a refusal the policy never
+        # made would put untrue escalation data in the store on day one.
+        return rejected("operator-required")
 
     result = shadow_route(
         task,

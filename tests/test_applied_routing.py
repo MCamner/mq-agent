@@ -125,6 +125,40 @@ def test_a_class_outside_the_allowlist_is_advisory_not_applied(monkeypatch) -> N
     assert result["outcome"]["execution_run_id"] == "exec-1"
 
 
+# The escalation reason is evidence, not a label. A missing allowlist entry is
+# missing human authorization; it is not the routing policy demanding cloud.
+# Conflating the two would fill the store with untrue escalation data from the
+# first run — the exact failure #213 through #219 existed to remove.
+def test_a_missing_allowlist_entry_is_not_recorded_as_a_policy_decision(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(applied_routing, "APPLIED_ROUTE_ALLOWLIST", frozenset())
+
+    result = applied_routing.apply_route(
+        DOCS_TASK, execution_run_id="exec-1", safety_mode=SafetyMode.READ_ONLY
+    )
+
+    assert result["outcome"]["escalation_reason"] == "operator-required"
+    # The policy did recommend the local route here; only authorization was
+    # absent. Recording `policy-requires-cloud` would attribute the refusal to
+    # a decision the policy never made.
+    assert result["decision"]["recommended_route"] == "local-shadow"
+
+
+# The policy check runs before the allowlist check: a cloud-required class is
+# refused by policy whatever the allowlist says, and recording it as merely
+# unauthorized would hide the stronger fact.
+def test_policy_requires_cloud_is_reserved_for_actual_policy_refusals() -> None:
+    result = applied_routing.apply_route(
+        "Review this change for security vulnerabilities",
+        execution_run_id="exec-1",
+        safety_mode=SafetyMode.READ_ONLY,
+    )
+
+    assert result["outcome"]["escalation_reason"] == "policy-requires-cloud"
+    assert result["decision"]["recommended_route"] == "cloud-required"
+
+
 def test_a_vetoed_candidate_is_advisory_not_applied() -> None:
     # It never governed anything, so it is not applied evidence — the boundary
     # case that decides whether readiness can trust the store.
