@@ -70,10 +70,18 @@ def test_built_outcome_is_schema_valid_and_carries_a_run_id() -> None:
     assert outcome["route"]["selected"] == "swarm"
 
 
-def test_route_is_a_field_not_the_subject() -> None:
+# `route` is deprecated as routing truth (ADR-010 D6) but not removed: records
+# written before that decision still carry it and must stay valid. Deprecating a
+# field and invalidating the data already stored under it are different things.
+def test_a_historical_record_carrying_route_still_validates() -> None:
     outcome = _outcome()
 
+    Draft202012Validator(_schema()).validate(outcome)
     assert set(outcome["route"]) == {"selected", "policy", "confidence"}
+
+
+def test_route_is_marked_deprecated_in_the_contract() -> None:
+    assert _schema()["properties"]["route"].get("deprecated") is True
 
 
 # Counters the runtime does not measure are absent, never zero: a zero would be
@@ -456,6 +464,51 @@ def test_a_swarm_still_records_exactly_one_execution(store, monkeypatch) -> None
     assert len(records) == 1
     assert records[0]["runtime"] == "swarm"
     assert [a["name"] for a in records[0]["agents"]] == ["ci", "audit"]
+
+
+# The swarm was the only writer of `execution.route`, and it wrote the swarm's
+# own name — the same string the record carries as `task_class`. ADR-010 D6
+# stops that: production ends before the field is ever removed, so nothing new
+# claims routing truth at the execution layer.
+def test_a_swarm_run_no_longer_claims_a_route(store, monkeypatch) -> None:
+    monkeypatch.setattr(SwarmRunner, "_run_agent", lambda *a, **k: {"ok": True})
+    config = SwarmConfig(
+        name="ci",
+        description="one agent",
+        manifests=[
+            AgentManifest(name="ci", purpose="p", safety_class="read-only", allowed_tools=[])
+        ],
+    )
+
+    SwarmRunner(client=None).run(config, path=".")
+
+    record = _records(store)[0]
+    assert "route" not in record
+    # The value it used to write is still on the record, in the field that
+    # actually means it.
+    assert record["task_class"] == "ci"
+
+
+def test_no_emitter_writes_a_route_at_the_execution_layer(store, monkeypatch) -> None:
+    monkeypatch.setattr(SwarmRunner, "_run_agent", lambda *a, **k: {"ok": True})
+    monkeypatch.setattr(
+        "mq_agent.agents.audit_agent.AuditAgent.run",
+        lambda *a, **k: {"summary": "s", "steps": [], "passed": True, "verification": {}},
+    )
+    config = SwarmConfig(
+        name="audit",
+        description="one agent",
+        manifests=[
+            AgentManifest(name="audit", purpose="p", safety_class="read-only", allowed_tools=[])
+        ],
+    )
+
+    SwarmRunner(client=None).run(config, path=".")
+    cli.invoke(app, ["audit", ".", "--json"])
+
+    records = _records(store)
+    assert len(records) == 2
+    assert all("route" not in record for record in records)
 
 
 def test_a_task_run_records_the_task_runner(store, monkeypatch, tmp_path) -> None:
