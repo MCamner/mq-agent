@@ -889,27 +889,95 @@ def test_execution_report_includes_route_metrics(tmp_path) -> None:
     assert metrics["median_context_size"] == 1000
 
 
+def _applied_observation(
+    task: str = "Review the documentation",
+    *,
+    route: str = "local-shadow",
+    application: str = "applied",
+    recorded_at: str | None = None,
+) -> dict:
+    observation = model_routing._outcome(
+        model_routing.inspect_route(task),
+        attempted=True,
+        model_output_received=True,
+        schema_valid=True,
+        verification_status="PASS",
+        application=application,
+        execution_run_id="exec-1",
+    )
+    observation["selected_route"] = route
+    if recorded_at is not None:
+        observation["recorded_at"] = recorded_at
+    return observation
+
+
+# Readiness reads routing observations grouped by the routing task class, not
+# execution outcomes grouped by `audit`/`ci`/`docs` (ADR-010 D5). An audit can
+# contain several unrelated routing decisions, so "does audit have two routes"
+# had no answer; "does docs-review have two applied routes" does.
 def test_route_readiness_reports_each_threshold_without_enabling_routing(tmp_path) -> None:
-    source = tmp_path / "executions.jsonl"
+    source = tmp_path / "route-outcomes.jsonl"
     records = []
     for index in range(15):
         records.append(
-            _execution_record(
-                route="codex", recorded_at=f"2026-08-{index + 1:02d}T12:00:00Z"
+            _applied_observation(
+                route="local-shadow", recorded_at=f"2026-08-{index + 1:02d}T12:00:00Z"
             )
         )
         records.append(
-            _execution_record(
-                route="claude", recorded_at=f"2026-08-{index + 1:02d}T13:00:00Z"
+            _applied_observation(
+                route="cloud-required", recorded_at=f"2026-08-{index + 1:02d}T13:00:00Z"
             )
         )
     source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
 
     readiness = model_routing.route_readiness(source)
+    docs = readiness["task_classes"]["docs-review"]
 
-    assert readiness["task_classes"]["ci"]["eligible"] is True
-    assert readiness["task_classes"]["ci"]["recommendation"] == "AWAITING_OPERATOR_APPROVAL"
+    assert docs["eligible"] is True
+    assert docs["recommendation"] == "AWAITING_OPERATOR_APPROVAL"
+    assert docs["actual"]["candidate_routes"] == 2
     assert readiness["automatic_routing_enabled"] is False
+    # Evidence is not authorization. Applying a route needs an operator
+    # allowlist and a safety check; telemetry alone never grants execution.
+    assert readiness["grants_eligibility"] is False
+
+
+def test_readiness_counts_applied_observations_only(tmp_path) -> None:
+    source = tmp_path / "route-outcomes.jsonl"
+    records = [
+        _applied_observation(route="local-shadow", application="applied"),
+        _applied_observation(route="cloud-required", application="shadow"),
+        _applied_observation(route="cloud-required", application="advisory"),
+    ]
+    # An observation predating the `application` field: absent is not applied.
+    unmarked = _applied_observation(route="cloud-required")
+    del unmarked["application"]
+    records.append(unmarked)
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+
+    readiness = model_routing.route_readiness(source)
+
+    assert readiness["observations_considered"] == 1
+    assert readiness["observations_ignored_not_applied"] == 3
+    assert readiness["task_classes"]["docs-review"]["actual"]["candidate_routes"] == 1
+
+
+def test_readiness_never_reads_the_execution_store(tmp_path, monkeypatch) -> None:
+    # D6: `execution.route` is not routing truth, and readiness must not fall
+    # back to it — that is the layer confusion this whole change removes.
+    executions = tmp_path / "executions.jsonl"
+    executions.write_text(
+        json.dumps(_execution_record(route="codex")) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(executions))
+    source = tmp_path / "route-outcomes.jsonl"
+    source.write_text(json.dumps(_applied_observation()) + "\n", encoding="utf-8")
+
+    readiness = model_routing.route_readiness(source)
+
+    assert set(readiness["task_classes"]) == {"docs-review"}
+    assert "ci" not in readiness["task_classes"]
 
 
 def test_execution_compare_never_recommends_a_winner(tmp_path) -> None:

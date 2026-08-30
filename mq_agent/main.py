@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -126,7 +127,15 @@ def _execution_outcome(
     """
     from mq_agent.tools.execution_outcome import emit_execution_outcome
 
-    record = {"result": "PASS", "exit_status": "ok"}
+    # The run id is minted here, not inside the emitter, because a routing
+    # decision taken during the run has to carry it as `execution_run_id` while
+    # the run is still going. Generating it at write time would leave the
+    # correlation to be reconstructed afterwards, which ADR-010 D3 forbids.
+    record = {
+        "result": "PASS",
+        "exit_status": "ok",
+        "run_id": str(uuid.uuid4()),
+    }
     start = time.monotonic()
     try:
         yield record
@@ -139,6 +148,7 @@ def _execution_outcome(
     finally:
         if not dry_run:
             emit_execution_outcome(
+                run_id=record["run_id"],
                 runtime=runtime,
                 task_class=task_class,
                 result=record["result"],
@@ -1651,7 +1661,7 @@ def docs_audit(
         with _execution_outcome("docs") as record:
             agent = DocsAgent(_client())
             record["model"] = agent.planner.model
-            result = agent.audit(path)
+            result = agent.audit(path, execution_run_id=record["run_id"])
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))

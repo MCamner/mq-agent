@@ -163,13 +163,23 @@ def _outcome(
     escalated: bool = False,
     escalation_reason: str | None = None,
     grounding: tuple[int, int] | None = None,
+    application: str | None = None,
+    execution_run_id: str | None = None,
 ) -> dict[str, Any]:
-    """Build and validate one routing outcome without persisting it."""
+    """Build and validate one routing outcome without persisting it.
+
+    `application` says what the decision actually did — `advisory`, `shadow` or
+    `applied` (ADR-010 D7). `execution_run_id` correlates the observation to the
+    execution that enclosed it (D3); it is a different field from `run_id`,
+    which identifies this observation, and must never be conflated with it.
+    Both are omitted when not known, because absent means unrecorded.
+    """
     outcome = {
         "schema": "mq.model-route-outcome.v1",
         "decision_id": decision["decision_id"],
         # decision_id is a hash of the task, so repeated runs of one task share it.
-        # run_id keeps those runs distinguishable from duplicated records.
+        # run_id keeps those runs distinguishable from duplicated records. It is
+        # not the enclosing execution — that is `execution_run_id`.
         "run_id": str(uuid.uuid4()),
         "task_class": decision["task_class"],
         "selected_route": decision["recommended_route"],
@@ -188,6 +198,10 @@ def _outcome(
         "escalation_reason": escalation_reason,
         "recorded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
+    if application is not None:
+        outcome["application"] = application
+    if execution_run_id is not None:
+        outcome["execution_run_id"] = execution_run_id
     if grounding is not None:
         # Absent means unmeasured, never zero — so it is only set when measured.
         outcome["verification"]["grounding"] = {
@@ -622,18 +636,44 @@ READINESS_THRESHOLDS = {
 
 
 def route_readiness(source: Path | None = None) -> dict[str, Any]:
-    """Report evidence distance without recommending or changing a route."""
-    path = execution_outcome_path(source)
+    """Report evidence distance without recommending or changing a route.
+
+    Reads **routing observations**, grouped by the **routing** task class, and
+    counts only routes that were actually applied (ADR-010 D5 and D7).
+
+    It used to read execution outcomes and group by the execution vocabulary —
+    `audit`, `ci`, `docs` — asking whether an `audit` had two routes. An audit
+    can contain several unrelated routing decisions, so that question had no
+    answer. The question worth asking is whether `docs-review` has two applied
+    routes.
+
+    The filter comes first. An `advisory` or `shadow` observation is real
+    evidence of routing behaviour and never evidence that a route was applied,
+    so it must not reach the grouping step. An observation carrying no
+    `application` at all is not applied either: absent means the mode was not
+    recorded, and only an explicit `applied` counts.
+
+    The thresholds keep their numbers and change their subject — they now
+    describe a population of routing decisions rather than of operator actions.
+    Whether that calibration still holds is an open question, reported beside
+    the counts rather than implied away.
+    """
+    path = _outcome_path(source)
     records, _ = _read_records(path)
-    _, executions, invalid = _split_contracts(records)
+    observations, _, invalid = _split_contracts(records)
+    applied = [
+        record
+        for record in observations
+        if record.get("application") == "applied"
+    ]
     by_task: dict[str, list[Any]] = {}
-    for record in executions:
+    for record in applied:
         by_task.setdefault(str(record["task_class"]), []).append(record)
     task_classes: dict[str, Any] = {}
     for task_class, task_records in sorted(by_task.items()):
         routes: dict[str, int] = {}
         for record in task_records:
-            route = record.get("route", {}).get("selected")
+            route = record.get("selected_route")
             if route:
                 routes[str(route)] = routes.get(str(route), 0) + 1
         stamps = sorted(
@@ -667,7 +707,17 @@ def route_readiness(source: Path | None = None) -> dict[str, Any]:
         "schema": "mq.route-readiness.v1",
         "source": str(path),
         "thresholds": READINESS_THRESHOLDS,
+        "threshold_calibration": (
+            "Carried over from a per-execution population. Whether these numbers "
+            "are right for a population of routing decisions is unreviewed."
+        ),
         "invalid_records": invalid,
+        "observations_considered": len(applied),
+        "observations_ignored_not_applied": len(observations) - len(applied),
+        # Readiness is an evidence report, never an authorization. Applying a
+        # route requires an explicit operator allowlist and a safety check;
+        # accumulating telemetry grants no execution rights on its own.
+        "grants_eligibility": False,
         "automatic_routing_enabled": False,
         "operator_approval_required": True,
         "task_classes": task_classes,
