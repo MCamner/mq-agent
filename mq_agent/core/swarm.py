@@ -228,7 +228,13 @@ class SwarmRunner:
             result=outcome,
             exit_status=exit_status,
             latency_ms=int(result.elapsed_s * 1000),
-            route={"selected": config.name, "policy": "static", "confidence": None},
+            # No `route`. This used to write `{"selected": config.name, ...}` —
+            # the same string the record already carries as `task_class`, so the
+            # route slot held an execution identity. ADR-010 D6 deprecates
+            # `execution.route` as routing truth: routing is decided per model
+            # call, not per operator action, so one value cannot be true of a
+            # run that made several decisions. Applied-route facts belong to
+            # `mq.model-route-outcome.v1`, correlated back by `execution_run_id`.
             agents=[_agent_record(r) for r in result.results],
         )
 
