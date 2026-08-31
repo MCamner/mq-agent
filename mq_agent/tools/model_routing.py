@@ -45,16 +45,22 @@ _CANDIDATE_SCHEMA: dict[str, Any] = {
     "properties": {
         "task_class": {"type": "string"},
         "summary": {"type": "string", "minLength": 1, "maxLength": 600},
-        # Ollama enforces this schema as a decoding grammar, so maxItems is a hard
-        # bound on generation length: an unbounded evidence array made one 10 KB diff
-        # generate ~2800 tokens in 100s+, and identical input varied 473 to 3143
-        # tokens. Bounding the count and each quote limits generation. Truncating a
-        # verbatim quote to 200 characters preserves a grounded substring and stays
-        # well above the 12-character minimum enforced below.
+        # No maxItems, deliberately. Ollama enforces this schema as a decoding
+        # grammar and llama.cpp compiles a bounded array into a repetition rule,
+        # which the model fills rather than treats as a ceiling: measured over
+        # three series of 20 real docs-review runs, the last citation was
+        # ungrounded in 13/20 runs at maxItems 5, 19/20 at 4, and 5/20 with no
+        # cap, while per-citation grounding went 80.4% -> 68.4% -> 87.5%. The cap
+        # was producing the fabrication it existed to bound.
+        #
+        # An unbounded array once made a 10 KB diff generate ~2800 tokens in
+        # 100s+. That risk is real but input-sized: over the uncapped 20 runs on
+        # ~3 KB of docs context, eval_count ran 399-742 (median 624) and 16-45s.
+        # Larger inputs are unmeasured. maxLength still bounds each quote, and a
+        # truncated prefix is still verbatim.
         "evidence": {
             "type": "array",
             "items": {"type": "string", "maxLength": 200},
-            "maxItems": 5,
         },
         "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
     },
@@ -229,32 +235,45 @@ def _candidate_is_valid(candidate: Any, task_class: str) -> bool:
 # Shorter strings match too much of any material to be treated as a citation.
 _MIN_QUOTE_LENGTH = 12
 
+#: How much verified evidence a candidate must carry to be usable. This is a
+#: floor on what survives verification, not a quota on what the model produces —
+#: the two were the same number while the array was capped at five, which is why
+#: "every item grounded" and "enough grounded items" were indistinguishable. The
+#: value keeps the evidence strength the original contract asked for.
+_MIN_GROUNDED_EVIDENCE = 5
+
 
 def _normalize(text: str) -> str:
     return " ".join(text.split())
 
 
-def evidence_grounding(evidence: list[str], context: str) -> tuple[int, int]:
-    """Count how many evidence items are long-enough verbatim quotes.
+def grounded_evidence(evidence: list[str], context: str) -> list[str]:
+    """Return the evidence items that are long-enough verbatim quotes, in order.
 
-    Counting rather than short-circuiting: the gate below still requires every
-    item, but a bare pass/fail throws away the only number that explains it. A
-    model paraphrasing one citation of five and a model inventing all five both
-    recorded FAIL, which made the aggregate verification rate uninterpretable.
+    The single definition of "grounded" in this module: the counts below and the
+    items handed to a caller both come from here, so a candidate can never be
+    reported as carrying more verified evidence than it is given.
     """
     haystack = _normalize(context)
-    grounded = 0
+    verified = []
     for item in evidence:
         quote = _normalize(item)
         if len(quote) >= _MIN_QUOTE_LENGTH and quote in haystack:
-            grounded += 1
-    return grounded, len(evidence)
+            verified.append(item)
+    return verified
 
 
-def _evidence_is_grounded(evidence: list[str], context: str) -> bool:
-    """Every item must be verbatim. Empty evidence is not grounding."""
-    grounded, total = evidence_grounding(evidence, context)
-    return bool(total) and grounded == total
+def evidence_grounding(evidence: list[str], context: str) -> tuple[int, int]:
+    """Count how many evidence items are long-enough verbatim quotes.
+
+    Counting rather than short-circuiting: a bare pass/fail throws away the only
+    number that explains it. A model paraphrasing one citation of five and a
+    model inventing all five both recorded FAIL, which made the aggregate
+    verification rate uninterpretable. `total` stays the number the model
+    produced even after the ungrounded items are discarded — telemetry has to
+    keep seeing the fabrication the caller never receives.
+    """
+    return len(grounded_evidence(evidence, context)), len(evidence)
 
 
 def _shadow_prompt(task: str, task_class: str, context: str | None = None) -> str:
@@ -362,9 +381,9 @@ def shadow_route(
     checks = ["candidate-schema", "task-class-match"]
     grounding: tuple[int, int] | None = None
     if context is not None:
-        grounding = evidence_grounding(candidate["evidence"], context)
-        grounded, total = grounding
-        if not total or grounded != total:
+        verified = grounded_evidence(candidate["evidence"], context)
+        grounding = (len(verified), len(candidate["evidence"]))
+        if len(verified) < _MIN_GROUNDED_EVIDENCE:
             return {
                 "decision": decision,
                 "candidate": None,
@@ -381,6 +400,13 @@ def shadow_route(
                     grounding=grounding,
                 ),
             }
+        # Only the verified items leave this function. A candidate that cleared
+        # the floor with 11 of 12 must not carry the twelfth, fabricated citation
+        # out with it just because the candidate as a whole passed.
+        candidate = {**candidate, "evidence": verified}
+        # Same check name as before the floor replaced "every item grounded".
+        # Renaming it would silently drop every historical observation out of
+        # `review_route_evidence`, which counts this string.
         checks.append("evidence-grounded")
 
     return {

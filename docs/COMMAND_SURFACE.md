@@ -188,7 +188,7 @@ output is never executed, and these commands do not persist outcomes.
 | `mq-agent route inspect <task> --json` | no | no | Machine-readable decision contract |
 | `mq-agent route shadow <task>` | yes | local Ollama | Validate an advisory candidate; cloud-required tasks skip the model call. Appends the outcome to `$MQ_AGENT_ROUTE_OUTCOMES` |
 | `mq-agent route shadow <task> --json` | yes | local Ollama | Decision, validated candidate or `null`, and `mq.model-route-outcome.v1` |
-| `mq-agent route shadow <task> --context-file FILE` | yes | local Ollama | Verify every `evidence` entry is a verbatim quote from FILE; adds the `evidence-grounded` check |
+| `mq-agent route shadow <task> --context-file FILE` | yes | local Ollama | Verify each `evidence` entry against FILE; keeps only the verbatim ones, requires at least 5 to survive, and adds the `evidence-grounded` check |
 | `mq-agent route report --since 7d\|30d\|90d` | no | no | Separate shadow and execution summaries with route/task metrics |
 | `mq-agent route readiness` | no | no | Evidence distance to 30/2/14/10 eligibility gates; never changes routing |
 | `mq-agent execution report [--task-class CLASS] [--since WINDOW]` | no | no | Execution-only success, latency, retry, fallback and tool-call metrics |
