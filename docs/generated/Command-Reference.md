@@ -408,6 +408,7 @@ Audit repository documentation: README, CHANGELOG, docstrings, /docs.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--json` | No | `false` | — |
+| `--route` | No | `local-shadow` | Applied route for the docs review: local-shadow (local model) or deterministic-local (extraction, no inference) |
 
 ## `mq-agent doctor`
 

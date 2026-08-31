@@ -25,6 +25,7 @@ from mq_agent.cli.render import (
     print_tool_spec,
 )
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
+from mq_agent.tools.applied_routing import DEFAULT_ROUTE
 from mq_agent.workflows.cli import workflow_app
 
 load_dotenv(Path.home() / "mq-agent" / ".env", override=False)
@@ -1653,15 +1654,27 @@ def score(
 def docs_audit(
     path: Annotated[str, typer.Argument(help="Repo path")] = ".",
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    route: Annotated[
+        str,
+        typer.Option(
+            "--route",
+            help="Applied route for the docs review: local-shadow (local model) "
+            "or deterministic-local (extraction, no inference)",
+        ),
+    ] = DEFAULT_ROUTE,
 ):
     """Audit repository documentation: README, CHANGELOG, docstrings, /docs."""
+    # `--route` picks which allowlisted strategy reviews the gathered evidence.
+    # One run applies one route, so comparing the two means running both — an
+    # operator choice, made per run and visible in the command, never an
+    # automatic selection the system makes for itself.
     from mq_agent.agents.docs_agent import DocsAgent
 
     with console.status("[bold cyan]Auditing docs...[/bold cyan]"):
         with _execution_outcome("docs") as record:
             agent = DocsAgent(_client())
             record["model"] = agent.planner.model
-            result = agent.audit(path, execution_run_id=record["run_id"])
+            result = agent.audit(path, execution_run_id=record["run_id"], route=route)
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))

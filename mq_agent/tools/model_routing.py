@@ -171,6 +171,8 @@ def _outcome(
     grounding: tuple[int, int] | None = None,
     application: str | None = None,
     execution_run_id: str | None = None,
+    selected_route: str | None = None,
+    local_model: str | None = None,
 ) -> dict[str, Any]:
     """Build and validate one routing outcome without persisting it.
 
@@ -179,7 +181,19 @@ def _outcome(
     execution that enclosed it (D3); it is a different field from `run_id`,
     which identifies this observation, and must never be conflated with it.
     Both are omitted when not known, because absent means unrecorded.
+
+    `selected_route` names the strategy that actually ran, for the case where it
+    differs from the one the policy recommended — an operator applying
+    `deterministic-local` to a decision the policy routed to `local-shadow`. The
+    record then says both things honestly: the decision recommended one route,
+    this observation applied another. A caller that names the route also names
+    that route's model, and a strategy running no model has none (D8: the route
+    is the strategy, `local_model` is the model).
     """
+    if selected_route is None:
+        route, model = decision["recommended_route"], decision["local_model"]
+    else:
+        route, model = selected_route, local_model
     outcome = {
         "schema": "mq.model-route-outcome.v1",
         "decision_id": decision["decision_id"],
@@ -188,8 +202,8 @@ def _outcome(
         # not the enclosing execution — that is `execution_run_id`.
         "run_id": str(uuid.uuid4()),
         "task_class": decision["task_class"],
-        "selected_route": decision["recommended_route"],
-        "local_model": decision["local_model"],
+        "selected_route": route,
+        "local_model": model,
         "authoritative_agent": decision["authoritative_agent"],
         "attempted": attempted,
         "model_output_received": model_output_received,
@@ -274,6 +288,31 @@ def evidence_grounding(evidence: list[str], context: str) -> tuple[int, int]:
     keep seeing the fabrication the caller never receives.
     """
     return len(grounded_evidence(evidence, context)), len(evidence)
+
+
+def verify_evidence(
+    candidate: dict[str, Any], context: str
+) -> tuple[dict[str, Any] | None, tuple[int, int]]:
+    """Apply the grounding floor and drop every ungrounded item.
+
+    Returns the sanitized candidate — or None when too little survived — plus
+    `(grounded, produced)` for telemetry, which keeps the producer's original
+    count either way.
+
+    Shared by every applied route on purpose. A deterministic route grounds by
+    construction and would pass a verifier of its own trivially; running it
+    through the same one is what makes the two routes' verification records
+    comparable, and what stops "it cannot fabricate" from quietly becoming "it
+    is not checked".
+    """
+    verified = grounded_evidence(candidate["evidence"], context)
+    grounding = (len(verified), len(candidate["evidence"]))
+    if len(verified) < _MIN_GROUNDED_EVIDENCE:
+        return None, grounding
+    # Only the verified items leave. A candidate that cleared the floor with 11
+    # of 12 must not carry the twelfth, fabricated citation out with it just
+    # because the candidate as a whole passed.
+    return {**candidate, "evidence": verified}, grounding
 
 
 def _shadow_prompt(task: str, task_class: str, context: str | None = None) -> str:
@@ -381,9 +420,8 @@ def shadow_route(
     checks = ["candidate-schema", "task-class-match"]
     grounding: tuple[int, int] | None = None
     if context is not None:
-        verified = grounded_evidence(candidate["evidence"], context)
-        grounding = (len(verified), len(candidate["evidence"]))
-        if len(verified) < _MIN_GROUNDED_EVIDENCE:
+        verified_candidate, grounding = verify_evidence(candidate, context)
+        if verified_candidate is None:
             return {
                 "decision": decision,
                 "candidate": None,
@@ -400,10 +438,7 @@ def shadow_route(
                     grounding=grounding,
                 ),
             }
-        # Only the verified items leave this function. A candidate that cleared
-        # the floor with 11 of 12 must not carry the twelfth, fabricated citation
-        # out with it just because the candidate as a whole passed.
-        candidate = {**candidate, "evidence": verified}
+        candidate = verified_candidate
         # Same check name as before the floor replaced "every item grounded".
         # Renaming it would silently drop every historical observation out of
         # `review_route_evidence`, which counts this string.
