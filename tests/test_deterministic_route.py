@@ -33,6 +33,17 @@ MATERIAL = "\n".join(
 )
 
 
+def _candidate(material: str) -> dict:
+    """The extracted candidate, asserted present.
+
+    Narrowing here rather than at every call site: a None slipping through would
+    otherwise fail as an unrelated TypeError several lines later.
+    """
+    candidate = deterministic_route.deterministic_candidate("docs-review", material)
+    assert candidate is not None
+    return candidate
+
+
 def _apply(context: str | None, route: str = "deterministic-local") -> dict:
     return applied_routing.apply_route(
         DOCS_TASK,
@@ -44,7 +55,7 @@ def _apply(context: str | None, route: str = "deterministic-local") -> dict:
 
 
 def test_the_extractor_quotes_the_material_in_the_order_it_found_it() -> None:
-    candidate = deterministic_route.deterministic_candidate("docs-review", MATERIAL)
+    candidate = _candidate(MATERIAL)
 
     assert candidate["evidence"] == MATERIAL.splitlines()[: deterministic_route.EVIDENCE_ITEMS]
 
@@ -52,7 +63,7 @@ def test_the_extractor_quotes_the_material_in_the_order_it_found_it() -> None:
 def test_the_extractor_makes_no_judgement() -> None:
     # No ranking, no selection by importance, no invented advice. A suggestion
     # would require judgement, which is the thing this route deliberately lacks.
-    candidate = deterministic_route.deterministic_candidate("docs-review", MATERIAL)
+    candidate = _candidate(MATERIAL)
 
     assert candidate["suggestions"] == []
     assert "no inference" in candidate["summary"].lower()
@@ -64,7 +75,7 @@ def test_short_lines_are_skipped_before_the_verifier_would_drop_them() -> None:
     # Same rule as the model route, applied before rather than after.
     material = "\n".join(["ok", "x", *MATERIAL.splitlines()])
 
-    candidate = deterministic_route.deterministic_candidate("docs-review", material)
+    candidate = _candidate(material)
 
     assert "ok" not in candidate["evidence"]
     assert "x" not in candidate["evidence"]
@@ -74,7 +85,7 @@ def test_repeated_lines_are_quoted_once() -> None:
     lines = MATERIAL.splitlines()
     material = "\n".join([lines[0], lines[0], *lines[1:]])
 
-    candidate = deterministic_route.deterministic_candidate("docs-review", material)
+    candidate = _candidate(material)
 
     assert len(candidate["evidence"]) == len(set(candidate["evidence"]))
 
@@ -126,7 +137,7 @@ def test_the_deterministic_route_is_verified_like_any_other() -> None:
     }
 
 
-def test_a_route_with_nothing_to_quote_fails(tmp_path) -> None:
+def test_a_route_with_nothing_to_quote_fails() -> None:
     result = _apply("\n".join(["short", "tiny"]))
     outcome = result["outcome"]
 
@@ -156,7 +167,7 @@ def test_an_unauthorized_pair_names_the_route_it_refused() -> None:
     assert outcome["selected_route"] == "local-shadow"
 
 
-def test_a_deterministic_refusal_is_not_counted_as_applied() -> None:
+def test_the_record_validates_against_the_canonical_contract() -> None:
     from mq_agent.tools.model_routing import _validator
 
     result = _apply(MATERIAL, route="deterministic-local")
@@ -170,7 +181,7 @@ def test_both_routes_read_the_same_material() -> None:
     """
     from mq_agent.agents.docs_agent import DocsAgent
 
-    steps = [
+    steps: list[dict] = [
         {"description": "a", "status": "success", "result": "the README documents install"},
         {"description": "b", "status": "failed", "result": "PermissionError: /etc/shadow"},
         {"description": "c", "status": "skipped", "result": None},
@@ -252,7 +263,7 @@ def test_the_extractor_does_not_score_or_rank() -> None:
 
 
 def test_the_candidate_shape_matches_what_a_model_would_produce() -> None:
-    candidate = deterministic_route.deterministic_candidate("docs-review", MATERIAL)
+    candidate = _candidate(MATERIAL)
 
     assert model_routing._candidate_is_valid(candidate, "docs-review")
     assert json.loads(json.dumps(candidate)) == candidate
