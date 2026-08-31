@@ -27,9 +27,20 @@ def _decision(task: str = DOCS_TASK) -> dict:
 
 
 def test_the_allowlist_is_the_only_source_of_authorization() -> None:
-    # Deliberately narrow: #214 proves one chain before widening. A wider list
-    # is a human decision, never a consequence of collected telemetry.
-    assert applied_routing.APPLIED_ROUTE_ALLOWLIST == frozenset({"docs-review"})
+    # Pairs, not task classes. Authorizing `docs-review` alone would silently
+    # authorize every strategy later added to it, and which strategy runs is
+    # exactly what is being compared. A wider list is a human decision, never a
+    # consequence of collected telemetry.
+    assert applied_routing.APPLIED_ROUTE_ALLOWLIST == frozenset(
+        {("docs-review", "local-shadow"), ("docs-review", "deterministic-local")}
+    )
+
+
+def test_the_default_route_is_the_one_the_policy_recommends() -> None:
+    # An operator who asks for nothing gets the policy's advice, not a strategy
+    # the system picked for itself.
+    decision = model_routing.inspect_route(DOCS_TASK)
+    assert applied_routing.DEFAULT_ROUTE == decision["recommended_route"]
 
 
 def test_eligibility_does_not_depend_on_readiness() -> None:
@@ -316,12 +327,12 @@ def test_a_docs_audit_correlates_its_routing_observation(stores, monkeypatch) ->
 
     monkeypatch.setattr(applied_routing, "shadow_route", _governed)
 
-    def _audit(self, path=".", execution_run_id=None):
+    def _audit(self, path=".", execution_run_id=None, route=applied_routing.DEFAULT_ROUTE):
         captured["run_id"] = execution_run_id
-        steps = [{"description": "read README", "status": "ok", "result": "README"}]
+        steps = [{"description": "read README", "status": "success", "result": "README"}]
         result = {"steps": steps, "verification": {"all_passed": True}}
         routed = type(self)._routed_docs_review(
-            steps, execution_run_id, SafetyMode.READ_ONLY
+            steps, execution_run_id, SafetyMode.READ_ONLY, route
         )
         if routed is not None:
             result["docs_review"] = routed
@@ -374,11 +385,11 @@ def test_readiness_counts_the_real_applied_route(stores, monkeypatch) -> None:
 
     monkeypatch.setattr(applied_routing, "shadow_route", _governed)
 
-    def _audit(self, path=".", execution_run_id=None):
-        steps = [{"description": "d", "status": "ok", "result": "r"}]
+    def _audit(self, path=".", execution_run_id=None, route=applied_routing.DEFAULT_ROUTE):
+        steps = [{"description": "d", "status": "success", "result": "r"}]
         result = {"steps": steps, "verification": {"all_passed": True}}
         routed = type(self)._routed_docs_review(
-            steps, execution_run_id, SafetyMode.READ_ONLY
+            steps, execution_run_id, SafetyMode.READ_ONLY, route
         )
         if routed is not None:
             result["docs_review"] = routed

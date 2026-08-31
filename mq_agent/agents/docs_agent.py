@@ -3,9 +3,10 @@ from openai import OpenAI
 from ..core.executor import Executor
 from ..core.planner import Planner
 from ..core.safety import SafetyGate
-from ..core.state import AgentState, SafetyMode
+from ..core.state import AgentState, SafetyMode, StepStatus
 from ..core.verification import Verifier
 from ..tools import TOOL_REGISTRY
+from ..tools.applied_routing import DEFAULT_ROUTE
 
 
 class DocsAgent:
@@ -16,7 +17,12 @@ class DocsAgent:
         self.planner = Planner(client)
         self.verifier = Verifier(client)
 
-    def audit(self, path: str = ".", execution_run_id: str | None = None) -> dict:
+    def audit(
+        self,
+        path: str = ".",
+        execution_run_id: str | None = None,
+        route: str = DEFAULT_ROUTE,
+    ) -> dict:
         state = AgentState(
             goal="Audit the repository documentation. "
                  "Check README.md, CHANGELOG.md, inline docstrings, and any /docs folder. "
@@ -50,14 +56,32 @@ class DocsAgent:
         # this decision, not the whole audit — the plan, the tool calls and the
         # verification all stay on the canonical path.
         if execution_run_id is not None:
-            routed = self._routed_docs_review(steps, execution_run_id, state.safety_mode)
+            routed = self._routed_docs_review(
+                steps, execution_run_id, state.safety_mode, route
+            )
             if routed is not None:
                 result["docs_review"] = routed
         return result
 
     @staticmethod
+    def _evidence_material(steps: list[dict]) -> str:
+        """The material both routes quote from.
+
+        Successful steps only. A failed step's `result` is an error string, not
+        something the audit observed, and quoting it would let a route cite the
+        tooling's own failure as a documentation finding. Both routes read this
+        same string — comparing two strategies on different material would not
+        be comparing them at all.
+        """
+        return "\n".join(
+            str(step["result"])
+            for step in steps
+            if step.get("result") and step.get("status") == StepStatus.SUCCESS.value
+        )
+
+    @staticmethod
     def _routed_docs_review(
-        steps: list[dict], execution_run_id: str, safety_mode: SafetyMode
+        steps: list[dict], execution_run_id: str, safety_mode: SafetyMode, route: str
     ) -> dict | None:
         """Produce the docs review through the applied route, or not at all.
 
@@ -70,13 +94,12 @@ class DocsAgent:
         from ..tools.applied_routing import apply_route
         from ..tools.model_routing import record_route_outcome
 
-        evidence = "\n".join(
-            str(step["result"]) for step in steps if step.get("result")
-        )
+        evidence = DocsAgent._evidence_material(steps)
         routed = apply_route(
             "Review the repository documentation for gaps",
             execution_run_id=execution_run_id,
             safety_mode=safety_mode,
+            route=route,
             context=evidence or None,
         )
         # The observation is recorded whether or not the route governed. An

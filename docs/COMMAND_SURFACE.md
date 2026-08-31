@@ -49,6 +49,7 @@ These rules hold across the whole command surface and are enforced by
 | `mq-agent tools --mcp` | read-only | no | Include discovered MCP tools |
 | `mq-agent audit .` | read-only | yes | AI-assisted repo audit |
 | `mq-agent docs-audit .` | read-only | yes | Audit README, CHANGELOG, docstrings and /docs |
+| `mq-agent docs-audit . --route local-shadow\|deterministic-local` | read-only | route-dependent | Which allowlisted strategy reviews the gathered evidence; `deterministic-local` runs no model. One run applies one route |
 | `mq-agent signal .` | read-only | yes | repo-signal plus AI improvement plan |
 | `mq-agent plan "goal"` | suggest | yes | Generate an execution plan |
 | `mq-agent release-plan` | suggest | yes | Show the standard release plan |
