@@ -128,14 +128,43 @@ CONTEXT = (
     "-    RETRY_BUDGET = 3\n"
     "+    def __init__(self, retry_budget: int = 3) -> None:\n"
     "+        self.retry_budget = retry_budget\n"
+    "-    def send(self, payload):\n"
+    "+    def send(self, payload, *, deadline_s: float = 5.0):\n"
+    "+        remaining = self.retry_budget\n"
+    "+        while remaining > 0 and not self._expired(deadline_s):\n"
 )
 
+#: Five real quotes from CONTEXT — the minimum a grounded candidate must carry.
+QUOTED_FROM_CONTEXT = [
+    "self.retry_budget = retry_budget",
+    "def __init__(self, retry_budget: int = 3) -> None:",
+    "RETRY_BUDGET = 3",
+    "remaining = self.retry_budget",
+    "while remaining > 0 and not self._expired(deadline_s):",
+]
 
-def test_candidate_schema_bounds_list_and_evidence_item_length() -> None:
+
+def _material(count: int) -> tuple[str, list[str]]:
+    """Material plus the exact quotes it grounds, for cardinality tests."""
+    quotes = [f"the retry budget moved into the client at step {i:02d}" for i in range(count)]
+    return "\n".join(quotes), quotes
+
+
+def _invented(count: int) -> list[str]:
+    return [f"a paraphrase that appears in no material, number {i:02d}" for i in range(count)]
+
+
+def test_candidate_schema_bounds_evidence_item_length_but_not_item_count() -> None:
+    # No maxItems on evidence, and that absence is the finding: Ollama compiles a
+    # bounded array into a grammar repetition rule the model fills, so the cap
+    # manufactured the fabrication it was meant to bound. Over three series of 20
+    # real docs-review runs the last citation was ungrounded in 13/20 at
+    # maxItems 5, 19/20 at 4, and 5/20 uncapped. Re-adding a cap here reinstates
+    # that pressure, so it is asserted absent rather than merely left out.
     evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
     suggestions = model_routing._CANDIDATE_SCHEMA["properties"]["suggestions"]
 
-    assert evidence["maxItems"] == 5
+    assert "maxItems" not in evidence
     assert evidence["items"]["maxLength"] == 200
     assert suggestions["maxItems"] == 3
     assert "maxLength" not in suggestions["items"]
@@ -155,7 +184,7 @@ def test_grounding_accepts_a_truncated_verbatim_prefix() -> None:
     limit = _evidence_item_limit()
     material = "It stores durable knowledge that should survive beyond a single run."
 
-    assert model_routing._evidence_is_grounded([material[:limit]], material)
+    assert model_routing.grounded_evidence([material[:limit]], material) == [material[:limit]]
 
 
 def test_evidence_item_limit_cannot_truncate_below_the_grounding_floor() -> None:
@@ -178,16 +207,91 @@ def test_shadow_verifies_evidence_is_quoted_from_the_supplied_material(monkeypat
     monkeypatch.setattr(
         model_routing,
         "_ollama_generate",
-        lambda *args, **kwargs: _candidate(["self.retry_budget = retry_budget"]),
+        lambda *args, **kwargs: _candidate(QUOTED_FROM_CONTEXT),
     )
 
     result = model_routing.shadow_route("Summarize this diff", context=CONTEXT)
     outcome = result["outcome"]
 
     assert outcome["verification"]["status"] == "PASS"
+    assert result["candidate"]["evidence"] == QUOTED_FROM_CONTEXT
     assert "evidence-grounded" in outcome["verification"]["checks"]
     assert outcome["escalated"] is False
     Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_shadow_discards_ungrounded_items_from_a_passing_candidate(monkeypatch) -> None:
+    # 5 grounded of 12. The floor is met, so the candidate is usable — but the
+    # seven invented citations must not travel with it.
+    material, quotes = _material(5)
+    evidence = quotes + _invented(7)
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing, "_ollama_generate", lambda *a, **k: _candidate(evidence)
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=material)
+
+    assert result["outcome"]["verification"]["status"] == "PASS"
+    assert result["candidate"]["evidence"] == quotes
+
+
+def test_shadow_keeps_eleven_of_twelve_rather_than_failing_the_candidate(monkeypatch) -> None:
+    # The case the old ALL()-gate got wrong: eleven verified citations were
+    # thrown away because a twelfth was invented. Now the twelfth is thrown away
+    # instead — and it is the only thing thrown away.
+    material, quotes = _material(11)
+    evidence = [*quotes[:6], *_invented(1), *quotes[6:]]
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing, "_ollama_generate", lambda *a, **k: _candidate(evidence)
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=material)
+
+    assert result["outcome"]["verification"]["status"] == "PASS"
+    assert result["candidate"]["evidence"] == quotes
+    assert result["outcome"]["verification"]["grounding"] == {
+        "grounded_items": 11,
+        "total_items": 12,
+    }
+
+
+def test_shadow_fails_a_candidate_below_the_grounded_minimum(monkeypatch) -> None:
+    # 4 grounded of 12. Not a fabrication problem — a sufficiency one. Discarding
+    # the invented items would leave too little verified evidence to act on.
+    material, quotes = _material(4)
+    evidence = quotes + _invented(8)
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing, "_ollama_generate", lambda *a, **k: _candidate(evidence)
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=material)
+    outcome = result["outcome"]
+
+    assert result["candidate"] is None
+    assert outcome["verification"]["status"] == "FAIL"
+    assert outcome["escalation_reason"] == "verification-failed"
+    assert outcome["verification"]["grounding"] == {"grounded_items": 4, "total_items": 12}
+
+
+def test_telemetry_counts_what_the_model_produced_not_what_survived(monkeypatch) -> None:
+    # The verifier sanitizes; telemetry does not forget. `total_items` stays the
+    # number the model generated, so a model degrading into fabrication is still
+    # visible in the evidence store after the candidate passes.
+    material, quotes = _material(6)
+    evidence = quotes + _invented(9)
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(
+        model_routing, "_ollama_generate", lambda *a, **k: _candidate(evidence)
+    )
+
+    result = model_routing.shadow_route("Summarize this diff", context=material)
+    grounding = result["outcome"]["verification"]["grounding"]
+
+    assert grounding["total_items"] == 15
+    assert grounding["grounded_items"] == len(result["candidate"]["evidence"]) == 6
 
 
 def test_shadow_fails_evidence_that_is_not_in_the_material(monkeypatch) -> None:
