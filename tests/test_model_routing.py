@@ -161,8 +161,9 @@ def test_candidate_schema_bounds_evidence_item_length_but_not_item_count() -> No
     # real docs-review runs the last citation was ungrounded in 13/20 at
     # maxItems 5, 19/20 at 4, and 5/20 uncapped. Re-adding a cap here reinstates
     # that pressure, so it is asserted absent rather than merely left out.
-    evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
-    suggestions = model_routing._CANDIDATE_SCHEMA["properties"]["suggestions"]
+    schema = model_routing._candidate_schema("docs-review")
+    evidence = schema["properties"]["evidence"]
+    suggestions = schema["properties"]["suggestions"]
 
     assert "maxItems" not in evidence
     assert evidence["items"]["maxLength"] == 200
@@ -170,8 +171,42 @@ def test_candidate_schema_bounds_evidence_item_length_but_not_item_count() -> No
     assert "maxLength" not in suggestions["items"]
 
 
+def test_the_grammar_pins_the_task_class_rather_than_asking_for_it() -> None:
+    # The measured failure this replaces: with {"type": "string"} a docs-review
+    # over 74 KB of CHANGELOG-heavy material answered `task_class: "release"`.
+    # The model classified the content instead of obeying the prompt, and the
+    # whole candidate was discarded as schema-invalid. Ollama enforces this
+    # schema as a decoding grammar, so a const makes the wrong answer unemittable
+    # rather than merely discouraged.
+    schema = model_routing._candidate_schema("docs-review")
+
+    assert schema["properties"]["task_class"] == {"const": "docs-review"}
+
+
+def test_the_grammar_is_built_per_task_class() -> None:
+    # A module constant cannot carry a const. This is why the schema is a
+    # function: re-adding a shared constant silently reopens the failure above.
+    assert (
+        model_routing._candidate_schema("diff-summary")["properties"]["task_class"]
+        != model_routing._candidate_schema("docs-review")["properties"]["task_class"]
+    )
+
+
+def test_the_validator_still_checks_the_task_class_itself() -> None:
+    # Defence in depth: the grammar only binds a backend that enforces one, and
+    # nothing here guarantees the backend will always be Ollama.
+    wrong = {
+        "task_class": "release",
+        "summary": "s",
+        "evidence": [],
+        "suggestions": [],
+    }
+
+    assert not model_routing._candidate_is_valid(wrong, "docs-review")
+
+
 def _evidence_item_limit() -> int:
-    evidence = model_routing._CANDIDATE_SCHEMA["properties"]["evidence"]
+    evidence = model_routing._candidate_schema("docs-review")["properties"]["evidence"]
     return int(evidence["items"]["maxLength"])
 
 

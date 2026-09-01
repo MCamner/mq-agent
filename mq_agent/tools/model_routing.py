@@ -38,33 +38,52 @@ CLOUD_RULES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 _CANDIDATE_KEYS = {"task_class", "summary", "evidence", "suggestions"}
-_CANDIDATE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "required": sorted(_CANDIDATE_KEYS),
-    "properties": {
-        "task_class": {"type": "string"},
-        "summary": {"type": "string", "minLength": 1, "maxLength": 600},
-        # No maxItems, deliberately. Ollama enforces this schema as a decoding
-        # grammar and llama.cpp compiles a bounded array into a repetition rule,
-        # which the model fills rather than treats as a ceiling: measured over
-        # three series of 20 real docs-review runs, the last citation was
-        # ungrounded in 13/20 runs at maxItems 5, 19/20 at 4, and 5/20 with no
-        # cap, while per-citation grounding went 80.4% -> 68.4% -> 87.5%. The cap
-        # was producing the fabrication it existed to bound.
-        #
-        # An unbounded array once made a 10 KB diff generate ~2800 tokens in
-        # 100s+. That risk is real but input-sized: over the uncapped 20 runs on
-        # ~3 KB of docs context, eval_count ran 399-742 (median 624) and 16-45s.
-        # Larger inputs are unmeasured. maxLength still bounds each quote, and a
-        # truncated prefix is still verbatim.
-        "evidence": {
-            "type": "array",
-            "items": {"type": "string", "maxLength": 200},
+def _candidate_schema(task_class: str) -> dict[str, Any]:
+    """The decoding grammar for one task class.
+
+    Built per call rather than held as a constant so `task_class` can be a
+    `const`. Ollama enforces this schema as a grammar, so a constant makes the
+    correct value the only string the decoder can emit — the model cannot
+    disagree with the instruction because the instruction is no longer only in
+    the prompt.
+
+    Measured cause: with `{"type": "string"}` a docs-review over 74 KB of
+    CHANGELOG-heavy material answered `task_class: "release"`. It had classified
+    the content instead of obeying, `_candidate_is_valid` rejected the whole
+    candidate, and the run recorded `schema-invalid` — a failure of the schema's
+    permissiveness, not of the model's reasoning.
+
+    `_candidate_is_valid` still checks the value. Defence in depth: the grammar
+    only binds a backend that enforces one.
+    """
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": sorted(_CANDIDATE_KEYS),
+        "properties": {
+            "task_class": {"const": task_class},
+            "summary": {"type": "string", "minLength": 1, "maxLength": 600},
+            # No maxItems, deliberately. Ollama enforces this schema as a
+            # decoding grammar and llama.cpp compiles a bounded array into a
+            # repetition rule, which the model fills rather than treats as a
+            # ceiling: measured over three series of 20 real docs-review runs,
+            # the last citation was ungrounded in 13/20 runs at maxItems 5,
+            # 19/20 at 4, and 5/20 with no cap, while per-citation grounding
+            # went 80.4% -> 68.4% -> 87.5%. The cap was producing the
+            # fabrication it existed to bound.
+            #
+            # An unbounded array once made a 10 KB diff generate ~2800 tokens in
+            # 100s+. That risk is real but input-sized: over the uncapped 20
+            # runs on ~3 KB of docs context, eval_count ran 399-742 (median 624)
+            # and 16-45s. Larger inputs are unmeasured. maxLength still bounds
+            # each quote, and a truncated prefix is still verbatim.
+            "evidence": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 200},
+            },
+            "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
         },
-        "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
-    },
-}
+    }
 
 
 def _outcome_path(destination: Path | None = None) -> Path:
@@ -370,7 +389,7 @@ def shadow_route(
             str(decision["local_model"]),
             _shadow_prompt(task, str(decision["task_class"]), context),
             timeout,
-            json_format=_CANDIDATE_SCHEMA,
+            json_format=_candidate_schema(str(decision["task_class"])),
             keep_alive=0,
         )
     except (TimeoutError, urllib.error.URLError, OSError, json.JSONDecodeError):
