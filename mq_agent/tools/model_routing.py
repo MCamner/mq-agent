@@ -18,7 +18,12 @@ from jsonschema import Draft202012Validator
 from mq_agent.tools.execution_outcome import SCHEMA_FILE as EXECUTION_SCHEMA_FILE
 from mq_agent.tools.execution_outcome import SCHEMA_ID as EXECUTION_SCHEMA_ID
 from mq_agent.tools.execution_outcome import outcome_path as execution_outcome_path
-from mq_agent.tools.model_runtime import _ollama_generate, current_model
+from mq_agent.tools.context_window import plan_context, was_truncated
+from mq_agent.tools.model_runtime import (
+    _ollama_generate,
+    current_model,
+    model_context_limit,
+)
 
 LOCAL_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("diff-summary", ("diff", "change summary", "summarize changes")),
@@ -384,13 +389,32 @@ def shadow_route(
             ),
         }
 
+    model = str(decision["local_model"])
+    prompt = _shadow_prompt(task, str(decision["task_class"]), context)
+    plan = plan_context(prompt, model_context_limit(model))
+    if not plan.fits:
+        # Refused before inference. Running anyway would hand the model part of
+        # the material and then check its citations against all of it, which is
+        # how the verifier and the model came to be reading different documents.
+        return {
+            "decision": decision,
+            "candidate": None,
+            "outcome": _outcome(
+                decision,
+                verification_status="FAIL",
+                escalated=True,
+                escalation_reason="context-window-exceeded",
+            ),
+        }
+
     try:
         response = _ollama_generate(
-            str(decision["local_model"]),
-            _shadow_prompt(task, str(decision["task_class"]), context),
+            model,
+            prompt,
             timeout,
             json_format=_candidate_schema(str(decision["task_class"])),
             keep_alive=0,
+            num_ctx=plan.num_ctx,
         )
     except (TimeoutError, urllib.error.URLError, OSError, json.JSONDecodeError):
         return {
@@ -402,6 +426,24 @@ def shadow_route(
                 verification_status="UNAVAILABLE",
                 escalated=True,
                 escalation_reason="model-unavailable",
+            ),
+        }
+
+    if was_truncated(response.get("prompt_eval_count"), plan.num_ctx):
+        # The backend filled the window it was given, so the tail of the prompt
+        # was dropped. The candidate may parse and may even look grounded; it
+        # cannot be trusted, because the material it was checked against is not
+        # the material it saw. This is never a PASS.
+        return {
+            "decision": decision,
+            "candidate": None,
+            "outcome": _outcome(
+                decision,
+                attempted=True,
+                model_output_received=True,
+                verification_status="FAIL",
+                escalated=True,
+                escalation_reason="context-truncated",
             ),
         }
 

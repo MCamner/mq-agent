@@ -164,6 +164,46 @@ def _ollama_base_url() -> str:
     return host.rstrip("/")
 
 
+_CONTEXT_LIMITS: dict[str, int | None] = {}
+
+
+def model_context_limit(model: str, timeout: int = 10) -> int | None:
+    """The model's declared maximum context, or None when it cannot be read.
+
+    Ollama reports it under an architecture-prefixed key — `qwen3.context_length`
+    — so the lookup matches the suffix rather than guessing the prefix.
+
+    None means unknown, never unlimited. A caller that cannot read the limit
+    falls back to the operator's ceiling alone; inventing a capability number is
+    how the silent-truncation defect stayed invisible in the first place.
+
+    Cached per model name: a model's declared window does not change while the
+    process runs, and this sits on the path of every routed decision.
+    """
+    if model in _CONTEXT_LIMITS:
+        return _CONTEXT_LIMITS[model]
+
+    limit: int | None = None
+    try:
+        request = urllib.request.Request(
+            f"{_ollama_base_url()}/api/show",
+            data=json.dumps({"model": model}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            info = json.loads(response.read().decode("utf-8")).get("model_info") or {}
+        for key, value in info.items():
+            if key.endswith(".context_length") and isinstance(value, int):
+                limit = value
+                break
+    except (TimeoutError, urllib.error.URLError, OSError, json.JSONDecodeError, ValueError):
+        limit = None
+
+    _CONTEXT_LIMITS[model] = limit
+    return limit
+
+
 def _ollama_generate(
     model: str,
     prompt: str,
@@ -171,6 +211,7 @@ def _ollama_generate(
     *,
     json_format: bool | dict[str, Any] = False,
     keep_alive: int | str = 0,
+    num_ctx: int | None = None,
 ) -> dict[str, Any]:
     request_data: dict[str, Any] = {
         "model": model,
@@ -178,6 +219,8 @@ def _ollama_generate(
         "stream": False,
         "keep_alive": keep_alive,
     }
+    if num_ctx is not None:
+        request_data["options"] = {"num_ctx": num_ctx}
     if json_format:
         request_data["format"] = json_format if isinstance(json_format, dict) else "json"
     body = json.dumps(request_data).encode("utf-8")
