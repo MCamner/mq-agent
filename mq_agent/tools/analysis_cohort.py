@@ -76,7 +76,22 @@ ERAS: tuple[Era, ...] = (
         commit="7fe49bf",
         why=(
             "Context integrity plus a 16k material budget. The first runtime in "
-            "which both applied routes produce usable output on real material."
+            "which both applied routes produce usable output on real material. "
+            "Its two observations verified the executable subset of a plan whose "
+            "calls were never valid, so they measure a partial audit."
+        ),
+    ),
+    Era(
+        name="plan-validation",
+        starts_at=datetime(2026, 9, 2, 14, 37, 5, tzinfo=UTC),
+        commit="0a1721b",
+        why=(
+            "A step is checked against the tool signature before the call, so a "
+            "plan that was never executable fails as that instead of as a "
+            "TypeError inside a tool. The audit is not yet whole: the planner "
+            "still writes arguments the tools do not take, so a docs-review here "
+            "reads fewer files than it planned to. This boundary marks honest "
+            "plan failure, not a restored audit."
         ),
     ),
 )

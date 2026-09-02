@@ -23,7 +23,8 @@ from mq_agent.tools.analysis_cohort import (
     select_cohort,
 )
 
-ERA_C = "material-selection"
+ERA_C1 = "material-selection"
+ERA_C2 = "plan-validation"
 
 
 def _observation(recorded_at: str, **changes) -> dict:
@@ -102,14 +103,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C)
+    era = era_named(ERA_C2)
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C)
+    era = era_named(ERA_C2)
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
@@ -127,7 +128,7 @@ def test_eras_are_ordered_and_each_names_the_merge_that_opened_it() -> None:
 
 def test_the_current_era_is_the_last_one() -> None:
     assert current_era() is ERAS[-1]
-    assert current_era().name == ERA_C
+    assert current_era().name == ERA_C2
 
 
 def test_an_earlier_era_can_still_be_selected_deliberately() -> None:
@@ -219,3 +220,30 @@ def test_readiness_still_counts_the_historical_observations(tmp_path) -> None:
     assert written == 5
     assert readiness["observations_considered"] == 5
     assert readiness["task_classes"]["docs-review"]["actual"]["candidate_routes"] == 2
+
+
+#: The two real observations from the first Era C runs, before #233.
+FIRST_REAL_RUNS = [
+    _observation("2026-09-02T13:16:52.839031Z", selected_route="local-shadow"),
+    _observation("2026-09-02T13:17:05.000000Z", selected_route="deterministic-local"),
+]
+
+
+def test_the_first_real_runs_are_material_selection_not_plan_validation() -> None:
+    """The boundary that was discovered hours after the model was built.
+
+    Both runs verified the executable subset of a plan whose calls were never
+    valid — four of seven steps could not run at all. They are real applied
+    executions and they are not a baseline for a runtime that rejects such a
+    plan up front.
+    """
+    assert select_cohort(FIRST_REAL_RUNS).included == []
+    assert select_cohort(FIRST_REAL_RUNS).excluded_earlier_era == 2
+    assert len(select_cohort(FIRST_REAL_RUNS, era=era_named(ERA_C1)).included) == 2
+
+
+def test_the_new_boundary_names_the_merge_that_opened_it() -> None:
+    era = era_named(ERA_C2)
+
+    assert era.commit == "0a1721b"
+    assert era.starts_at == datetime(2026, 9, 2, 14, 37, 5, tzinfo=UTC)
