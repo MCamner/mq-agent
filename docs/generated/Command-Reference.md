@@ -1465,12 +1465,26 @@ Inspect advisory local-first model routing.
 
 | Subcommand | Description |
 |---|---|
+| [`mq-agent route divergence`](#mq-agent-route-divergence) | Compare applied routes within one era. Reports, never promotes. |
 | [`mq-agent route evidence-review`](#mq-agent-route-evidence-review) | Review one task class without promoting it or changing routing policy. |
 | [`mq-agent route history`](#mq-agent-route-history) | List individual routing outcomes newest first, read-only. |
 | [`mq-agent route inspect`](#mq-agent-route-inspect) | Recommend a route without model calls or writes. |
 | [`mq-agent route readiness`](#mq-agent-route-readiness) | Show distance to evidence thresholds without changing routing. |
 | [`mq-agent route report`](#mq-agent-route-report) | Aggregate validated routing outcomes from a read-only source. |
 | [`mq-agent route shadow`](#mq-agent-route-shadow) | Run and verify an advisory Ollama candidate without accepting it. |
+
+## `mq-agent route divergence`
+
+Compare applied routes within one era. Reports, never promotes.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--source` | No | — | JSON or JSONL outcome source |
+| `--era` | No | — | Analysis era; defaults to the current one |
+| `--task-class` | No | — | Limit to one routing task class |
+| `--json` | No | `false` | — |
 
 ## `mq-agent route evidence-review`
 
