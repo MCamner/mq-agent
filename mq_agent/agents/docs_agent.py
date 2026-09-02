@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from openai import OpenAI
 
 from ..core.executor import Executor
@@ -10,13 +12,65 @@ from ..tools.applied_routing import DEFAULT_ROUTE
 from ..tools.material_selection import select_material
 
 
+#: The files a documentation audit is always about.
+#:
+#: Handing these to the planner is the point: a model asked to *find* README.md
+#: lists the repository root, and a later step then reads the whole listing
+#: while describing itself as reading README. Naming the target removes the
+#: ambiguity instead of asking a model to resist it — guidance was tried and
+#: measured failing three runs out of three.
+KNOWN_DOCS = ("README.md", "CHANGELOG.md")
+
+
 class DocsAgent:
     """Audits and summarises repository documentation."""
+
+    @staticmethod
+    def audit_targets(path: str = ".") -> dict:
+        """What this audit is about, resolved before any planning happens.
+
+        `present` are files to read by name. `missing` are gaps to report and
+        nothing to read — an audit that quietly omits an absent README hides
+        the most basic finding it exists to make. `collections` are the sets
+        whose members genuinely are not known in advance, and those are what
+        discovery and `for_each` are for.
+
+        Paths are given in the caller's frame, so a plan can use them directly.
+        """
+        root = Path(path)
+        present = [str(root / name) for name in KNOWN_DOCS if (root / name).is_file()]
+        missing = [name for name in KNOWN_DOCS if not (root / name).is_file()]
+        collections = []
+        if (root / "docs").is_dir():
+            collections.append(
+                {"what": "the documentation folder", "path": str(root / "docs"), "pattern": "*"}
+            )
+        collections.append(
+            {"what": "source files, for inline docstrings", "path": str(root), "pattern": "*.py"}
+        )
+        return {"present": present, "missing": missing, "collections": collections}
 
     def __init__(self, client: OpenAI):
         self.client = client
         self.planner = Planner(client)
         self.verifier = Verifier(client)
+
+    def _audit_state(self, path: str) -> AgentState:
+        """The task the planner is given, with the targets already resolved."""
+        return AgentState(
+            goal=(
+                "Audit the repository documentation and report gaps and "
+                "improvements. context.audit_targets says what to audit: read "
+                "each path in `present` directly by name, with no discovery "
+                "step; each name in `missing` is a documentation gap to report "
+                "and there is nothing to read; each entry in `collections` is a "
+                "set whose members are not known in advance — discover it, then "
+                "read the members with for_each."
+            ),
+            safety_mode=SafetyMode.READ_ONLY,
+            working_dir=path,
+            context={"audit_targets": self.audit_targets(path)},
+        )
 
     def audit(
         self,
@@ -24,13 +78,7 @@ class DocsAgent:
         execution_run_id: str | None = None,
         route: str = DEFAULT_ROUTE,
     ) -> dict:
-        state = AgentState(
-            goal="Audit the repository documentation. "
-                 "Check README.md, CHANGELOG.md, inline docstrings, and any /docs folder. "
-                 "Report gaps and suggest improvements.",
-            safety_mode=SafetyMode.READ_ONLY,
-            working_dir=path,
-        )
+        state = self._audit_state(path)
 
         tools_allowed = ["read_file", "list_files", "find_files", "repo_summary"]
         state.plan = self.planner.create_plan(state, tools_allowed)
