@@ -8,14 +8,55 @@ _EXCLUDE_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", ".mypy_
 
 #: Files that are never worth offering to a reader.
 #:
-#: Discovery output is now consumed by later steps, so anything listed here is
+#: Discovery output is consumed by later steps, so anything listed here is
 #: something a review will actually open. `.DS_Store` is binary, and its content
 #: reached the evidence material the first time the dependency chain worked.
 _EXCLUDE_FILES = {".DS_Store"}
 
+#: Files that must not be offered to a reader.
+#:
+#: A secret in the material is quotable evidence: it is what the model is asked
+#: to review and what its citations are checked against, and a review is
+#: something people paste into issues and chat. Excluding at discovery is the
+#: only place that helps — once a secret is in the material it has already been
+#: sent to a model, and filtering the answer leaves the exposure and hides the
+#: trace of it.
+_SECRET_FILES = {
+    ".env",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+    "credentials",
+}
+
+#: Matched as prefixes, because a key is routinely kept under a qualified name.
+#: `id_rsa_work` and `id_rsa.bak` are the same secret as `id_rsa`, and an exact
+#: list would miss both. `id_rsa.pub` goes with them: it is harmless to read and
+#: it is not documentation, so nothing is lost by leaving it out.
+_SECRET_PREFIXES = ("id_dsa", "id_ecdsa", "id_ed25519", "id_rsa")
+_SECRET_SUFFIXES = {".key", ".keystore", ".p12", ".pem", ".pfx"}
+
+#: `.env.example` is documentation, and a docs audit that cannot see it is
+#: worse off. Only these spellings are readable; `.env.local` is not.
+_ENV_TEMPLATE_SUFFIXES = {"example", "sample", "template", "dist"}
+
+
+def _is_secret(name: str) -> bool:
+    if name in _SECRET_FILES or Path(name).suffix in _SECRET_SUFFIXES:
+        return True
+    if name.startswith(_SECRET_PREFIXES):
+        return True
+    if name.startswith(".env."):
+        return name.rsplit(".", 1)[-1] not in _ENV_TEMPLATE_SUFFIXES
+    return False
+
 
 def _excluded(path: Path) -> bool:
-    return bool(_EXCLUDE_DIRS & set(path.parts)) or path.name in _EXCLUDE_FILES
+    return (
+        bool(_EXCLUDE_DIRS & set(path.parts))
+        or path.name in _EXCLUDE_FILES
+        or _is_secret(path.name)
+    )
 
 
 def _usable(root_as_given: str, found: Path, root_resolved: Path) -> str:
