@@ -82,6 +82,10 @@ def test_what_counts_as_a_secret_name() -> None:
     for name in (".env", ".env.local", ".env.production", "id_rsa", "server.pem",
                  "app.key", "store.p12", ".netrc", "credentials"):
         assert _is_secret(name), name
+    # A key kept under a qualified name is the same key. An exact-name list
+    # misses every one of these.
+    for name in ("id_rsa_work", "id_rsa.bak", "id_rsa.pub", "id_ed25519_github"):
+        assert _is_secret(name), name
     for name in (".env.example", ".env.sample", ".env.template", ".env.dist",
                  "README.md", "keys.md", "environment.py"):
         assert not _is_secret(name), name

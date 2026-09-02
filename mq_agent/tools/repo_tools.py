@@ -27,11 +27,13 @@ _SECRET_FILES = {
     ".npmrc",
     ".pypirc",
     "credentials",
-    "id_dsa",
-    "id_ecdsa",
-    "id_ed25519",
-    "id_rsa",
 }
+
+#: Matched as prefixes, because a key is routinely kept under a qualified name.
+#: `id_rsa_work` and `id_rsa.bak` are the same secret as `id_rsa`, and an exact
+#: list would miss both. `id_rsa.pub` goes with them: it is harmless to read and
+#: it is not documentation, so nothing is lost by leaving it out.
+_SECRET_PREFIXES = ("id_dsa", "id_ecdsa", "id_ed25519", "id_rsa")
 _SECRET_SUFFIXES = {".key", ".keystore", ".p12", ".pem", ".pfx"}
 
 #: `.env.example` is documentation, and a docs audit that cannot see it is
@@ -41,6 +43,8 @@ _ENV_TEMPLATE_SUFFIXES = {"example", "sample", "template", "dist"}
 
 def _is_secret(name: str) -> bool:
     if name in _SECRET_FILES or Path(name).suffix in _SECRET_SUFFIXES:
+        return True
+    if name.startswith(_SECRET_PREFIXES):
         return True
     if name.startswith(".env."):
         return name.rsplit(".", 1)[-1] not in _ENV_TEMPLATE_SUFFIXES
