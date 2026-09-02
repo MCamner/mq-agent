@@ -3370,6 +3370,98 @@ def route_readiness_cmd(
     console.print("[dim]Automatic routing remains disabled; eligibility only permits an operator review.[/dim]")
 
 
+def _rate_cell(value: float | None) -> str:
+    """An unmeasured rate prints as a dash, never as 0.0."""
+    return "—" if value is None else f"{value:.3f}"
+
+
+@route_app.command("divergence")
+def route_divergence_cmd(
+    source: Annotated[
+        Path | None, typer.Option("--source", help="JSON or JSONL outcome source")
+    ] = None,
+    era: Annotated[
+        str | None, typer.Option("--era", help="Analysis era; defaults to the current one")
+    ] = None,
+    task_class: Annotated[
+        str | None, typer.Option("--task-class", help="Limit to one routing task class")
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Compare applied routes within one era. Reports, never promotes."""
+    from mq_agent.tools.route_divergence import route_divergence
+
+    try:
+        data = route_divergence(source, era=era, task_class=task_class)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+        return
+
+    console.print(f"Era: {data['era']['name']} ({data['era']['commit'] or 'from the beginning'})")
+    cohort = data["cohort"]
+    console.print(
+        f"Cohort: {cohort['included']} included, {cohort['excluded']} excluded "
+        f"({cohort['excluded_earlier_era']} earlier era, "
+        f"{cohort['excluded_not_applied']} not applied, "
+        f"{cohort['excluded_other_task_class']} other task class, "
+        f"{cohort['excluded_undated']} undated)"
+    )
+
+    table = Table(title="Route Behaviour")
+    table.add_column("Route")
+    table.add_column("Runs", justify="right")
+    table.add_column("Verified", justify="right")
+    table.add_column("Escalated", justify="right")
+    table.add_column("Model output", justify="right")
+    table.add_column("Grounding", justify="right")
+    table.add_column("Measured", justify="right")
+    for name, item in data["routes"].items():
+        execution, evidence = item["execution"], item["evidence"]
+        table.add_row(
+            name,
+            str(item["observations"]),
+            _rate_cell(execution["verification_pass_rate"]),
+            _rate_cell(execution["escalation_rate"]),
+            _rate_cell(execution["model_output_rate"]),
+            _rate_cell(evidence["grounding_ratio"]),
+            f"{evidence['measured']}/{item['observations']}",
+        )
+    if not data["routes"]:
+        table.add_row("—", "0", "—", "—", "—", "—", "0/0")
+    console.print(table)
+
+    if data["status"] == "INSUFFICIENT_EVIDENCE":
+        console.print("[yellow]INSUFFICIENT EVIDENCE[/yellow] — no comparison made:")
+        for reason in data["insufficient_reasons"]:
+            console.print(f"  - {reason}")
+    for pair in data["divergence"]:
+        left, right = pair["routes"]
+        # Two tables' worth of meaning, kept apart on purpose: a route that
+        # refuses cleanly and a route that answers with weak grounding are not
+        # failing the same way, and one delta column would hide that.
+        pair_table = Table(title=f"Divergence: {left} vs {right}")
+        pair_table.add_column("Level")
+        pair_table.add_column("Measure")
+        pair_table.add_column(left, justify="right")
+        pair_table.add_column(right, justify="right")
+        pair_table.add_column("Delta", justify="right")
+        for level in ("execution", "evidence"):
+            for measure, values in pair[level].items():
+                pair_table.add_row(
+                    level,
+                    measure.replace("_", " "),
+                    _rate_cell(values[left]),
+                    _rate_cell(values[right]),
+                    _rate_cell(values["delta"]),
+                )
+        console.print(pair_table)
+    console.print(
+        "[dim]Descriptive only: no score, no ranking, and no route change is authorized by this report.[/dim]"
+    )
+
+
 @execution_app.command("report")
 def execution_report_cmd(
     source: Annotated[
