@@ -25,6 +25,7 @@ from mq_agent.tools.analysis_cohort import (
 
 ERA_C1 = "material-selection"
 ERA_C2 = "plan-validation"
+ERA_C3 = "plan-composition"
 
 
 def _observation(recorded_at: str, **changes) -> dict:
@@ -103,14 +104,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C2)
+    era = era_named(ERA_C3)
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C2)
+    era = era_named(ERA_C3)
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
@@ -128,7 +129,7 @@ def test_eras_are_ordered_and_each_names_the_merge_that_opened_it() -> None:
 
 def test_the_current_era_is_the_last_one() -> None:
     assert current_era() is ERAS[-1]
-    assert current_era().name == ERA_C2
+    assert current_era().name == ERA_C3
 
 
 def test_an_earlier_era_can_still_be_selected_deliberately() -> None:
@@ -242,8 +243,18 @@ def test_the_first_real_runs_are_material_selection_not_plan_validation() -> Non
     assert len(select_cohort(FIRST_REAL_RUNS, era=era_named(ERA_C1)).included) == 2
 
 
-def test_the_new_boundary_names_the_merge_that_opened_it() -> None:
-    era = era_named(ERA_C2)
+def test_each_boundary_names_the_merge_that_opened_it() -> None:
+    assert era_named(ERA_C2).commit == "0a1721b"
+    assert era_named(ERA_C2).starts_at == datetime(2026, 9, 2, 14, 37, 5, tzinfo=UTC)
+    assert era_named(ERA_C3).commit == "6c67086"
+    assert era_named(ERA_C3).starts_at == datetime(2026, 9, 2, 20, 31, 18, tzinfo=UTC)
 
-    assert era.commit == "0a1721b"
-    assert era.starts_at == datetime(2026, 9, 2, 14, 37, 5, tzinfo=UTC)
+
+def test_no_observation_predates_a_working_docs_review() -> None:
+    """The quality baseline starts empty, and that is the correct state.
+
+    Every observation in the store was produced by a runtime whose docs-review
+    read fewer files than its plan described. None of them is a baseline for
+    one that does not.
+    """
+    assert select_cohort([*HISTORICAL, *FIRST_REAL_RUNS]).included == []

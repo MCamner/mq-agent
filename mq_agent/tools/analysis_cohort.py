@@ -94,6 +94,19 @@ ERAS: tuple[Era, ...] = (
             "plan failure, not a restored audit."
         ),
     ),
+    Era(
+        name="plan-composition",
+        starts_at=datetime(2026, 9, 2, 20, 31, 18, tzinfo=UTC),
+        commit="6c67086",
+        why=(
+            "A step can depend on what an earlier step produced, and the "
+            "dependency is declared and resolved rather than written as a "
+            "placeholder that resolves to nothing. The first runtime in which a "
+            "docs-review reads the files its own plan set out to read: discovery "
+            "to paths to reads to reviewed material, proven end to end on both "
+            "routes."
+        ),
+    ),
 )
 
 
