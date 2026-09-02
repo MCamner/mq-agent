@@ -107,6 +107,18 @@ ERAS: tuple[Era, ...] = (
             "routes."
         ),
     ),
+    Era(
+        name="secret-safe-discovery",
+        starts_at=datetime(2026, 9, 2, 22, 30, 36, tzinfo=UTC),
+        commit="49e6c67",
+        why=(
+            "Discovery stops offering secret-bearing files, so a review can no "
+            "longer be handed `.env` to quote. The two observations before it "
+            "were produced by a pipeline that read one. Nothing about their "
+            "quality is in question — the material they were measured on was "
+            "not admissible."
+        ),
+    ),
 )
 
 
