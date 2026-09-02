@@ -15,6 +15,43 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 
+#: Attribute a tool carries to declare the shape of its output.
+_PRODUCES = "_mq_produces"
+
+
+def produces(kind: str) -> Callable[[Callable], Callable]:
+    """Declare what a tool's output can be broken into.
+
+    A later step can only depend on a step whose output shape is known. Reading
+    that from a declaration on the function — rather than splitting whatever
+    string came back — is the difference between a dependency and a guess:
+    `list_files` returns one path per line and says so; `repo_summary` returns
+    prose, and splitting it into "paths" would produce confident nonsense.
+    """
+    def declare(tool_fn: Callable) -> Callable:
+        setattr(tool_fn, _PRODUCES, kind)
+        return tool_fn
+
+    return declare
+
+
+def produced_kind(tool_fn: Callable) -> str | None:
+    """What this tool declares it produces, or None when it declares nothing."""
+    kind = getattr(tool_fn, _PRODUCES, None)
+    return kind if isinstance(kind, str) else None
+
+
+def produced_items(tool_fn: Callable, output: object) -> list[str] | None:
+    """The items in a declared producer's output, or None when it declares none.
+
+    Only `paths` exists today. A kind this function does not know is treated as
+    undeclared rather than split on a hunch.
+    """
+    if produced_kind(tool_fn) != "paths" or not isinstance(output, str):
+        return None
+    return [line.strip() for line in output.splitlines() if line.strip()]
+
+
 #: The parameter kinds a keyword call can never name.
 _UNNAMEABLE = (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL)
 
@@ -45,21 +82,27 @@ def describe_tool(name: str, tool_fn: Callable) -> dict:
     "what may I supply".
     """
     parameters = accepted_parameters(tool_fn)
+    kind = produced_kind(tool_fn)
     if parameters is None:
-        return {"tool": name, "parameters": "unspecified"}
-    return {
-        "tool": name,
-        "required": [
-            p.name
-            for p in parameters.values()
-            if p.default is inspect.Parameter.empty
-        ],
-        "optional": [
-            p.name
-            for p in parameters.values()
-            if p.default is not inspect.Parameter.empty
-        ],
-    }
+        contract: dict = {"tool": name, "parameters": "unspecified"}
+    else:
+        contract = {
+            "tool": name,
+            "required": [
+                p.name
+                for p in parameters.values()
+                if p.default is inspect.Parameter.empty
+            ],
+            "optional": [
+                p.name
+                for p in parameters.values()
+                if p.default is not inspect.Parameter.empty
+            ],
+        }
+    if kind:
+        # Named so the planner knows which steps can be depended on at all.
+        contract["produces"] = kind
+    return contract
 
 
 def invalid_arguments(tool_name: str, tool_fn: Callable, args: dict) -> str | None:

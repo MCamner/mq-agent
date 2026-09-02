@@ -85,6 +85,7 @@ class Planner:
                 description=s["description"],
                 tool=s.get("tool"),
                 args=s.get("args", {}),
+                for_each=s.get("for_each"),
             )
             for i, s in enumerate(steps_data)
         ]
@@ -102,6 +103,15 @@ synonym is a failed step, not a near miss: a tool documented with "path" does no
 accept "directory", "folder", or "dir". When a tool lists "parameters":
 "unspecified", its arguments could not be determined — keep them minimal.
 
+A step that must act on what an earlier step found declares that dependency
+instead of writing a placeholder path. Only a tool whose contract shows
+"produces" can be depended on. Add "for_each": {"step": N, "as": "param"} and
+the tool runs once per item step N produced, with the item bound to "param" —
+leave that argument out of "args". Never write "<source_file_path>" or any
+other stand-in: an argument that only looks like a reference resolves to
+nothing.
+
 Return JSON with a "steps" array:
-{"steps": [{"description": "...", "tool": "tool_name", "args": {}}]}
+{"steps": [{"description": "...", "tool": "tool_name", "args": {},
+            "for_each": {"step": 0, "as": "path"}}]}
 """

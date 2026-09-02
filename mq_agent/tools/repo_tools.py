@@ -1,11 +1,34 @@
 import subprocess
 from pathlib import Path
 
+from mq_agent.core.tool_contract import produces
+
 _EXCLUDE_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", ".mypy_cache", ".ruff_cache", "dist", "build", ".eggs"}
 
 
+#: Files that are never worth offering to a reader.
+#:
+#: Discovery output is now consumed by later steps, so anything listed here is
+#: something a review will actually open. `.DS_Store` is binary, and its content
+#: reached the evidence material the first time the dependency chain worked.
+_EXCLUDE_FILES = {".DS_Store"}
+
+
 def _excluded(path: Path) -> bool:
-    return bool(_EXCLUDE_DIRS & set(path.parts))
+    return bool(_EXCLUDE_DIRS & set(path.parts)) or path.name in _EXCLUDE_FILES
+
+
+def _usable(root_as_given: str, found: Path, root_resolved: Path) -> str:
+    """A path the caller can hand straight to a reader.
+
+    These tools declare that they produce paths, so a later step may be built
+    from what they return. A name relative to a search root the consumer never
+    saw is only meaningful inside this function — `read_file` given
+    `tool_contract.py` looks in the wrong place and truthfully reports that no
+    such file exists. Keeping the caller's own root on the front makes the
+    output usable in the frame the caller is actually in.
+    """
+    return str(Path(root_as_given) / found.relative_to(root_resolved))
 
 
 def repo_summary(path: str = ".") -> str:
@@ -30,10 +53,11 @@ def repo_summary(path: str = ".") -> str:
     return "\n".join(lines)
 
 
+@produces("paths")
 def list_files(path: str = ".", pattern: str = "*") -> str:
     p = Path(path).resolve()
     files = sorted(f for f in p.glob(pattern) if f.is_file() and not _excluded(f))
-    return "\n".join(str(f.relative_to(p)) for f in files[:100])
+    return "\n".join(_usable(path, f, p) for f in files[:100])
 
 
 def read_file(path: str = "", file_path: str = "") -> str:
@@ -55,10 +79,11 @@ def write_file(path: str, content: str) -> str:
     return f"Written: {path} ({len(content)} chars)"
 
 
+@produces("paths")
 def find_files(path: str = ".", pattern: str = "*.py") -> str:
     p = Path(path).resolve()
     files = sorted(f for f in p.rglob(pattern) if not _excluded(f))
-    return "\n".join(str(f.relative_to(p)) for f in files[:200])
+    return "\n".join(_usable(path, f, p) for f in files[:200])
 
 
 def run_task_tool(task_name: str, dry_run: bool = False) -> str:

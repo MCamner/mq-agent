@@ -24,8 +24,18 @@ def test_the_planner_is_given_the_parameters_of_the_tools_it_may_use() -> None:
     contracts = Planner._tool_contracts(["list_files", "find_files"])
 
     assert contracts == [
-        {"tool": "list_files", "required": [], "optional": ["path", "pattern"]},
-        {"tool": "find_files", "required": [], "optional": ["path", "pattern"]},
+        {
+            "tool": "list_files",
+            "required": [],
+            "optional": ["path", "pattern"],
+            "produces": "paths",
+        },
+        {
+            "tool": "find_files",
+            "required": [],
+            "optional": ["path", "pattern"],
+            "produces": "paths",
+        },
     ]
 
 
@@ -157,6 +167,11 @@ def test_the_contract_actually_reaches_the_model() -> None:
 
     sent = json.loads(client.sent["messages"][1]["content"])
     assert sent["available_tools"] == [
-        {"tool": "list_files", "required": [], "optional": ["path", "pattern"]}
+        {
+            "tool": "list_files",
+            "required": [],
+            "optional": ["path", "pattern"],
+            "produces": "paths",
+        }
     ]
     assert "exact names" in client.sent["messages"][0]["content"]
