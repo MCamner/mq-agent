@@ -36,6 +36,11 @@ class PlanStep:
     description: str
     tool: str | None = None
     args: dict = field(default_factory=dict)
+    #: An explicit dependency on an earlier step: run this tool once per item
+    #: that step produced, binding the item to one named parameter. A
+    #: placeholder that merely resembles a dependency — `<source_file_path>` in
+    #: an argument — is not one, and nothing here interprets those.
+    for_each: dict | None = None
     status: StepStatus = StepStatus.PENDING
     result: Any | None = None
     error: str | None = None
