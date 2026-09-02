@@ -111,6 +111,10 @@ leave that argument out of "args". Never write "<source_file_path>" or any
 other stand-in: an argument that only looks like a reference resolves to
 nothing.
 
+When context names a target, plan against that name directly. Discovery is for
+sets whose members are not known in advance; using it to locate something the
+context already names produces a step that reads more than it says it reads.
+
 Return JSON with a "steps" array:
 {"steps": [{"description": "...", "tool": "tool_name", "args": {},
             "for_each": {"step": 0, "as": "path"}}]}
