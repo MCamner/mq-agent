@@ -7,6 +7,7 @@ from ..core.state import AgentState, SafetyMode, StepStatus
 from ..core.verification import Verifier
 from ..tools import TOOL_REGISTRY
 from ..tools.applied_routing import DEFAULT_ROUTE
+from ..tools.material_selection import select_material
 
 
 class DocsAgent:
@@ -72,12 +73,16 @@ class DocsAgent:
         tooling's own failure as a documentation finding. Both routes read this
         same string — comparing two strategies on different material would not
         be comparing them at all.
+
+        Selected down to a budget the route can finish inside. The string this
+        returns is both what the model is given and what its citations are
+        checked against, so selecting here keeps those two the same document.
         """
-        return "\n".join(
+        return select_material([
             str(step["result"])
             for step in steps
             if step.get("result") and step.get("status") == StepStatus.SUCCESS.value
-        )
+        ])
 
     @staticmethod
     def _routed_docs_review(
