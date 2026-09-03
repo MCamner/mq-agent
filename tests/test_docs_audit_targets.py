@@ -58,6 +58,8 @@ def test_source_files_stay_a_collection(tmp_path) -> None:
     advance is discovered. Source files are genuinely the second kind, so
     `for_each` belongs there and only there.
     """
+    _repo(tmp_path, "pkg/thing.py")
+
     targets = DocsAgent.audit_targets(str(tmp_path))
     source = [c for c in targets["collections"] if c["pattern"] == "*.py"]
 
@@ -143,3 +145,23 @@ def test_the_audit_plans_against_that_task() -> None:
     import inspect
 
     assert "_audit_state" in inspect.getsource(DocsAgent.audit)
+
+
+def test_a_collection_with_no_members_is_not_declared(tmp_path) -> None:
+    """A target class the repo does not have is not a target.
+
+    Declaring it sends the plan looking for files that are not there, and the
+    audit then reports on a set it never had. `docs/` was already conditional;
+    the source collection was not.
+    """
+    _repo(tmp_path, "README.md")
+
+    assert DocsAgent.audit_targets(str(tmp_path))["collections"] == []
+
+
+def test_a_collection_is_declared_when_its_members_exist(tmp_path) -> None:
+    _repo(tmp_path, "README.md", "pkg/thing.py")
+
+    collections = DocsAgent.audit_targets(str(tmp_path))["collections"]
+
+    assert [c["pattern"] for c in collections] == ["*.py"]

@@ -10,6 +10,7 @@ from ..core.verification import Verifier
 from ..tools import TOOL_REGISTRY
 from ..tools.applied_routing import DEFAULT_ROUTE
 from ..tools.material_selection import select_material
+from ..tools.repo_tools import find_files
 
 
 #: The files a documentation audit is always about.
@@ -45,9 +46,18 @@ class DocsAgent:
             collections.append(
                 {"what": "the documentation folder", "path": str(root / "docs"), "pattern": "*"}
             )
-        collections.append(
-            {"what": "source files, for inline docstrings", "path": str(root), "pattern": "*.py"}
-        )
+        # Offered only when the tool that will discover it finds something. A
+        # declared target class with no members sends the plan looking for files
+        # that are not there, and the audit then reports on a set it never had.
+        # `docs/` was already conditional; this was not.
+        if find_files(str(root), "*.py"):
+            collections.append(
+                {
+                    "what": "source files, for inline docstrings",
+                    "path": str(root),
+                    "pattern": "*.py",
+                }
+            )
         return {"present": present, "missing": missing, "collections": collections}
 
     def __init__(self, client: OpenAI):
