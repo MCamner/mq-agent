@@ -119,6 +119,18 @@ ERAS: tuple[Era, ...] = (
             "not admissible."
         ),
     ),
+    Era(
+        name="declared-targets",
+        starts_at=datetime(2026, 9, 2, 23, 50, 3, tzinfo=UTC),
+        commit="a232fbb",
+        why=(
+            "The audit resolves its own targets before planning, so a step that "
+            "says it reads README.md reads README.md. Before it, that step read "
+            "the first 25 files of the repository root and reported success. "
+            "The material a review is judged on now matches the review it "
+            "declared."
+        ),
+    ),
 )
 
 

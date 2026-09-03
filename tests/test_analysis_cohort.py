@@ -27,6 +27,7 @@ ERA_C1 = "material-selection"
 ERA_C2 = "plan-validation"
 ERA_C3 = "plan-composition"
 ERA_C4 = "secret-safe-discovery"
+ERA_C5 = "declared-targets"
 
 
 def _observation(recorded_at: str, **changes) -> dict:
@@ -105,14 +106,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C4)
+    era = era_named(ERA_C5)
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C4)
+    era = era_named(ERA_C5)
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
@@ -130,7 +131,7 @@ def test_eras_are_ordered_and_each_names_the_merge_that_opened_it() -> None:
 
 def test_the_current_era_is_the_last_one() -> None:
     assert current_era() is ERAS[-1]
-    assert current_era().name == ERA_C4
+    assert current_era().name == ERA_C5
 
 
 def test_an_earlier_era_can_still_be_selected_deliberately() -> None:
@@ -269,6 +270,8 @@ def test_each_boundary_names_the_merge_that_opened_it() -> None:
     assert era_named(ERA_C3).starts_at == datetime(2026, 9, 2, 20, 31, 18, tzinfo=UTC)
     assert era_named(ERA_C4).commit == "49e6c67"
     assert era_named(ERA_C4).starts_at == datetime(2026, 9, 2, 22, 30, 36, tzinfo=UTC)
+    assert era_named(ERA_C5).commit == "a232fbb"
+    assert era_named(ERA_C5).starts_at == datetime(2026, 9, 2, 23, 50, 3, tzinfo=UTC)
 
 
 def test_no_observation_predates_a_working_docs_review() -> None:
