@@ -502,6 +502,36 @@ truncation. The correlated route observation is `applied` but escalated with
 `model-unavailable`, so these runs are execution evidence, not route quality
 evidence.
 
+## Completed — execution evidence integrity
+
+Production observations now represent identifiable executions rather than
+configuration failures or unverifiable development state.
+
+* [x] Unify the local-route execution budget at 600 seconds across every entry
+  point that can issue the same local generation request (#253).
+* [x] Add `generation-timeout` as a distinct routing outcome, so an in-flight
+  generation that exceeds its deadline is not reported as `model-unavailable`
+  (canonical contract in mqobsidian #96, consumer and writer in #254).
+* [x] Move credential resolution ahead of execution recording, so a run that
+  never starts produces no execution outcome (#255).
+* [x] Add a runtime preflight guard that stops a dirty, unintegrated or
+  otherwise unverifiable checkout from writing production evidence, while
+  leaving released-wheel execution and explicitly redirected scratch stores
+  untouched (#256).
+* [x] Verify the guard operationally against the real installation in all three
+  relevant states: dirty checkout blocked, redirected stores allowed, clean
+  integrated `main` allowed.
+
+The guard proves integration only against the locally known `origin/main`; it
+performs no network verification. Existing observations are unchanged and no
+quality-era boundary is introduced.
+
+Remaining evidence work is observational rather than implementation work. The
+600-second budget still needs a naturally occurring generation that exceeds the
+previous 180-second limit before its boundary is verified, and the routing
+cohort stays insufficient for comparison until more genuine applied
+observations exist.
+
 ## Completed — v1.26.0 Stack Compatibility Gate
 
 Released 2026-08-14. `mq-agent stack compatibility` assesses dependency and
