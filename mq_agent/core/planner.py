@@ -6,7 +6,7 @@ from openai import OpenAI
 from mq_agent.config import load_config
 
 from .state import AgentState, PlanStep
-from .tool_contract import describe_tool
+from .tool_contract import describe_tool, produced_kind
 
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "planner.md"
 
@@ -79,16 +79,72 @@ class Planner:
         raw = json.loads(response.choices[0].message.content or "{}")
         steps_data = raw.get("steps", raw) if isinstance(raw, dict) else raw
 
-        return [
-            PlanStep(
-                index=i,
-                description=s["description"],
-                tool=s.get("tool"),
-                args=s.get("args", {}),
-                for_each=s.get("for_each"),
+        declarations = _collection_declarations(state.context)
+        steps = []
+        for i, step_data in enumerate(steps_data):
+            tool = step_data.get("tool")
+            args = step_data.get("args", {})
+            min_items = None
+
+            # Discovery semantics belong to the declared collection. If the
+            # model selects another producer with the same plausible-looking
+            # arguments, replace that choice with the declaration instead of
+            # executing a different search than the audit contract describes.
+            declaration = _matching_collection(declarations, tool, args)
+            if declaration is not None:
+                discovery = declaration["discovery"]
+                tool = discovery["tool"]
+                args = discovery["args"]
+                min_items = declaration["min_items"]
+
+            steps.append(
+                PlanStep(
+                    index=i,
+                    description=step_data["description"],
+                    tool=tool,
+                    args=args,
+                    for_each=step_data.get("for_each"),
+                    min_items=min_items,
+                )
             )
-            for i, s in enumerate(steps_data)
-        ]
+        return steps
+
+
+def _collection_declarations(context: dict) -> list[dict]:
+    targets = context.get("audit_targets")
+    if not isinstance(targets, dict):
+        return []
+    collections = targets.get("collections")
+    if not isinstance(collections, list):
+        return []
+    return [item for item in collections if isinstance(item, dict)]
+
+
+def _matching_collection(
+    declarations: list[dict], planned_tool: object, planned_args: object
+) -> dict | None:
+    """Return the collection whose declared call the planned call represents."""
+    from mq_agent.tools import TOOL_REGISTRY
+
+    planned_fn = TOOL_REGISTRY.get(planned_tool) if isinstance(planned_tool, str) else None
+    if planned_fn is None or produced_kind(planned_fn) is None or not isinstance(planned_args, dict):
+        return None
+
+    for declaration in declarations:
+        discovery = declaration.get("discovery")
+        min_items = declaration.get("min_items")
+        if (
+            isinstance(discovery, dict)
+            and isinstance(discovery.get("tool"), str)
+            and discovery.get("args") == planned_args
+            and isinstance(min_items, int)
+            and not isinstance(min_items, bool)
+            and min_items >= 0
+        ):
+            declared_fn = TOOL_REGISTRY.get(discovery["tool"])
+            if declared_fn and produced_kind(declared_fn) == produced_kind(planned_fn):
+                return declaration
+    return None
 
 
 _FALLBACK_SYSTEM = """\
@@ -114,6 +170,9 @@ nothing.
 When context names a target, plan against that name directly. Discovery is for
 sets whose members are not known in advance; using it to locate something the
 context already names produces a step that reads more than it says it reads.
+For each context.audit_targets.collections entry, copy discovery.tool and
+discovery.args exactly into its discovery step. Do not choose a different
+discovery tool. The runtime carries min_items from that declaration.
 
 Return JSON with a "steps" array:
 {"steps": [{"description": "...", "tool": "tool_name", "args": {},

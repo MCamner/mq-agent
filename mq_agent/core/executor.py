@@ -160,6 +160,28 @@ class Executor:
             step.error = str(exc)
             return step
 
+        if step.min_items is not None:
+            actual_items = produced_items(tool_fn, outputs[0]) if outputs else None
+            if actual_items is None:
+                step.status = StepStatus.FAILED
+                step.error = (
+                    "collection-integrity\n"
+                    f"step: {step.index}\n"
+                    f"tool: {step.tool}\n"
+                    "reason: collection producer does not declare countable items"
+                )
+                return step
+            if len(actual_items) < step.min_items:
+                step.status = StepStatus.FAILED
+                step.error = (
+                    "collection-integrity\n"
+                    f"step: {step.index}\n"
+                    f"tool: {step.tool}\n"
+                    f"required: {step.min_items}\n"
+                    f"produced: {len(actual_items)}"
+                )
+                return step
+
         if items is None:
             step.result = outputs[0]
         else:

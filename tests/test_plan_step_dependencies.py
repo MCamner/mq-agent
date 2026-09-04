@@ -47,6 +47,47 @@ def test_a_dependent_step_runs_once_per_item_the_earlier_step_produced() -> None
     assert "contents of two.md" in str(read.result)
 
 
+def test_a_required_collection_that_produces_too_few_items_fails() -> None:
+    @produces("paths")
+    def empty() -> str:
+        return ""
+
+    find = PlanStep(
+        index=0,
+        description="find required files",
+        tool="empty",
+        min_items=1,
+    )
+    state = _plan(find)
+
+    _run(state, {"empty": empty})
+
+    assert find.status is StepStatus.FAILED
+    assert find.error is not None
+    assert "collection-integrity" in find.error
+    assert "required: 1" in find.error
+    assert "produced: 0" in find.error
+
+
+def test_an_optional_collection_may_be_empty() -> None:
+    @produces("paths")
+    def empty() -> str:
+        return ""
+
+    find = PlanStep(
+        index=0,
+        description="find optional files",
+        tool="empty",
+        min_items=0,
+    )
+    state = _plan(find)
+
+    _run(state, {"empty": empty})
+
+    assert find.status is StepStatus.SUCCESS
+    assert find.result == ""
+
+
 def test_each_output_is_attributed_to_the_item_that_produced_it() -> None:
     # Material a reviewer cannot attribute to a file produces citations the
     # verifier cannot ground.
