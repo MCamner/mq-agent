@@ -116,6 +116,9 @@ class DocsAgent:
                 "tool": s.tool,
                 "args": s.args,
                 "for_each": s.for_each,
+                "source_item_count": s.source_item_count,
+                "executed_call_count": s.executed_call_count,
+                "fan_out_complete": s.fan_out_complete,
                 "status": s.status.value,
                 "result": s.result,
             }

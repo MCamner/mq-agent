@@ -136,6 +136,11 @@ class Executor:
             step.error = unresolved
             return step
 
+        if items is not None:
+            step.source_item_count = len(items)
+            step.executed_call_count = 0
+            step.fan_out_complete = False
+
         bound = str(step.for_each["as"]) if step.for_each else ""
         calls = (
             [step.args]
@@ -153,12 +158,19 @@ class Executor:
                 step.error = problem
                 return step
 
-        try:
-            outputs = [tool_fn(**args) for args in calls]
-        except Exception as exc:
-            step.status = StepStatus.FAILED
-            step.error = str(exc)
-            return step
+        outputs = []
+        for args in calls:
+            try:
+                outputs.append(tool_fn(**args))
+            except Exception as exc:
+                step.status = StepStatus.FAILED
+                step.error = str(exc)
+                return step
+            if items is not None:
+                step.executed_call_count = (step.executed_call_count or 0) + 1
+
+        if items is not None:
+            step.fan_out_complete = step.executed_call_count == step.source_item_count
 
         if step.min_items is not None:
             actual_items = produced_items(tool_fn, outputs[0]) if outputs else None

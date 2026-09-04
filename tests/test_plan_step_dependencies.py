@@ -45,6 +45,9 @@ def test_a_dependent_step_runs_once_per_item_the_earlier_step_produced() -> None
     assert read.status is StepStatus.SUCCESS
     assert "contents of one.md" in str(read.result)
     assert "contents of two.md" in str(read.result)
+    assert read.source_item_count == 2
+    assert read.executed_call_count == 2
+    assert read.fan_out_complete is True
 
 
 def test_a_required_collection_that_produces_too_few_items_fails() -> None:
@@ -219,6 +222,9 @@ def test_the_fan_out_bound_is_stated_in_the_material() -> None:
     assert read.status is StepStatus.SUCCESS
     assert f"read {MAX_FAN_OUT} of {MAX_FAN_OUT + 5} items" in str(read.result)
     assert "=== truncated ===" in str(read.result)
+    assert read.source_item_count == MAX_FAN_OUT + 5
+    assert read.executed_call_count == MAX_FAN_OUT
+    assert read.fan_out_complete is False
 
 
 def test_a_step_without_a_dependency_is_unchanged() -> None:
