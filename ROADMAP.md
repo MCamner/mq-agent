@@ -458,6 +458,41 @@ Phase 0 and Phase 1 together, on `Swarm.run` alone. One instrumented path with
 a settled contract is worth more than seven paths writing a shape that has to
 change.
 
+## Completed — verifier excerpt integrity
+
+A real docs-audit exposed a false verification failure: execution completed
+all discovered fan-out work, but `Verifier.verify()` received only a bounded
+result excerpt and interpreted the excerpt boundary as runtime truncation.
+
+The fix separates verifier-input completeness from execution completeness.
+
+* [x] Record executor-owned fan-out metadata on each plan step:
+  `source_item_count`, `executed_call_count`, and `fan_out_complete`.
+* [x] Keep verifier material bounded while exposing excerpt state separately
+  through `result_excerpt_truncated` and `result_length`.
+* [x] Send executor-owned fan-out truth separately as
+  `fan_out {source_item_count, executed_call_count, complete}`.
+* [x] Prevent the verifier from inferring runtime truncation from a bounded
+  verifier excerpt.
+* [x] Preserve real fan-out truncation semantics — an actual cap still reports
+  how many of the discovered items ran.
+* [x] Preserve existing tool exception, empty-output, collection-integrity,
+  and safety failures.
+* [x] Add regression coverage for a complete fan-out whose combined result
+  exceeds the verifier excerpt limit.
+* [x] Add coverage proving an actual fan-out cap remains explicitly incomplete.
+* [x] Keep existing production observations unchanged. No new quality era: the
+  fix corrects verifier interpretation, not observation semantics.
+
+Implementation:
+`92688b1 fix: separate verifier excerpts from execution completeness (#250)`
+
+Status:
+completed and merged to `main` in PR #250.
+
+Merge commit:
+`92688b1c0a461318693c684b1002f1e475b37348`
+
 ## Completed — v1.26.0 Stack Compatibility Gate
 
 Released 2026-08-14. `mq-agent stack compatibility` assesses dependency and
