@@ -131,6 +131,19 @@ ERAS: tuple[Era, ...] = (
             "declared."
         ),
     ),
+    Era(
+        name="collection-integrity",
+        starts_at=datetime(2026, 9, 4, 8, 25, 46, tzinfo=UTC),
+        commit="1dcb973",
+        why=(
+            "A declared collection now carries its discovery tool, arguments, "
+            "and minimum cardinality. The planner cannot substitute another "
+            "discovery strategy, and execution fails explicitly when the "
+            "produced collection is smaller than the declared minimum. The one "
+            "declared-targets observation remains valid evidence of the runtime "
+            "that silently audited an empty source collection."
+        ),
+    ),
 )
 
 

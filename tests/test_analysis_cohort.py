@@ -28,6 +28,7 @@ ERA_C2 = "plan-validation"
 ERA_C3 = "plan-composition"
 ERA_C4 = "secret-safe-discovery"
 ERA_C5 = "declared-targets"
+ERA_C6 = "collection-integrity"
 
 
 def _observation(recorded_at: str, **changes) -> dict:
@@ -50,7 +51,11 @@ HISTORICAL = [
     _observation("2026-09-01T00:39:28.048877Z", selected_route="deterministic-local"),
     _observation("2026-09-01T00:40:03.214758Z", selected_route="deterministic-local"),
 ]
-CURRENT = _observation("2026-09-03T08:00:00Z")
+CURRENT = _observation("2026-09-04T08:25:46Z")
+
+#: The one real quality observation from the declared-targets era. It exposed
+#: #247 and remains historical evidence; a boundary excludes it, never edits it.
+DECLARED_TARGETS_RUN = _observation("2026-09-03T18:32:20Z")
 
 
 def test_the_five_historical_observations_are_not_comparable() -> None:
@@ -71,9 +76,9 @@ def test_exclusions_are_counted_rather_than_dropped() -> None:
 
 
 def test_only_applied_observations_enter_a_quality_cohort() -> None:
-    advisory = _observation("2026-09-03T08:00:00Z", application="advisory")
-    shadow = _observation("2026-09-03T08:00:00Z", application="shadow")
-    absent = _observation("2026-09-03T08:00:00Z")
+    advisory = _observation(CURRENT["recorded_at"], application="advisory")
+    shadow = _observation(CURRENT["recorded_at"], application="shadow")
+    absent = _observation(CURRENT["recorded_at"])
     del absent["application"]
 
     cohort = select_cohort([CURRENT, advisory, shadow, absent])
@@ -83,7 +88,7 @@ def test_only_applied_observations_enter_a_quality_cohort() -> None:
 
 
 def test_a_task_class_filter_reports_what_it_removed() -> None:
-    other = _observation("2026-09-03T08:00:00Z", task_class="diff-summary")
+    other = _observation(CURRENT["recorded_at"], task_class="diff-summary")
 
     cohort = select_cohort([CURRENT, other], task_class="docs-review")
 
@@ -106,14 +111,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C5)
+    era = era_named(ERA_C6)
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C5)
+    era = era_named(ERA_C6)
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
@@ -131,7 +136,7 @@ def test_eras_are_ordered_and_each_names_the_merge_that_opened_it() -> None:
 
 def test_the_current_era_is_the_last_one() -> None:
     assert current_era() is ERAS[-1]
-    assert current_era().name == ERA_C5
+    assert current_era().name == ERA_C6
 
 
 def test_an_earlier_era_can_still_be_selected_deliberately() -> None:
@@ -272,6 +277,21 @@ def test_each_boundary_names_the_merge_that_opened_it() -> None:
     assert era_named(ERA_C4).starts_at == datetime(2026, 9, 2, 22, 30, 36, tzinfo=UTC)
     assert era_named(ERA_C5).commit == "a232fbb"
     assert era_named(ERA_C5).starts_at == datetime(2026, 9, 2, 23, 50, 3, tzinfo=UTC)
+    assert era_named(ERA_C6).commit == "1dcb973"
+    assert era_named(ERA_C6).starts_at == datetime(2026, 9, 4, 8, 25, 46, tzinfo=UTC)
+
+
+def test_declared_targets_keeps_its_one_historical_observation() -> None:
+    cohort = select_cohort([DECLARED_TARGETS_RUN], era=era_named(ERA_C5))
+
+    assert cohort.included == [DECLARED_TARGETS_RUN]
+
+
+def test_collection_integrity_starts_with_no_quality_observations() -> None:
+    cohort = select_cohort([DECLARED_TARGETS_RUN])
+
+    assert cohort.included == []
+    assert cohort.excluded_earlier_era == 1
 
 
 def test_no_observation_predates_a_working_docs_review() -> None:
