@@ -241,6 +241,39 @@ def _extract_mcp_text_result(result: Any) -> str | None:
     return None
 
 
+def _require_recordable_runtime() -> None:
+    """Refuse a run whose code cannot be identified, before it starts.
+
+    Observations are placed in eras by commit, so one produced by a dirty
+    working tree or an unintegrated commit belongs to no era and cannot be
+    compared with anything. The store cannot tell it apart afterwards, and
+    history is never deleted or backfilled, so the only place to stop it is
+    here — before the record opens, for the same reason a missing API key stops
+    the run before it opens one.
+
+    Only when the run would actually write the operator's stores. Redirect them
+    and there is nothing to protect, which is exactly what the test suite does.
+    """
+    from mq_agent.core.runtime_guard import check, production_stores_at_risk
+
+    at_risk = production_stores_at_risk()
+    if not at_risk:
+        return
+    verdict = check()
+    if verdict.allowed:
+        return
+
+    console.print(
+        f"[bold red]Refusing to run:[/bold red] this runtime cannot be identified "
+        f"([bold]{verdict.reason}[/bold]).\n"
+        f"{verdict.detail}\n"
+        f"It would write production evidence to: {', '.join(at_risk)}.\n"
+        "Commit and integrate the working tree, or point those variables at a "
+        "scratch file for this run."
+    )
+    raise typer.Exit(code=1)
+
+
 def _client():
     from openai import OpenAI
 
@@ -262,6 +295,7 @@ def audit(
     """Audit a repository (read-only)."""
     from mq_agent.agents.audit_agent import AuditAgent
 
+    _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
     # the record opens. Called inside it, a missing key wrote a run that failed
     # in 0 ms — indistinguishable from a real execution failure.
@@ -342,6 +376,7 @@ def release_check(
     """Validate the repo is ready for a release."""
     from mq_agent.agents.release_agent import ReleaseAgent
 
+    _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
     # the record opens. Called inside it, a missing key wrote a run that failed
     # in 0 ms — indistinguishable from a real execution failure.
@@ -450,6 +485,7 @@ def fix_ci(
     """Diagnose CI failures and suggest fixes."""
     from mq_agent.agents.ci_agent import CIAgent
 
+    _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
     # the record opens. Called inside it, a missing key wrote a run that failed
     # in 0 ms — indistinguishable from a real execution failure.
@@ -1558,6 +1594,7 @@ def signal(
         )
         raise typer.Exit(code=1)
 
+    _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
     # the record opens. Called inside it, a missing key wrote a run that failed
     # in 0 ms — indistinguishable from a real execution failure.
@@ -1683,6 +1720,7 @@ def docs_audit(
     # automatic selection the system makes for itself.
     from mq_agent.agents.docs_agent import DocsAgent
 
+    _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
     # the record opens. Called inside it, a missing key wrote a run that failed
     # in 0 ms — indistinguishable from a real execution failure.
@@ -3908,6 +3946,7 @@ def task_run(
         console.print(f"[bold red]Failed to load task:[/bold red] {exc}")
         raise typer.Exit(1)
 
+    _require_recordable_runtime()
     with _execution_outcome("task", runtime="task-runner", dry_run=dry_run) as record:
         results = run_task(task, dry_run=dry_run)
         # Unlike an audit finding, a failed step means the runtime could not
@@ -4154,6 +4193,7 @@ def swarm_run(
         console.print(f"[bold red]{exc}[/bold red]")
         raise typer.Exit(1)
 
+    _require_recordable_runtime()
     client = None if dry_run else _client()
     with console.status(f"[bold cyan]Running swarm '{config}'...[/bold cyan]"):
         result = SwarmRunner(client).run(cfg, path=path, dry_run=dry_run, approve=approve)
@@ -4181,6 +4221,7 @@ def swarm_audit(
     from mq_agent.agents.swarm_registry import SWARM_AUDIT
     from mq_agent.core.swarm import SwarmRunner
 
+    _require_recordable_runtime()
     client = None if dry_run else _client()
     with console.status("[bold cyan]Running audit swarm...[/bold cyan]"):
         result = SwarmRunner(client).run(SWARM_AUDIT, path=path, dry_run=dry_run)
@@ -4209,6 +4250,7 @@ def swarm_release_check(
     from mq_agent.agents.swarm_registry import SWARM_RELEASE_CHECK
     from mq_agent.core.swarm import SwarmRunner
 
+    _require_recordable_runtime()
     client = None if dry_run else _client()
     with console.status("[bold cyan]Running release-check swarm...[/bold cyan]"):
         result = SwarmRunner(client).run(
