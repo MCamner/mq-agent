@@ -114,7 +114,7 @@ def test_plan_step_fields_are_stable():
     """Lock PlanStep field set — Executor loop step model."""
     field_names = {f.name for f in fields(PlanStep)}
     assert field_names == {
-        "index", "description", "tool", "args", "for_each",
+        "index", "description", "tool", "args", "for_each", "min_items",
         "status", "result", "error", "verified", "verification_note",
     }
 

@@ -41,6 +41,10 @@ class PlanStep:
     #: placeholder that merely resembles a dependency — `<source_file_path>` in
     #: an argument — is not one, and nothing here interprets those.
     for_each: dict | None = None
+    #: Minimum number of items a declared collection must produce. ``None``
+    #: means this is not a collection producer; zero explicitly permits an
+    #: empty collection.
+    min_items: int | None = None
     status: StepStatus = StepStatus.PENDING
     result: Any | None = None
     error: str | None = None

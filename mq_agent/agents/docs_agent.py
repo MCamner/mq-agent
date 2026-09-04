@@ -44,7 +44,14 @@ class DocsAgent:
         collections = []
         if (root / "docs").is_dir():
             collections.append(
-                {"what": "the documentation folder", "path": str(root / "docs"), "pattern": "*"}
+                {
+                    "what": "the documentation folder",
+                    "discovery": {
+                        "tool": "find_files",
+                        "args": {"path": str(root / "docs"), "pattern": "*"},
+                    },
+                    "min_items": 1,
+                }
             )
         # Offered only when the tool that will discover it finds something. A
         # declared target class with no members sends the plan looking for files
@@ -54,8 +61,11 @@ class DocsAgent:
             collections.append(
                 {
                     "what": "source files, for inline docstrings",
-                    "path": str(root),
-                    "pattern": "*.py",
+                    "discovery": {
+                        "tool": "find_files",
+                        "args": {"path": str(root), "pattern": "*.py"},
+                    },
+                    "min_items": 1,
                 }
             )
         return {"present": present, "missing": missing, "collections": collections}
@@ -74,8 +84,9 @@ class DocsAgent:
                 "each path in `present` directly by name, with no discovery "
                 "step; each name in `missing` is a documentation gap to report "
                 "and there is nothing to read; each entry in `collections` is a "
-                "set whose members are not known in advance — discover it, then "
-                "read the members with for_each."
+                "set whose members are not known in advance — use its declared "
+                "discovery.tool and discovery.args exactly, then read the members "
+                "with for_each."
             ),
             safety_mode=SafetyMode.READ_ONLY,
             working_dir=path,
@@ -102,6 +113,9 @@ class DocsAgent:
         steps = [
             {
                 "description": s.description,
+                "tool": s.tool,
+                "args": s.args,
+                "for_each": s.for_each,
                 "status": s.status.value,
                 "result": s.result,
             }
