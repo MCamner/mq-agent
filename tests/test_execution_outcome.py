@@ -414,6 +414,66 @@ def test_an_entrypoint_that_never_starts_records_nothing(store, monkeypatch) -> 
     assert _records(store) == []
 
 
+# The same principle, one config check later. `_client()` aborts when
+# OPENAI_API_KEY is unset, and it used to be called *inside* the record, so a
+# missing key was written to the operator's store as a `docs` run that started,
+# failed, and took no time:
+#
+#     {"task_class": "docs", "result": "FAIL", "exit_status": "error",
+#      "latency_ms": 0}
+#
+# Three such records were produced on 2026-09-04 and are indistinguishable from
+# a real execution failure except by the zero latency. Credentials are what a
+# run needs to start, so resolving them belongs before the record opens.
+@pytest.fixture()
+def store_without_credentials(tmp_path, monkeypatch) -> Path:
+    destination = tmp_path / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(destination))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    return destination
+
+
+@pytest.mark.parametrize(
+    ("argv", "never_called"),
+    [
+        (["docs-audit", ".", "--json"], "mq_agent.agents.docs_agent.DocsAgent.audit"),
+        (["audit", ".", "--json"], "mq_agent.agents.audit_agent.AuditAgent.run"),
+        (
+            ["release-check", ".", "--json"],
+            "mq_agent.agents.release_agent.ReleaseAgent.run_check",
+        ),
+        (["fix-ci", ".", "--json"], "mq_agent.agents.ci_agent.CIAgent.diagnose"),
+    ],
+)
+def test_a_missing_api_key_records_no_execution(
+    store_without_credentials, monkeypatch, argv, never_called
+) -> None:
+    def _must_not_run(*args, **kwargs):
+        raise AssertionError("the agent ran without credentials")
+
+    monkeypatch.setattr(never_called, _must_not_run)
+
+    result = cli.invoke(app, argv)
+
+    assert result.exit_code == 1
+    assert _records(store_without_credentials) == []
+
+
+def test_a_missing_api_key_records_no_signal_execution(
+    store_without_credentials, monkeypatch
+) -> None:
+    monkeypatch.setattr("mq_agent.tools.signal_tools.signal_available", lambda: True)
+    monkeypatch.setattr(
+        "mq_agent.agents.signal_agent.SignalAgent.run",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran without credentials")),
+    )
+
+    result = cli.invoke(app, ["signal", "."])
+
+    assert result.exit_code == 1
+    assert _records(store_without_credentials) == []
+
+
 @pytest.mark.parametrize(
     ("argv", "task_class"),
     [

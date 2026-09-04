@@ -262,9 +262,12 @@ def audit(
     """Audit a repository (read-only)."""
     from mq_agent.agents.audit_agent import AuditAgent
 
+    # Credentials are what the run needs to start, so they are resolved before
+    # the record opens. Called inside it, a missing key wrote a run that failed
+    # in 0 ms — indistinguishable from a real execution failure.
+    agent = AuditAgent(_client())
     with console.status("[bold cyan]Auditing...[/bold cyan]"):
         with _execution_outcome("audit") as record:
-            agent = AuditAgent(_client())
             record["model"] = agent.planner.model
             result = agent.run(path, dry_run=dry_run)
 
@@ -339,9 +342,12 @@ def release_check(
     """Validate the repo is ready for a release."""
     from mq_agent.agents.release_agent import ReleaseAgent
 
+    # Credentials are what the run needs to start, so they are resolved before
+    # the record opens. Called inside it, a missing key wrote a run that failed
+    # in 0 ms — indistinguishable from a real execution failure.
+    agent = ReleaseAgent(_client())
     with console.status("[bold cyan]Running release checks...[/bold cyan]"):
         with _execution_outcome("release") as record:
-            agent = ReleaseAgent(_client())
             record["model"] = agent.planner.model
             result = agent.run_check(path, dry_run=dry_run, approve=approve)
 
@@ -444,9 +450,12 @@ def fix_ci(
     """Diagnose CI failures and suggest fixes."""
     from mq_agent.agents.ci_agent import CIAgent
 
+    # Credentials are what the run needs to start, so they are resolved before
+    # the record opens. Called inside it, a missing key wrote a run that failed
+    # in 0 ms — indistinguishable from a real execution failure.
+    agent = CIAgent(_client())
     with console.status("[bold cyan]Diagnosing CI...[/bold cyan]"):
         with _execution_outcome("ci") as record:
-            agent = CIAgent(_client())
             record["model"] = agent.planner.model
             result = agent.diagnose(path, dry_run=dry_run, approve=approve)
 
@@ -1549,9 +1558,12 @@ def signal(
         )
         raise typer.Exit(code=1)
 
+    # Credentials are what the run needs to start, so they are resolved before
+    # the record opens. Called inside it, a missing key wrote a run that failed
+    # in 0 ms — indistinguishable from a real execution failure.
+    agent = SignalAgent(_client())
     with console.status("[bold cyan]Running repo-signal assessment...[/bold cyan]"):
         with _execution_outcome("signal") as record:
-            agent = SignalAgent(_client())
             record["model"] = agent.planner.model
             result = agent.run(path, dry_run=dry_run)
 
@@ -1671,9 +1683,12 @@ def docs_audit(
     # automatic selection the system makes for itself.
     from mq_agent.agents.docs_agent import DocsAgent
 
+    # Credentials are what the run needs to start, so they are resolved before
+    # the record opens. Called inside it, a missing key wrote a run that failed
+    # in 0 ms — indistinguishable from a real execution failure.
+    agent = DocsAgent(_client())
     with console.status("[bold cyan]Auditing docs...[/bold cyan]"):
         with _execution_outcome("docs") as record:
-            agent = DocsAgent(_client())
             record["model"] = agent.planner.model
             result = agent.audit(path, execution_run_id=record["run_id"], route=route)
 
