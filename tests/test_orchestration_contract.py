@@ -115,6 +115,7 @@ def test_plan_step_fields_are_stable():
     field_names = {f.name for f in fields(PlanStep)}
     assert field_names == {
         "index", "description", "tool", "args", "for_each", "min_items",
+        "source_item_count", "executed_call_count", "fan_out_complete",
         "status", "result", "error", "verified", "verification_note",
     }
 
@@ -149,6 +150,7 @@ def test_agent_state_to_dict_shape_is_stable():
     step_d = d["steps"][0]
     assert set(step_d.keys()) == {
         "index", "description", "tool", "status",
+        "source_item_count", "executed_call_count", "fan_out_complete",
         "result", "error", "verified", "verification_note",
     }
 

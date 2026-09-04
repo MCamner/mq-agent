@@ -9,7 +9,7 @@ successfully based on its description and output.
 - "Error:", "error:", "FAILED", "failed", "not found" in unexpected contexts
 - Empty output when content was clearly expected (e.g. listing files in a non-empty repo)
 - Exit code indicators like `[exit 1]`
-- Partial output that was cut off mid-result
+- Executor metadata with `fan_out.complete: false`
 
 ## Success indicators
 
@@ -31,3 +31,9 @@ Return a single JSON object:
 
 Be strict but fair. A warning is not a failure. An informational message is not a failure.
 Empty output is only a failure if the step expected to return data.
+
+`result_excerpt` is deliberately bounded input to this verifier.
+`result_excerpt_truncated: true` means only that the verifier received an
+excerpt; it is never evidence of runtime truncation. Runtime fan-out
+completeness comes exclusively from executor-owned `fan_out.complete`,
+`fan_out.source_item_count`, and `fan_out.executed_call_count`.

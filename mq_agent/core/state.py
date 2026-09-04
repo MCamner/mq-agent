@@ -45,6 +45,10 @@ class PlanStep:
     #: means this is not a collection producer; zero explicitly permits an
     #: empty collection.
     min_items: int | None = None
+    #: Executor-owned fan-out facts. They remain ``None`` for an ordinary step.
+    source_item_count: int | None = None
+    executed_call_count: int | None = None
+    fan_out_complete: bool | None = None
     status: StepStatus = StepStatus.PENDING
     result: Any | None = None
     error: str | None = None
@@ -95,6 +99,9 @@ class AgentState:
                     "index": s.index,
                     "description": s.description,
                     "tool": s.tool,
+                    "source_item_count": s.source_item_count,
+                    "executed_call_count": s.executed_call_count,
+                    "fan_out_complete": s.fan_out_complete,
                     "status": s.status.value,
                     "result": s.result,
                     "error": s.error,
