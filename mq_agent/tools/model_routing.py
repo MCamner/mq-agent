@@ -42,6 +42,23 @@ CLOUD_RULES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("architecture", "high", ("architecture", "cross-repo", "cross repository")),
 )
 
+#: How long the local route may spend on one generation, in seconds.
+#:
+#: A budget, not a health check. Measured 2026-09-04 from Ollama's server log:
+#: five real docs-review calls sent an identical prompt — 5299 prompt tokens,
+#: `num_ctx` 12288, `qwen3:4b-instruct` on CPU at ~23-25 tok/s. Three finished
+#: in 41s, 48s and 108s. Two were cut off by the client at exactly 3m0s while
+#: still generating, at `n_gen` 3786 and 3397, and were recorded as
+#: `model-unavailable` — a runtime that was loaded, reachable and working the
+#: whole time.
+#:
+#: The spread is the point. `evidence` is deliberately unbounded (see
+#: `_candidate_schema`), so generation length varies between draws of the same
+#: prompt, and 180s at the measured rate buys roughly 4200 tokens. A budget that
+#: covers the median draw turns the long ones into escalation statistics about a
+#: model that never failed.
+LOCAL_ROUTE_TIMEOUT_SECONDS = 600
+
 _CANDIDATE_KEYS = {"task_class", "summary", "evidence", "suggestions"}
 def _candidate_schema(task_class: str) -> dict[str, Any]:
     """The decoding grammar for one task class.
@@ -360,7 +377,7 @@ def shadow_route(
     task: str,
     *,
     authoritative_agent: str = "codex",
-    timeout: int = 180,
+    timeout: int = LOCAL_ROUTE_TIMEOUT_SECONDS,
     context: str | None = None,
 ) -> dict[str, Any]:
     """Run an advisory local candidate and return a verified comparison record."""

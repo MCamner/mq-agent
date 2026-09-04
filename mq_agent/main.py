@@ -26,6 +26,7 @@ from mq_agent.cli.render import (
 )
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
 from mq_agent.tools.applied_routing import DEFAULT_ROUTE
+from mq_agent.tools.model_routing import LOCAL_ROUTE_TIMEOUT_SECONDS
 from mq_agent.workflows.cli import workflow_app
 
 load_dotenv(Path.home() / "mq-agent" / ".env", override=False)
@@ -3208,7 +3209,9 @@ def route_shadow_cmd(
     authoritative_agent: Annotated[
         str, typer.Option("--agent", help="Authoritative coding agent: codex or claude")
     ] = "codex",
-    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Ollama timeout in seconds")] = 180,
+    timeout: Annotated[
+        int, typer.Option("--timeout", min=1, help="Ollama timeout in seconds")
+    ] = LOCAL_ROUTE_TIMEOUT_SECONDS,
     context_file: Annotated[
         Path | None,
         typer.Option(
