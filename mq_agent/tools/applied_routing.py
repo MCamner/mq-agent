@@ -30,7 +30,12 @@ import os
 from typing import Any
 
 from mq_agent.core.state import SafetyMode
-from mq_agent.tools.model_routing import _outcome, inspect_route, shadow_route
+from mq_agent.tools.model_routing import (
+    LOCAL_ROUTE_TIMEOUT_SECONDS,
+    _outcome,
+    inspect_route,
+    shadow_route,
+)
 
 # Operator-controlled. A (routing task class, route) pair may be applied only by
 # appearing here, and only a person adds one. The pair, not the task class alone:
@@ -91,7 +96,7 @@ def apply_route(
     route: str = DEFAULT_ROUTE,
     context: str | None = None,
     authoritative_agent: str = "codex",
-    timeout: int = 180,
+    timeout: int = LOCAL_ROUTE_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     """Run one routing decision through the named route when permitted.
 

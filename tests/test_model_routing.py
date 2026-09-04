@@ -232,9 +232,51 @@ def test_evidence_item_limit_cannot_truncate_below_the_grounding_floor() -> None
 
 
 def test_shadow_timeout_default_covers_measured_generation_time() -> None:
+    # 180s was not enough. Measured 2026-09-04 from Ollama's own server log: five
+    # real docs-review calls sent an identical prompt (5299 prompt tokens, num_ctx
+    # 12288, qwen3:4b-instruct on CPU at ~23-25 tok/s). Three finished in 41s, 48s
+    # and 108s; two were still generating at n_gen 3786 and 3397 when the client
+    # cut them at exactly 3m0s. Same input, different draws — the budget has to
+    # cover the long ones, or two observations in five are lost to the clock.
     import inspect
 
-    assert inspect.signature(model_routing.shadow_route).parameters["timeout"].default == 180
+    default = inspect.signature(model_routing.shadow_route).parameters["timeout"].default
+
+    assert default == model_routing.LOCAL_ROUTE_TIMEOUT_SECONDS
+    # ~4200 tokens is what 180s buys at the measured rate. The runaway draws were
+    # past 3700 and unfinished, so the budget must leave room beyond that.
+    assert model_routing.LOCAL_ROUTE_TIMEOUT_SECONDS > 180
+
+
+def test_every_entry_point_spends_the_same_local_route_budget() -> None:
+    # Three callers can reach the same Ollama request, and a timeout that differs
+    # between them means an escalation says more about which door the call came
+    # through than about the model.
+    import inspect
+
+    from mq_agent.tools import applied_routing
+
+    assert (
+        inspect.signature(applied_routing.apply_route).parameters["timeout"].default
+        == model_routing.LOCAL_ROUTE_TIMEOUT_SECONDS
+    )
+
+
+def test_shadow_spends_its_whole_budget_on_the_backend_call(monkeypatch) -> None:
+    # The budget is only real if it reaches urlopen. A default raised here and
+    # dropped on the way down would look fixed and time out exactly as before.
+    seen: dict[str, object] = {}
+
+    def _generate(model, prompt, timeout, **kwargs):
+        seen["timeout"] = timeout
+        return _candidate(QUOTED_FROM_CONTEXT)
+
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(model_routing, "_ollama_generate", _generate)
+
+    model_routing.shadow_route("Summarize this diff", context=CONTEXT)
+
+    assert seen["timeout"] == model_routing.LOCAL_ROUTE_TIMEOUT_SECONDS
 
 
 def test_shadow_verifies_evidence_is_quoted_from_the_supplied_material(monkeypatch) -> None:

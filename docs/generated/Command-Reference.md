@@ -1572,7 +1572,7 @@ Run and verify an advisory Ollama candidate without accepting it.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--agent` | No | `codex` | Authoritative coding agent: codex or claude |
-| `--timeout` | No | `180` | Ollama timeout in seconds |
+| `--timeout` | No | `600` | Ollama timeout in seconds |
 | `--context-file` | No | — | Material the candidate must quote verbatim; enables grounding verification |
 | `--json` | No | `false` | — |
 
