@@ -493,6 +493,15 @@ completed and merged to `main` in PR #250.
 Merge commit:
 `92688b1c0a461318693c684b1002f1e475b37348`
 
+Operational verification:
+two real Atlas-core docs-audit runs passed on 2026-09-04 after the merge
+(execution runs `d3fd8aa6` and `49df4789`). The Python docstring step read
+19 of 19 discovered files and produced a 32 KB combined result — eight times
+the 4000-character verifier excerpt — without being reported as runtime
+truncation. The correlated route observation is `applied` but escalated with
+`model-unavailable`, so these runs are execution evidence, not route quality
+evidence.
+
 ## Completed — v1.26.0 Stack Compatibility Gate
 
 Released 2026-08-14. `mq-agent stack compatibility` assesses dependency and
