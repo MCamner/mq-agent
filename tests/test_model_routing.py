@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -76,6 +77,88 @@ def test_shadow_missing_ollama_returns_structured_unavailable(monkeypatch) -> No
     assert outcome["escalated"] is True
     assert outcome["escalation_reason"] == "model-unavailable"
     Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_a_deadline_exceeded_mid_generation_is_not_model_unavailability(monkeypatch) -> None:
+    # Measured 2026-09-04: two docs-review calls were cut off by the client at
+    # exactly its 180s deadline while Ollama was still generating (n_gen 3786 and
+    # 3397, no stop line), and both were stored as `model-unavailable`. The
+    # backend was reached, took the request and produced thousands of tokens.
+    # urlopen raises TimeoutError once the request is in flight, so that is the
+    # signal the run started and then ran out of time.
+    def _deadline(*args, **kwargs):
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(model_routing, "_ollama_generate", _deadline)
+
+    outcome = model_routing.shadow_route("Review README documentation")["outcome"]
+
+    assert outcome["escalation_reason"] == "generation-timeout"
+    # The model was called. That is what separates this from a runtime that was
+    # never there, and it is why the observation is applied evidence.
+    assert outcome["attempted"] is True
+    assert outcome["model_output_received"] is False
+    # Unchanged on purpose: there was no candidate, so verification could not run.
+    assert outcome["verification"] == {"status": "UNAVAILABLE", "checks": []}
+    Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_an_unreachable_backend_is_still_model_unavailable(monkeypatch) -> None:
+    # The other side of the rule. A refused connection never became a generation,
+    # so this one really is the runtime being absent — and it is what
+    # `ollama-unavailable-path-proven` is entitled to count.
+    def _refused(*args, **kwargs):
+        raise urllib.error.URLError(ConnectionRefusedError(61, "Connection refused"))
+
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(model_routing, "_ollama_generate", _refused)
+
+    outcome = model_routing.shadow_route("Review README documentation")["outcome"]
+
+    assert outcome["escalation_reason"] == "model-unavailable"
+    Draft202012Validator(_schema("model_route_outcome.schema.json")).validate(outcome)
+
+
+def test_a_connect_timeout_is_unavailability_not_a_generation_timeout(monkeypatch) -> None:
+    # urllib wraps a timeout that fires before the backend answers in URLError.
+    # Nothing was generated, so the finer reason must not be claimed here — the
+    # rule is where the run stopped, not which exception carries the word.
+    def _never_answered(*args, **kwargs):
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    monkeypatch.setattr(model_routing.shutil, "which", lambda _: "/usr/bin/ollama")
+    monkeypatch.setattr(model_routing, "_ollama_generate", _never_answered)
+
+    outcome = model_routing.shadow_route("Review README documentation")["outcome"]
+
+    assert outcome["escalation_reason"] == "model-unavailable"
+
+
+def test_the_unavailable_path_gate_does_not_count_a_timeout(monkeypatch, tmp_path) -> None:
+    # `ollama-unavailable-path-proven` exists to show this system can detect a
+    # runtime that is not there. A timeout satisfying it would let a store of
+    # slow-but-working runs prove a failure path that was never exercised.
+    def _record(reason: str) -> dict:
+        outcome = model_routing._outcome(
+            model_routing.inspect_route("Review README documentation"),
+            attempted=True,
+            verification_status="UNAVAILABLE",
+            escalated=True,
+            escalation_reason=reason,
+        )
+        return outcome
+
+    store = tmp_path / "route-outcomes.jsonl"
+    store.write_text(json.dumps(_record("generation-timeout")) + "\n", encoding="utf-8")
+    review = model_routing.review_route_evidence("docs-review", source=store)
+
+    assert review["ollama_unavailable_path_proven"] is False
+
+    store.write_text(json.dumps(_record("model-unavailable")) + "\n", encoding="utf-8")
+    review = model_routing.review_route_evidence("docs-review", source=store)
+
+    assert review["ollama_unavailable_path_proven"] is True
 
 
 def test_shadow_validates_structured_candidate_without_accepting_it(monkeypatch) -> None:

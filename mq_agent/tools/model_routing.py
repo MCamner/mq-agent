@@ -433,7 +433,30 @@ def shadow_route(
             keep_alive=0,
             num_ctx=plan.num_ctx,
         )
-    except (TimeoutError, urllib.error.URLError, OSError, json.JSONDecodeError):
+    except TimeoutError:
+        # The request was in flight when the deadline expired: urlopen raises
+        # this once the backend has taken the request, so the run started and
+        # then ran out of time. Measured 2026-09-04, two docs-review calls were
+        # cut off at exactly 180s while Ollama was still generating (n_gen 3786
+        # and 3397) and both were stored as `model-unavailable` — a runtime that
+        # was reachable, willing and working throughout.
+        return {
+            "decision": decision,
+            "candidate": None,
+            "outcome": _outcome(
+                decision,
+                attempted=True,
+                verification_status="UNAVAILABLE",
+                escalated=True,
+                escalation_reason="generation-timeout",
+            ),
+        }
+    except (urllib.error.URLError, OSError, json.JSONDecodeError):
+        # Everything that never became a generation, including a timeout that
+        # fired before the backend answered — urllib wraps that one in URLError.
+        # The rule is where the run stopped, not which exception carries the
+        # word: this is the runtime being absent, and the only thing
+        # `ollama-unavailable-path-proven` is entitled to count.
         return {
             "decision": decision,
             "candidate": None,
