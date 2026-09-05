@@ -144,6 +144,25 @@ ERAS: tuple[Era, ...] = (
             "that silently audited an empty source collection."
         ),
     ),
+    Era(
+        name="evidence-integrity",
+        starts_at=datetime(2026, 9, 4, 21, 50, 5, tzinfo=UTC),
+        commit="6d9dd36",
+        why=(
+            "Four merges changed what an execution observation means, and the "
+            "boundary is the last of them. #250 stopped a verifier excerpt from "
+            "counting as execution completeness. #253 raised the local "
+            "generation budget from 180s to 600s. #254 stopped calling a "
+            "generation that ran out of time `model-unavailable`. #256 refused "
+            "to write production evidence from a runtime it cannot identify. "
+            "The four collection-integrity observations were all written before "
+            "the first of them, and two carry `model-unavailable` for what was "
+            "in fact the 180s deadline. Comparing them against a route that now "
+            "runs to 600s and reports `generation-timeout` would average two "
+            "runtimes. They are not edited and not backfilled — they stop being "
+            "evidence for the runtime that exists now."
+        ),
+    ),
 )
 
 
