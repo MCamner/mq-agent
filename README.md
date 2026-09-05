@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.26.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.27.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -285,6 +285,54 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.27.0 status
+
+- [x] chore(release): prepare v1.27.0 and renumber the roadmap (#259)
+- [x] feat(routing): open the evidence-integrity era (#258)
+- [x] docs(roadmap): record the execution evidence integrity work (#257)
+- [x] fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
+- [x] fix(cli): a run that never started is not a failed execution (#255)
+- [x] feat(routing): a model that ran out of time was not unavailable (#254)
+- [x] fix(routing): give the local route a budget its slow draws can finish inside (#253)
+- [x] docs(roadmap): record operational verification of the verifier excerpt fix (#252)
+- [x] docs(roadmap): record verifier excerpt integrity fix (#250) (#251)
+- [x] fix: separate verifier excerpts from execution completeness (#250)
+- [x] feat(routing): open the collection-integrity era (#249)
+- [x] fix: enforce declared collection integrity (#248)
+- [x] fix: back two claims the code did not actually make (#246)
+- [x] feat(routing): open the era in which a review reads what it declared (#245)
+- [x] fix(docs): tell the audit what it is auditing (#244)
+- [x] feat(routing): open the era in which a review cannot be handed a secret (#243)
+- [x] fix(tools): stop offering secret files to a reader (#241)
+- [x] feat(routing): open the era in which a docs-review reads what it planned to (#239)
+- [x] feat(executor): make a plan dependency something the runtime can execute (#238)
+- [x] feat(planner): tell the planner what the tools actually take (#236)
+- [x] feat(routing): record the plan-validation era at its real merge point (#234)
+- [x] fix(executor): reject a call the tool cannot accept, before making it (#233)
+- [x] feat(routing): report how two routes differ, at two levels and without a verdict (#231)
+- [x] feat(routing): make the quality population expressible without touching readiness (#230)
+- [x] feat(routing): give a routed decision only what it can finish reading (#227)
+- [x] fix(routing): give the model the material the verifier checks against (#226)
+- [x] chore(contracts): sync the vendored route outcome to canonical (#225)
+- [x] fix(routing): pin the task class in the grammar instead of asking for it (#224)
+- [x] feat(routing): add a second applied route that runs no model (ADR-010 D8) (#223)
+- [x] chore(contracts): sync the vendored route outcome to canonical (ADR-010 D8) (#222)
+- [x] fix(routing): bound evidence by what verifies, not by how much the model writes (#221)
+- [x] feat(routing): apply a route for real, and move readiness to the routing layer (#220)
+- [x] feat(contracts): vendor D6/D7 and stop the swarm claiming a route (#219)
+- [x] chore(contracts): vendor the routing contract's execution correlation (#218)
+- [x] feat(contracts): vendor canonical contracts and gate them against mqobsidian (#216) (#217)
+- [x] feat(telemetry): record the model an execution actually used (#213) (#215)
+- [x] feat: mq.execution-outcome.v1 — contract, one truthful emit point, and separate reporting (#206)
+- [x] fix(context): state CodeGraph intentions, never tool names (#212)
+- [x] feat(context): read the selection vocabulary from mqobsidian (#211)
+- [x] feat: record how much evidence was grounded, not just pass/fail (#210)
+- [x] feat: emit feedback-signal.v1 pack-usage records (#209)
+- [x] fix: emit plain-text source headers, not HTML comments (#208)
+- [x] feat: build local notebook packs from mqobsidian's profile (#207)
+- [x] fix: resolve repo-signal from uv tool runtime
+- [x] docs: sync roadmaps after v1.26.0 and open v1.27.0 (#204)
 
 ## v1.26.0 status
 
