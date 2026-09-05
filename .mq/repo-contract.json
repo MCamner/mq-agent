@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.26.0",
+  "version": "1.27.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -43,6 +43,6 @@
       "promotion-policy.v1"
     ]
   },
-  "next_focus": "v1.27.0 — MCP tool contract checking: tool names, safety classes and schema signatures across the stack",
+  "next_focus": "v1.28.0 — Runtime provenance: reconcile checkout, installed, running, release and commit identity so evidence can be attributed to a build",
   "release_mode": "pull_request"
 }

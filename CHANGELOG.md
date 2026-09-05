@@ -9,11 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.27.0] — 2026-09-06
+
 Theme: execution instrumentation and evidence integrity. Every significant run
 now leaves one outcome record, and the work that followed made those records —
 and the routing evidence beside them — say only what the runtime can actually
 prove.
 
+* ebe80c9 chore(release): prepare v1.27.0 and renumber the roadmap (#259)
 * c0bfd3c feat(routing): open the evidence-integrity era (#258)
 * 2269309 docs(roadmap): record the execution evidence integrity work (#257)
 * 6d9dd36 fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
