@@ -29,6 +29,7 @@ ERA_C3 = "plan-composition"
 ERA_C4 = "secret-safe-discovery"
 ERA_C5 = "declared-targets"
 ERA_C6 = "collection-integrity"
+ERA_C7 = "evidence-integrity"
 
 
 def _observation(recorded_at: str, **changes) -> dict:
@@ -51,7 +52,7 @@ HISTORICAL = [
     _observation("2026-09-01T00:39:28.048877Z", selected_route="deterministic-local"),
     _observation("2026-09-01T00:40:03.214758Z", selected_route="deterministic-local"),
 ]
-CURRENT = _observation("2026-09-04T08:25:46Z")
+CURRENT = _observation("2026-09-04T21:50:05Z")
 
 #: The one real quality observation from the declared-targets era. It exposed
 #: #247 and remains historical evidence; a boundary excludes it, never edits it.
@@ -111,14 +112,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C6)
+    era = era_named(ERA_C7)
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C6)
+    era = era_named(ERA_C7)
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
@@ -136,7 +137,7 @@ def test_eras_are_ordered_and_each_names_the_merge_that_opened_it() -> None:
 
 def test_the_current_era_is_the_last_one() -> None:
     assert current_era() is ERAS[-1]
-    assert current_era().name == ERA_C6
+    assert current_era().name == ERA_C7
 
 
 def test_an_earlier_era_can_still_be_selected_deliberately() -> None:
@@ -279,6 +280,8 @@ def test_each_boundary_names_the_merge_that_opened_it() -> None:
     assert era_named(ERA_C5).starts_at == datetime(2026, 9, 2, 23, 50, 3, tzinfo=UTC)
     assert era_named(ERA_C6).commit == "1dcb973"
     assert era_named(ERA_C6).starts_at == datetime(2026, 9, 4, 8, 25, 46, tzinfo=UTC)
+    assert era_named(ERA_C7).commit == "6d9dd36"
+    assert era_named(ERA_C7).starts_at == datetime(2026, 9, 4, 21, 50, 5, tzinfo=UTC)
 
 
 def test_declared_targets_keeps_its_one_historical_observation() -> None:
@@ -288,7 +291,7 @@ def test_declared_targets_keeps_its_one_historical_observation() -> None:
 
 
 def test_collection_integrity_starts_with_no_quality_observations() -> None:
-    cohort = select_cohort([DECLARED_TARGETS_RUN])
+    cohort = select_cohort([DECLARED_TARGETS_RUN], era=era_named(ERA_C6))
 
     assert cohort.included == []
     assert cohort.excluded_earlier_era == 1
@@ -302,3 +305,61 @@ def test_no_observation_predates_a_working_docs_review() -> None:
     one that does not.
     """
     assert select_cohort([*HISTORICAL, *FIRST_REAL_RUNS]).included == []
+
+
+#: The four real applied observations written during collection-integrity. Two
+#: escalated as `model-unavailable`, which #254 later established was the 180s
+#: deadline and not an absent model.
+COLLECTION_INTEGRITY_RUNS = [
+    _observation("2026-09-04T09:42:16.845162Z"),
+    _observation("2026-09-04T12:01:33.612633Z", escalation_reason="model-unavailable"),
+    _observation("2026-09-04T12:28:44.091504Z", escalation_reason="model-unavailable"),
+    _observation("2026-09-04T12:40:55.679911Z"),
+]
+
+
+def test_the_four_collection_integrity_runs_are_not_the_new_baseline() -> None:
+    """They were produced before every guarantee the current runtime makes.
+
+    All four predate #250, #253, #254 and #256. Two of them escalated as
+    `model-unavailable` at a 180s budget that no longer exists; the same
+    generation today runs to 600s and, if it does run out, says
+    `generation-timeout`. An escalation rate computed across that boundary
+    describes two runtimes and neither of them.
+    """
+    cohort = select_cohort(COLLECTION_INTEGRITY_RUNS)
+
+    assert cohort.included == []
+    assert cohort.excluded_earlier_era == 4
+
+
+def test_the_four_collection_integrity_runs_remain_selectable_as_history() -> None:
+    # A boundary excludes an observation from the current comparison. It never
+    # deletes it and never rewrites what it recorded.
+    cohort = select_cohort(COLLECTION_INTEGRITY_RUNS, era=era_named(ERA_C6))
+
+    assert cohort.included == COLLECTION_INTEGRITY_RUNS
+    assert [record.get("escalation_reason") for record in cohort.included] == [
+        None,
+        "model-unavailable",
+        "model-unavailable",
+        None,
+    ]
+
+
+def test_the_evidence_integrity_cohort_starts_empty() -> None:
+    """0 of 10, and that is the honest count.
+
+    Every applied observation in the store was written by a runtime that has
+    since changed in a way that makes its execution numbers incomparable.
+    """
+    everything = [
+        *HISTORICAL,
+        *FIRST_REAL_RUNS,
+        *PLAN_COMPOSITION_RUNS,
+        DECLARED_TARGETS_RUN,
+        *COLLECTION_INTEGRITY_RUNS,
+    ]
+
+    assert select_cohort(everything).included == []
+    assert select_cohort(everything).excluded_earlier_era == len(everything)
