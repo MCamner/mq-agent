@@ -36,3 +36,8 @@ logs/
 templates/AGENTS.md
 templates/CLAUDE.md
 .codegraph/
+
+# Local MCP client configuration. Machine-specific absolute paths, which
+# AGENTS.md forbids committing, and each operator's client differs.
+.mcp.json
+.cursor/mcp.json

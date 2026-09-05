@@ -1,8 +1,9 @@
 # mq-agent Roadmap
 
 Released: v1.26.0 — Stack Compatibility Gate.
-Next: v1.27.0 — MCP tool contract checking.
-Proposed: v1.28.0 — Execution instrumentation.
+Next: v1.27.0 — Execution instrumentation and evidence integrity.
+Proposed: v1.28.0 — Runtime provenance.
+Deferred: v1.29.0 — MCP tool contract checking.
 
 ## Current status
 
@@ -31,6 +32,7 @@ All release phases complete through v1.26.0.
 | v1.25.0 | Release Cockpit | Released v1.25.0 |
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
 | v1.26.0 | Stack Compatibility Gate | Released v1.26.0 |
+| v1.27.0 | Execution instrumentation and evidence integrity | Complete on `main`, release pending |
 
 ## Completed — v1.24.1 Post-release stabilization
 
@@ -171,25 +173,14 @@ hiding the lower-level release evidence.
 3. `ship proof` and `ship audit`.
 4. Command reference, release-cockpit guide, README, and Pages links.
 
-## Next release — v1.27.0 MCP tool contract checking
+## Next release — v1.27.0 Execution instrumentation and evidence integrity
 
-* **Status:** Open. The only compatibility work v1.26.0 deferred that
-  `mq-agent` owns: checking MCP tool names, safety classes and schema
-  signatures across the stack. Every check that shipped reads declared files;
-  this one has to read `mq-mcp`'s live tool registry, which is a different
-  class of work and a different ownership boundary. Nothing else is scoped yet.
-* **Priority:** P2
-* **Owner:** `mq-agent`
-* **Producer of the registry:** `mq-mcp`
-
-Still open in other repos, unchanged by this release: the `mq-hal` read-only
-compatibility surface and the `mqlaunch` delegation. Neither may reimplement
-the assessment.
-
-## Proposed — v1.28.0 Execution instrumentation
-
-* **Status:** Implemented on the v1.28 branch. Phases 0–4 and the readiness
-  gate are complete; rollout still requires review and merge.
+* **Status:** Complete on `main`; release pending. Phases 0–4 and the
+  readiness gate are delivered, along with the evidence-integrity work that
+  followed them. Numbered v1.27.0 because it ships before MCP tool contract
+  checking, which is deferred and not started — releasing this as v1.28.0
+  would leave a v1.27.0 that could only ever be published as an older version
+  than something already released.
 * **Priority:** P1 — foundation contract required by route evaluation, learned
   routing, skill evaluation, and execution learning. Implement before consumers
   create independent outcome representations.
@@ -458,6 +449,52 @@ Phase 0 and Phase 1 together, on `Swarm.run` alone. One instrumented path with
 a settled contract is worth more than seven paths writing a shape that has to
 change.
 
+## Proposed — v1.28.0 Runtime provenance
+
+* **Status:** Proposed. Scope not yet written down; the material below is the
+  question it exists to answer, not a plan.
+* **Priority:** P1 — the layer directly above execution evidence. An outcome
+  record says what a run did; it cannot yet say which build produced it.
+* **Owner:** `mq-agent`
+
+### Problem
+
+An execution outcome is attributed to a runtime, but nothing ties that runtime
+to an identity anyone can check afterwards:
+
+```text
+checkout version
+installed version
+running version
+release/version identity
+commit identity
+```
+
+These can all disagree — a checkout ahead of its last tag, a wheel installed
+from an older commit, a package version that names neither. Until they can be
+told apart, evidence gathered across a version boundary cannot be compared
+honestly, and a regression cannot be attributed to the build that caused it.
+
+Not scoped yet: which of these the runtime records, whether they belong in
+`mq.execution-outcome.v1` or a contract of their own, and what a disagreement
+between them should block.
+
+## Deferred — v1.29.0 MCP tool contract checking
+
+* **Status:** Deferred, not started. The only compatibility work v1.26.0
+  deferred that `mq-agent` owns: checking MCP tool names, safety classes and
+  schema signatures across the stack. Every check that shipped reads declared
+  files; this one has to read `mq-mcp`'s live tool registry, which is a
+  different class of work and a different ownership boundary. Nothing else is
+  scoped yet.
+* **Priority:** P2
+* **Owner:** `mq-agent`
+* **Producer of the registry:** `mq-mcp`
+
+Still open in other repos, unchanged by v1.26.0: the `mq-hal` read-only
+compatibility surface and the `mqlaunch` delegation. Neither may reimplement
+the assessment.
+
 ## Completed — verifier excerpt integrity
 
 A real docs-audit exposed a false verification failure: execution completed
@@ -540,7 +577,7 @@ contract drift across repository boundaries, read-only and deterministic, with
 
 * **Status:** Released — Phase 0 through Phase 6 delivered in `mq-agent`;
   the `mq-hal` and `mqlaunch` surfaces are owned by those repos, and MCP tool
-  signature checking is deferred to v1.27
+  signature checking is deferred to v1.29
 * **Priority:** P1
 * **Owner:** `mq-agent`
 * **Consumers:** `mq-hal`, `macos-scripts`, CI
@@ -693,7 +730,7 @@ The gate reads and enforces the block. Declaring it in `mq-mcp` and
   `MQC018_CONTRACT_VERSION_SKEW` — delivered with Phase 6, since it needed the
   contract matching that phase added.
 * [ ] Check MCP tool names, safety classes, and schema signatures. **Deferred
-  to v1.27.** Every other check reads declared files; this one has to read
+  to v1.29.** Every other check reads declared files; this one has to read
   mq-mcp's live tool registry, which is a different class of work and a
   different ownership boundary.
 * [x] Present relationships as evidence, not only a summary status.

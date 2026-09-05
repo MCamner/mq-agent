@@ -14,7 +14,9 @@ Current project phase:
 
 ```text
 Released: v1.26.0 — Stack Compatibility Gate
-Current:  v1.27.0 — MCP tool contract checking
+Current:  v1.27.0 — Execution instrumentation and evidence integrity
+Next:     v1.28.0 — Runtime provenance
+Deferred: v1.29.0 — MCP tool contract checking
 ```
 
 Completed foundation:
@@ -89,10 +91,28 @@ Completed foundation:
 | v1.25.0 | Release Cockpit                              | Released |
 | v1.25.1 | Release Cockpit post-release audit fix       | Released |
 | v1.26.0 | Stack Compatibility Gate                     | Released |
+| v1.27.0 | Execution instrumentation & evidence integrity | Release pending |
 
 ---
 
 ## Next release
+
+### v1.27.0 — Execution instrumentation and evidence integrity
+
+Goal: give every significant run an outcome record that can be trusted as
+evidence, and keep that evidence honest — one record per real execution,
+counters that are absent rather than zero when nothing measured them, and a
+runtime that writes no production evidence when it cannot say which build it
+is. Routing evidence and execution evidence stay in separate contracts and are
+never merged into one rate.
+
+Delivered on `main`; the release itself is pending. The phase plan, the
+contract rules and the reasoning behind each decision remain canonical in the
+root `ROADMAP.md`.
+
+---
+
+## Previous release
 
 ### v1.26.0 — Stack Compatibility Gate
 
@@ -126,7 +146,7 @@ the stack against the dependencies they actually share and against their
 versioned JSON contracts, and the MCP incident is preserved as a permanent
 regression fixture. Remaining work sits in other repos: the `mq-hal` read-only
 surface and the `mqlaunch` delegation. Checking MCP tool names, safety classes
-and schema signatures is deferred to v1.27 — it reads a live tool registry
+and schema signatures is deferred to v1.29 — it reads a live tool registry
 rather than declared files.
 
 `mq-agent` owns aggregation and assessment. Each repository owns dependency

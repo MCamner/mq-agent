@@ -9,6 +9,140 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Theme: execution instrumentation and evidence integrity. Every significant run
+now leaves one outcome record, and the work that followed made those records —
+and the routing evidence beside them — say only what the runtime can actually
+prove.
+
+* c0bfd3c feat(routing): open the evidence-integrity era (#258)
+* 2269309 docs(roadmap): record the execution evidence integrity work (#257)
+* 6d9dd36 fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
+* bc74d17 fix(cli): a run that never started is not a failed execution (#255)
+* fc8f821 feat(routing): a model that ran out of time was not unavailable (#254)
+* 8a43900 fix(routing): give the local route a budget its slow draws can finish inside (#253)
+* afb7af5 docs(roadmap): record operational verification of the verifier excerpt fix (#252)
+* 9567066 docs(roadmap): record verifier excerpt integrity fix (#250) (#251)
+* 92688b1 fix: separate verifier excerpts from execution completeness (#250)
+* c7c95e7 feat(routing): open the collection-integrity era (#249)
+* 1dcb973 fix: enforce declared collection integrity (#248)
+* 7f34a4b fix: back two claims the code did not actually make (#246)
+* 522687a feat(routing): open the era in which a review reads what it declared (#245)
+* a232fbb fix(docs): tell the audit what it is auditing (#244)
+* 3be9b0d feat(routing): open the era in which a review cannot be handed a secret (#243)
+* 49e6c67 fix(tools): stop offering secret files to a reader (#241)
+* dae09cf feat(routing): open the era in which a docs-review reads what it planned to (#239)
+* 6c67086 feat(executor): make a plan dependency something the runtime can execute (#238)
+* aa0c09f feat(planner): tell the planner what the tools actually take (#236)
+* c4d2f67 feat(routing): record the plan-validation era at its real merge point (#234)
+* 0a1721b fix(executor): reject a call the tool cannot accept, before making it (#233)
+* 28f12e4 feat(routing): report how two routes differ, at two levels and without a verdict (#231)
+* 16b1997 feat(routing): make the quality population expressible without touching readiness (#230)
+* 7fe49bf feat(routing): give a routed decision only what it can finish reading (#227)
+* d34e1dd fix(routing): give the model the material the verifier checks against (#226)
+* 25490f6 chore(contracts): sync the vendored route outcome to canonical (#225)
+* 8a55d4d fix(routing): pin the task class in the grammar instead of asking for it (#224)
+* 1e89ca6 feat(routing): add a second applied route that runs no model (ADR-010 D8) (#223)
+* a55c7f3 chore(contracts): sync the vendored route outcome to canonical (ADR-010 D8) (#222)
+* 6e9daf2 fix(routing): bound evidence by what verifies, not by how much the model writes (#221)
+* 52d7b5f feat(routing): apply a route for real, and move readiness to the routing layer (#220)
+* 97afe21 feat(contracts): vendor D6/D7 and stop the swarm claiming a route (#219)
+* 741615f chore(contracts): vendor the routing contract's execution correlation (#218)
+* f909c4a feat(contracts): vendor canonical contracts and gate them against mqobsidian (#216) (#217)
+* 8b2b4a3 feat(telemetry): record the model an execution actually used (#213) (#215)
+* bb9a8be feat: mq.execution-outcome.v1 — contract, one truthful emit point, and separate reporting (#206)
+* c1b0b4a fix(context): state CodeGraph intentions, never tool names (#212)
+* c6b8035 feat(context): read the selection vocabulary from mqobsidian (#211)
+* 18888da feat: record how much evidence was grounded, not just pass/fail (#210)
+* 7445075 feat: emit feedback-signal.v1 pack-usage records (#209)
+* 4b281ef fix: emit plain-text source headers, not HTML comments (#208)
+* b3870ff feat: build local notebook packs from mqobsidian's profile (#207)
+* d16a5c4 fix: resolve repo-signal from uv tool runtime
+* 589b629 docs: sync roadmaps after v1.26.0 and open v1.27.0 (#204)
+
+### Added
+
+* `mq.execution-outcome.v1` — one record per real execution, with routing as a
+  field on the record rather than its subject, so route evaluation, skill
+  evaluation and tool performance read one contract instead of growing
+  separate telemetry formats. `mq.model-route-outcome.v1` is untouched: the
+  separation between shadow experiment and production is by contract, so no
+  `kind` discriminator was needed and no historical record was migrated.
+* Execution instrumentation across every entrypoint: `swarm run`, `audit`,
+  `fix-ci`, `docs-audit`, `release-check`, `signal` and `task run`. One
+  execution is one operator action and the outermost level owns the record —
+  agents are instrumented at the CLI, never in the agent classes, and
+  `Executor.run_plan` is not instrumented at all, since it is only ever
+  reached from inside an agent. Nesting is therefore impossible by
+  construction rather than by convention.
+* `route report` and `route history` read both outcome contracts and present
+  them in separate tables, under an `execution` key in `--json`, grouped by
+  task class and route, with 7-, 30- and 90-day windows and median and p90
+  latency. Shadow and execution records are never merged into one rate.
+* `route readiness` reports the distance to every eligibility threshold. A
+  passing gate yields `AWAITING_OPERATOR_APPROVAL`, never an automatic
+  promotion.
+* Retention: the outcome file is bounded by size with rotation (10 MiB, three
+  prior files), overridable through `MQ_AGENT_OUTCOME_MAX_BYTES`.
+* A second applied route that runs no model, so two routes can be compared at
+  two levels without the report issuing a verdict.
+* Canonical contracts are vendored into the repo and gated against
+  `mqobsidian`, including the routing contract's execution correlation and the
+  ADR-010 D6/D7/D8 decisions.
+* Local notebook packs built from `mqobsidian`'s profile, `feedback-signal.v1`
+  pack-usage records, and a selection vocabulary read from `mqobsidian` rather
+  than hard-coded.
+
+### Changed
+
+* Telemetry observes a run and never changes it: emission swallows every
+  failure, so a broken evidence store costs a record and nothing else, and
+  `MQ_AGENT_TELEMETRY=off` disables it entirely.
+* A counter the runtime does not measure is absent, not zero — a zero reads as
+  "no retries happened" rather than "nobody counted". `tool_calls`, `retries`,
+  `fallbacks`, `tokens` and `cost` are therefore optional, and an agent that
+  never ran carries no latency at all.
+* An outcome record answers "could the run be carried out", not "is the repo
+  healthy". An audit that finds problems records `PASS`; a failing task step
+  records `FAIL`, because there the runtime could not do what it was asked.
+* `--dry-run` on an agent means "make no writes", not "run nothing", so those
+  runs record. Only the swarm and task-runner dry runs execute nothing, and
+  only those record nothing.
+* Routing evidence is bounded by what verifies rather than by how much the
+  model writes, the task class is pinned in the grammar instead of being asked
+  for, and a routed decision is given only what it can finish reading.
+* The local route was given a budget its slow draws can finish inside.
+* The planner is told what the tools actually take, and a plan dependency is
+  now something the runtime can execute.
+
+### Fixed
+
+* The test suite no longer writes to the operator's evidence store. Three
+  tests drive a real `SwarmRunner.run`, so every `pytest` run had been
+  appending records indistinguishable from real runs to
+  `~/.mq-agent/execution-outcomes.jsonl`. Learned routing is meant to read
+  that file, so those were corrupted evidence, not untidiness.
+* The execution outcome schema is force-included in the wheel. Without it the
+  installed schema path did not exist, emission swallowed the
+  `FileNotFoundError`, and every installed runtime recorded nothing while the
+  repo's tests stayed green.
+* An execution record found in a routing source no longer inflates
+  `invalid_records`. It is a valid record of another contract, so it counts as
+  neither a valid routing outcome nor an invalid one.
+* A run that never started is not a failed execution.
+* A runtime that cannot be identified writes no production evidence.
+* A model that ran out of time was not unavailable — a generation timeout is
+  no longer misclassified.
+* The executor rejects a call the tool cannot accept before making it.
+* Secret-bearing files are no longer offered to a reader, and a review cannot
+  be handed a secret.
+* A docs review reads what it planned to read, a review reads what it
+  declared, and declared collection integrity is enforced.
+* Verifier excerpts are separated from execution completeness.
+* Two claims the code did not actually make were withdrawn.
+* `repo-signal` resolves from the `uv` tool runtime.
+* Source headers are emitted as plain text, not HTML comments, and CodeGraph
+  intentions are stated rather than tool names.
+
 ## [v1.26.0] — 2026-08-14
 
 * 941368f feat(stack): extend the compatibility gate across the whole stack — Phase 6 (#202)
