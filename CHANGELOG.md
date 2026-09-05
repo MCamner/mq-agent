@@ -9,59 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [v1.27.0] — 2026-09-05
-
-* ebe80c9 chore(release): prepare v1.27.0 and renumber the roadmap (#259)
-* c0bfd3c feat(routing): open the evidence-integrity era (#258)
-* 2269309 docs(roadmap): record the execution evidence integrity work (#257)
-* 6d9dd36 fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
-* bc74d17 fix(cli): a run that never started is not a failed execution (#255)
-* fc8f821 feat(routing): a model that ran out of time was not unavailable (#254)
-* 8a43900 fix(routing): give the local route a budget its slow draws can finish inside (#253)
-* afb7af5 docs(roadmap): record operational verification of the verifier excerpt fix (#252)
-* 9567066 docs(roadmap): record verifier excerpt integrity fix (#250) (#251)
-* 92688b1 fix: separate verifier excerpts from execution completeness (#250)
-* c7c95e7 feat(routing): open the collection-integrity era (#249)
-* 1dcb973 fix: enforce declared collection integrity (#248)
-* 7f34a4b fix: back two claims the code did not actually make (#246)
-* 522687a feat(routing): open the era in which a review reads what it declared (#245)
-* a232fbb fix(docs): tell the audit what it is auditing (#244)
-* 3be9b0d feat(routing): open the era in which a review cannot be handed a secret (#243)
-* 49e6c67 fix(tools): stop offering secret files to a reader (#241)
-* dae09cf feat(routing): open the era in which a docs-review reads what it planned to (#239)
-* 6c67086 feat(executor): make a plan dependency something the runtime can execute (#238)
-* aa0c09f feat(planner): tell the planner what the tools actually take (#236)
-* c4d2f67 feat(routing): record the plan-validation era at its real merge point (#234)
-* 0a1721b fix(executor): reject a call the tool cannot accept, before making it (#233)
-* 28f12e4 feat(routing): report how two routes differ, at two levels and without a verdict (#231)
-* 16b1997 feat(routing): make the quality population expressible without touching readiness (#230)
-* 7fe49bf feat(routing): give a routed decision only what it can finish reading (#227)
-* d34e1dd fix(routing): give the model the material the verifier checks against (#226)
-* 25490f6 chore(contracts): sync the vendored route outcome to canonical (#225)
-* 8a55d4d fix(routing): pin the task class in the grammar instead of asking for it (#224)
-* 1e89ca6 feat(routing): add a second applied route that runs no model (ADR-010 D8) (#223)
-* a55c7f3 chore(contracts): sync the vendored route outcome to canonical (ADR-010 D8) (#222)
-* 6e9daf2 fix(routing): bound evidence by what verifies, not by how much the model writes (#221)
-* 52d7b5f feat(routing): apply a route for real, and move readiness to the routing layer (#220)
-* 97afe21 feat(contracts): vendor D6/D7 and stop the swarm claiming a route (#219)
-* 741615f chore(contracts): vendor the routing contract's execution correlation (#218)
-* f909c4a feat(contracts): vendor canonical contracts and gate them against mqobsidian (#216) (#217)
-* 8b2b4a3 feat(telemetry): record the model an execution actually used (#213) (#215)
-* bb9a8be feat: mq.execution-outcome.v1 — contract, one truthful emit point, and separate reporting (#206)
-* c1b0b4a fix(context): state CodeGraph intentions, never tool names (#212)
-* c6b8035 feat(context): read the selection vocabulary from mqobsidian (#211)
-* 18888da feat: record how much evidence was grounded, not just pass/fail (#210)
-* 7445075 feat: emit feedback-signal.v1 pack-usage records (#209)
-* 4b281ef fix: emit plain-text source headers, not HTML comments (#208)
-* b3870ff feat: build local notebook packs from mqobsidian's profile (#207)
-* d16a5c4 fix: resolve repo-signal from uv tool runtime
-* 589b629 docs: sync roadmaps after v1.26.0 and open v1.27.0 (#204)
+## [v1.27.0] — 2026-09-06
 
 Theme: execution instrumentation and evidence integrity. Every significant run
 now leaves one outcome record, and the work that followed made those records —
 and the routing evidence beside them — say only what the runtime can actually
 prove.
 
+* ebe80c9 chore(release): prepare v1.27.0 and renumber the roadmap (#259)
 * c0bfd3c feat(routing): open the evidence-integrity era (#258)
 * 2269309 docs(roadmap): record the execution evidence integrity work (#257)
 * 6d9dd36 fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
