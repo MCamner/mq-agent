@@ -161,11 +161,22 @@ def findings(component: dict[str, Any], comparison: dict[str, bool | None]) -> l
 
     # Three states, kept apart. Never asked is silence. Asked and unreachable is
     # an observation nobody could make. Confirmed and different is a finding.
+    #
+    # The confirmed remote is one half of the comparison; the other is a ref
+    # this machine has. A checkout without `origin/main` — what `actions/checkout`
+    # produces — never observed that half, and `SHA != None` is an absence, not
+    # a disagreement.
     remote = component.get("remote")
     if isinstance(remote, dict) and remote.get("verification_attempted") is True:
+        confirmed = remote.get("remote_origin_main")
+        known_locally = remote.get("local_origin_main")
         if not remote.get("verified"):
             reasons.append("RTP014_REMOTE_UNAVAILABLE")
-        elif remote.get("remote_origin_main") != remote.get("local_origin_main"):
+        elif (
+            confirmed is not None
+            and known_locally is not None
+            and confirmed != known_locally
+        ):
             reasons.append("RTP005_CHECKOUT_BEHIND_REMOTE")
 
     reasons += _identity_findings(

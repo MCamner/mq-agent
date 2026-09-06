@@ -128,6 +128,44 @@ def test_an_unverified_remote_is_not_a_finding() -> None:
     assert "RTP004_REMOTE_NOT_VERIFIED" not in record["components"][0]["reasons"]
 
 
+# A confirmed remote answers what GitHub holds, not what this checkout knows.
+# Where `actions/checkout` leaves no `refs/remotes/origin/main`, the local side
+# of the comparison was never observed, and `SHA != None` is not a disagreement.
+def test_a_verified_remote_without_a_local_ref_invents_no_mismatch() -> None:
+    no_tracking_ref = _component(
+        remote={
+            "local_origin_main": None,
+            "remote_origin_main": "f" * 40,
+            "verification_attempted": True,
+            "verified": True,
+            "verified_at": "2026-09-06T00:00:00Z",
+        }
+    )
+
+    assessed = stack_provenance.assess(no_tracking_ref)
+
+    assert "RTP005_CHECKOUT_BEHIND_REMOTE" not in assessed["reasons"]
+    assert assessed["status"] == "PASS"
+
+
+# The finding itself still has to fire when both sides were observed.
+def test_a_verified_remote_that_differs_from_the_local_ref_is_reported() -> None:
+    behind = _component(
+        remote={
+            "local_origin_main": "a" * 40,
+            "remote_origin_main": "b" * 40,
+            "verification_attempted": True,
+            "verified": True,
+            "verified_at": "2026-09-06T00:00:00Z",
+        }
+    )
+
+    assessed = stack_provenance.assess(behind)
+
+    assert "RTP005_CHECKOUT_BEHIND_REMOTE" in assessed["reasons"]
+    assert assessed["status"] == "WARN"
+
+
 @pytest.mark.parametrize(
     "layer", ["checkout", "integration", "installed", "release"]
 )

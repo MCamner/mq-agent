@@ -182,6 +182,11 @@ is `false`, no component may claim otherwise.
 The converse does not hold and is not enforced: `--refresh` may reach the
 network and still fail for one repository.
 
+A confirmed remote is one half of the comparison. The other half is a ref this
+machine has, and a checkout without `refs/remotes/origin/main` — what
+`actions/checkout` produces — never observed it. `RTP005` needs both halves:
+a SHA differing from `null` is an absence, not a disagreement.
+
 `--refresh` uses `git ls-remote`, never `fetch`. A query does not change the
 checkout being observed; a fetch would write refs into it, and an observation
 must not alter its subject.
