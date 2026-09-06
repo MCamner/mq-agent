@@ -96,27 +96,59 @@ def _direct_url() -> dict[str, Any] | None:
         return None
 
 
-def install_source(direct_url: dict[str, Any] | None) -> tuple[str, str | None]:
+def install_source(direct_url: Any) -> tuple[str, str | None]:
     """How this runtime was installed, and the checkout it points at.
 
-    Only what PEP 610 proves is reported. A distribution installed from an
-    index carries no `direct_url.json` at all, and that absence does not
-    distinguish pip from pipx from `uv tool` — so `unknown` is returned rather
-    than a guess that would read like a fact. `pipx`, `uv-tool` and `pip` stay
-    in the contract's enum for a later phase that can prove them.
+    Only what PEP 610 proves is reported, and it proves less than it first
+    appears:
+
+    * `dir_info` means a local directory. Only `editable: true` proves an
+      editable install; any other directory install is a local build, which is
+      neither a wheel nor something this phase can name.
+    * `archive_info` covers *both* cases — "When `url` refers to a source
+      archive or a wheel, the `archive_info` key MUST be present" — so only a
+      URL naming a `.whl` proves a wheel. A source archive is `unknown`.
+    * No `direct_url.json` at all means an index install, and that absence does
+      not distinguish pip from pipx from `uv tool`.
+
+    `pipx`, `uv-tool` and `pip` stay in the contract's enum for a later phase
+    that can prove them. Malformed metadata degrades to `unknown` rather than
+    raising: a broken record is a weaker identity, not a failed observation.
     """
-    if not direct_url:
+    if not isinstance(direct_url, dict):
         return "unknown", None
 
-    url = str(direct_url.get("url", ""))
-    if "dir_info" in direct_url:
-        if direct_url["dir_info"].get("editable") is True:
-            parsed = urlparse(url)
-            return "editable", unquote(parsed.path) or None
-        return "wheel", None
+    raw_url = direct_url.get("url")
+    url = raw_url if isinstance(raw_url, str) else ""
+
+    dir_info = direct_url.get("dir_info")
+    if isinstance(dir_info, dict):
+        if dir_info.get("editable") is not True:
+            return "unknown", None
+        path = unquote(urlparse(url).path) if url else ""
+        return ("editable", path) if path else ("unknown", None)
+
     if "archive_info" in direct_url:
-        return "wheel", None
+        return ("wheel", None) if urlparse(url).path.endswith(".whl") else ("unknown", None)
+
     return "unknown", None
+
+
+def direct_url_commit(direct_url: Any) -> str | None:
+    """The commit a VCS install records about itself.
+
+    PEP 610 requires it: "A `commit_id` key (type `string`) MUST be present,
+    containing the exact commit/revision number that was installed." That is
+    real provenance even where the install *shape* stays unprovable, so a
+    `pip install git+…` can be a verified identity with `install_type` unknown.
+    """
+    if not isinstance(direct_url, dict):
+        return None
+    vcs_info = direct_url.get("vcs_info")
+    if not isinstance(vcs_info, dict):
+        return None
+    commit = vcs_info.get("commit_id")
+    return commit if isinstance(commit, str) and commit else None
 
 
 def identity_quality(version: str | None, commit: str | None) -> str:
@@ -197,10 +229,14 @@ def observe_installed() -> dict[str, Any]:
     carries no commit metadata yet, so its identity is `partial` — weaker, and
     honest about it, rather than filled in from the latest tag.
     """
-    install_type, source_path = install_source(_direct_url())
+    direct_url = _direct_url()
+    install_type, source_path = install_source(direct_url)
 
-    commit: str | None = None
-    if install_type == "editable" and source_path:
+    # A VCS install states its own commit and PEP 610 requires it, so it wins
+    # over anything derived. An editable install has no such record, and its
+    # commit is whatever its checkout is on right now.
+    commit = direct_url_commit(direct_url)
+    if commit is None and install_type == "editable" and source_path:
         source = Path(source_path)
         if (source / ".git").exists():
             commit = checkout_head(source)

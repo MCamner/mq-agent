@@ -546,10 +546,19 @@ Can `mq-agent` prove which code `mq-agent` itself is running?
   in `runtime_guard.py` rather than duplicating them.
 * [x] `installed_matches_checkout`, including the same version at a different
   commit, and abbreviated hashes matching the full ones they abbreviate.
-* [x] `install_type` is proven, never guessed. PEP 610's `direct_url.json`
-  proves `editable` and `wheel`; an index install carries no such record, and
-  its absence does not distinguish pip from pipx from `uv tool`, so those stay
-  `unknown` until a phase can prove them.
+* [x] `install_type` is proven, never guessed, and PEP 610 proves less than it
+  first appears. `dir_info` means a local directory, so only `editable: true`
+  proves an editable install and any other directory install is `unknown`.
+  `archive_info` covers source archives *and* wheels — "When `url` refers to a
+  source archive or a wheel, the `archive_info` key MUST be present" — so only
+  a URL naming a `.whl` proves a wheel. An index install carries no record at
+  all, and its absence does not distinguish pip from pipx from `uv tool`, so
+  those stay `unknown` until a phase can prove them.
+* [x] A VCS install states its own commit, which PEP 610 requires, so
+  `pip install git+…` yields a `verified` identity even though its install
+  shape stays `unknown`. Provenance and install form are separate questions.
+* [x] Malformed `direct_url.json` degrades to `unknown` rather than raising. A
+  broken record is a weaker identity, not a failed observation.
 * [x] A wheel carries no commit metadata yet, so its identity is `partial` —
   weaker and honest, rather than filled in from the latest tag. Verified
   against a real wheel installed into a clean environment: `install_type`

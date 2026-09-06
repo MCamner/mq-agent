@@ -111,20 +111,113 @@ def test_a_wheel_install_is_proven_by_its_archive_url() -> None:
     assert source_path is None
 
 
+# PEP 610: "When url refers to a source archive or a wheel, the archive_info
+# key MUST be present." So archive_info alone does not prove a wheel — only the
+# URL naming one does.
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.invalid/mq-agent-1.28.0.tar.gz",
+        "file:///tmp/mq-agent-1.28.0.zip",
+        "https://example.invalid/download?name=mq-agent",
+    ],
+)
+def test_a_source_archive_is_not_called_a_wheel(url) -> None:
+    assert runtime_identity.install_source({"url": url, "archive_info": {}})[0] == "unknown"
+
+
 # A distribution installed from an index carries no direct_url.json. That
 # absence does not distinguish pip from pipx from uv tool, so claiming any of
 # them would be a guess dressed as a fact.
 def test_an_unprovable_install_is_unknown_rather_than_assumed() -> None:
     assert runtime_identity.install_source(None) == ("unknown", None)
-    assert runtime_identity.install_source({"url": "file:///x", "dir_info": {}})[0] == "wheel"
 
 
-def test_a_non_editable_directory_install_is_not_called_editable() -> None:
-    install_type, _ = runtime_identity.install_source(
-        {"url": "file:///path/to/mq-agent", "dir_info": {"editable": False}}
+# PEP 610: dir_info means a local directory, and only `editable: true` proves
+# an editable install. A non-editable directory install is a local build, which
+# is not a wheel and not something this phase can name.
+@pytest.mark.parametrize("dir_info", [{}, {"editable": False}, {"editable": "yes"}])
+def test_a_non_editable_directory_install_is_unknown_not_a_wheel(dir_info) -> None:
+    install_type, source_path = runtime_identity.install_source(
+        {"url": "file:///path/to/mq-agent", "dir_info": dir_info}
     )
 
-    assert install_type != "editable"
+    assert install_type == "unknown"
+    assert source_path is None
+
+
+# --- VCS installs carry their own commit ----------------------------------
+
+
+# PEP 610: "A commit_id key (type string) MUST be present, containing the exact
+# commit/revision number that was installed." That is real provenance even
+# though the install shape itself stays unprovable.
+def test_a_vcs_install_yields_a_commit_even_though_its_shape_is_unknown() -> None:
+    direct_url = {
+        "url": "https://github.com/MCamner/mq-agent.git",
+        "vcs_info": {"vcs": "git", "commit_id": "abc1234def5678"},
+    }
+
+    assert runtime_identity.install_source(direct_url) == ("unknown", None)
+    assert runtime_identity.direct_url_commit(direct_url) == "abc1234def5678"
+
+
+def test_a_non_vcs_install_yields_no_commit_from_its_direct_url() -> None:
+    assert runtime_identity.direct_url_commit(None) is None
+    assert runtime_identity.direct_url_commit({"url": "x", "archive_info": {}}) is None
+    assert runtime_identity.direct_url_commit({"url": "x", "vcs_info": {"vcs": "git"}}) is None
+
+
+def test_a_vcs_install_can_be_verified_without_a_checkout(monkeypatch) -> None:
+    monkeypatch.setattr(
+        runtime_identity,
+        "_direct_url",
+        lambda: {
+            "url": "https://github.com/MCamner/mq-agent.git",
+            "vcs_info": {"vcs": "git", "commit_id": "abc1234def5678"},
+        },
+    )
+    monkeypatch.setattr(runtime_identity, "repository_root", lambda: None)
+
+    identity = runtime_identity.observe_installed()
+
+    runtime_identity.identity_validator().validate(identity)
+    assert identity["commit"] == "abc1234def5678"
+    assert identity["install_type"] == "unknown"
+    assert identity["identity_quality"] == "verified"
+
+
+# --- malformed metadata degrades, never crashes ---------------------------
+
+
+# A broken direct_url.json is a weaker identity, not a failed observation. This
+# module is read on paths that must not be taken down by their own telemetry.
+@pytest.mark.parametrize(
+    "direct_url",
+    [
+        {},
+        {"url": None, "dir_info": {"editable": True}},
+        {"url": "file:///x", "dir_info": "not-a-dict"},
+        {"url": "file:///x", "archive_info": None},
+        {"url": "file:///x", "vcs_info": []},
+        {"dir_info": {"editable": True}},
+        "not-a-dict-at-all",
+        [],
+    ],
+)
+def test_malformed_direct_url_degrades_to_unknown(direct_url) -> None:
+    assert runtime_identity.install_source(direct_url) == ("unknown", None)
+    assert runtime_identity.direct_url_commit(direct_url) is None
+
+
+def test_a_malformed_direct_url_still_produces_a_valid_identity(monkeypatch) -> None:
+    monkeypatch.setattr(runtime_identity, "_direct_url", lambda: {"url": "file:///x", "dir_info": 7})
+    monkeypatch.setattr(runtime_identity, "repository_root", lambda: None)
+
+    identity = runtime_identity.observe_installed()
+
+    runtime_identity.identity_validator().validate(identity)
+    assert identity["install_type"] == "unknown"
 
 
 # --- identity quality -----------------------------------------------------
