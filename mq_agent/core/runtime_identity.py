@@ -264,3 +264,143 @@ def installed_matches_checkout(
         return None
     shorter, longer = sorted((installed_commit, checkout_head), key=len)
     return longer.startswith(shorter)
+
+
+# --- the checkout's own layers --------------------------------------------
+#
+# Integration and release are observations of the same checkout the runtime
+# came from, so they share the git probes above rather than growing a second
+# set. Aggregating several components, deciding a status and choosing a next
+# action is a different job and stays out of this module.
+#
+# Every ref here is the one this machine already has. `origin/main` is never
+# fetched: a later phase adds explicit remote verification, and until then an
+# unverified remote is the normal state, not staleness.
+
+#: The ref a checkout is measured against, matching `runtime_guard`.
+TRUNK = "main"
+REMOTE_TRUNK = "origin/main"
+
+
+def _rev(root: Path, ref: str) -> str | None:
+    result = _probe(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+    if result is None or result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _is_ancestor(root: Path, commit: str, ref: str) -> bool | None:
+    """Whether `commit` is reachable from `ref`, or None when it cannot be asked."""
+    result = _probe(root, "merge-base", "--is-ancestor", commit, ref)
+    if result is None or result.returncode not in (0, 1):
+        return None
+    return result.returncode == 0
+
+
+def _ahead_behind(root: Path, ref: str) -> tuple[int | None, int | None]:
+    result = _probe(root, "rev-list", "--left-right", "--count", f"{ref}...HEAD")
+    if result is None or result.returncode != 0:
+        return None, None
+    parts = result.stdout.split()
+    if len(parts) != 2:
+        return None, None
+    try:
+        behind, ahead = int(parts[0]), int(parts[1])
+    except ValueError:
+        return None, None
+    return ahead, behind
+
+
+def observe_integration(root: Path | None = None) -> dict[str, Any] | None:
+    """How a checkout's HEAD relates to the trunk.
+
+    Reported as separate observations rather than reduced to one word, because
+    "behind" and "not integrated" call for different actions. Anything that
+    cannot be asked — no `origin/main` in a repository that was never cloned —
+    is None, which means unobserved and not false.
+    """
+    checkout = root if root is not None else repository_root()
+    if checkout is None or not (Path(checkout) / ".git").exists():
+        return None
+    checkout = Path(checkout)
+
+    head = _rev(checkout, "HEAD")
+    trunk = _rev(checkout, TRUNK)
+    remote_trunk = _rev(checkout, REMOTE_TRUNK)
+
+    ahead, behind = (
+        _ahead_behind(checkout, REMOTE_TRUNK) if remote_trunk else (None, None)
+    )
+    return {
+        "head_is_main": (head == trunk) if head and trunk else None,
+        "head_integrated_in_main": (
+            _is_ancestor(checkout, head, TRUNK) if head and trunk else None
+        ),
+        "head_pushed": (
+            _is_ancestor(checkout, head, REMOTE_TRUNK) if head and remote_trunk else None
+        ),
+        "ahead": ahead,
+        "behind": behind,
+        "diverged": (
+            (ahead > 0 and behind > 0) if ahead is not None and behind is not None else None
+        ),
+    }
+
+
+def declared_version(root: Path) -> str | None:
+    """What the repository says its version is, from its own VERSION file."""
+    version_file = Path(root) / "VERSION"
+    try:
+        return version_file.read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def observe_release(root: Path | None = None) -> dict[str, Any] | None:
+    """What a checkout declares and has tagged.
+
+    The tag is an observation in its own right, never a source for filling in
+    something else: a checkout ahead of its latest tag is the normal state
+    between releases, and the tag's commit is not the checkout's.
+
+    `github_release_tag` needs the network, so it stays None here.
+    """
+    checkout = root if root is not None else repository_root()
+    if checkout is None or not (Path(checkout) / ".git").exists():
+        return None
+    checkout = Path(checkout)
+
+    described = _probe(checkout, "describe", "--tags", "--abbrev=0")
+    latest_tag = (
+        described.stdout.strip()
+        if described is not None and described.returncode == 0
+        else None
+    ) or None
+
+    return {
+        "declared_version": declared_version(checkout),
+        "latest_tag": latest_tag,
+        "tag_commit": _rev(checkout, latest_tag) if latest_tag else None,
+        "github_release_tag": None,
+    }
+
+
+def _same_commit(one: str | None, other: str | None) -> bool | None:
+    if not one or not other:
+        return None
+    shorter, longer = sorted((one, other), key=len)
+    return longer.startswith(shorter)
+
+
+def release_matches_checkout(
+    release: dict[str, Any] | None, head: str | None
+) -> bool | None:
+    """Whether the latest tag names the commit the checkout is on."""
+    return _same_commit((release or {}).get("tag_commit"), head)
+
+
+def release_matches_installed(
+    release: dict[str, Any] | None, installed_commit: str | None
+) -> bool | None:
+    """Whether the latest tag names the commit the installed runtime is."""
+    return _same_commit((release or {}).get("tag_commit"), installed_commit)

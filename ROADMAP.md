@@ -569,10 +569,37 @@ Not in Phase 1, and deliberately: stack aggregation, the `stack provenance`
 CLI, release or tag identity, remote verification, `mq-mcp`, any change to
 `runtime_guard`'s policy, and any change to execution outcomes.
 
-### Phase 2 — Stack checkout and release identity
+### Phase 2 — Checkout, integration and release identity
 
-* [ ] Per-repo checkout identity, branch relation to main, declared version and
-  tag identity. Still no network by default.
+Checkout identity landed in Phase 1. This adds the two layers around it, in
+`runtime_identity.py`, because they observe the same checkout and share the
+same git probes. Aggregating components, deciding a status and choosing a next
+action is a different job and stays out of that module.
+
+* [x] Integration identity: `head_is_main`, `head_integrated_in_main`,
+  `head_pushed`, `ahead`, `behind`, `diverged`. Reported separately rather than
+  reduced to one word, because "behind" and "not integrated" call for different
+  actions. A repository with no `origin/main` — never cloned, or no remote yet
+  — reports `null` for what depends on it, not `false`.
+* [x] Release identity: declared version, latest tag, and that tag's commit.
+  `github_release_tag` needs the network and stays `null`.
+* [x] `release_matches_checkout` and `release_matches_installed`. Both `null`
+  when either side is unobserved.
+* [x] The tag is never a source for filling in anything else. A checkout ahead
+  of its latest tag is the normal state between releases, not a fault.
+* [x] Still no network. Every ref is the one the machine already has;
+  `origin/main` is read, never fetched.
+
+This repository demonstrates why version equality is not identity: it declares
+`1.27.0` and its latest tag is `v1.27.0`, yet the tag names `61a0bba` while
+`main` is three commits past it. Both fields agree and the code they describe
+is different.
+
+### Phase 2b — Stack aggregation and the CLI
+
+* [ ] Aggregate several components, derive per-component and overall status
+  from the comparisons, attach reason codes and pick exactly one next action.
+* [ ] `mq-agent stack provenance`, `--json`. Read-only, local, network-free.
 
 ### Phase 3 — Explicit remote verification
 
