@@ -13,9 +13,8 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.26.0 — Stack Compatibility Gate
-Current:  v1.27.0 — Execution instrumentation and evidence integrity
-Next:     v1.28.0 — Runtime provenance
+Released: v1.27.0 — Execution instrumentation and evidence integrity
+Current:  v1.28.0 — Runtime provenance
 Deferred: v1.29.0 — MCP tool contract checking
 ```
 
@@ -91,11 +90,34 @@ Completed foundation:
 | v1.25.0 | Release Cockpit                              | Released |
 | v1.25.1 | Release Cockpit post-release audit fix       | Released |
 | v1.26.0 | Stack Compatibility Gate                     | Released |
-| v1.27.0 | Execution instrumentation & evidence integrity | Release pending |
+| v1.27.0 | Execution instrumentation & evidence integrity | Released |
+| v1.28.0 | Runtime provenance                            | Phase 0 |
 
 ---
 
 ## Next release
+
+### v1.28.0 — Runtime provenance
+
+Goal: answer mechanically whether the source checkout, the installed runtime,
+the running runtime and the release identity are the same code — and if not,
+which two layers differ and what the next action is.
+
+Identity is component + version + commit, because two builds can carry the same
+semver. Each edge of checkout → installed → running is compared separately;
+there is no generic `synced` boolean. `null` means not observed, never "differs".
+A mismatch is `WARN`, an unobservable identity is `UNAVAILABLE`, and provenance
+itself blocks nothing — the release cockpit and `runtime_guard` keep their own
+policies.
+
+Phase 0 is complete: `mq.runtime-identity.v1`, `mq.stack-provenance.v1`, the
+`RTP` reason-code registry and the semantics in `docs/RUNTIME_PROVENANCE.md`,
+proven by contract tests. No runtime is instrumented yet. The phase plan is
+canonical in the root `ROADMAP.md`.
+
+---
+
+## Previous release
 
 ### v1.27.0 — Execution instrumentation and evidence integrity
 
@@ -106,13 +128,8 @@ runtime that writes no production evidence when it cannot say which build it
 is. Routing evidence and execution evidence stay in separate contracts and are
 never merged into one rate.
 
-Delivered on `main`; the release itself is pending. The phase plan, the
-contract rules and the reasoning behind each decision remain canonical in the
-root `ROADMAP.md`.
-
----
-
-## Previous release
+Released 2026-09-06. The phase plan, the contract rules and the reasoning
+behind each decision remain canonical in the root `ROADMAP.md`.
 
 ### v1.26.0 — Stack Compatibility Gate
 
