@@ -1,8 +1,8 @@
 # mq-agent Roadmap
 
 Released: v1.26.0 — Stack Compatibility Gate.
-Next: v1.27.0 — Execution instrumentation and evidence integrity.
-Proposed: v1.28.0 — Runtime provenance.
+Released: v1.27.0 — Execution instrumentation and evidence integrity.
+Next: v1.28.0 — Runtime provenance.
 Deferred: v1.29.0 — MCP tool contract checking.
 
 ## Current status
@@ -32,7 +32,8 @@ All release phases complete through v1.26.0.
 | v1.25.0 | Release Cockpit | Released v1.25.0 |
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
 | v1.26.0 | Stack Compatibility Gate | Released v1.26.0 |
-| v1.27.0 | Execution instrumentation and evidence integrity | Complete on `main`, release pending |
+| v1.27.0 | Execution instrumentation and evidence integrity | Released v1.27.0 |
+| v1.28.0 | Runtime provenance | Phase 0 complete |
 
 ## Completed — v1.24.1 Post-release stabilization
 
@@ -173,11 +174,10 @@ hiding the lower-level release evidence.
 3. `ship proof` and `ship audit`.
 4. Command reference, release-cockpit guide, README, and Pages links.
 
-## Next release — v1.27.0 Execution instrumentation and evidence integrity
+## Completed — v1.27.0 Execution instrumentation and evidence integrity
 
-* **Status:** Complete on `main`; release pending. Phases 0–4 and the
-  readiness gate are delivered, along with the evidence-integrity work that
-  followed them. Numbered v1.27.0 because it ships before MCP tool contract
+* **Status:** Released 2026-09-06. Phases 0–4 and the readiness gate are
+  delivered, along with the evidence-integrity work that followed them. Numbered v1.27.0 because it ships before MCP tool contract
   checking, which is deferred and not started — releasing this as v1.28.0
   would leave a v1.27.0 that could only ever be published as an older version
   than something already released.
@@ -449,35 +449,134 @@ Phase 0 and Phase 1 together, on `Swarm.run` alone. One instrumented path with
 a settled contract is worth more than seven paths writing a shape that has to
 change.
 
-## Proposed — v1.28.0 Runtime provenance
+## Next release — v1.28.0 Runtime provenance
 
-* **Status:** Proposed. Scope not yet written down; the material below is the
-  question it exists to answer, not a plan.
+* **Status:** Phase 0 complete — contracts and semantics are frozen and proven
+  by tests. No runtime is instrumented yet.
 * **Priority:** P1 — the layer directly above execution evidence. An outcome
   record says what a run did; it cannot yet say which build produced it.
 * **Owner:** `mq-agent`
+* **Contracts:** `mq.runtime-identity.v1`, `mq.stack-provenance.v1`
+* **Semantics:** `docs/RUNTIME_PROVENANCE.md`
 
 ### Problem
 
-An execution outcome is attributed to a runtime, but nothing ties that runtime
-to an identity anyone can check afterwards:
+Several identity surfaces can each be individually correct and jointly
+contradictory: the checkout, the installed package, a running process,
+`VERSION`, `pyproject.toml`, the repo contract, the latest tag, the GitHub
+release, and the commit each of those points at.
 
-```text
-checkout version
-installed version
-running version
-release/version identity
-commit identity
-```
+v1.27.0 shipped a live example. The repo contract carried `version: 1.27.0`
+beside `next_focus: "v1.27.0 — MCP tool contract checking"` — the release
+naming the thing that came after it. Both fields were syntactically valid;
+nothing compared them, so nothing noticed.
 
-These can all disagree — a checkout ahead of its last tag, a wheel installed
-from an older commit, a package version that names neither. Until they can be
-told apart, evidence gathered across a version boundary cannot be compared
-honestly, and a regression cannot be attributed to the build that caused it.
+`runtime_guard.py` states the other half in its own docstring: it sees the
+working tree, not the interpreter, so a checkout that is clean and integrated
+can still be running an editable install of something else.
 
-Not scoped yet: which of these the runtime records, whether they belong in
-`mq.execution-outcome.v1` or a contract of their own, and what a disagreement
-between them should block.
+### Decisions
+
+* Identity is `component + version + commit`. Two builds can carry the same
+  semver, so a version alone does not identify a runtime. The human form is a
+  fingerprint, `mq-agent@1.27.0+abc1234` — not a hash of the environment,
+  dependencies, working tree, host or user.
+* A missing commit weakens the identity rather than being filled in from the
+  latest tag. `identity_quality` is `verified`, `partial` or `unknown`, and the
+  schema constrains it so a record cannot claim more than it carries.
+* `null` is not `false`. True means checked and matching, false means checked
+  and differing, null means not observed or not applicable — a CLI has no
+  long-lived process to compare against.
+* No generic `synced`, `healthy`, `current` or `aligned` boolean. Each edge of
+  checkout → installed → running answers a different question, and one flag
+  over all of them answers none. A schema test forbids the words.
+* An ordinary mismatch is `WARN`; an unobservable identity is `UNAVAILABLE`;
+  `FAIL` is reserved for identity data that is malformed or self-contradictory.
+  Unknown is never automatically failure.
+* Provenance reports facts and owns no blocking decision. The release cockpit
+  keeps release blocking, `runtime_guard` keeps evidence-write policy, and a
+  schema test forbids a `blocked` field in the contract.
+* Default operation is local, network-free and read-only. Remote verification
+  is opt-in through `--refresh`, and an unverified remote is the normal state,
+  not staleness.
+* `mq.execution-outcome.v1` is untouched until runtime identity is stable, and
+  no historical record is ever rewritten or backfilled.
+* The contract is named `mq.stack-provenance.v1`, not `mq.stack-runtime.v1`:
+  `mq_stack_runtime.v1` already exists as the `stack run` pipeline result, and
+  two contracts differing only in punctuation would be exactly the confusion
+  this feature exists to detect.
+
+### Phase 0 — Contracts and semantics
+
+* [x] `mq.runtime-identity.v1` — component, version, commit, install type and
+  identity quality, with the quality constrained by what the record carries.
+* [x] `mq.stack-provenance.v1` — checkout, integration, remote, installed,
+  running and release kept as separate layers, with one comparison per edge.
+* [x] Status semantics: `PASS`, `WARN`, `UNAVAILABLE`, `FAIL`.
+* [x] Reason-code registry, `RTP001`–`RTP017`. `RTP016_CHECKOUT_HEAD_MISSING`
+  and `RTP017_CANONICAL_REF_MISSING` were added to the original list because
+  `runtime_guard.check()` already reaches both states; a code list that cannot
+  name a state the system already observes is incomplete on arrival.
+* [x] Null semantics, next-action precedence, ownership and blocker policy
+  written down in `docs/RUNTIME_PROVENANCE.md`.
+* [x] `installed` and `running` are `mq.runtime-identity.v1` records by
+  reference, so one definition exists and a malformed layer fails validation
+  rather than passing as "an object".
+* [x] Every invariant is enforced by the schema rather than described: an
+  identity cannot claim more than it carries, a comparison against an
+  unobserved layer must be `null`, and a verified remote must say what it saw
+  and when.
+* [x] Schema and invariant tests, including a packaging test for both schemas.
+  The banned-field tests traverse property names rather than grepping the
+  text — the ban is on a field meaning "everything is fine", not on the English
+  word, so a description may still say "reinstall from the current checkout".
+
+### Phase 1 — `mq-agent` self identity
+
+Can `mq-agent` prove which code `mq-agent` itself is running?
+
+* [ ] Move the schema registry helper from the contract tests into module code.
+  The identity reference resolves from disk, never the network, so a validator
+  built without both schemas registered raises `Unresolvable` — fail-closed,
+  but every consumer must supply the registry.
+
+* [ ] Installed identity from the imported module, package metadata and
+  `sys.executable` — never from the working directory.
+* [ ] Checkout identity, reusing the git probes and `repository_root()` already
+  in `runtime_guard.py` rather than duplicating them. Refactor only what needs
+  sharing; no broad cleanup.
+* [ ] `installed_matches_checkout`, including the case of the same version at a
+  different commit.
+* [ ] Editable installs, wheels without a checkout, and an unprovable install
+  type reported as `unknown`.
+
+### Phase 2 — Stack checkout and release identity
+
+* [ ] Per-repo checkout identity, branch relation to main, declared version and
+  tag identity. Still no network by default.
+
+### Phase 3 — Explicit remote verification
+
+* [ ] `--refresh` populates `remote_origin_main`, `verified` and `verified_at`.
+  A remote that cannot be reached is `UNAVAILABLE`, never "stale".
+
+### Phase 4 — Live runtime identity
+
+* [ ] `mq-mcp` reports `mq.runtime-identity.v1` about itself; `mq-agent`
+  compares `running` against `installed` and `checkout`. The transport follows
+  mq-mcp's architecture; the contract matters more than the transport.
+
+### Phase 5 — Consumers
+
+* [ ] Only once provenance is stable: `mq-hal` presentation, the dashboard,
+  `runtime_guard` consuming identity quality, and a structured runtime
+  fingerprint on future execution records.
+
+### Success criterion
+
+After the release, this is answerable mechanically: are the source checkout,
+the installed runtime, the running runtime and the release identity the same
+code — and if not, which two layers differ and what is the next action?
 
 ## Deferred — v1.29.0 MCP tool contract checking
 
