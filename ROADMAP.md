@@ -595,11 +595,38 @@ This repository demonstrates why version equality is not identity: it declares
 `main` is three commits past it. Both fields agree and the code they describe
 is different.
 
-### Phase 2b — Stack aggregation and the CLI
+### Phase 2b — Reduction and the CLI
 
-* [ ] Aggregate several components, derive per-component and overall status
-  from the comparisons, attach reason codes and pick exactly one next action.
-* [ ] `mq-agent stack provenance`, `--json`. Read-only, local, network-free.
+`mq_agent/core/stack_provenance.py` reduces observations in one direction:
+observation → comparison → reason code → status → next action.
+
+* [x] `None` is not `False` anywhere in the reduction. An unobserved layer
+  produces no reason code, no degraded status and no action. A repository with
+  no `origin/main` cannot say whether HEAD was pushed; that is a dimension
+  nobody read, not an unpushed commit.
+* [x] Status is derived, never asserted — a pure function of the reason codes,
+  which are a pure function of the observations. A test requires every code in
+  the contract to have a severity here, since a code the reducer does not know
+  would pass silently as no finding.
+* [x] An unobservable identity outranks a confirmed mismatch: an identity
+  nobody could read may be hiding more differences than the one that was seen.
+* [x] Exactly one next action, by declared precedence. Reinstalling precedes
+  restarting, because a restart re-runs whatever is installed.
+* [x] `RTP004_REMOTE_NOT_VERIFIED` carries severity `PASS`: worth recording,
+  and not a finding. The default command contacts no network, so an unverified
+  remote is its normal state.
+* [x] A checkout ahead of its latest tag is ordinary progress, not a finding.
+  Distinguishing it from a tag that is not in this history at all needed an
+  observation the contract did not have, so `release.tag_reachable_from_head`
+  was added. Without it every repository would sit at `WARN` from the first
+  commit after a release and the status would stop meaning anything.
+* [x] `mq-agent stack provenance`, `--json`. Read-only, local, network-free,
+  and it always exits 0 — provenance reports facts, and blocking belongs to the
+  release cockpit and to `runtime_guard`.
+
+Not in this phase: aggregating repositories other than the running one. The
+reduction takes a list of components and the CLI passes one; Phase 4 adds the
+second when `mq-mcp` can report itself.
 
 ### Phase 3 — Explicit remote verification
 
