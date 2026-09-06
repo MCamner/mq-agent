@@ -74,6 +74,7 @@ def _component(**overrides) -> dict:
         "remote": {
             "local_origin_main": "abc1234",
             "remote_origin_main": None,
+            "verification_attempted": False,
             "verified": False,
             "verified_at": None,
         },
@@ -341,6 +342,7 @@ def test_a_verified_remote_records_when_it_was_checked() -> None:
     verified["remote"] = {
         "local_origin_main": "abc1234",
         "remote_origin_main": "abc1234",
+        "verification_attempted": True,
         "verified": True,
         "verified_at": "2026-09-06T02:00:00+02:00",
     }
@@ -498,6 +500,7 @@ def test_a_verified_remote_must_say_what_it_saw_and_when() -> None:
     component["remote"] = {
         "local_origin_main": "abc1234",
         "remote_origin_main": None,
+        "verification_attempted": True,
         "verified": True,
         "verified_at": None,
     }
@@ -513,6 +516,7 @@ def test_a_verified_component_implies_the_run_contacted_a_remote() -> None:
     verified["remote"] = {
         "local_origin_main": "abc1234",
         "remote_origin_main": "abc1234",
+        "verification_attempted": True,
         "verified": True,
         "verified_at": "2026-09-06T02:00:00+02:00",
     }

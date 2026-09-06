@@ -630,8 +630,21 @@ second when `mq-mcp` can report itself.
 
 ### Phase 3 — Explicit remote verification
 
-* [ ] `--refresh` populates `remote_origin_main`, `verified` and `verified_at`.
-  A remote that cannot be reached is `UNAVAILABLE`, never "stale".
+* [x] `--refresh` populates `remote_origin_main`, `verified` and `verified_at`.
+  It is the only step that uses the network, and it uses `git ls-remote` rather
+  than `fetch`: a query does not change the checkout being observed, and an
+  observation must not alter its subject.
+* [x] Three states stay distinct — never asked, asked and unreachable,
+  confirmed. `verified: false` alone cannot tell the first two apart, so
+  `remote.verification_attempted` records whether anyone asked. A remote that
+  could not be reached is `UNAVAILABLE`, never `false` and never "stale".
+* [x] `--refresh` changes freshness, not semantics. A finding means the same
+  thing whether `origin/main` came from disk or was confirmed against the
+  remote, and a test asserts that reduction is unchanged either way.
+* [x] `RTP005` is issued only against a verified remote, and its documented
+  meaning was narrowed to what is actually measured: a verified remote main
+  that is not the ref this checkout has. Being *behind* it cannot be proven
+  without the commits themselves.
 
 ### Phase 4 — Live runtime identity
 

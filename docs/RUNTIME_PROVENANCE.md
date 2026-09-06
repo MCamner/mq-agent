@@ -158,16 +158,42 @@ Every layer is required as a key. An observation that was not made is reported
 as `null`, never omitted — a missing key and an unobserved layer would be
 indistinguishable.
 
-## Remote verification carries its evidence
+## Remote verification: three states, kept apart
+
+`verified: false` alone cannot say whether anyone asked, so whether the run
+asked is recorded separately:
+
+| `verification_attempted` | `verified` | Meaning | Status |
+| --- | --- | --- | --- |
+| `false` | `false` | nobody asked — the default | `PASS` |
+| `true` | `false` | asked, and the remote could not be reached | `UNAVAILABLE` |
+| `true` | `true` | confirmed, with the SHA and the time | `PASS` |
+
+The middle row is the one worth stating plainly. A remote that could not be
+reached is an observation nobody could make. It is not `false`, not stale, and
+never a comparison someone invents to fill the gap.
 
 A component whose `remote.verified` is `true` must say what it saw and when:
-both `remote_origin_main` and `verified_at` are required there. And a component
-cannot have been verified in a run that contacted no remote — if the top-level
-`remote_verified` is `false`, no component may claim otherwise.
+`remote_origin_main`, `verified_at` and `verification_attempted` are all
+required there, enforced by the schema. And a component cannot have been
+verified in a run that contacted no remote — if the top-level `remote_verified`
+is `false`, no component may claim otherwise.
 
-The converse does not hold, and is not enforced: `--refresh` may reach the
-network and still fail to verify one repository, which is `UNAVAILABLE` and
-`RTP014_REMOTE_UNAVAILABLE`, not staleness.
+The converse does not hold and is not enforced: `--refresh` may reach the
+network and still fail for one repository.
+
+A confirmed remote is one half of the comparison. The other half is a ref this
+machine has, and a checkout without `refs/remotes/origin/main` — what
+`actions/checkout` produces — never observed it. `RTP005` needs both halves:
+a SHA differing from `null` is an absence, not a disagreement.
+
+`--refresh` uses `git ls-remote`, never `fetch`. A query does not change the
+checkout being observed; a fetch would write refs into it, and an observation
+must not alter its subject.
+
+**`--refresh` changes freshness, not semantics.** A finding means the same
+thing whether `origin/main` came from disk or was confirmed against the
+remote, and a dirty worktree is a dirty worktree either way.
 
 ## Status
 
@@ -192,7 +218,7 @@ renumbered or reused once published.
 | `RTP002_HEAD_NOT_INTEGRATED` | HEAD is not reachable from the canonical ref |
 | `RTP003_LOCAL_MAIN_STALE` | the locally known main is behind what is known of the remote |
 | `RTP004_REMOTE_NOT_VERIFIED` | no remote was contacted; the default, not a problem |
-| `RTP005_CHECKOUT_BEHIND_REMOTE` | the checkout is behind a verified remote main |
+| `RTP005_CHECKOUT_BEHIND_REMOTE` | a verified remote main is not the ref this checkout has |
 | `RTP006_INSTALLED_IDENTITY_UNKNOWN` | the installed runtime could not be identified |
 | `RTP007_INSTALLED_CHECKOUT_MISMATCH` | the installed code is not the checkout's code |
 | `RTP008_RUNNING_IDENTITY_UNKNOWN` | the running process could not be identified |

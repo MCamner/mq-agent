@@ -5027,6 +5027,10 @@ def stack_alert_cmd(
 @stack_app.command("provenance")
 def stack_provenance_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    refresh: Annotated[
+        bool,
+        typer.Option("--refresh", help="Ask the remote what it holds; the only step that uses the network"),
+    ] = False,
 ):
     """Show which code this runtime is, and whether its layers agree.
 
@@ -5041,7 +5045,7 @@ def stack_provenance_cmd(
     """
     from mq_agent.core import stack_provenance
 
-    record = stack_provenance.observe()
+    record = stack_provenance.observe(refresh=refresh)
 
     if json_out:
         typer.echo(json.dumps(record, indent=2))
@@ -5101,7 +5105,12 @@ def stack_provenance_cmd(
     console.print(f"\n[bold]STACK RESULT[/bold]     {_COLOUR.get(summary['status'], summary['status'])}")
     if summary["next_action"]:
         console.print(f"\n[bold]Next action:[/bold] {summary['next_action']}")
-    if not record["remote_verified"]:
+    remote = (record["components"][0].get("remote") or {}) if record["components"] else {}
+    if record["remote_verified"]:
+        console.print(f"\n[dim]Remote verified at {remote.get('verified_at')}.[/dim]")
+    elif remote.get("verification_attempted"):
+        console.print("\n[dim]Remote was asked and could not be reached; not the same as being stale.[/dim]")
+    else:
         console.print("\n[dim]Remote not contacted; `origin/main` is the ref this machine already has.[/dim]")
     console.print()
 
