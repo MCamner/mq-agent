@@ -377,10 +377,17 @@ def observe_release(root: Path | None = None) -> dict[str, Any] | None:
         else None
     ) or None
 
+    tag_commit = _rev(checkout, latest_tag) if latest_tag else None
     return {
         "declared_version": declared_version(checkout),
         "latest_tag": latest_tag,
-        "tag_commit": _rev(checkout, latest_tag) if latest_tag else None,
+        "tag_commit": tag_commit,
+        # A checkout ahead of its tag is ordinary progress; a tag that is not in
+        # this history at all is a real disagreement. Recording which of the two
+        # it is keeps the distinction out of whoever reads the record.
+        "tag_reachable_from_head": (
+            _is_ancestor(checkout, tag_commit, "HEAD") if tag_commit else None
+        ),
         "github_release_tag": None,
     }
 

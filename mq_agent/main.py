@@ -5024,6 +5024,88 @@ def stack_alert_cmd(
 
 # ── stack release-check ────────────────────────────────────────────────────
 
+@stack_app.command("provenance")
+def stack_provenance_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show which code this runtime is, and whether its layers agree.
+
+    Compares the source checkout, the installed runtime and the release
+    identity. Read-only, local and network-free: `origin/main` is the ref this
+    machine already has and is never fetched, so an unverified remote is the
+    normal state rather than staleness.
+
+    Always exits 0. Provenance reports facts; whether a difference blocks a
+    release or a write of production evidence belongs to the release cockpit
+    and to runtime_guard.
+    """
+    from mq_agent.core import stack_provenance
+
+    record = stack_provenance.observe()
+
+    if json_out:
+        typer.echo(json.dumps(record, indent=2))
+        return
+
+    _COLOUR = {
+        "PASS": "[green]PASS[/green]",
+        "WARN": "[yellow]WARN[/yellow]",
+        "UNAVAILABLE": "[dim]UNAVAILABLE[/dim]",
+        "FAIL": "[bold red]FAIL[/bold red]",
+    }
+
+    def _row(label: str, value: object) -> None:
+        shown = "—" if value is None else str(value)
+        console.print(f"    {label:<16}{shown}")
+
+    console.print()
+    console.rule("[bold]Runtime Provenance[/bold]")
+    for component in record["components"]:
+        console.print(f"\n[bold]{component['name']}[/bold]")
+
+        checkout = component.get("checkout")
+        console.print("\n  CHECKOUT")
+        if checkout:
+            _row("branch", checkout.get("branch"))
+            _row("commit", (checkout.get("head") or "")[:7] or None)
+            clean = checkout.get("worktree_clean")
+            _row("worktree", "CLEAN" if clean else "DIRTY" if clean is False else None)
+        else:
+            _row("", "not a checkout")
+
+        installed = component.get("installed") or {}
+        console.print("\n  INSTALLED")
+        _row("version", installed.get("version"))
+        _row("source", installed.get("install_type"))
+        _row("commit", (installed.get("commit") or "")[:7] or None)
+        _row("identity", installed.get("identity_quality"))
+        matches = component["comparison"]["installed_matches_checkout"]
+        _row("checkout", "MATCH" if matches else "MISMATCH" if matches is False else None)
+
+        release = component.get("release")
+        console.print("\n  RELEASE")
+        if release:
+            _row("declared", release.get("declared_version"))
+            _row("latest tag", release.get("latest_tag"))
+            _row("tag commit", (release.get("tag_commit") or "")[:7] or None)
+            reachable = release.get("tag_reachable_from_head")
+            _row("reachable", "YES" if reachable else "NO" if reachable is False else None)
+        else:
+            _row("", "no release information")
+
+        console.print(f"\n  RESULT          {_COLOUR.get(component['status'], component['status'])}")
+        for code in component["reasons"]:
+            console.print(f"    [dim]{code}[/dim]")
+
+    summary = record["summary"]
+    console.print(f"\n[bold]STACK RESULT[/bold]     {_COLOUR.get(summary['status'], summary['status'])}")
+    if summary["next_action"]:
+        console.print(f"\n[bold]Next action:[/bold] {summary['next_action']}")
+    if not record["remote_verified"]:
+        console.print("\n[dim]Remote not contacted; `origin/main` is the ref this machine already has.[/dim]")
+    console.print()
+
+
 @stack_app.command("release-check")
 def stack_release_check_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,

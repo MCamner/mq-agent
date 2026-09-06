@@ -1717,6 +1717,7 @@ mq-stack repo inventory, status, and Obsidian export.
 | [`mq-agent stack export`](#mq-agent-stack-export) | Write the mq-stack truth snapshot (contract + release gates) to mqobsidian. Primary name: `stack truth-export`. `stack export` is kept as a backwards-compatible alias — both run the same export. Pass ``--rebuild-views`` to refresh agent views at the end of the workflow (opt-in — see docs/AGENT_VIEW_CONTRACT.md phase C). |
 | [`mq-agent stack history`](#mq-agent-stack-history) | Show repo health scores from past stack sweeps. |
 | [`mq-agent stack loop`](#mq-agent-stack-loop) | Plan or execute one v1.20 controlled autonomous stack loop. Dry-run by default. `--execute --approve` runs one allowlisted action with command-specific rollback behaviour. |
+| [`mq-agent stack provenance`](#mq-agent-stack-provenance) | Show which code this runtime is, and whether its layers agree. Compares the source checkout, the installed runtime and the release identity. Read-only, local and network-free: `origin/main` is the ref this machine already has and is never fetched, so an unverified remote is the normal state rather than staleness. Always exits 0. Provenance reports facts; whether a difference blocks a release or a write of production evidence belongs to the release cockpit and to runtime_guard. |
 | [`mq-agent stack release`](#mq-agent-stack-release) | Orchestrated single-repo release: gate, bump, changelog, tag, push, truth-export. Dry-run by default — shows the plan without touching the repo. With --execute the plan is applied step by step; any failed step aborts the run and pre-commit file edits are rolled back. Exits 1 on NO-GO or on a failed step. Ends with a stack truth-export so the release lands in mqobsidian memory. With --all, plans a release for every stack repo at once (dry-run by default): each repo is reported as ready, blocked, or up-to-date. Exits 1 if any repo is blocked. Release a ready repo with --repo `<name>` --execute. With --all --preflight, runs the read-only multi-repo release preflight: the strict fail-fast refusal surface (dirty, off-main, unpushed, tag exists, version mismatch, and each repo's release-check.sh). Never mutates and never executes; exits 1 if any repo is blocked. Pull-request repos stop in AWAITING_MERGE without directly releasing other repos. Finalize a verified merged release PR explicitly with --finalize-pr, --repo, --version and --approve. |
 | [`mq-agent stack release-check`](#mq-agent-stack-release-check) | Run release-readiness checks across all mq-stack repos. Checks per repo: VERSION file, CHANGELOG entry, clean working tree, on main/master branch. No API key required. Exits 1 on any blocker. With --ci, sibling repos missing from the workspace are skipped instead of blocking — only repos that are present (e.g. the CI checkout) gate. |
 | [`mq-agent stack release-notes`](#mq-agent-stack-release-notes) | Draft release notes from git commits since the last tag, per repo. Reads git log since last tag for each mq-stack repo. No API key required. Always exits 0 (informational). |
@@ -1821,6 +1822,16 @@ Plan or execute one v1.20 controlled autonomous stack loop. Dry-run by default. 
 | `--json` | No | `false` | — |
 | `--approve` | No | `false` | Approve controlled execution for one allowlisted action |
 | `--max-iterations` | No | `1` | Bounded loop count for the plan |
+
+## `mq-agent stack provenance`
+
+Show which code this runtime is, and whether its layers agree. Compares the source checkout, the installed runtime and the release identity. Read-only, local and network-free: `origin/main` is the ref this machine already has and is never fetched, so an unverified remote is the normal state rather than staleness. Always exits 0. Provenance reports facts; whether a difference blocks a release or a write of production evidence belongs to the release cockpit and to runtime_guard.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
 
 ## `mq-agent stack release`
 

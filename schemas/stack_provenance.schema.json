@@ -305,7 +305,7 @@
             "description": "The identity a long-lived process reports about itself, as an mq.runtime-identity.v1 record. Null for a CLI, and null when the process could not be reached — never inferred from the installed package."
           },
           "release": {
-            "description": "Release identity as declared and as tagged. A version equal to the latest tag does not mean the tag points at the commit that is running.",
+            "description": "Release identity as declared and as tagged. A version equal to the latest tag does not mean the tag points at the commit that is running, and a checkout ahead of its tag is ordinary progress rather than a fault — which is why the tag's reachability is recorded separately from whether it matches.",
             "type": [
               "object",
               "null"
@@ -339,6 +339,13 @@
               "github_release_tag": {
                 "type": [
                   "string",
+                  "null"
+                ]
+              },
+              "tag_reachable_from_head": {
+                "description": "Whether the latest tag is an ancestor of the checkout's HEAD. True is the normal state between releases — the checkout has moved on past the tag. False means the tag names a commit that is not in this history at all, which is a real disagreement rather than ordinary progress. Null when it could not be determined.",
+                "type": [
+                  "boolean",
                   "null"
                 ]
               }
