@@ -91,7 +91,7 @@ Completed foundation:
 | v1.25.1 | Release Cockpit post-release audit fix       | Released |
 | v1.26.0 | Stack Compatibility Gate                     | Released |
 | v1.27.0 | Execution instrumentation & evidence integrity | Released |
-| v1.28.0 | Runtime provenance                            | Phase 0 |
+| v1.28.0 | Runtime provenance                            | Phase 3 |
 
 ---
 
@@ -110,10 +110,12 @@ A mismatch is `WARN`, an unobservable identity is `UNAVAILABLE`, and provenance
 itself blocks nothing — the release cockpit and `runtime_guard` keep their own
 policies.
 
-Phase 0 is complete: `mq.runtime-identity.v1`, `mq.stack-provenance.v1`, the
-`RTP` reason-code registry and the semantics in `docs/RUNTIME_PROVENANCE.md`,
-proven by contract tests. No runtime is instrumented yet. The phase plan is
-canonical in the root `ROADMAP.md`.
+Phases 0-3 are complete: the two contracts and the `RTP` reason-code registry,
+self identity, the checkout, integration and release layers, the reduction to
+one status and one next action, and `--refresh` for explicit remote
+verification. Phase 4 adds the first live runtime, and is not complete until a
+process started from one commit is caught still reporting it after its checkout
+has moved. The phase plan is canonical in the root `ROADMAP.md`.
 
 ---
 

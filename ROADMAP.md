@@ -651,6 +651,23 @@ second when `mq-mcp` can report itself.
 * [ ] `mq-mcp` reports `mq.runtime-identity.v1` about itself; `mq-agent`
   compares `running` against `installed` and `checkout`. The transport follows
   mq-mcp's architecture; the contract matters more than the transport.
+* [ ] The identity is taken once, at process start, and never re-read. A
+  producer that reads `VERSION` and `HEAD` when the request arrives would let a
+  process started from commit A report itself as B after the checkout moved —
+  which is precisely the drift v1.28 exists to expose.
+* [ ] `mq-mcp` does not import the `mq-agent` package. The contract crosses the
+  repository boundary; the implementation does not.
+* [ ] A transport failure is never a mismatch. No process observed leaves
+  `running` null and its comparisons null; a malformed identity is `RTP013`.
+
+**Completion criterion.** Phase 4 is not complete until a live `mq-mcp` process
+started from commit A still self-reports A after its checkout has moved to B,
+and `mq-agent` reports the resulting running↔checkout mismatch.
+
+Stated here because the phase's ordinary outcome is `running: null` — correct,
+silent, and passing. Without a live proof, a large number of correct nulls
+would become the practical evidence that the feature works, and they prove
+nothing about the case it was built for.
 
 ### Phase 5 — Consumers
 
