@@ -18,7 +18,8 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-from referencing import Registry, Resource
+
+from mq_agent.core import runtime_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 IDENTITY = "runtime_identity.schema.json"
@@ -29,26 +30,14 @@ def _schema(name: str) -> dict:
     return json.loads((ROOT / "schemas" / name).read_text(encoding="utf-8"))
 
 
-def _registry() -> Registry:
-    """Both schemas, resolvable by `$id` without touching the network.
-
-    Provenance embeds runtime identity by reference so there is exactly one
-    definition of what a runtime is. The reference is an `https://mq.local/`
-    `$id` that resolves to nothing, so a validator built without this registry
-    would try to fetch it. Phase 1 moves this helper into module code when
-    something starts producing records; until then nothing in `mq_agent`
-    validates provenance.
-    """
-    return Registry().with_resources(
-        [
-            (schema["$id"], Resource.from_contents(schema))
-            for schema in (_schema(IDENTITY), _schema(PROVENANCE))
-        ]
-    )
-
-
 def _validator(name: str) -> Draft202012Validator:
-    return Draft202012Validator(_schema(name), registry=_registry())
+    """Validate against the registry the runtime itself uses.
+
+    Provenance embeds runtime identity by reference, so validation needs both
+    schemas registered. Phase 1 moved that helper into module code; the tests
+    use it rather than keeping a second copy that could drift.
+    """
+    return Draft202012Validator(_schema(name), registry=runtime_identity.schema_registry())
 
 
 def _identity(**overrides) -> dict:
