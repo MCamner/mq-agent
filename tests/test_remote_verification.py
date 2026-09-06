@@ -226,8 +226,6 @@ def test_observing_without_refresh_asks_nothing(tmp_path, monkeypatch) -> None:
     assert remote["verified"] is False
     assert remote["remote_origin_main"] is None
     assert remote["verified_at"] is None
-    # The locally known ref is still reported; it just was not confirmed.
-    assert remote["local_origin_main"]
 
 
 def test_a_refresh_that_cannot_reach_the_remote_says_so(monkeypatch) -> None:
@@ -256,6 +254,48 @@ def test_a_successful_refresh_records_the_sha_and_the_time(monkeypatch) -> None:
 
 def test_a_directory_that_is_not_a_repository_observes_no_remote(tmp_path) -> None:
     assert runtime_identity.observe_remote(tmp_path, refresh=True) is None
+
+
+# The locally known ref is reported when there is one — but a CI checkout has
+# no refs/remotes/origin/main, so this builds the repository rather than
+# assuming the one the tests happen to run in.
+def test_the_locally_known_ref_is_reported_when_it_exists(tmp_path) -> None:
+    import subprocess
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            cwd=tmp_path, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    git("init", "-q", "-b", "main")
+    git("commit", "-q", "--allow-empty", "-m", "one")
+    head = git("rev-parse", "HEAD")
+    git("update-ref", "refs/remotes/origin/main", head)
+
+    remote = runtime_identity.observe_remote(tmp_path, refresh=False)
+
+    assert remote is not None
+    assert remote["local_origin_main"] == head
+    assert remote["verified"] is False
+
+
+# And a checkout without that ref reports None for it, which is what a shallow
+# CI checkout actually looks like.
+def test_a_checkout_without_a_local_origin_ref_reports_none(tmp_path) -> None:
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x"],
+        cwd=tmp_path, check=True,
+    )
+
+    remote = runtime_identity.observe_remote(tmp_path, refresh=False)
+
+    assert remote is not None
+    assert remote["local_origin_main"] is None
+    assert remote["verification_attempted"] is False
 
 
 # --- the command surface --------------------------------------------------
