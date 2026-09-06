@@ -2662,15 +2662,18 @@ def memory_status_cmd(
             "status": state.status,
             "enabled": state.enabled,
             "vector_store_id": state.vector_store_id,
+            "vector_store_source": state.vector_store_source,
             "repo_signal_available": state.repo_signal_available,
             "repo_path": state.repo_path,
         }, indent=2))
         return
 
-    color = "green" if state.enabled else "yellow" if state.status == "missing-repo-signal" else "red"
+    color = "green" if state.enabled else "yellow"
+    origin = ("[dim](canonical)[/dim]" if state.vector_store_source == "canonical"
+              else "[dim](OPENAI_VECTOR_STORE_ID)[/dim]")
     lines = (
         f"[bold]status:[/bold]       [{color}]{state.status}[/{color}]\n"
-        f"[bold]vector store:[/bold] {state.vector_store_id or '[dim](not set — export OPENAI_VECTOR_STORE_ID)[/dim]'}\n"
+        f"[bold]vector store:[/bold] {state.vector_store_id} {origin}\n"
         f"[bold]repo-signal:[/bold]  {'[green]available[/green]' if state.repo_signal_available else '[yellow]not found[/yellow]'}\n"
         f"[bold]repo:[/bold]         {state.repo_path}"
     )

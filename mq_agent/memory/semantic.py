@@ -9,6 +9,16 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# The canonical cross-repo semantic memory, declared here so mq-agent owns its
+# own identity. It is named in mq-mcp/docs/global/GLOBAL_VECTOR_STORE_POLICY.md
+# under "Store IDs"; a vector-store ID is an addressable name, not a secret.
+#
+# Declaring it in tracked code is the point: it previously existed only in
+# gitignored .env files, so any consumer that lost that file either had no
+# memory or fell back to a store of its own choosing.
+CANONICAL_VECTOR_STORE_ID = "vs_69ffa9a4ef5c81919d7d237c3ecdc260"
+CANONICAL_VECTOR_STORE_NAME = "semantic repository memory"
+
 
 @dataclass(frozen=True)
 class SemanticMemoryStatus:
@@ -17,6 +27,7 @@ class SemanticMemoryStatus:
     repo_path: str
     repo_signal_available: bool
     status: str
+    vector_store_source: str = "canonical"
 
 
 @dataclass(frozen=True)
@@ -37,8 +48,22 @@ class DoctorReport:
 
 
 def get_vector_store_id() -> str | None:
+    """Return the explicitly configured store, or None. Does not fall back."""
     value = os.getenv("OPENAI_VECTOR_STORE_ID")
     return value.strip() if value and value.strip() else None
+
+
+def resolve_vector_store_id() -> tuple[str, str]:
+    """Return the store mq-agent will actually use, and where it came from.
+
+    An explicit OPENAI_VECTOR_STORE_ID always wins, so a repo can point at its
+    own store. Otherwise the canonical store applies — mq-agent is never
+    without a memory, and never guesses which one.
+    """
+    configured = get_vector_store_id()
+    if configured:
+        return configured, "env"
+    return CANONICAL_VECTOR_STORE_ID, "canonical"
 
 
 def repo_signal_available() -> bool:
@@ -56,15 +81,10 @@ def repo_signal_available() -> bool:
 
 def status(repo_path: str | Path = ".") -> SemanticMemoryStatus:
     repo = Path(repo_path).resolve()
-    vector_store_id = get_vector_store_id()
+    vector_store_id, source = resolve_vector_store_id()
     has_repo_signal = repo_signal_available()
 
-    if not vector_store_id:
-        state = "missing-vector-store"
-    elif not has_repo_signal:
-        state = "missing-repo-signal"
-    else:
-        state = "ready"
+    state = "ready" if has_repo_signal else "missing-repo-signal"
 
     return SemanticMemoryStatus(
         enabled=state == "ready",
@@ -72,6 +92,7 @@ def status(repo_path: str | Path = ".") -> SemanticMemoryStatus:
         repo_path=str(repo),
         repo_signal_available=has_repo_signal,
         status=state,
+        vector_store_source=source,
     )
 
 
@@ -98,18 +119,12 @@ def doctor(repo_path: str | Path = ".") -> DoctorReport:
     repo = Path(repo_path).resolve()
     items: list[DiagnosticItem] = []
 
-    vs_id = get_vector_store_id()
-    if vs_id:
-        items.append(DiagnosticItem(ok=True, label="OPENAI_VECTOR_STORE_ID", detail=vs_id))
+    vs_id, source = resolve_vector_store_id()
+    if source == "env":
+        detail = f"{vs_id} (OPENAI_VECTOR_STORE_ID)"
     else:
-        raw = os.getenv("OPENAI_VECTOR_STORE_ID", "")
-        detail = "(whitespace-only)" if raw.strip() == "" and raw else "(not set)"
-        items.append(DiagnosticItem(
-            ok=False,
-            label="OPENAI_VECTOR_STORE_ID",
-            detail=detail,
-            fix="export OPENAI_VECTOR_STORE_ID=vs_...",
-        ))
+        detail = f"{vs_id} ({CANONICAL_VECTOR_STORE_NAME}, canonical default)"
+    items.append(DiagnosticItem(ok=True, label="vector store", detail=detail))
 
     has_rs = repo_signal_available()
     if has_rs:
