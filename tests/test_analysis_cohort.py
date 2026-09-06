@@ -17,7 +17,6 @@ import pytest
 from mq_agent.tools import analysis_cohort, model_routing
 from mq_agent.tools.analysis_cohort import (
     ERAS,
-    Era,
     current_era,
     era_named,
     select_cohort,

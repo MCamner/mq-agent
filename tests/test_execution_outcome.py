@@ -6,8 +6,10 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
+from typer.testing import CliRunner
 
 from mq_agent.core.swarm import AgentManifest, SwarmConfig, SwarmRunner
+from mq_agent.main import app
 from mq_agent.tools import execution_outcome
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -303,10 +305,6 @@ def test_the_suite_never_writes_to_the_operators_real_store() -> None:
 # same AuditAgent runs standalone and inside a swarm, and a swarm record
 # already carries per-agent results. Executor.run_plan is never instrumented —
 # it is only ever reached from inside an agent.
-
-from typer.testing import CliRunner
-
-from mq_agent.main import app
 
 cli = CliRunner()
 
