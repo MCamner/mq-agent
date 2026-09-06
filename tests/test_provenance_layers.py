@@ -281,12 +281,44 @@ def test_the_observed_layers_satisfy_the_provenance_contract(repo) -> None:
     )
 
 
+# A CI checkout is shallow and detached: no local `main`, no tags fetched. So
+# this asserts the shape and the values it can actually know, and leaves the
+# trunk- and tag-dependent semantics to the fixtures above, which control the
+# repository they observe.
 def test_this_repository_observes_its_own_layers() -> None:
-    """The real repo, not a fixture."""
     integration = _integration(ROOT)
     release = _release(ROOT)
 
-    assert integration is not None and release is not None
-    assert isinstance(integration["head_integrated_in_main"], bool)
+    assert set(integration) == {
+        "head_is_main",
+        "head_integrated_in_main",
+        "head_pushed",
+        "ahead",
+        "behind",
+        "diverged",
+    }
+    for field in ("head_is_main", "head_integrated_in_main", "head_pushed", "diverged"):
+        assert integration[field] in (True, False, None), field
     assert release["declared_version"] == (ROOT / "VERSION").read_text().strip()
-    assert release["latest_tag"] and release["latest_tag"].startswith("v")
+    assert release["github_release_tag"] is None
+
+
+# The shape a CI runner actually has: a detached HEAD with no local trunk and
+# no tags. Everything that depends on them is unobserved, and none of it is a
+# failure — this is the null-is-not-false rule meeting a real environment.
+def test_a_shallow_detached_checkout_observes_what_it_can(repo) -> None:
+    head = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "--detach", head)
+    _git(repo, "branch", "-q", "-D", "main")
+    _git(repo, "update-ref", "-d", "refs/remotes/origin/main")
+
+    integration = _integration(repo)
+    release = _release(repo)
+
+    assert integration["head_is_main"] is None
+    assert integration["head_integrated_in_main"] is None
+    assert integration["head_pushed"] is None
+    assert integration["ahead"] is None and integration["behind"] is None
+    assert integration["diverged"] is None
+    assert release["latest_tag"] is None
+    assert release["tag_commit"] is None
