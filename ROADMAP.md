@@ -519,12 +519,26 @@ can still be running an editable install of something else.
   name a state the system already observes is incomplete on arrival.
 * [x] Null semantics, next-action precedence, ownership and blocker policy
   written down in `docs/RUNTIME_PROVENANCE.md`.
-* [x] Schema and invariant tests, including the banned-word tests and a
-  packaging test for both schemas.
+* [x] `installed` and `running` are `mq.runtime-identity.v1` records by
+  reference, so one definition exists and a malformed layer fails validation
+  rather than passing as "an object".
+* [x] Every invariant is enforced by the schema rather than described: an
+  identity cannot claim more than it carries, a comparison against an
+  unobserved layer must be `null`, and a verified remote must say what it saw
+  and when.
+* [x] Schema and invariant tests, including a packaging test for both schemas.
+  The banned-field tests traverse property names rather than grepping the
+  text — the ban is on a field meaning "everything is fine", not on the English
+  word, so a description may still say "reinstall from the current checkout".
 
 ### Phase 1 — `mq-agent` self identity
 
 Can `mq-agent` prove which code `mq-agent` itself is running?
+
+* [ ] Move the schema registry helper from the contract tests into module code.
+  The identity reference resolves from disk, never the network, so a validator
+  built without both schemas registered raises `Unresolvable` — fail-closed,
+  but every consumer must supply the registry.
 
 * [ ] Installed identity from the imported module, package metadata and
   `sys.executable` — never from the working directory.

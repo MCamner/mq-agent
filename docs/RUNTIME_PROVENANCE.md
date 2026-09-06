@@ -63,6 +63,15 @@ A missing commit is a **weaker identity, never a missing one to be filled in**.
 It is never taken from the latest tag, a sibling checkout, or the working
 directory.
 
+All three quality levels are constrained by the schema, not just described:
+`verified` without a commit is invalid, `partial` claiming a commit is invalid,
+and `unknown` carrying a version or a commit is invalid. A record cannot claim
+more or less than it carries.
+
+`install_type` is deliberately outside that constraint. Knowing *how* something
+was installed is a different question from knowing *what* it is: a pipx install
+can be entirely unidentifiable and still known to be pipx.
+
 `install_type` is one of `editable`, `wheel`, `pipx`, `uv-tool`, `pip`, or
 `unknown`. When it cannot be proven it is `unknown` — never inferred from a
 path that merely looks like a checkout.
@@ -76,6 +85,30 @@ The name deliberately differs from the existing `mq_stack_runtime.v1`, which is
 the `stack run` pipeline result. Two contracts whose names differ only in
 punctuation, describing different things, would be exactly the confusion this
 feature exists to detect.
+
+The `installed` and `running` layers are `mq.runtime-identity.v1` records
+**by reference**, not by description. There is one definition of what a runtime
+is, and a layer that does not satisfy it fails validation rather than being
+waved through as "an object" — which is what `RTP013_RUNTIME_IDENTITY_INVALID`
+exists to name.
+
+### Validating it
+
+The reference is relative, so it resolves from the two schema files on disk and
+never from the network. A validator built without both schemas registered will
+raise `Unresolvable` rather than fetch anything — fail-closed, which is right,
+but it means every consumer must supply the registry:
+
+```python
+registry = Registry().with_resources(
+    [(s["$id"], Resource.from_contents(s)) for s in (identity, provenance)]
+)
+Draft202012Validator(provenance, registry=registry).validate(record)
+```
+
+Phase 0 keeps that helper in the contract tests, because nothing in `mq_agent`
+produces a provenance record yet. Phase 1 moves it into module code alongside
+the first producer.
 
 ## The five layers, kept apart
 
@@ -110,6 +143,31 @@ answers none of them.
 
 A CLI has no long-lived process, so `running_matches_installed` is `null` — not
 `false`. Reporting `false` would invent a mismatch that nobody observed.
+
+This is enforced by the schema, not left to discipline. When a layer is `null`,
+every comparison against it must be `null` too:
+
+| Layer absent | Comparisons forced to `null` |
+| --- | --- |
+| `running` | `running_matches_installed`, `running_matches_checkout` |
+| `checkout` | `installed_matches_checkout`, `running_matches_checkout`, `release_matches_checkout` |
+| `installed` | `installed_matches_checkout`, `running_matches_installed`, `release_matches_installed` |
+| `release` | `release_matches_checkout`, `release_matches_installed` |
+
+Every layer is required as a key. An observation that was not made is reported
+as `null`, never omitted — a missing key and an unobserved layer would be
+indistinguishable.
+
+## Remote verification carries its evidence
+
+A component whose `remote.verified` is `true` must say what it saw and when:
+both `remote_origin_main` and `verified_at` are required there. And a component
+cannot have been verified in a run that contacted no remote — if the top-level
+`remote_verified` is `false`, no component may claim otherwise.
+
+The converse does not hold, and is not enforced: `--refresh` may reach the
+network and still fail to verify one repository, which is `UNAVAILABLE` and
+`RTP014_REMOTE_UNAVAILABLE`, not staleness.
 
 ## Status
 

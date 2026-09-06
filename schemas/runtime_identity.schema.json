@@ -14,7 +14,9 @@
     "identity_quality"
   ],
   "properties": {
-    "schema": {"const": "mq.runtime-identity.v1"},
+    "schema": {
+      "const": "mq.runtime-identity.v1"
+    },
     "component": {
       "description": "The MQ component reporting itself, e.g. mq-agent or mq-mcp.",
       "type": "string",
@@ -22,56 +24,133 @@
     },
     "version": {
       "description": "The package version the runtime reports. Null when it cannot be read; never taken from a tag or a sibling checkout.",
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "minLength": 1
     },
     "commit": {
       "description": "The commit the running code was built from. Null when the build carries no commit metadata — a weaker identity, not a missing one to be filled in from the latest tag.",
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^[0-9a-f]{7,40}$"
     },
     "install_type": {
       "description": "How this runtime was installed. `unknown` when it cannot be proven; never inferred from a path that merely looks like a checkout.",
-      "enum": ["editable", "wheel", "pipx", "uv-tool", "pip", "unknown"]
+      "enum": [
+        "editable",
+        "wheel",
+        "pipx",
+        "uv-tool",
+        "pip",
+        "unknown"
+      ]
     },
     "identity_quality": {
-      "description": "How complete the identity is. `verified` needs component, version and commit; `partial` has a version but no commit; `unknown` could not identify the runtime at all. Constrained below, so a record cannot claim more than it carries.",
-      "enum": ["verified", "partial", "unknown"]
+      "description": "How complete the identity is. `verified` needs component, version and commit; `partial` has a version but no commit; `unknown` could not identify the runtime at all and therefore carries neither. Constrained below, so a record cannot claim more or less than it carries. Knowing how something was installed is a separate question: a pipx install can be unidentifiable and still known to be pipx.",
+      "enum": [
+        "verified",
+        "partial",
+        "unknown"
+      ]
     },
     "started_at": {
       "description": "When a long-lived runtime began. Null for a CLI invocation, which has no process to outlive the command.",
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "format": "date-time"
     },
     "executable": {
       "description": "The entry point that was run, when known.",
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "module_path": {
       "description": "The package directory actually imported. This, not the working directory, is where a runtime lives.",
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "source_path": {
       "description": "The checkout the imported code lives in, for an editable install. Null when the runtime is installed from a built artifact.",
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "allOf": [
     {
-      "if": {"properties": {"identity_quality": {"const": "verified"}}, "required": ["identity_quality"]},
+      "if": {
+        "properties": {
+          "identity_quality": {
+            "const": "verified"
+          }
+        },
+        "required": [
+          "identity_quality"
+        ]
+      },
       "then": {
         "properties": {
-          "version": {"type": "string"},
-          "commit": {"type": "string"}
+          "version": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          }
         }
       }
     },
     {
-      "if": {"properties": {"identity_quality": {"const": "partial"}}, "required": ["identity_quality"]},
+      "if": {
+        "properties": {
+          "identity_quality": {
+            "const": "partial"
+          }
+        },
+        "required": [
+          "identity_quality"
+        ]
+      },
       "then": {
         "properties": {
-          "version": {"type": "string"},
-          "commit": {"type": "null"}
+          "version": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "identity_quality": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "identity_quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "type": "null"
+          },
+          "commit": {
+            "type": "null"
+          }
         }
       }
     }

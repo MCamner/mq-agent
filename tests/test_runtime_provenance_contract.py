@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 ROOT = Path(__file__).resolve().parents[1]
 IDENTITY = "runtime_identity.schema.json"
@@ -28,8 +29,26 @@ def _schema(name: str) -> dict:
     return json.loads((ROOT / "schemas" / name).read_text(encoding="utf-8"))
 
 
+def _registry() -> Registry:
+    """Both schemas, resolvable by `$id` without touching the network.
+
+    Provenance embeds runtime identity by reference so there is exactly one
+    definition of what a runtime is. The reference is an `https://mq.local/`
+    `$id` that resolves to nothing, so a validator built without this registry
+    would try to fetch it. Phase 1 moves this helper into module code when
+    something starts producing records; until then nothing in `mq_agent`
+    validates provenance.
+    """
+    return Registry().with_resources(
+        [
+            (schema["$id"], Resource.from_contents(schema))
+            for schema in (_schema(IDENTITY), _schema(PROVENANCE))
+        ]
+    )
+
+
 def _validator(name: str) -> Draft202012Validator:
-    return Draft202012Validator(_schema(name))
+    return Draft202012Validator(_schema(name), registry=_registry())
 
 
 def _identity(**overrides) -> dict:
@@ -200,11 +219,29 @@ def test_a_component_with_no_running_process_compares_nothing_to_it() -> None:
 # --- no generic green boolean ---------------------------------------------
 
 
+def _property_names(node, found=None) -> set[str]:
+    """Every property name the schema declares, at any depth."""
+    found = set() if found is None else found
+    if isinstance(node, dict):
+        for name, child in node.get("properties", {}).items():
+            found.add(name)
+            _property_names(child, found)
+        for key, child in node.items():
+            if key != "properties":
+                _property_names(child, found)
+    elif isinstance(node, list):
+        for child in node:
+            _property_names(child, found)
+    return found
+
+
 # Each edge of checkout → installed → running answers a different question, and
-# one boolean over all of them would answer none of them.
-@pytest.mark.parametrize("banned", ["synced", "healthy", "current", "aligned"])
-def test_no_generic_status_boolean_exists(banned) -> None:
-    assert banned not in json.dumps(_schema(PROVENANCE))
+# one boolean over all of them would answer none of them. The ban is on a field
+# with that meaning, not on the English word: a description may well say
+# "reinstall from the current checkout".
+@pytest.mark.parametrize("banned", ["synced", "healthy", "current", "aligned", "ok"])
+def test_no_generic_status_field_exists(banned) -> None:
+    assert banned not in _property_names(_schema(PROVENANCE))
 
 
 # --- status semantics ------------------------------------------------------
@@ -292,7 +329,7 @@ def test_reason_codes_are_unique_and_documented() -> None:
     "banned", ["release_blocked", "blocked", "blocks_release", "may_write_evidence"]
 )
 def test_provenance_carries_no_blocking_decision(banned) -> None:
-    assert banned not in json.dumps(_schema(PROVENANCE))
+    assert banned not in _property_names(_schema(PROVENANCE))
 
 
 def test_exactly_one_next_action_is_reported() -> None:
@@ -348,3 +385,172 @@ def test_the_schema_is_force_included_in_the_wheel(name) -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     assert f'"schemas/{name}" = "mq_agent/schemas/{name}"' in pyproject
+
+
+# --- the identity layers are really runtime identities --------------------
+
+
+# The description said "an mq.runtime-identity.v1 record" while the schema
+# asked only for an object, so any shape at all validated. RTP013 exists to
+# name an invalid runtime identity; the contract has to be able to detect one.
+@pytest.mark.parametrize("layer", ["installed", "running"])
+def test_an_identity_layer_must_be_a_real_runtime_identity(layer) -> None:
+    validator = _validator(PROVENANCE)
+
+    assert not validator.is_valid(_provenance(components=[_component(**{layer: {"banana": 42}})]))
+    assert not validator.is_valid(
+        _provenance(components=[_component(**{layer: _identity(schema="mq.something-else.v1")})])
+    )
+
+
+def test_a_running_identity_is_accepted_when_it_is_well_formed() -> None:
+    running = _identity(component="mq-mcp", started_at="2026-09-06T01:30:00+02:00")
+    component = _component(
+        name="mq-mcp",
+        running=running,
+        comparison={
+            "installed_matches_checkout": True,
+            "running_matches_installed": True,
+            "running_matches_checkout": True,
+            "release_matches_checkout": True,
+            "release_matches_installed": True,
+        },
+    )
+
+    _validator(PROVENANCE).validate(_provenance(components=[component]))
+
+
+# One definition of runtime identity, embedded by reference. The reference is
+# an https:// $id that resolves to nothing, so validating without the registry
+# would reach for the network — which a local, network-free contract must not.
+def test_identity_is_embedded_by_reference_not_duplicated() -> None:
+    provenance = _schema(PROVENANCE)
+    installed = provenance["properties"]["components"]["items"]["properties"]["installed"]
+
+    assert json.dumps(installed).count("runtime_identity.schema.json") == 1
+    assert "identity_quality" not in json.dumps(provenance)
+
+
+# --- unknown means unknown ------------------------------------------------
+
+
+# `verified` and `partial` were constrained; `unknown` was not, so a record
+# could carry a version and a commit while claiming it identified nothing.
+def test_an_unknown_identity_carries_no_version_or_commit() -> None:
+    validator = _validator(IDENTITY)
+
+    assert not validator.is_valid(_identity(identity_quality="unknown"))
+    assert not validator.is_valid(_identity(commit=None, identity_quality="unknown"))
+    assert validator.is_valid(
+        _identity(version=None, commit=None, identity_quality="unknown")
+    )
+
+
+# Knowing how something was installed is not the same as knowing what it is:
+# a pipx install can be perfectly identifiable as pipx and still carry no
+# version metadata.
+def test_an_unknown_identity_may_still_know_how_it_was_installed() -> None:
+    unknown_but_pipx = _identity(
+        version=None, commit=None, install_type="pipx", identity_quality="unknown"
+    )
+
+    _validator(IDENTITY).validate(unknown_but_pipx)
+
+
+# --- null semantics are enforced, not just documented ---------------------
+
+
+# "null is not false" has to be impossible to break, not merely written down.
+# A comparison against a layer that was never observed is null; false would
+# claim someone looked and found a difference.
+def test_an_unobserved_running_runtime_compares_to_nothing() -> None:
+    validator = _validator(PROVENANCE)
+    broken = _component(running=None)
+    broken["comparison"]["running_matches_installed"] = False
+
+    assert not validator.is_valid(_provenance(components=[broken]))
+
+
+def test_an_absent_checkout_compares_to_nothing() -> None:
+    validator = _validator(PROVENANCE)
+    wheel = _component(checkout=None, integration=None)
+    wheel["comparison"] = {
+        "installed_matches_checkout": None,
+        "running_matches_installed": None,
+        "running_matches_checkout": None,
+        "release_matches_checkout": None,
+        "release_matches_installed": True,
+    }
+
+    validator.validate(_provenance(components=[wheel]))
+
+    wheel["comparison"]["installed_matches_checkout"] = True
+    assert not validator.is_valid(_provenance(components=[wheel]))
+
+
+def test_an_absent_release_compares_to_nothing() -> None:
+    validator = _validator(PROVENANCE)
+    unreleased = _component(release=None)
+    unreleased["comparison"]["release_matches_checkout"] = None
+    unreleased["comparison"]["release_matches_installed"] = None
+
+    validator.validate(_provenance(components=[unreleased]))
+
+    unreleased["comparison"]["release_matches_checkout"] = False
+    assert not validator.is_valid(_provenance(components=[unreleased]))
+
+
+# --- a verified remote carries its evidence -------------------------------
+
+
+def test_a_verified_remote_must_say_what_it_saw_and_when() -> None:
+    validator = _validator(PROVENANCE)
+    component = _component()
+    component["remote"] = {
+        "local_origin_main": "abc1234",
+        "remote_origin_main": None,
+        "verified": True,
+        "verified_at": None,
+    }
+
+    assert not validator.is_valid(_provenance(remote_verified=True, components=[component]))
+
+
+# A component cannot have been verified against a remote in a run that
+# contacted none. The converse does not hold: --refresh may reach the network
+# and still fail to verify one repo.
+def test_a_verified_component_implies_the_run_contacted_a_remote() -> None:
+    verified = _component()
+    verified["remote"] = {
+        "local_origin_main": "abc1234",
+        "remote_origin_main": "abc1234",
+        "verified": True,
+        "verified_at": "2026-09-06T02:00:00+02:00",
+    }
+
+    assert not _validator(PROVENANCE).is_valid(
+        _provenance(remote_verified=False, components=[verified])
+    )
+
+
+def test_a_refreshed_run_may_still_fail_to_verify_a_component() -> None:
+    unreachable = _component(
+        status="UNAVAILABLE", reasons=["RTP014_REMOTE_UNAVAILABLE"]
+    )
+
+    _validator(PROVENANCE).validate(
+        _provenance(remote_verified=True, components=[unreachable])
+    )
+
+
+# The reference is relative, so the registry resolves it from the two files on
+# disk. An absolute `https://` ref would send a validator that forgot the
+# registry to the network; a relative one fails closed instead. Consumers must
+# still supply the registry — Phase 1 moves `_registry()` into module code.
+def test_the_identity_reference_is_relative_so_it_resolves_locally() -> None:
+    provenance = _schema(PROVENANCE)
+    installed = provenance["properties"]["components"]["items"]["properties"]["installed"]
+    ref = next(o["$ref"] for o in installed["oneOf"] if "$ref" in o)
+
+    assert ref == IDENTITY
+    assert not ref.startswith(("http://", "https://"))

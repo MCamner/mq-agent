@@ -5,11 +5,22 @@
   "description": "Whether the source checkout, the installed runtime, the running runtime and the release identity are the same code — and if not, which two layers differ. Every layer is kept separate: each edge of checkout to installed to running answers a different question, and one boolean over all of them would answer none. This contract reports observations and comparisons only. It never carries a blocking decision; the operation acting on the signal owns that.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "generated_at", "remote_verified", "components", "summary"],
+  "required": [
+    "schema",
+    "generated_at",
+    "remote_verified",
+    "components",
+    "summary"
+  ],
   "$defs": {
     "status": {
       "description": "PASS: every identity that was available and relevant agrees. WARN: a real difference exists and the command is still safe to run. UNAVAILABLE: an identity could not be observed — unknown is not failure. FAIL: the identity data is malformed or contradicts itself so the result cannot be used. An ordinary mismatch is WARN, not FAIL.",
-      "enum": ["PASS", "WARN", "FAIL", "UNAVAILABLE"]
+      "enum": [
+        "PASS",
+        "WARN",
+        "FAIL",
+        "UNAVAILABLE"
+      ]
     },
     "reason_code": {
       "description": "Stable codes. The code is the API and the rendered text is the interface; a code is never renumbered or reused once published.",
@@ -45,17 +56,47 @@
         "release_matches_installed"
       ],
       "properties": {
-        "installed_matches_checkout": {"type": ["boolean", "null"]},
-        "running_matches_installed": {"type": ["boolean", "null"]},
-        "running_matches_checkout": {"type": ["boolean", "null"]},
-        "release_matches_checkout": {"type": ["boolean", "null"]},
-        "release_matches_installed": {"type": ["boolean", "null"]}
+        "installed_matches_checkout": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "running_matches_installed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "running_matches_checkout": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "release_matches_checkout": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "release_matches_installed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
       }
     }
   },
   "properties": {
-    "schema": {"const": "mq.stack-provenance.v1"},
-    "generated_at": {"type": "string", "format": "date-time"},
+    "schema": {
+      "const": "mq.stack-provenance.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "remote_verified": {
       "description": "Whether any remote was contacted. The default command touches no network, so false is the normal state and does not mean a checkout is stale.",
       "type": "boolean"
@@ -65,88 +106,433 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "checkout", "installed", "running", "comparison", "status", "reasons"],
+        "required": [
+          "name",
+          "checkout",
+          "integration",
+          "remote",
+          "installed",
+          "running",
+          "release",
+          "comparison",
+          "status",
+          "reasons"
+        ],
         "properties": {
-          "name": {"type": "string", "minLength": 1},
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "checkout": {
             "description": "What is in the source checkout. Null when the runtime has no checkout — a released wheel is the canonical case, not the suspicious one.",
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
-            "required": ["path", "branch", "head", "worktree_clean"],
+            "required": [
+              "path",
+              "branch",
+              "head",
+              "worktree_clean"
+            ],
             "properties": {
-              "path": {"type": "string", "minLength": 1},
-              "branch": {"type": ["string", "null"]},
-              "head": {"type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$"},
-              "worktree_clean": {"type": ["boolean", "null"]}
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "branch": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "head": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "worktree_clean": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
             }
           },
           "integration": {
             "description": "How HEAD relates to the trunk. Reported as separate observations rather than reduced to one word, because 'behind' and 'not integrated' call for different actions.",
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
-            "required": ["head_is_main", "head_integrated_in_main", "head_pushed", "ahead", "behind", "diverged"],
+            "required": [
+              "head_is_main",
+              "head_integrated_in_main",
+              "head_pushed",
+              "ahead",
+              "behind",
+              "diverged"
+            ],
             "properties": {
-              "head_is_main": {"type": ["boolean", "null"]},
-              "head_integrated_in_main": {"type": ["boolean", "null"]},
-              "head_pushed": {"type": ["boolean", "null"]},
-              "ahead": {"type": ["integer", "null"], "minimum": 0},
-              "behind": {"type": ["integer", "null"], "minimum": 0},
-              "diverged": {"type": ["boolean", "null"]}
+              "head_is_main": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "head_integrated_in_main": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "head_pushed": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "ahead": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "behind": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "diverged": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
             }
           },
           "remote": {
             "description": "The locally known origin/main and, only after explicit verification, what the remote actually holds. The two are never conflated.",
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
-            "required": ["local_origin_main", "remote_origin_main", "verified", "verified_at"],
+            "required": [
+              "local_origin_main",
+              "remote_origin_main",
+              "verified",
+              "verified_at"
+            ],
             "properties": {
-              "local_origin_main": {"type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$"},
-              "remote_origin_main": {"type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$"},
-              "verified": {"type": "boolean"},
-              "verified_at": {"type": ["string", "null"], "format": "date-time"}
-            }
+              "local_origin_main": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "remote_origin_main": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "verified": {
+                "type": "boolean"
+              },
+              "verified_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "verified": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "verified"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "remote_origin_main": {
+                      "type": "string"
+                    },
+                    "verified_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            ]
           },
           "installed": {
-            "description": "The identity of the code that would run, as an mq.runtime-identity.v1 record. Null when it could not be read at all.",
-            "type": ["object", "null"]
+            "oneOf": [
+              {
+                "$ref": "runtime_identity.schema.json"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The identity of the code that would run, as an mq.runtime-identity.v1 record. Null when it could not be read at all."
           },
           "running": {
-            "description": "The identity a long-lived process reports about itself, as an mq.runtime-identity.v1 record. Null for a CLI, and null when the process could not be reached — never inferred from the installed package.",
-            "type": ["object", "null"]
+            "oneOf": [
+              {
+                "$ref": "runtime_identity.schema.json"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The identity a long-lived process reports about itself, as an mq.runtime-identity.v1 record. Null for a CLI, and null when the process could not be reached — never inferred from the installed package."
           },
           "release": {
             "description": "Release identity as declared and as tagged. A version equal to the latest tag does not mean the tag points at the commit that is running.",
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
-            "required": ["declared_version", "latest_tag", "tag_commit"],
+            "required": [
+              "declared_version",
+              "latest_tag",
+              "tag_commit"
+            ],
             "properties": {
-              "declared_version": {"type": ["string", "null"]},
-              "latest_tag": {"type": ["string", "null"]},
-              "tag_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$"},
-              "github_release_tag": {"type": ["string", "null"]}
+              "declared_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "latest_tag": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tag_commit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "github_release_tag": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
             }
           },
-          "comparison": {"$ref": "#/$defs/comparison"},
-          "status": {"$ref": "#/$defs/status"},
+          "comparison": {
+            "$ref": "#/$defs/comparison"
+          },
+          "status": {
+            "$ref": "#/$defs/status"
+          },
           "reasons": {
             "type": "array",
-            "items": {"$ref": "#/$defs/reason_code"}
+            "items": {
+              "$ref": "#/$defs/reason_code"
+            }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "running": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "running"
+              ]
+            },
+            "then": {
+              "properties": {
+                "comparison": {
+                  "properties": {
+                    "running_matches_installed": {
+                      "type": "null"
+                    },
+                    "running_matches_checkout": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "checkout": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "checkout"
+              ]
+            },
+            "then": {
+              "properties": {
+                "comparison": {
+                  "properties": {
+                    "installed_matches_checkout": {
+                      "type": "null"
+                    },
+                    "running_matches_checkout": {
+                      "type": "null"
+                    },
+                    "release_matches_checkout": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "release": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "release"
+              ]
+            },
+            "then": {
+              "properties": {
+                "comparison": {
+                  "properties": {
+                    "release_matches_checkout": {
+                      "type": "null"
+                    },
+                    "release_matches_installed": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "installed": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "installed"
+              ]
+            },
+            "then": {
+              "properties": {
+                "comparison": {
+                  "properties": {
+                    "installed_matches_checkout": {
+                      "type": "null"
+                    },
+                    "running_matches_installed": {
+                      "type": "null"
+                    },
+                    "release_matches_installed": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "problem_count", "next_action"],
+      "required": [
+        "status",
+        "problem_count",
+        "next_action"
+      ],
       "properties": {
-        "status": {"$ref": "#/$defs/status"},
-        "problem_count": {"type": "integer", "minimum": 0},
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "problem_count": {
+          "type": "integer",
+          "minimum": 0
+        },
         "next_action": {
           "description": "Exactly one action, or null when there is nothing to do. Ordered by dependency: reinstalling comes before restarting, because restarting a stale install starts the same stale code again.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "remote_verified": {
+            "const": false
+          }
+        },
+        "required": [
+          "remote_verified"
+        ]
+      },
+      "then": {
+        "properties": {
+          "components": {
+            "items": {
+              "properties": {
+                "remote": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "properties": {
+                        "verified": {
+                          "const": false
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
