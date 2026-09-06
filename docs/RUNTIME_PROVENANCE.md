@@ -129,6 +129,11 @@ Each edge answers a different question, so each is reported separately:
 | `release_matches_checkout` | Does the release identity name the checkout? |
 | `release_matches_installed` | Does the release identity name what is installed? |
 
+`installed` and `running` are answered by different parties. A runtime reads
+its own distribution metadata; nothing reads another environment's. So
+`installed` is null for any component this process did not install, and the
+component itself is the only source for `running`.
+
 There is no generic `synced`, `healthy`, `current` or `aligned` boolean, and
 the schema tests forbid one. A single green flag over five different questions
 answers none of them.
@@ -157,6 +162,36 @@ every comparison against it must be `null` too:
 Every layer is required as a key. An observation that was not made is reported
 as `null`, never omitted — a missing key and an unobserved layer would be
 indistinguishable.
+
+## Asking a live component: three states, kept apart
+
+`running: null` cannot say why. mq-agent is a CLI with no process of its own to
+ask; mq-mcp may be installed and simply not started. Those are different facts,
+so `running_probe` records whether anyone asked:
+
+| `attempted` | `reachable` | Meaning | `running` |
+| --- | --- | --- | --- |
+| `false` | `null` | nobody asked — a CLI has no process | `null` |
+| `true` | `false` | asked, and nothing answered | `null` |
+| `true` | `true` | a component identified itself | its record |
+
+A component that is not running is not a fault and not an unknown identity:
+there is no process, so there is nothing whose identity could be unknown. It
+produces no reason code. What it does say is that there is nothing to restart —
+which the first row does not say at all.
+
+The schema holds the two ends: a reported identity requires `attempted` and
+`reachable` to be true, and an unattempted probe requires `reachable` to be
+null rather than false.
+
+The answer is validated against `mq.runtime-identity.v1` before it is believed.
+A component that answers with something else — a record that fails validation,
+or a page that is not a record at all — is `RTP013`, not silence. A component
+that answers honestly that it cannot identify itself is `RTP008`.
+
+mq-agent produces no identity for another component. It asks, validates, and
+compares; `installed` stays null for mq-mcp because this process can read its
+own distribution metadata and not another environment's.
 
 ## Remote verification: three states, kept apart
 

@@ -126,9 +126,17 @@ def compare(component: dict[str, Any]) -> dict[str, bool | None]:
 
 
 def _identity_findings(identity: Any, unknown_code: str) -> list[str]:
-    """What one identity layer says about itself. Absent layers say nothing."""
+    """What one identity layer says about itself. Absent layers say nothing.
+
+    A null layer is one nobody observed, and that is silence for both of them.
+    `observe_installed()` never returns null — a distribution it cannot read
+    comes back as an identity whose quality is `unknown`, which is the finding.
+    A null installed layer therefore means something else entirely: mq-agent
+    looking at a component installed in another environment, where it can read
+    its own distribution metadata and not another's.
+    """
     if identity is None:
-        return [unknown_code] if unknown_code == "RTP006_INSTALLED_IDENTITY_UNKNOWN" else []
+        return []
     if not isinstance(identity, dict):
         return ["RTP013_RUNTIME_IDENTITY_INVALID"]
     if list(runtime_identity.identity_validator().iter_errors(identity)):
@@ -210,7 +218,12 @@ def findings(component: dict[str, Any], comparison: dict[str, bool | None]) -> l
 
 
 def assess(component: dict[str, Any]) -> dict[str, Any]:
-    """One component with its comparisons, reasons and status filled in."""
+    """One component with its comparisons, reasons and status filled in.
+
+    A component built without a probe concept says so: `running_probe` is null,
+    which is neither "asked" nor "asked and got nothing".
+    """
+    component = {"running_probe": None, **component}
     comparison = compare(component)
     reasons = findings(component, comparison)
     return {
@@ -253,26 +266,62 @@ def build(
 def observe_component(
     name: str = runtime_identity.COMPONENT, *, refresh: bool = False
 ) -> dict[str, Any]:
-    """Observe every layer of one component. Contacts a remote only if asked."""
+    """Observe every layer of this runtime. Contacts a remote only if asked.
+
+    This process is a CLI: it has no long-lived process to ask, so `running` is
+    null and nothing was probed. That is a different null from a component whose
+    server was asked and found stopped, which is why the probe is recorded.
+    """
     return {
         "name": name,
         "checkout": runtime_identity.observe_checkout(),
         "integration": runtime_identity.observe_integration(),
         "remote": runtime_identity.observe_remote(refresh=refresh),
         "installed": runtime_identity.observe_installed(),
-        # A CLI has no long-lived process. Phase 4 gives mq-mcp one to report.
         "running": None,
+        "running_probe": dict(runtime_identity.NOT_PROBED),
         "release": runtime_identity.observe_release(),
     }
 
 
+def observe_mq_mcp(*, refresh: bool = False) -> dict[str, Any] | None:
+    """Observe mq-mcp: its checkout here, and the process it reports itself as.
+
+    `installed` stays null. mq-mcp is installed in its own environment, and
+    this process can read its own distribution metadata, not another's —
+    guessing would be the mistake the whole feature exists to catch.
+
+    Returns None when there is nothing to say: no checkout on this machine and
+    nothing answering. A component that is not part of this installation is
+    absent from the record rather than present and empty.
+    """
+    root = runtime_identity.mq_mcp_root()
+    endpoint = runtime_identity.mq_mcp_endpoint()
+    running, probe = runtime_identity.probe_running(endpoint)
+    if root is None and not probe["reachable"]:
+        return None
+    return {
+        "name": runtime_identity.MQ_MCP,
+        "checkout": runtime_identity.observe_checkout(root) if root else None,
+        "integration": runtime_identity.observe_integration(root) if root else None,
+        "remote": runtime_identity.observe_remote(root, refresh=refresh) if root else None,
+        "installed": None,
+        "running": running,
+        "running_probe": probe,
+        "release": runtime_identity.observe_release(root) if root else None,
+    }
+
+
 def observe(*, refresh: bool = False) -> dict[str, Any]:
-    """Provenance for this runtime. Read-only, and network-free unless asked.
+    """Provenance for this runtime, and for mq-mcp when this machine has one.
 
     `refresh` makes an observation fresher; it does not change how observations
     are reduced. A finding means the same thing whether `origin/main` came from
     disk or was confirmed against the remote.
     """
-    component = observe_component(refresh=refresh)
-    remote = component.get("remote") or {}
-    return build([component], remote_verified=bool(remote.get("verified")))
+    components = [observe_component(refresh=refresh)]
+    mq_mcp = observe_mq_mcp(refresh=refresh)
+    if mq_mcp is not None:
+        components.append(mq_mcp)
+    verified = any((c.get("remote") or {}).get("verified") for c in components)
+    return build(components, remote_verified=verified)

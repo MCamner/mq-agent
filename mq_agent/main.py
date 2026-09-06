@@ -5086,6 +5086,27 @@ def stack_provenance_cmd(
         matches = component["comparison"]["installed_matches_checkout"]
         _row("checkout", "MATCH" if matches else "MISMATCH" if matches is False else None)
 
+        probe = component.get("running_probe")
+        running = component.get("running") or {}
+        console.print("\n  RUNNING")
+        if not probe or not probe.get("attempted"):
+            # A CLI has no process of its own, so nothing was asked. Saying
+            # "not running" here would report an observation nobody made.
+            _row("", "not asked")
+        elif not probe.get("reachable"):
+            _row("", f"nothing answered at {probe.get('endpoint')}")
+        else:
+            _row("version", running.get("version"))
+            _row("commit", (running.get("commit") or "")[:7] or None)
+            _row("identity", running.get("identity_quality"))
+            against_checkout = component["comparison"]["running_matches_checkout"]
+            _row(
+                "checkout",
+                "MATCH" if against_checkout
+                else "MISMATCH" if against_checkout is False
+                else None,
+            )
+
         release = component.get("release")
         console.print("\n  RELEASE")
         if release:
