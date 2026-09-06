@@ -534,21 +534,40 @@ can still be running an editable install of something else.
 ### Phase 1 — `mq-agent` self identity
 
 Can `mq-agent` prove which code `mq-agent` itself is running?
+`mq_agent/core/runtime_identity.py`.
 
-* [ ] Move the schema registry helper from the contract tests into module code.
-  The identity reference resolves from disk, never the network, so a validator
-  built without both schemas registered raises `Unresolvable` — fail-closed,
-  but every consumer must supply the registry.
-
-* [ ] Installed identity from the imported module, package metadata and
+* [x] The schema registry moved from the contract tests into module code. The
+  identity reference resolves from the packaged schemas, never the network, so
+  a validator built without both registered raises `Unresolvable` —
+  fail-closed, but every consumer must supply the registry.
+* [x] Installed identity from the imported module, package metadata and
   `sys.executable` — never from the working directory.
-* [ ] Checkout identity, reusing the git probes and `repository_root()` already
-  in `runtime_guard.py` rather than duplicating them. Refactor only what needs
-  sharing; no broad cleanup.
-* [ ] `installed_matches_checkout`, including the case of the same version at a
-  different commit.
-* [ ] Editable installs, wheels without a checkout, and an unprovable install
-  type reported as `unknown`.
+* [x] Checkout identity, reusing `repository_root()` and the git probe already
+  in `runtime_guard.py` rather than duplicating them.
+* [x] `installed_matches_checkout`, including the same version at a different
+  commit, and abbreviated hashes matching the full ones they abbreviate.
+* [x] `install_type` is proven, never guessed, and PEP 610 proves less than it
+  first appears. `dir_info` means a local directory, so only `editable: true`
+  proves an editable install and any other directory install is `unknown`.
+  `archive_info` covers source archives *and* wheels — "When `url` refers to a
+  source archive or a wheel, the `archive_info` key MUST be present" — so only
+  a URL naming a `.whl` proves a wheel. An index install carries no record at
+  all, and its absence does not distinguish pip from pipx from `uv tool`, so
+  those stay `unknown` until a phase can prove them.
+* [x] A VCS install states its own commit, which PEP 610 requires, so
+  `pip install git+…` yields a `verified` identity even though its install
+  shape stays `unknown`. Provenance and install form are separate questions.
+* [x] Malformed `direct_url.json` degrades to `unknown` rather than raising. A
+  broken record is a weaker identity, not a failed observation.
+* [x] A wheel carries no commit metadata yet, so its identity is `partial` —
+  weaker and honest, rather than filled in from the latest tag. Verified
+  against a real wheel installed into a clean environment: `install_type`
+  wheel, `commit` null, `checkout` None, and the comparison `None` rather than
+  false.
+
+Not in Phase 1, and deliberately: stack aggregation, the `stack provenance`
+CLI, release or tag identity, remote verification, `mq-mcp`, any change to
+`runtime_guard`'s policy, and any change to execution outcomes.
 
 ### Phase 2 — Stack checkout and release identity
 

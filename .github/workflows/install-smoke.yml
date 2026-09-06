@@ -101,3 +101,29 @@ jobs:
           assert resolved.exists(), f"{resolved} is missing from the install"
           print("resolved", resolved)
           PY
+
+      # A wheel is the case a checkout can never exercise: no working tree, no
+      # commit metadata, so a partial identity and comparisons that are None
+      # rather than false. The suite reproduces this shape from injected
+      # metadata; this proves it from the artefact itself.
+      - name: The wheel identifies itself honestly
+        run: |
+          .venv-wheel/bin/python - <<'PY'
+          from mq_agent.core import runtime_identity as ri
+
+          identity = ri.observe_installed()
+          ri.identity_validator().validate(identity)
+
+          checkout = ri.observe_checkout()
+          comparison = ri.installed_matches_checkout(identity["commit"], None)
+
+          assert identity["component"] == "mq-agent", identity
+          assert identity["install_type"] == "wheel", identity
+          assert identity["commit"] is None, identity
+          assert identity["source_path"] is None, identity
+          assert identity["identity_quality"] == "partial", identity
+          assert "site-packages" in identity["module_path"], identity
+          assert checkout is None, checkout
+          assert comparison is None, comparison
+          print("wheel identity:", identity["identity_quality"], identity["install_type"])
+          PY
