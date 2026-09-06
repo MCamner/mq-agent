@@ -37,3 +37,67 @@ jobs:
 
       - name: Repo summary
         run: uv run mq-agent repo-summary .
+
+  # The editable smoke above proves the developer install works. This proves
+  # the published artefact works, which is a different question: an editable
+  # install reads the checkout, so a file missing from the wheel is invisible
+  # there. That is exactly how execution_outcome.schema.json shipped broken in
+  # v1.27 with every gate green.
+  wheel:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Into a subdirectory, so the working directory holds no `mq_agent`
+      # package for an import to find instead of the installed one.
+      - uses: actions/checkout@v4
+        with:
+          path: source
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build the wheel
+        run: uv build --wheel source -o dist
+
+      - name: Install it into a clean environment
+        run: |
+          uv venv .venv-wheel --python 3.11
+          uv pip install --python .venv-wheel/bin/python dist/*.whl
+
+      - name: Help
+        run: .venv-wheel/bin/mq-agent --help
+
+      # Without this the job could pass on the checkout's copy and prove
+      # nothing about the wheel.
+      - name: The installed package is the wheel, not the checkout
+        run: |
+          .venv-wheel/bin/python - <<'PY'
+          import pathlib, mq_agent
+          module = pathlib.Path(mq_agent.__file__).resolve()
+          assert "site-packages" in module.parts, module
+          assert "source" not in module.parts, module
+          print("importing", module)
+          PY
+
+      - name: Packaged schemas load from the installed package
+        run: |
+          .venv-wheel/bin/python - <<'PY'
+          import json, pathlib, mq_agent
+          packaged = pathlib.Path(mq_agent.__file__).parent / "schemas"
+          files = sorted(packaged.glob("*.json"))
+          assert files, f"no packaged schemas in {packaged}"
+          for path in files:
+              json.loads(path.read_text(encoding="utf-8"))
+          print(f"{len(files)} packaged schemas load")
+          PY
+
+      # The loader's own resolution, not just the files being present.
+      - name: The runtime resolves its own schema
+        run: |
+          .venv-wheel/bin/python - <<'PY'
+          from mq_agent.tools.execution_outcome import _schema_path
+          resolved = _schema_path()
+          assert resolved.exists(), f"{resolved} is missing from the install"
+          print("resolved", resolved)
+          PY
