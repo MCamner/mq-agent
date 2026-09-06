@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, distribution, version
 from pathlib import Path
 from typing import Any
@@ -343,6 +344,46 @@ def observe_integration(root: Path | None = None) -> dict[str, Any] | None:
         "behind": behind,
         "diverged": (
             (ahead > 0 and behind > 0) if ahead is not None and behind is not None else None
+        ),
+    }
+
+
+def _ls_remote(root: Path, ref: str) -> str | None:
+    """Ask the remote what it holds, without changing anything locally.
+
+    `ls-remote` queries; `fetch` would write refs into the checkout being
+    observed. An observation must not alter its subject. None means the remote
+    could not be reached — unobserved, not stale.
+    """
+    result = _probe(root, "ls-remote", "origin", ref)
+    if result is None or result.returncode != 0:
+        return None
+    line = result.stdout.strip().split("\n")[0]
+    sha = line.split("\t")[0].strip() if line else ""
+    return sha or None
+
+
+def observe_remote(root: Path | None = None, *, refresh: bool = False) -> dict[str, Any] | None:
+    """What this machine knows of the remote, and what it confirmed.
+
+    Without `refresh` nothing is asked and nothing is claimed: the locally known
+    `origin/main` is reported as what it is, a ref this machine last saw. With
+    `refresh`, the attempt is recorded whether or not it succeeded, so a caller
+    can tell "never asked" from "asked and could not reach it".
+    """
+    checkout = root if root is not None else repository_root()
+    if checkout is None or not (Path(checkout) / ".git").exists():
+        return None
+    checkout = Path(checkout)
+
+    remote_head = _ls_remote(checkout, f"refs/heads/{TRUNK}") if refresh else None
+    return {
+        "local_origin_main": _rev(checkout, REMOTE_TRUNK),
+        "remote_origin_main": remote_head,
+        "verification_attempted": refresh,
+        "verified": remote_head is not None,
+        "verified_at": (
+            datetime.now(UTC).isoformat().replace("+00:00", "Z") if remote_head else None
         ),
     }
 

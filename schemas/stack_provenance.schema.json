@@ -219,7 +219,7 @@
             }
           },
           "remote": {
-            "description": "The locally known origin/main and, only after explicit verification, what the remote actually holds. The two are never conflated.",
+            "description": "The locally known origin/main and, only after explicit verification, what the remote actually holds. Three states stay distinct: never asked, asked and unreachable, and confirmed. `verified: false` alone cannot tell the first two apart, so whether anyone asked is recorded separately.",
             "type": [
               "object",
               "null"
@@ -228,6 +228,7 @@
             "required": [
               "local_origin_main",
               "remote_origin_main",
+              "verification_attempted",
               "verified",
               "verified_at"
             ],
@@ -255,6 +256,10 @@
                   "null"
                 ],
                 "format": "date-time"
+              },
+              "verification_attempted": {
+                "description": "Whether this run asked the remote at all. False is the default: the command contacts no network unless asked to. True with `verified: false` means the remote was asked and could not be reached, which is unobserved rather than stale.",
+                "type": "boolean"
               }
             },
             "allOf": [
@@ -276,6 +281,9 @@
                     },
                     "verified_at": {
                       "type": "string"
+                    },
+                    "verification_attempted": {
+                      "const": true
                     }
                   }
                 }

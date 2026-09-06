@@ -1832,6 +1832,7 @@ Show which code this runtime is, and whether its layers agree. Compares the sour
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--json` | No | `false` | — |
+| `--refresh` | No | `false` | Ask the remote what it holds; the only step that uses the network |
 
 ## `mq-agent stack release`
 

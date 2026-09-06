@@ -76,6 +76,8 @@ NEXT_ACTIONS: tuple[tuple[str, str], ...] = (
     ("RTP001_DIRTY_WORKTREE", "commit or stash the changes in {component}'s checkout"),
     ("RTP002_HEAD_NOT_INTEGRATED", "integrate {component}'s HEAD into main, or check out a commit that is"),
     ("RTP003_LOCAL_MAIN_STALE", "update {component}'s checkout: it is behind the main it knows about"),
+    ("RTP005_CHECKOUT_BEHIND_REMOTE", "fetch {component}: the verified remote main is not the ref this checkout has"),
+    ("RTP014_REMOTE_UNAVAILABLE", "retry {component} with --refresh when the remote is reachable"),
 )
 
 
@@ -157,6 +159,15 @@ def findings(component: dict[str, Any], comparison: dict[str, bool | None]) -> l
         if isinstance(behind, int) and behind > 0:
             reasons.append("RTP003_LOCAL_MAIN_STALE")
 
+    # Three states, kept apart. Never asked is silence. Asked and unreachable is
+    # an observation nobody could make. Confirmed and different is a finding.
+    remote = component.get("remote")
+    if isinstance(remote, dict) and remote.get("verification_attempted") is True:
+        if not remote.get("verified"):
+            reasons.append("RTP014_REMOTE_UNAVAILABLE")
+        elif remote.get("remote_origin_main") != remote.get("local_origin_main"):
+            reasons.append("RTP005_CHECKOUT_BEHIND_REMOTE")
+
     reasons += _identity_findings(
         component.get("installed"), "RTP006_INSTALLED_IDENTITY_UNKNOWN"
     )
@@ -228,13 +239,15 @@ def build(
     }
 
 
-def observe_component(name: str = runtime_identity.COMPONENT) -> dict[str, Any]:
-    """Observe every local layer of one component. No network, no aggregation."""
+def observe_component(
+    name: str = runtime_identity.COMPONENT, *, refresh: bool = False
+) -> dict[str, Any]:
+    """Observe every layer of one component. Contacts a remote only if asked."""
     return {
         "name": name,
         "checkout": runtime_identity.observe_checkout(),
         "integration": runtime_identity.observe_integration(),
-        "remote": None,
+        "remote": runtime_identity.observe_remote(refresh=refresh),
         "installed": runtime_identity.observe_installed(),
         # A CLI has no long-lived process. Phase 4 gives mq-mcp one to report.
         "running": None,
@@ -242,6 +255,13 @@ def observe_component(name: str = runtime_identity.COMPONENT) -> dict[str, Any]:
     }
 
 
-def observe() -> dict[str, Any]:
-    """Provenance for this runtime, read-only and network-free."""
-    return build([observe_component()])
+def observe(*, refresh: bool = False) -> dict[str, Any]:
+    """Provenance for this runtime. Read-only, and network-free unless asked.
+
+    `refresh` makes an observation fresher; it does not change how observations
+    are reduced. A finding means the same thing whether `origin/main` came from
+    disk or was confirmed against the remote.
+    """
+    component = observe_component(refresh=refresh)
+    remote = component.get("remote") or {}
+    return build([component], remote_verified=bool(remote.get("verified")))

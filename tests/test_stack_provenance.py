@@ -425,7 +425,7 @@ def test_the_command_never_blocks_on_what_it_finds(monkeypatch, status) -> None:
     record = stack_provenance.build([_component()])
     record["summary"]["status"] = status
     record["components"][0]["status"] = status
-    monkeypatch.setattr("mq_agent.core.stack_provenance.observe", lambda: record)
+    monkeypatch.setattr("mq_agent.core.stack_provenance.observe", lambda **_: record)
 
     for argv in (["stack", "provenance"], ["stack", "provenance", "--json"]):
         assert cli.invoke(app, argv).exit_code == 0, argv
@@ -434,7 +434,7 @@ def test_the_command_never_blocks_on_what_it_finds(monkeypatch, status) -> None:
 def test_the_human_output_names_the_reason_and_the_action(monkeypatch) -> None:
     dirty = _component(checkout={**_component()["checkout"], "worktree_clean": False})
     monkeypatch.setattr(
-        "mq_agent.core.stack_provenance.observe", lambda: stack_provenance.build([dirty])
+        "mq_agent.core.stack_provenance.observe", lambda **_: stack_provenance.build([dirty])
     )
 
     output = cli.invoke(app, ["stack", "provenance"]).output
