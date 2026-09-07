@@ -341,6 +341,38 @@ the next action is **not** "restart the process" — that starts the same stale
 installation again. It is "reinstall from the current checkout"; only then does
 a restart change anything.
 
+## Attribution on an execution record
+
+An execution outcome can say which code produced it, as an optional
+`runtime_fingerprint` on `mq.execution-outcome.v1` (mqobsidian DEC-006):
+
+```json
+{"component": "mq-agent", "version": "1.28.0", "commit": "1f7fdd7…", "identity_quality": "verified"}
+```
+
+Four fields, and a **projection** rather than an observation. `runtime_guard`
+already observes and validates this runtime's identity before deciding the run
+may write evidence; the fact then travels as data:
+
+```text
+guard observes and validates  →  the verdict carries it  →  projected  →  record
+```
+
+Observing it again in the writer would give the stack two producers of one
+truth, free to disagree — and the second would read the checkout at write time,
+attributing a run to whatever the tree had become by then. That is the drift
+this release exists to expose, produced by the field meant to expose it.
+
+Everything else `mq.runtime-identity.v1` carries — install type, start time,
+executable, module and source paths — stays out. It answers how a runtime was
+installed and where it lives, and a shared evidence store is not the place for
+one operator's disk layout.
+
+The field is absent when no identity was established, which is a fact about the
+observation rather than about the runtime. That happens when the evidence
+stores are redirected: the guard does not run, so nothing established what to
+attribute. Absence keeps its usual meaning — not observed.
+
 ## Why the guard does not gate on RTP007
 
 The obvious use of `installed_matches_checkout` is to refuse a run whose

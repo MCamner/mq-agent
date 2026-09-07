@@ -692,11 +692,29 @@ nothing about the case it was built for.
   one tree, a wheel has no checkout, and 5.0 closed the stranger distribution
   that used to fabricate the difference. Gating on it would be a refusal that
   can never fire. See `docs/RUNTIME_PROVENANCE.md`.
-* [ ] **5.2 — execution provenance.** Decide the contract-versioning question
-  first: `mq.execution-outcome.v1` shipped in v1.27 with
-  `additionalProperties: false`, so a runtime fingerprint is a contract change
-  however additive it looks. Then the reachable drift — `running` against
-  `checkout`, demonstrated live for mq-mcp — as an actual policy input.
+* [x] **5.2a — contract versioning decided before any code.** mqobsidian owns
+  `mq.execution-outcome.v1`, and DEC-006 settles it: additive optional fields
+  extend `v1`, and a `v2` is reserved for a change that invalidates historical
+  records. A version bump would not have helped the case it was proposed for —
+  an older reader knows an unfamiliar schema identity no better than an
+  unfamiliar field.
+* [x] **5.2b — the fingerprint's shape.** `component`, `version`, `commit`,
+  `identity_quality`. Deliberately smaller than `mq.runtime-identity.v1`:
+  install type, process metadata and local paths answer a different question,
+  and comparison, status and reason codes answer a third.
+* [x] **5.2c — the forward-compatibility debt measured, not inferred.** A
+  closed contract means an older schema rejects a newer record;
+  `tests/test_mixed_version_store.py` shows it landing in `invalid_records`
+  while the reader's own records still read. Whether that deserves a third
+  classification is left open.
+* [x] **5.2d — the fingerprint is a projection, not a second observation.**
+  `runtime_guard` establishes the identity and its verdict carries it; the
+  writer narrows that same fact. Observing again at write time would attribute
+  a run to whatever the checkout had become.
+* [ ] **5.2e — RTP010 as a policy input.** Still open, and deliberately not
+  decided by any of the above. A stale mq-mcp does not make an unrelated
+  mq-agent execution unattributable, so the question is not whether the finding
+  exists but whether the stale component is in the execution's dependency cone.
 * [ ] **5.3 — dashboard presentation.**
 * [ ] **5.4 — `mq-hal` presentation.**
 

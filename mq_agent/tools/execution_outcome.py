@@ -64,6 +64,26 @@ def _validator() -> Draft202012Validator:
     return Draft202012Validator(schema)
 
 
+#: What an execution record keeps of the runtime that produced it. Everything
+#: else `mq.runtime-identity.v1` carries — how it was installed, when it
+#: started, which paths it lives at — answers a different question, and a
+#: shared evidence store is not the place for one operator's disk layout.
+_FINGERPRINT_FIELDS = ("component", "version", "commit", "identity_quality")
+
+
+def project_runtime_fingerprint(identity: dict[str, Any]) -> dict[str, Any]:
+    """Narrow an established runtime identity to what an execution record keeps.
+
+    A pure function of what it is given: no git, no distribution metadata, no
+    filesystem, no comparison. `runtime_guard` has already observed and
+    validated this identity before deciding the run may proceed, and observing
+    it a second time here would give the stack two producers of one truth —
+    the second reading the checkout at write time, which is the drift the
+    fingerprint exists to make visible.
+    """
+    return {field: identity[field] for field in _FINGERPRINT_FIELDS}
+
+
 def build_execution_outcome(
     *,
     runtime: str,
@@ -83,6 +103,7 @@ def build_execution_outcome(
     tokens: dict[str, int] | None = None,
     cost: float | None = None,
     events: list[dict[str, str]] | None = None,
+    runtime_fingerprint: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build and validate one execution outcome without persisting it."""
     outcome: dict[str, Any] = {
@@ -110,6 +131,7 @@ def build_execution_outcome(
         "tokens": tokens,
         "cost": cost,
         "events": events,
+        "runtime_fingerprint": runtime_fingerprint,
     }
     outcome.update({key: value for key, value in optional.items() if value is not None})
 

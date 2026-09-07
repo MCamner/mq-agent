@@ -57,6 +57,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 #: The ref an observation's commit must be reachable from. Local, never fetched.
 CANONICAL_REF = "origin/main"
@@ -89,6 +90,12 @@ class Verdict:
     reason: str | None = None
     detail: str = ""
     remedy: str = DEFAULT_REMEDY
+    #: The identity this verdict validated, carried so the run that follows can
+    #: attribute its evidence without observing the same thing twice. Two
+    #: observations of one truth are free to disagree, and the second would be
+    #: reading the checkout at write time. None on a refusal: nothing runs, so
+    #: there is nothing to attribute.
+    identity: dict[str, Any] | None = None
 
 
 def repository_root(package_file: str | Path | None = None) -> Path | None:
@@ -152,7 +159,7 @@ def check(root: Path | None = None) -> Verdict:
 
     checkout = root if root is not None else repository_root()
     if checkout is None:
-        return Verdict(allowed=True)
+        return identity
 
     status = _probe(checkout, "status", "--porcelain")
     if status is None or status.returncode != 0:
@@ -197,7 +204,7 @@ def check(root: Path | None = None) -> Verdict:
             detail=f"{head.stdout.strip()[:7]} is not reachable from {CANONICAL_REF}",
         )
 
-    return Verdict(allowed=True)
+    return identity
 
 
 def _identity_verdict() -> Verdict:
@@ -233,4 +240,4 @@ def _identity_verdict() -> Verdict:
             remedy="Report this: the runtime contradicts its own contract",
         )
 
-    return Verdict(allowed=True)
+    return Verdict(allowed=True, identity=installed)
