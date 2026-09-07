@@ -711,10 +711,20 @@ nothing about the case it was built for.
   `runtime_guard` establishes the identity and its verdict carries it; the
   writer narrows that same fact. Observing again at write time would attribute
   a run to whatever the checkout had become.
-* [ ] **5.2e — RTP010 as a policy input.** Still open, and deliberately not
-  decided by any of the above. A stale mq-mcp does not make an unrelated
-  mq-agent execution unattributable, so the question is not whether the finding
-  exists but whether the stale component is in the execution's dependency cone.
+* [x] **5.2e — RTP010 is not a `runtime_guard` input.** Measured before
+  decided: nine guarded execution paths, one of which touches mq-mcp at all,
+  and that contact is a `--brain` write forty-eight lines after the execution
+  record closed. The dependency cone is empty — no guarded mq-agent execution
+  takes input from mq-mcp, so a stale mq-mcp cannot make mq-agent's own
+  evidence unattributable. RTP010 remains a provenance finding, a candidate
+  release-gate blocker, and a policy input for an operation that actually
+  consumes the stale component. Do not add a stack-wide RTP010 guard without
+  first establishing that the affected component lies in the execution's
+  dependency cone. See `docs/RUNTIME_PROVENANCE.md`.
+* [ ] **`signal --brain` — an ingress question, left open.** The one real
+  dependency edge points outward: mq-agent writes a review into a possibly
+  stale mq-mcp's brain. Whether that post should be refused or annotated is
+  mq-mcp's evidence-ingress discipline, not mq-agent's guard.
 * [ ] **5.3 — dashboard presentation.**
 * [ ] **5.4 — `mq-hal` presentation.**
 

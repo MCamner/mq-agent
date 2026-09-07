@@ -318,20 +318,50 @@ def test_the_identity_question_is_asked_of_a_runtime_with_no_checkout(
 
 
 def test_the_guard_gates_on_no_comparison_between_layers() -> None:
-    """The dead gate must not come back by accident.
+    """Neither dead gate may come back by accident.
+
+    Two decisions, one mechanism. `RTP007` is not gated on because it is
+    unreachable for mq-agent; `RTP010` is not gated on because the dependency
+    cone is empty — nine guarded execution paths, none of which takes input
+    from mq-mcp, so a stale mq-mcp cannot make an mq-agent execution
+    unattributable. Both are recorded in `docs/RUNTIME_PROVENANCE.md`.
 
     Read as names the code actually references, not as words in the file — the
-    docstring explains at length why `RTP007` is not gated on here, and a text
-    search would fail on the very explanation that keeps it out.
+    docstring explains at length why these are not gated on here, and a text
+    search would fail on the very explanation that keeps them out.
+
+    String constants count, and prose does not. A comparison is a dict keyed by
+    these names, so the realistic way either gate returns is
+    `component["comparison"]["running_matches_checkout"]` — an exact key, which
+    an attribute-and-name scan reads straight past. Docstrings are excluded so
+    the explanation stays sayable.
     """
     import ast
 
     tree = ast.parse(Path(runtime_guard.__file__).read_text(encoding="utf-8"))
-    referenced = {
-        node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)
-    } | {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+    prose = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef))
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+    referenced = (
+        {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+        | {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+        | {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in prose
+        }
+    )
 
     assert "installed_matches_checkout" not in referenced
+    assert "running_matches_checkout" not in referenced
+    assert "observe_mq_mcp" not in referenced
     assert "compare" not in referenced
 
 
