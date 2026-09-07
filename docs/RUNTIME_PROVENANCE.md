@@ -76,6 +76,18 @@ can be entirely unidentifiable and still known to be pipx.
 `unknown`. When it cannot be proven it is `unknown` — never inferred from a
 path that merely looks like a checkout.
 
+**A distribution name is not a subject.** `distribution("mq-agent")` finds a
+distribution by name, and a virtualenv can hold one while the running code was
+imported from somewhere else. Version, commit and install type all come from
+the distribution shown to own the imported *file* — through its own `RECORD`,
+or through the directory an editable install records. Sharing a site-packages
+is proximity, not ownership.
+
+Getting this wrong is not a cosmetic error. An editable stranger pointing at
+another checkout hands over that checkout's HEAD, which reads as a mismatch
+against this one, and nothing about the record looks wrong. Once a mismatch
+gates anything, that stranger would refuse a legitimate run.
+
 ### `mq.stack-provenance.v1`
 
 What was observed across the layers, how the identities relate, and what to do

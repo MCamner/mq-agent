@@ -10,6 +10,7 @@ Nothing here reaches the network, aggregates a stack, or looks at a release.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -168,14 +169,29 @@ def test_a_non_vcs_install_yields_no_commit_from_its_direct_url() -> None:
     assert runtime_identity.direct_url_commit({"url": "x", "vcs_info": {"vcs": "git"}}) is None
 
 
+def _bound(direct_url, version: str | None = "1.28.0"):
+    """A distribution that owns this module and reports the given metadata.
+
+    Patched at `bound_distribution` rather than at `_direct_url`, because that
+    is now the single gate: version, commit and install type all come through
+    it, so a test that bypassed it would exercise a path production never takes.
+    """
+
+    class _Owner:
+        def __init__(self, reported: str | None) -> None:
+            self.version = reported
+
+    return lambda subject=None: (_Owner(version), direct_url)
+
+
 def test_a_vcs_install_can_be_verified_without_a_checkout(monkeypatch) -> None:
     monkeypatch.setattr(
         runtime_identity,
-        "_direct_url",
-        lambda: {
+        "bound_distribution",
+        _bound({
             "url": "https://github.com/MCamner/mq-agent.git",
             "vcs_info": {"vcs": "git", "commit_id": "abc1234def5678"},
-        },
+        }),
     )
     monkeypatch.setattr(runtime_identity, "repository_root", lambda: None)
 
@@ -211,7 +227,9 @@ def test_malformed_direct_url_degrades_to_unknown(direct_url) -> None:
 
 
 def test_a_malformed_direct_url_still_produces_a_valid_identity(monkeypatch) -> None:
-    monkeypatch.setattr(runtime_identity, "_direct_url", lambda: {"url": "file:///x", "dir_info": 7})
+    monkeypatch.setattr(
+        runtime_identity, "bound_distribution", _bound({"url": "file:///x", "dir_info": 7})
+    )
     monkeypatch.setattr(runtime_identity, "repository_root", lambda: None)
 
     identity = runtime_identity.observe_installed()
@@ -309,8 +327,8 @@ def test_a_checkout_that_is_not_a_repository_observes_none(tmp_path) -> None:
 def test_an_installed_wheel_identifies_itself_without_a_checkout(monkeypatch) -> None:
     monkeypatch.setattr(
         runtime_identity,
-        "_direct_url",
-        lambda: {"url": "file:///tmp/mq_agent-1.28.0-py3-none-any.whl", "archive_info": {}},
+        "bound_distribution",
+        _bound({"url": "file:///tmp/mq_agent-1.28.0-py3-none-any.whl", "archive_info": {}}),
     )
     monkeypatch.setattr(runtime_identity, "repository_root", lambda: None)
 
@@ -355,8 +373,7 @@ def test_standing_in_another_repository_does_not_change_the_identity(
 
 # An unidentifiable runtime says so: no version, no commit, no guess.
 def test_a_runtime_without_distribution_metadata_is_unknown(monkeypatch) -> None:
-    monkeypatch.setattr(runtime_identity, "package_version", lambda: None)
-    monkeypatch.setattr(runtime_identity, "_direct_url", lambda: None)
+    monkeypatch.setattr(runtime_identity, "bound_distribution", lambda subject=None: None)
 
     identity = runtime_identity.observe_installed()
 
@@ -364,3 +381,127 @@ def test_a_runtime_without_distribution_metadata_is_unknown(monkeypatch) -> None
     assert identity["identity_quality"] == "unknown"
     assert identity["version"] is None and identity["commit"] is None
     assert identity["install_type"] == "unknown"
+
+
+# --- a distribution name is not a subject ---------------------------------
+#
+# The lesson mq-mcp learned as a producer, applied to this runtime's own
+# identity. `distribution("mq-agent")` finds a distribution by name, and a
+# virtualenv can hold one while the running code was imported from somewhere
+# else entirely. Its version, its commit and its install type would then
+# describe code this process never ran — and once `runtime_guard` blocks on a
+# commit mismatch, that stranger could refuse a legitimate run.
+
+_SITE = "/venv/lib/site-packages"
+_WHEEL = {"url": "https://x/mq_agent-1.28.0-py3-none-any.whl", "archive_info": {}}
+
+
+@pytest.mark.parametrize(
+    ("metadata", "subject", "owned", "expected"),
+    [
+        # Editable: the imported file must be inside the directory it records.
+        ({"url": "file:///src/mq-agent", "dir_info": {"editable": True}},
+         "/src/mq-agent/mq_agent/core/runtime_identity.py", None, True),
+        ({"url": "file:///src/other", "dir_info": {"editable": True}},
+         "/src/mq-agent/mq_agent/core/runtime_identity.py", None, False),
+        # Everything else: the imported file must be one this distribution
+        # installed. Sharing a site-packages is proximity, not ownership.
+        (_WHEEL, f"{_SITE}/mq_agent/core/runtime_identity.py",
+         [f"{_SITE}/mq_agent/core/runtime_identity.py"], True),
+        (_WHEEL, f"{_SITE}/mq_agent/core/runtime_identity.py",
+         [f"{_SITE}/something_else/__init__.py"], False),
+        (_WHEEL, f"{_SITE}/mq_agent/core/runtime_identity.py", None, False),
+        # An index install carries no direct_url; the file list still decides.
+        (None, f"{_SITE}/mq_agent/core/runtime_identity.py",
+         [f"{_SITE}/mq_agent/core/runtime_identity.py"], True),
+        (None, f"{_SITE}/mq_agent/core/runtime_identity.py", None, False),
+    ],
+)
+def test_ownership_is_the_file_list_not_the_neighbourhood(
+    metadata, subject, owned, expected
+) -> None:
+    assert (
+        runtime_identity.describes_imported_code(
+            metadata,
+            Path(subject),
+            {Path(f) for f in owned} if owned is not None else None,
+        )
+        is expected
+    )
+
+
+class _Stranger:
+    """An installed mq-agent that installed something else entirely."""
+
+    version: str | None = "99.9.9"
+    files: tuple[Path, ...] = ()
+
+    def __init__(self, direct_url: str | None = None) -> None:
+        self._direct_url = direct_url
+
+    def locate_file(self, name):
+        return Path("/somewhere/else") / str(name)
+
+    def read_text(self, name):
+        return self._direct_url
+
+
+def test_a_stranger_distribution_supplies_no_version(monkeypatch) -> None:
+    monkeypatch.setattr(runtime_identity, "distribution", lambda _n: _Stranger())
+
+    identity = runtime_identity.observe_installed()
+
+    runtime_identity.identity_validator().validate(identity)
+    assert identity["version"] != "99.9.9"
+    assert identity["version"] is None
+
+
+def test_a_stranger_editable_install_does_not_manufacture_a_mismatch(
+    monkeypatch, tmp_path
+) -> None:
+    """The case that would refuse a legitimate run once the guard blocks.
+
+    An editable mq-agent pointing at another checkout hands over that
+    checkout's HEAD. Compared against this one it reads as a mismatch, and
+    nothing about the record looks wrong — but the distribution never
+    installed the module this process imported.
+    """
+    elsewhere = tmp_path / "other-checkout"
+    elsewhere.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=elsewhere, check=True)
+    (elsewhere / "f").write_text("x", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=elsewhere, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "a"],
+        cwd=elsewhere,
+        check=True,
+    )
+    stranger = json.dumps(
+        {"url": elsewhere.as_uri(), "dir_info": {"editable": True}}
+    )
+    monkeypatch.setattr(
+        runtime_identity, "distribution", lambda _n: _Stranger(stranger)
+    )
+
+    identity = runtime_identity.observe_installed()
+    head = runtime_identity.checkout_head(ROOT)
+
+    assert identity["commit"] is None
+    assert identity["install_type"] == "unknown"
+    assert runtime_identity.installed_matches_checkout(identity["commit"], head) is None
+
+
+def test_a_distribution_that_owns_this_module_still_speaks_for_it(monkeypatch) -> None:
+    """A rule that only ever says no is not a rule."""
+
+    class _Owner(_Stranger):
+        version = "1.28.0"
+        files = (runtime_identity.MODULE_FILE,)
+
+        def locate_file(self, name):
+            return Path(str(name))
+
+    monkeypatch.setattr(runtime_identity, "distribution", lambda _n: _Owner())
+
+    assert runtime_identity.bound_distribution() is not None
+    assert runtime_identity.observe_installed()["version"] == "1.28.0"
