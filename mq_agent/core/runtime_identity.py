@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from functools import lru_cache
 from datetime import UTC, datetime
@@ -251,8 +252,21 @@ def direct_url_commit(direct_url: Any) -> str | None:
     vcs_info = direct_url.get("vcs_info")
     if not isinstance(vcs_info, dict):
         return None
-    commit = vcs_info.get("commit_id")
-    return commit if isinstance(commit, str) and commit else None
+    return usable_commit(vcs_info.get("commit_id"))
+
+
+#: What this contract accepts as a commit. PEP 610 covers version control
+#: systems that number their revisions rather than hashing them; `svn` and
+#: `bzr` are in its own list. Such a revision is real provenance the contract
+#: cannot express, so it is absent rather than coerced into a field whose
+#: pattern it fails — which would produce a record this repository's own
+#: validator rejects.
+_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
+
+
+def usable_commit(value: Any) -> str | None:
+    """A commit this contract can carry, or None."""
+    return value if isinstance(value, str) and _COMMIT.match(value) else None
 
 
 def identity_quality(version: str | None, commit: str | None) -> str:

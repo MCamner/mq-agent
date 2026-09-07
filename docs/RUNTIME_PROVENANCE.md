@@ -335,6 +335,33 @@ the next action is **not** "restart the process" — that starts the same stale
 installation again. It is "reinstall from the current checkout"; only then does
 a restart change anything.
 
+## Why the guard does not gate on RTP007
+
+The obvious use of `installed_matches_checkout` is to refuse a run whose
+installed code is not the checkout's. `runtime_guard` deliberately does not,
+because for mq-agent that state is not reachable:
+
+| Runtime | Why it cannot differ |
+| --- | --- |
+| editable | its commit is read from the tree the imported file lives in |
+| wheel | no checkout layer; `repository_root()` is null and the guard allows |
+| a distribution sharing the name | bound to the imported file, so it supplies nothing |
+
+The third row used to be the exception, and it was false every time. Binding
+installation metadata to the imported code closed it — and closed the only
+route to the signal with it.
+
+Written down because the next person will otherwise implement the same dead
+gate. What the guard does ask is narrower and does happen: *can this process
+express an internally valid identity?* An observation that raises, or a record
+that contradicts its own contract, refuses. `unknown` and `partial` do not —
+absence of knowledge is allowed, contradiction is not.
+
+The reachable drift is `running` against `checkout`: a live process from one
+commit while its checkout moved to another, demonstrated for mq-mcp in Phase 4.
+Whether that should gate anything is a later phase's question, and a different
+one.
+
 ## Provenance reports facts, not policy
 
 Three separate layers:

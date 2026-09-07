@@ -240,3 +240,142 @@ def test_a_run_that_risks_no_production_evidence_is_not_blocked(
     cli.invoke(app, argv)
 
     assert reached.get("ran") is True
+
+
+# --- can this process say what it is? --------------------------------------
+#
+# Not a comparison. The obvious gate — refuse when the installed commit differs
+# from the checkout's — turns out to be unreachable here, and the module
+# docstring says why: an editable install reads its commit from the same tree
+# as the checkout, and a wheel has no checkout to differ from. Gating on it
+# would be a check that can never fire.
+#
+# What remains is narrower and does happen: a runtime that cannot express an
+# internally valid identity has no business writing evidence about itself.
+# Absence of knowledge is allowed; contradiction is not.
+
+
+@pytest.mark.parametrize("quality", ["verified", "partial", "unknown"])
+def test_any_honest_identity_may_record(integrated, monkeypatch, quality) -> None:
+    """A wheel carries no commit and says so. That is an answer, not a fault."""
+    from mq_agent.core import runtime_identity
+
+    record = runtime_identity.build_identity(
+        version=None if quality == "unknown" else "1.28.0",
+        commit="a" * 40 if quality == "verified" else None,
+        install_type="unknown",
+    )
+    monkeypatch.setattr(runtime_identity, "observe_installed", lambda: record)
+
+    verdict = runtime_guard.check(root=integrated)
+
+    assert verdict.allowed is True
+
+
+def test_a_self_identity_that_fails_its_own_contract_may_not_record(
+    integrated, monkeypatch
+) -> None:
+    from mq_agent.core import runtime_identity
+
+    monkeypatch.setattr(runtime_identity, "observe_installed", lambda: {"banana": 42})
+
+    verdict = runtime_guard.check(root=integrated)
+
+    assert verdict.allowed is False
+    assert verdict.reason == "identity-invalid"
+
+
+def test_an_unreadable_identity_is_not_permission(integrated, monkeypatch) -> None:
+    """A broken observation is not a reason to take down the run it was
+    protecting — and not permission either. The question went unanswered."""
+    from mq_agent.core import runtime_identity
+
+    def _explode():
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runtime_identity, "observe_installed", _explode)
+
+    verdict = runtime_guard.check(root=integrated)
+
+    assert verdict.allowed is False
+    assert verdict.reason == "identity-unreadable"
+
+
+def test_the_identity_question_is_asked_of_a_runtime_with_no_checkout(
+    monkeypatch,
+) -> None:
+    """A released wheel has no working tree, and still has to be able to say
+    what it is."""
+    from mq_agent.core import runtime_identity
+
+    monkeypatch.setattr(runtime_guard, "repository_root", lambda *a, **k: None)
+    monkeypatch.setattr(runtime_identity, "observe_installed", lambda: {"banana": 42})
+
+    verdict = runtime_guard.check()
+
+    assert verdict.allowed is False
+    assert verdict.reason == "identity-invalid"
+
+
+def test_the_guard_gates_on_no_comparison_between_layers() -> None:
+    """The dead gate must not come back by accident.
+
+    Read as names the code actually references, not as words in the file — the
+    docstring explains at length why `RTP007` is not gated on here, and a text
+    search would fail on the very explanation that keeps it out.
+    """
+    import ast
+
+    tree = ast.parse(Path(runtime_guard.__file__).read_text(encoding="utf-8"))
+    referenced = {
+        node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)
+    } | {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+    assert "installed_matches_checkout" not in referenced
+    assert "compare" not in referenced
+
+
+# --- a revision the contract cannot express is absent, not coerced ---------
+
+
+@pytest.mark.parametrize("revision", ["4721", "not-a-sha", "ABCDEF1", "r99", ""])
+def test_a_revision_this_contract_cannot_express_is_absent(revision) -> None:
+    """PEP 610 covers more version control systems than git, and `svn` and
+    `bzr` number their revisions rather than hashing them. The contract's
+    `commit` is a hex SHA, so such a revision is absent — not coerced into the
+    field, where it produced a record the contract rejects and, under the gate
+    above, an unusable identity."""
+    from mq_agent.core import runtime_identity
+
+    assert (
+        runtime_identity.direct_url_commit(
+            {"url": "x", "vcs_info": {"vcs": "svn", "commit_id": revision}}
+        )
+        is None
+    )
+
+
+def test_a_subversion_install_is_partial_rather_than_invalid() -> None:
+    from mq_agent.core import runtime_identity
+
+    identity = runtime_identity.build_identity(
+        version="1.28.0",
+        commit=runtime_identity.direct_url_commit(
+            {"url": "x", "vcs_info": {"vcs": "svn", "commit_id": "4721"}}
+        ),
+        install_type="unknown",
+    )
+
+    runtime_identity.identity_validator().validate(identity)
+    assert identity["identity_quality"] == "partial"
+
+
+def test_a_git_commit_still_passes_through() -> None:
+    from mq_agent.core import runtime_identity
+
+    assert (
+        runtime_identity.direct_url_commit(
+            {"url": "x", "vcs_info": {"vcs": "git", "commit_id": "a" * 40}}
+        )
+        == "a" * 40
+    )

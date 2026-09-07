@@ -267,12 +267,11 @@ def _require_recordable_runtime() -> None:
         return
 
     console.print(
-        f"[bold red]Refusing to run:[/bold red] this runtime cannot be identified "
-        f"([bold]{verdict.reason}[/bold]).\n"
+        f"[bold red]Refusing to run:[/bold red] this run's evidence could not be "
+        f"attributed to a commit ([bold]{verdict.reason}[/bold]).\n"
         f"{verdict.detail}\n"
         f"It would write production evidence to: {', '.join(at_risk)}.\n"
-        "Commit and integrate the working tree, or point those variables at a "
-        "scratch file for this run."
+        f"{verdict.remedy}, or point those variables at a scratch file for this run."
     )
     raise typer.Exit(code=1)
 

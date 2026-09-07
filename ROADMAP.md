@@ -677,9 +677,28 @@ nothing about the case it was built for.
 
 ### Phase 5 — Consumers
 
-* [ ] Only once provenance is stable: `mq-hal` presentation, the dashboard,
-  `runtime_guard` consuming identity quality, and a structured runtime
-  fingerprint on future execution records.
+* [x] **5.0 — bind this runtime's identity to the code it imported.** A
+  distribution name is not a subject; version, commit and install type come
+  from the distribution shown to own the imported file. The precondition for
+  trusting the signal at all.
+* [x] **5.1 — identity correctness.** A revision the contract cannot express is
+  absent rather than coerced, so a non-git VCS install no longer produces a
+  record this repository's own validator rejects. `runtime_guard` refuses a
+  runtime that cannot express an internally valid identity — an observation
+  that raises, or a record that contradicts its contract. `unknown` and
+  `partial` pass.
+* [x] **5.1 — no RTP007 gate, and the reason recorded.** An installed↔checkout
+  mismatch is not reachable for mq-agent: editable derives both identities from
+  one tree, a wheel has no checkout, and 5.0 closed the stranger distribution
+  that used to fabricate the difference. Gating on it would be a refusal that
+  can never fire. See `docs/RUNTIME_PROVENANCE.md`.
+* [ ] **5.2 — execution provenance.** Decide the contract-versioning question
+  first: `mq.execution-outcome.v1` shipped in v1.27 with
+  `additionalProperties: false`, so a runtime fingerprint is a contract change
+  however additive it looks. Then the reachable drift — `running` against
+  `checkout`, demonstrated live for mq-mcp — as an actual policy input.
+* [ ] **5.3 — dashboard presentation.**
+* [ ] **5.4 — `mq-hal` presentation.**
 
 ### Success criterion
 
