@@ -80,6 +80,7 @@ def _component(**overrides) -> dict:
         },
         "installed": _identity(),
         "running": None,
+        "running_probe": None,
         "release": {
             "declared_version": "1.28.0",
             "latest_tag": "v1.28.0",
@@ -399,6 +400,12 @@ def test_a_running_identity_is_accepted_when_it_is_well_formed() -> None:
     component = _component(
         name="mq-mcp",
         running=running,
+        # An identity in hand means somebody asked and something answered.
+        running_probe={
+            "attempted": True,
+            "endpoint": "http://127.0.0.1:8765/runtime-identity",
+            "reachable": True,
+        },
         comparison={
             "installed_matches_checkout": True,
             "running_matches_installed": True,

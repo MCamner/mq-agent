@@ -113,6 +113,7 @@
           "remote",
           "installed",
           "running",
+          "running_probe",
           "release",
           "comparison",
           "status",
@@ -312,6 +313,39 @@
             ],
             "description": "The identity a long-lived process reports about itself, as an mq.runtime-identity.v1 record. Null for a CLI, and null when the process could not be reached — never inferred from the installed package."
           },
+          "running_probe": {
+            "description": "Whether this run asked a process to identify itself, and whether one answered. `running: null` alone cannot say which: a CLI has no process to ask, and a component whose server is not started was asked and found nothing. Those are different facts — the second says there is nothing to restart, the first says nobody looked. Null when the record was built without a probe concept at all.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "attempted",
+              "endpoint",
+              "reachable"
+            ],
+            "properties": {
+              "attempted": {
+                "description": "Whether this run asked.",
+                "type": "boolean"
+              },
+              "endpoint": {
+                "description": "Where it asked, when it asked.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reachable": {
+                "description": "Whether something answered. Null when nobody asked — never false, which would claim an observation.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
           "release": {
             "description": "Release identity as declared and as tagged. A version equal to the latest tag does not mean the tag points at the commit that is running, and a checkout ahead of its tag is ordinary progress rather than a fault — which is why the tag's reachability is recorded separately from whether it matches.",
             "type": [
@@ -476,6 +510,69 @@
                       "type": "null"
                     },
                     "release_matches_installed": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "$comment": "A reported identity implies somebody asked and something answered. Stated per component: at the array level an `if` over `items` holds only when every component matches, so one component reporting an identity would go unchecked whenever another reported none.",
+            "if": {
+              "properties": {
+                "running": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "running"
+              ]
+            },
+            "then": {
+              "properties": {
+                "running_probe": {
+                  "type": "object",
+                  "properties": {
+                    "attempted": {
+                      "const": true
+                    },
+                    "reachable": {
+                      "const": true
+                    }
+                  }
+                }
+              },
+              "required": [
+                "running_probe"
+              ]
+            }
+          },
+          {
+            "$comment": "Nobody asked, so nothing was observed about reachability.",
+            "if": {
+              "properties": {
+                "running_probe": {
+                  "type": "object",
+                  "properties": {
+                    "attempted": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "attempted"
+                  ]
+                }
+              },
+              "required": [
+                "running_probe"
+              ]
+            },
+            "then": {
+              "properties": {
+                "running_probe": {
+                  "properties": {
+                    "reachable": {
                       "type": "null"
                     }
                   }

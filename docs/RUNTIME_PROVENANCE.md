@@ -129,6 +129,11 @@ Each edge answers a different question, so each is reported separately:
 | `release_matches_checkout` | Does the release identity name the checkout? |
 | `release_matches_installed` | Does the release identity name what is installed? |
 
+`installed` and `running` are answered by different parties. A runtime reads
+its own distribution metadata; nothing reads another environment's. So
+`installed` is null for any component this process did not install, and the
+component itself is the only source for `running`.
+
 There is no generic `synced`, `healthy`, `current` or `aligned` boolean, and
 the schema tests forbid one. A single green flag over five different questions
 answers none of them.
@@ -157,6 +162,55 @@ every comparison against it must be `null` too:
 Every layer is required as a key. An observation that was not made is reported
 as `null`, never omitted — a missing key and an unobserved layer would be
 indistinguishable.
+
+## Asking a live component: three states, kept apart
+
+`running: null` cannot say why. mq-agent is a CLI with no process of its own to
+ask; mq-mcp may be installed and simply not started. Those are different facts,
+so `running_probe` records whether anyone asked:
+
+| `attempted` | `reachable` | Meaning | Finding |
+| --- | --- | --- | --- |
+| `false` | `null` | nobody asked — a CLI has no process | none |
+| `true` | `false` | asked, and nothing answered | none |
+| `true` | `true` | something answered | depends on what it said |
+
+A component that is not running is not a fault and not an unknown identity:
+there is no process, so there is nothing whose identity could be unknown. It
+produces no reason code.
+
+**A status code is an answer.** `reachable` is false only when the connection
+was refused or the request itself failed. A component running a build from
+before the route existed replies `404`, and calling that unreachable would make
+a live process look exactly like a stopped one — the distinction this probe
+exists to draw. It answered and could not be identified, which is `RTP008`.
+
+Once something answers, what it said decides:
+
+| Answer | Result |
+| --- | --- |
+| a valid record | `running` is that record |
+| not `200` | `RTP008` — running, and unidentifiable |
+| `200` with a record that fails validation | `RTP013` |
+| `200` with something that is not a record | `RTP013` |
+| a valid record whose `identity_quality` is `unknown` | `RTP008` |
+| a valid record naming a different component | `RTP013` |
+
+That last row is the producer's lesson applied to the consumer: the contract
+accepts any component name, so a perfectly valid record can describe something
+else. Filed under `mq-mcp`, it makes the provenance record contradict itself.
+Both identity layers are checked this way.
+
+The schema holds the two ends of the probe: a reported identity requires
+`attempted` and `reachable` to be true, and an unattempted probe requires
+`reachable` to be null rather than false. Both are stated **per component** — an
+`if` over `items` holds only when every component matches, so at the array
+level one component reporting an identity would go unchecked whenever another
+reported none.
+
+mq-agent produces no identity for another component. It asks, validates, and
+compares; `installed` stays null for mq-mcp because this process can read its
+own distribution metadata and not another environment's.
 
 ## Remote verification: three states, kept apart
 

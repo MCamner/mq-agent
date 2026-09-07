@@ -33,9 +33,15 @@ def _validator() -> Draft202012Validator:
 
 
 def _component(**overrides) -> dict:
-    """A component where everything was observed and everything agrees."""
+    """A component where everything was observed and everything agrees.
+
+    The installed identity names the same component the layer is filed under.
+    An identity claiming to be something else is a contradiction the reducer
+    now reports, so a fixture that renames the component must rename both.
+    """
+    name = overrides.get("name", "mq-agent")
     component: dict = {
-        "name": "mq-agent",
+        "name": name,
         "checkout": {
             "path": "/repo",
             "branch": "main",
@@ -52,9 +58,10 @@ def _component(**overrides) -> dict:
         },
         "remote": None,
         "installed": runtime_identity.build_identity(
-            version="1.28.0", commit="abc1234", install_type="editable"
+            component=name, version="1.28.0", commit="abc1234", install_type="editable"
         ),
         "running": None,
+        "running_probe": None,
         "release": {
             "declared_version": "1.28.0",
             "latest_tag": "v1.28.0",
@@ -420,12 +427,32 @@ def test_the_record_carries_no_policy(monkeypatch) -> None:
 
 
 def test_this_repository_can_be_observed_end_to_end() -> None:
+    """What is observed depends on the machine: mq-mcp may or may not be here.
+
+    Asserting the exact component list would encode one developer's checkout as
+    the definition of an installation — the mistake this feature exists to
+    catch, made in the tests instead of the code.
+    """
     record = stack_provenance.observe()
 
     _validator().validate(record)
-    assert [c["name"] for c in record["components"]] == ["mq-agent"]
+    names = [c["name"] for c in record["components"]]
+    assert names[0] == "mq-agent"
+    assert set(names) <= {"mq-agent", "mq-mcp"}
     assert record["remote_verified"] is False
     assert record["summary"]["status"] in ("PASS", "WARN", "UNAVAILABLE", "FAIL")
+
+
+def test_this_runtime_never_claims_a_process_it_did_not_ask_for() -> None:
+    """mq-agent is a CLI: no process of its own, and nothing asked about it."""
+    component = stack_provenance.observe_component()
+
+    assert component["running"] is None
+    assert component["running_probe"] == {
+        "attempted": False,
+        "endpoint": None,
+        "reachable": None,
+    }
 
 
 # --- the command surface --------------------------------------------------

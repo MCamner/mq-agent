@@ -19,6 +19,7 @@ Nothing in this module touches the network.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, distribution, version
@@ -33,6 +34,10 @@ from .runtime_guard import _probe, repository_root
 
 #: The component this module identifies. Other MQ components report their own.
 COMPONENT = "mq-agent"
+
+#: The component this one can ask to identify itself. Named here so the probe
+#: and the record agree on what they are talking about.
+MQ_MCP = "mq-mcp"
 
 #: The distribution name, which differs from the package name.
 DISTRIBUTION = "mq-agent"
@@ -452,3 +457,83 @@ def release_matches_installed(
 ) -> bool | None:
     """Whether the latest tag names the commit the installed runtime is."""
     return _same_commit((release or {}).get("tag_commit"), installed_commit)
+
+
+#: Where a long-lived MQ component answers `mq.runtime-identity.v1` about
+#: itself. mq-mcp binds the local bridge here; the path is its observability
+#: route, not an MCP tool.
+RUNNING_PATH = "/runtime-identity"
+
+#: Seconds a probe may take. A component that is not running refuses the
+#: connection immediately; this bounds the case where something accepts and
+#: then says nothing.
+PROBE_HTTP_TIMEOUT = 2.0
+
+
+def mq_mcp_endpoint() -> str:
+    """The local bridge address, honouring the same variables mq-mcp reads."""
+    host = os.environ.get("MQ_MCP_HOST", "127.0.0.1")
+    port = os.environ.get("MQ_MCP_PORT", "8765")
+    return f"http://{host}:{port}{RUNNING_PATH}"
+
+
+def mq_mcp_root() -> Path | None:
+    """mq-mcp's checkout, when this machine has one.
+
+    `MQ_MCP_DIR` names the package directory in existing callers, so the
+    checkout is its parent when that is where the repository lives.
+    """
+    raw = os.environ.get("MQ_MCP_DIR", "")
+    candidates = (
+        [Path(raw).expanduser(), Path(raw).expanduser().parent] if raw
+        else [Path.home() / "mq-mcp"]
+    )
+    for candidate in candidates:
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+def probe_running(endpoint: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Ask a component to identify itself, and record that the asking happened.
+
+    Returns what it said and how the asking went. A component that is not
+    running is not a fault and not an unknown identity: there is no process, so
+    there is nothing whose identity could be unknown. The record says the
+    question was asked and nothing answered, which is a different fact from
+    nobody asking — a CLI has no process to ask at all.
+
+    Never raises. Provenance observes; it does not fail a run by looking.
+    """
+    probe: dict[str, Any] = {"attempted": True, "endpoint": endpoint, "reachable": False}
+    try:
+        import httpx
+
+        response = httpx.get(endpoint, timeout=PROBE_HTTP_TIMEOUT)
+    except Exception:
+        # Nothing on the other end, or the asking itself failed. Only this
+        # branch means nothing answered.
+        return None, probe
+
+    # A status code is an answer. A component running a build from before the
+    # route existed replies 404, and reporting that as unreachable would make a
+    # live process look identical to a stopped one — the opposite of what this
+    # probe is for. It answered and could not identify itself, which is an
+    # unknown identity rather than an absent one.
+    probe["reachable"] = True
+    if response.status_code != 200:
+        # It answered, but not with a record. Something is running and could
+        # not be identified — an unknown identity, not a false one.
+        return None, probe
+    try:
+        reported = response.json()
+    except Exception:
+        # Something answered, and what it said was not a record. That is a
+        # finding about the component, so it travels as an invalid identity
+        # rather than as silence.
+        return {}, probe
+    return (reported if isinstance(reported, dict) else {}), probe
+
+
+#: What a component reports when nobody asked it anything.
+NOT_PROBED: dict[str, Any] = {"attempted": False, "endpoint": None, "reachable": None}
