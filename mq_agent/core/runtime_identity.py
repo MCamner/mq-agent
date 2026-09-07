@@ -252,21 +252,29 @@ def direct_url_commit(direct_url: Any) -> str | None:
     vcs_info = direct_url.get("vcs_info")
     if not isinstance(vcs_info, dict):
         return None
+    # The system has to be named, not inferred from the shape of the revision.
+    # `svn` numbers its revisions, and `1234567` is seven characters that all
+    # happen to be valid hex — indistinguishable from an abbreviated SHA to a
+    # pattern, and a different thing entirely.
+    if vcs_info.get("vcs") != "git":
+        return None
     return usable_commit(vcs_info.get("commit_id"))
 
 
-#: What this contract accepts as a commit. PEP 610 covers version control
-#: systems that number their revisions rather than hashing them; `svn` and
-#: `bzr` are in its own list. Such a revision is real provenance the contract
-#: cannot express, so it is absent rather than coerced into a field whose
-#: pattern it fails — which would produce a record this repository's own
-#: validator rejects.
+#: What this contract accepts as a commit: a git object name, lowercase.
+#: PEP 610 covers version control systems that number their revisions rather
+#: than hashing them — `svn` and `bzr` are in its own list — and such a
+#: revision is real provenance this contract cannot express. It is absent
+#: rather than coerced into a field whose pattern it fails, which would produce
+#: a record this repository's own validator rejects.
 _COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 
 
 def usable_commit(value: Any) -> str | None:
     """A commit this contract can carry, or None."""
-    return value if isinstance(value, str) and _COMMIT.match(value) else None
+    # `fullmatch`, not `match`: `$` also matches before a trailing newline, so
+    # "abcdef1\n" would pass a check meant to be exact.
+    return value if isinstance(value, str) and _COMMIT.fullmatch(value) else None
 
 
 def identity_quality(version: str | None, commit: str | None) -> str:

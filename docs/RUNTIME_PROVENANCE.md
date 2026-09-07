@@ -63,6 +63,12 @@ A missing commit is a **weaker identity, never a missing one to be filled in**.
 It is never taken from the latest tag, a sibling checkout, or the working
 directory.
 
+`commit` is a git object name, and the recorded system decides — never the
+shape of the string. PEP 610 covers version control systems that number their
+revisions, and `svn` revision `1234567` is seven characters that all happen to
+be valid hex: indistinguishable from an abbreviated SHA to a pattern, and a
+different thing entirely. A revision this contract cannot express is absent.
+
 All three quality levels are constrained by the schema, not just described:
 `verified` without a commit is invalid, `partial` claiming a commit is invalid,
 and `unknown` carrying a version or a commit is invalid. A record cannot claim

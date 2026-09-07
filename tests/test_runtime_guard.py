@@ -338,21 +338,65 @@ def test_the_guard_gates_on_no_comparison_between_layers() -> None:
 # --- a revision the contract cannot express is absent, not coerced ---------
 
 
-@pytest.mark.parametrize("revision", ["4721", "not-a-sha", "ABCDEF1", "r99", ""])
-def test_a_revision_this_contract_cannot_express_is_absent(revision) -> None:
-    """PEP 610 covers more version control systems than git, and `svn` and
-    `bzr` number their revisions rather than hashing them. The contract's
-    `commit` is a hex SHA, so such a revision is absent — not coerced into the
-    field, where it produced a record the contract rejects and, under the gate
-    above, an unusable identity."""
+@pytest.mark.parametrize(
+    ("vcs", "revision"),
+    [
+        # The one that slipped through: seven characters, all valid hex, and
+        # not a commit. A pattern cannot tell it from an abbreviated SHA — only
+        # the recorded system can, so the system is what gets checked. The
+        # earlier test missed this by picking a revision too short to match.
+        ("svn", "1234567"),
+        ("svn", "deadbee"),
+        ("svn", "4721"),
+        ("bzr", "abcdef1"),
+        ("hg", "a" * 40),
+        (None, "abcdef1"),
+        ("", "abcdef1"),
+    ],
+)
+def test_only_git_records_a_commit_this_contract_can_carry(vcs, revision) -> None:
     from mq_agent.core import runtime_identity
 
     assert (
         runtime_identity.direct_url_commit(
-            {"url": "x", "vcs_info": {"vcs": "svn", "commit_id": revision}}
+            {"url": "x", "vcs_info": {"vcs": vcs, "commit_id": revision}}
         )
         is None
     )
+
+
+@pytest.mark.parametrize("revision", ["not-a-sha", "ABCDEF1", "r99", "", "abcdef", "g" * 8])
+def test_a_git_revision_that_is_not_an_object_name_is_absent(revision) -> None:
+    from mq_agent.core import runtime_identity
+
+    assert (
+        runtime_identity.direct_url_commit(
+            {"url": "x", "vcs_info": {"vcs": "git", "commit_id": revision}}
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("revision", ["abcdef1", "a" * 40, "0123456789abcdef"])
+def test_a_git_object_name_passes_through_unchanged(revision) -> None:
+    """A rule that only ever says no is not a rule."""
+    from mq_agent.core import runtime_identity
+
+    assert (
+        runtime_identity.direct_url_commit(
+            {"url": "x", "vcs_info": {"vcs": "git", "commit_id": revision}}
+        )
+        == revision
+    )
+
+
+def test_an_exact_match_means_exact(monkeypatch) -> None:
+    """`$` also matches before a trailing newline, so `match` was not exact."""
+    from mq_agent.core import runtime_identity
+
+    assert runtime_identity.usable_commit("abcdef1\n") is None
+    assert runtime_identity.usable_commit(" abcdef1") is None
+    assert runtime_identity.usable_commit("abcdef1") == "abcdef1"
 
 
 def test_a_subversion_install_is_partial_rather_than_invalid() -> None:
@@ -361,21 +405,11 @@ def test_a_subversion_install_is_partial_rather_than_invalid() -> None:
     identity = runtime_identity.build_identity(
         version="1.28.0",
         commit=runtime_identity.direct_url_commit(
-            {"url": "x", "vcs_info": {"vcs": "svn", "commit_id": "4721"}}
+            {"url": "x", "vcs_info": {"vcs": "svn", "commit_id": "1234567"}}
         ),
         install_type="unknown",
     )
 
     runtime_identity.identity_validator().validate(identity)
     assert identity["identity_quality"] == "partial"
-
-
-def test_a_git_commit_still_passes_through() -> None:
-    from mq_agent.core import runtime_identity
-
-    assert (
-        runtime_identity.direct_url_commit(
-            {"url": "x", "vcs_info": {"vcs": "git", "commit_id": "a" * 40}}
-        )
-        == "a" * 40
-    )
+    assert identity["commit"] is None

@@ -23,13 +23,14 @@ Two limits, stated rather than papered over:
 
 * It proves HEAD is an ancestor of the **locally known** `origin/main`, not of
   whatever GitHub holds right now. Nothing here touches the network.
-* It sees the working tree, not the interpreter. A checkout that is clean and
-  integrated can still be running an editable install of something else.
+* It sees the working tree, not the interpreter — but not in the way that
+  phrase first suggests. The checkout it judges is derived from this module's
+  own `__file__`, so it is already the tree the *running* code lives in, not
+  whatever directory the operator happens to be standing in.
 
-The second limit stays open, and deliberately so. Runtime provenance can now
-identify the executing code, and the obvious next step — refuse when the
-installed commit differs from the checkout's — turns out to gate on a state
-this runtime cannot reach:
+That leaves the question runtime provenance was expected to answer here:
+refuse when the installed commit differs from the checkout's. It turns out to
+gate on a state this runtime cannot reach:
 
 * An **editable** install derives both identities from the same tree. Its
   commit is read from the checkout the imported file lives in, so the two
