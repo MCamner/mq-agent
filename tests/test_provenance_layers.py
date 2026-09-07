@@ -258,6 +258,7 @@ def test_the_observed_layers_satisfy_the_provenance_contract(repo) -> None:
         "remote": None,
         "installed": runtime_identity.observe_installed(),
         "running": None,
+        "running_probe": None,
         "release": release,
         "comparison": {
             "installed_matches_checkout": None,

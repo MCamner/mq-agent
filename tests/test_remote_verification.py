@@ -61,6 +61,7 @@ def _component(**overrides) -> dict:
             version="1.28.0", commit="abc1234", install_type="editable"
         ),
         "running": None,
+        "running_probe": None,
         "release": None,
     }
     component.update(overrides)
