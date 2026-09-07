@@ -55,6 +55,17 @@ budgets — is defined by the `mqobsidian` context contract: see `mqobsidian`
 `docs/CONTEXT_CONTRACT.md` and `docs/TOKEN_BUDGET.md`. `mqobsidian` owns the
 contract; `mq-agent` is a consumer.
 
+## Skill selection
+
+Select existing skills for a task with local, deterministic routing:
+
+```bash
+mq-agent skills route "fix CI and open PR" --repo mq-agent --target codex --explain
+```
+
+Supports `--json`, observed Codex/Claude discovery, and required safety skills.
+Requires mqobsidian's skill-selection contracts. See [Skill Selection](docs/SKILL_SELECTION.md).
+
 ## Why
 
 Most AI coding tools either wrap a model around shell commands or hide execution behind a chat UI.

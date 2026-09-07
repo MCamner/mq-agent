@@ -1,0 +1,24 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [
+    "plan",
+    "implement"
+  ],
+  "domains": [],
+  "risks": [
+    "repo_write",
+    "cross_repo"
+  ],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "mq-writing-plans",
+  "description": "Plan multi-step MQ implementation with ownership and test gates."
+}

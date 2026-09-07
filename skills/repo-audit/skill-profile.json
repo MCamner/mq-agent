@@ -1,0 +1,25 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [
+    "inspect",
+    "review"
+  ],
+  "domains": [
+    "repo"
+  ],
+  "risks": [],
+  "required_for": [],
+  "supersedes": [
+    "repo-aware"
+  ],
+  "skill": "repo-audit",
+  "description": "Structured read-only repository audit."
+}
