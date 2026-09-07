@@ -63,6 +63,12 @@ A missing commit is a **weaker identity, never a missing one to be filled in**.
 It is never taken from the latest tag, a sibling checkout, or the working
 directory.
 
+`commit` is a git object name, and the recorded system decides — never the
+shape of the string. PEP 610 covers version control systems that number their
+revisions, and `svn` revision `1234567` is seven characters that all happen to
+be valid hex: indistinguishable from an abbreviated SHA to a pattern, and a
+different thing entirely. A revision this contract cannot express is absent.
+
 All three quality levels are constrained by the schema, not just described:
 `verified` without a commit is invalid, `partial` claiming a commit is invalid,
 and `unknown` carrying a version or a commit is invalid. A record cannot claim
@@ -334,6 +340,33 @@ running    old
 the next action is **not** "restart the process" — that starts the same stale
 installation again. It is "reinstall from the current checkout"; only then does
 a restart change anything.
+
+## Why the guard does not gate on RTP007
+
+The obvious use of `installed_matches_checkout` is to refuse a run whose
+installed code is not the checkout's. `runtime_guard` deliberately does not,
+because for mq-agent that state is not reachable:
+
+| Runtime | Why it cannot differ |
+| --- | --- |
+| editable | its commit is read from the tree the imported file lives in |
+| wheel | no checkout layer; `repository_root()` is null and the guard allows |
+| a distribution sharing the name | bound to the imported file, so it supplies nothing |
+
+The third row used to be the exception, and it was false every time. Binding
+installation metadata to the imported code closed it — and closed the only
+route to the signal with it.
+
+Written down because the next person will otherwise implement the same dead
+gate. What the guard does ask is narrower and does happen: *can this process
+express an internally valid identity?* An observation that raises, or a record
+that contradicts its own contract, refuses. `unknown` and `partial` do not —
+absence of knowledge is allowed, contradiction is not.
+
+The reachable drift is `running` against `checkout`: a live process from one
+commit while its checkout moved to another, demonstrated for mq-mcp in Phase 4.
+Whether that should gate anything is a later phase's question, and a different
+one.
 
 ## Provenance reports facts, not policy
 
