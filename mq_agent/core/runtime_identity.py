@@ -511,10 +511,20 @@ def probe_running(endpoint: str) -> tuple[dict[str, Any] | None, dict[str, Any]]
 
         response = httpx.get(endpoint, timeout=PROBE_HTTP_TIMEOUT)
     except Exception:
+        # Nothing on the other end, or the asking itself failed. Only this
+        # branch means nothing answered.
         return None, probe
-    if response.status_code != 200:
-        return None, probe
+
+    # A status code is an answer. A component running a build from before the
+    # route existed replies 404, and reporting that as unreachable would make a
+    # live process look identical to a stopped one — the opposite of what this
+    # probe is for. It answered and could not identify itself, which is an
+    # unknown identity rather than an absent one.
     probe["reachable"] = True
+    if response.status_code != 200:
+        # It answered, but not with a record. Something is running and could
+        # not be identified — an unknown identity, not a false one.
+        return None, probe
     try:
         reported = response.json()
     except Exception:

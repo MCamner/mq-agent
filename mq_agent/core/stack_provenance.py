@@ -125,7 +125,7 @@ def compare(component: dict[str, Any]) -> dict[str, bool | None]:
     }
 
 
-def _identity_findings(identity: Any, unknown_code: str) -> list[str]:
+def _identity_findings(identity: Any, unknown_code: str, name: str = "") -> list[str]:
     """What one identity layer says about itself. Absent layers say nothing.
 
     A null layer is one nobody observed, and that is silence for both of them.
@@ -140,6 +140,13 @@ def _identity_findings(identity: Any, unknown_code: str) -> list[str]:
     if not isinstance(identity, dict):
         return ["RTP013_RUNTIME_IDENTITY_INVALID"]
     if list(runtime_identity.identity_validator().iter_errors(identity)):
+        return ["RTP013_RUNTIME_IDENTITY_INVALID"]
+    # A valid record naming a different component is a record about something
+    # else. The contract accepts any component name, so validity alone cannot
+    # say the answer came from who was asked — the same lesson the producer
+    # learned: a name is a claim, and it has to match the subject the layer is
+    # filed under. A record contradicting its own component is invalid here.
+    if name and identity.get("component") != name:
         return ["RTP013_RUNTIME_IDENTITY_INVALID"]
     if identity.get("identity_quality") == "unknown":
         return [unknown_code]
@@ -187,11 +194,23 @@ def findings(component: dict[str, Any], comparison: dict[str, bool | None]) -> l
         ):
             reasons.append("RTP005_CHECKOUT_BEHIND_REMOTE")
 
+    # Something answered and gave no identity: a build from before the route
+    # existed replies 404. It is running, so its identity is unknown rather
+    # than absent — silence is only for a component nothing answered for.
+    probe = component.get("running_probe")
+    if (
+        isinstance(probe, dict)
+        and probe.get("reachable") is True
+        and component.get("running") is None
+    ):
+        reasons.append("RTP008_RUNNING_IDENTITY_UNKNOWN")
+
+    name = component.get("name") or ""
     reasons += _identity_findings(
-        component.get("installed"), "RTP006_INSTALLED_IDENTITY_UNKNOWN"
+        component.get("installed"), "RTP006_INSTALLED_IDENTITY_UNKNOWN", name
     )
     reasons += _identity_findings(
-        component.get("running"), "RTP008_RUNNING_IDENTITY_UNKNOWN"
+        component.get("running"), "RTP008_RUNNING_IDENTITY_UNKNOWN", name
     )
 
     for field, code in (

@@ -203,13 +203,101 @@ def test_a_component_that_cannot_identify_itself_is_unavailable_not_wrong(
     assert "RTP010_RUNNING_CHECKOUT_MISMATCH" not in assessed["reasons"]
 
 
-def test_a_non_200_answer_is_not_an_identity(answers, monkeypatch):
-    answers(_identity(), status_code=503)
+def test_a_status_code_is_an_answer(answers):
+    """A build from before the route existed replies 404.
+
+    Calling that unreachable would make a live process look exactly like a
+    stopped one, which is the distinction this probe exists to draw. Only a
+    refused connection or a failed request means nothing answered.
+    """
+    answers(_identity(), status_code=404)
 
     running, probe = runtime_identity.probe_running(runtime_identity.mq_mcp_endpoint())
 
+    assert probe["reachable"] is True
     assert running is None
-    assert probe["reachable"] is False
+
+
+def test_something_running_that_cannot_be_identified_is_unavailable(
+    answers, monkeypatch
+):
+    answers(_identity(), status_code=404)
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: None)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    assessed = stack_provenance.assess(observed)
+
+    assert "RTP008_RUNNING_IDENTITY_UNKNOWN" in assessed["reasons"]
+    assert "RTP013_RUNTIME_IDENTITY_INVALID" not in assessed["reasons"]
+    assert assessed["status"] == "UNAVAILABLE"
+
+
+def test_a_refused_connection_stays_silent(refuses, monkeypatch, tmp_path):
+    """The other side of the same line: nothing answered, so nothing is said."""
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: _repository(tmp_path))
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    assessed = stack_provenance.assess(observed)
+
+    assert assessed["running_probe"]["reachable"] is False
+    assert "RTP008_RUNNING_IDENTITY_UNKNOWN" not in assessed["reasons"]
+
+
+# --- a name is not a subject ----------------------------------------------
+
+
+def test_an_identity_naming_another_component_contradicts_the_record(
+    answers, monkeypatch
+):
+    """The producer's lesson, applied to the consumer.
+
+    The contract accepts any component name, so a perfectly valid record can
+    describe something else entirely. Filed under `mq-mcp`, that record makes
+    the provenance record contradict itself — which is what RTP013 is for.
+    """
+    answers(_identity(component="something-else"))
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: None)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    assessed = stack_provenance.assess(observed)
+
+    assert "RTP013_RUNTIME_IDENTITY_INVALID" in assessed["reasons"]
+    assert assessed["status"] == "FAIL"
+
+
+def test_an_installed_identity_must_also_name_its_own_component():
+    """Both identity layers, one rule."""
+    assessed = stack_provenance.assess(
+        {
+            "name": "mq-mcp",
+            "checkout": None,
+            "integration": None,
+            "remote": None,
+            "installed": runtime_identity.build_identity(
+                component="mq-agent", version="1.28.0", commit="a" * 40,
+                install_type="editable",
+            ),
+            "running": None,
+            "running_probe": None,
+            "release": None,
+        }
+    )
+
+    assert "RTP013_RUNTIME_IDENTITY_INVALID" in assessed["reasons"]
+
+
+def test_a_matching_name_is_not_a_finding(answers, monkeypatch):
+    answers(_identity(component="mq-mcp"))
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: None)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    assessed = stack_provenance.assess(observed)
+
+    assert "RTP013_RUNTIME_IDENTITY_INVALID" not in assessed["reasons"]
 
 
 # --- the mismatch this whole release exists to expose ---------------------
@@ -312,6 +400,42 @@ def test_the_two_nulls_are_told_apart(refuses, monkeypatch, tmp_path):
     assert self_observed["running_probe"]["reachable"] is None
     assert asked["running_probe"]["attempted"] is True
     assert asked["running_probe"]["reachable"] is False
+
+
+def test_the_contract_refuses_an_identity_nobody_asked_for_beside_a_quiet_one():
+    """The rule has to hold per component, not across the array.
+
+    An `if` over `items` is true only when *every* element matches, so the
+    record Phase 4 actually produces — one component reporting an identity
+    beside one reporting none — would skip the check entirely. A single
+    component cannot show that, which is why the earlier version of this test
+    passed against a schema that let the two-component form through.
+    """
+    validator = _provenance_validator()
+    cli = {
+        "name": "mq-agent",
+        "checkout": None,
+        "integration": None,
+        "remote": None,
+        "installed": None,
+        "running": None,
+        "running_probe": dict(runtime_identity.NOT_PROBED),
+        "release": None,
+    }
+    unasked = {**cli, "name": "mq-mcp", "running": _identity()}
+
+    record = stack_provenance.build([cli, unasked])
+
+    assert list(validator.iter_errors(record)), "an unasked identity validated"
+
+
+def _provenance_validator() -> Draft202012Validator:
+    schema = json.loads(
+        runtime_identity._schema_path(runtime_identity.PROVENANCE_SCHEMA).read_text(
+            encoding="utf-8"
+        )
+    )
+    return Draft202012Validator(schema, registry=runtime_identity.schema_registry())
 
 
 def test_the_contract_refuses_an_identity_nobody_asked_for():

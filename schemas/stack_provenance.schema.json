@@ -516,6 +516,69 @@
                 }
               }
             }
+          },
+          {
+            "$comment": "A reported identity implies somebody asked and something answered. Stated per component: at the array level an `if` over `items` holds only when every component matches, so one component reporting an identity would go unchecked whenever another reported none.",
+            "if": {
+              "properties": {
+                "running": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "running"
+              ]
+            },
+            "then": {
+              "properties": {
+                "running_probe": {
+                  "type": "object",
+                  "properties": {
+                    "attempted": {
+                      "const": true
+                    },
+                    "reachable": {
+                      "const": true
+                    }
+                  }
+                }
+              },
+              "required": [
+                "running_probe"
+              ]
+            }
+          },
+          {
+            "$comment": "Nobody asked, so nothing was observed about reachability.",
+            "if": {
+              "properties": {
+                "running_probe": {
+                  "type": "object",
+                  "properties": {
+                    "attempted": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "attempted"
+                  ]
+                }
+              },
+              "required": [
+                "running_probe"
+              ]
+            },
+            "then": {
+              "properties": {
+                "running_probe": {
+                  "properties": {
+                    "reachable": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
           }
         ]
       }
@@ -576,99 +639,6 @@
                       }
                     }
                   ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "$comment": "A reported identity implies somebody asked and something answered.",
-      "if": {
-        "properties": {
-          "components": {
-            "items": {
-              "properties": {
-                "running": {
-                  "type": "object"
-                }
-              },
-              "required": [
-                "running"
-              ]
-            }
-          }
-        },
-        "required": [
-          "components"
-        ]
-      },
-      "then": {
-        "properties": {
-          "components": {
-            "items": {
-              "properties": {
-                "running_probe": {
-                  "type": "object",
-                  "properties": {
-                    "attempted": {
-                      "const": true
-                    },
-                    "reachable": {
-                      "const": true
-                    }
-                  }
-                }
-              },
-              "required": [
-                "running_probe"
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "$comment": "Nobody asked, so nothing was observed about reachability.",
-      "if": {
-        "properties": {
-          "components": {
-            "items": {
-              "properties": {
-                "running_probe": {
-                  "type": "object",
-                  "properties": {
-                    "attempted": {
-                      "const": false
-                    }
-                  },
-                  "required": [
-                    "attempted"
-                  ]
-                }
-              },
-              "required": [
-                "running_probe"
-              ]
-            }
-          }
-        },
-        "required": [
-          "components"
-        ]
-      },
-      "then": {
-        "properties": {
-          "components": {
-            "items": {
-              "properties": {
-                "running_probe": {
-                  "properties": {
-                    "reachable": {
-                      "type": "null"
-                    }
-                  }
                 }
               }
             }

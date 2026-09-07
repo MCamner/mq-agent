@@ -33,9 +33,15 @@ def _validator() -> Draft202012Validator:
 
 
 def _component(**overrides) -> dict:
-    """A component where everything was observed and everything agrees."""
+    """A component where everything was observed and everything agrees.
+
+    The installed identity names the same component the layer is filed under.
+    An identity claiming to be something else is a contradiction the reducer
+    now reports, so a fixture that renames the component must rename both.
+    """
+    name = overrides.get("name", "mq-agent")
     component: dict = {
-        "name": "mq-agent",
+        "name": name,
         "checkout": {
             "path": "/repo",
             "branch": "main",
@@ -52,7 +58,7 @@ def _component(**overrides) -> dict:
         },
         "remote": None,
         "installed": runtime_identity.build_identity(
-            version="1.28.0", commit="abc1234", install_type="editable"
+            component=name, version="1.28.0", commit="abc1234", install_type="editable"
         ),
         "running": None,
         "running_probe": None,
