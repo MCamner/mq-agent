@@ -318,13 +318,14 @@ def test_the_identity_question_is_asked_of_a_runtime_with_no_checkout(
 
 
 def test_the_guard_gates_on_no_comparison_between_layers() -> None:
-    """Neither dead gate may come back by accident.
+    """Neither absent gate may come back by accident.
 
-    Two decisions, one mechanism. `RTP007` is not gated on because it is
-    unreachable for mq-agent; `RTP010` is not gated on because the dependency
-    cone is empty — nine guarded execution paths, none of which takes input
-    from mq-mcp, so a stale mq-mcp cannot make an mq-agent execution
-    unattributable. Both are recorded in `docs/RUNTIME_PROVENANCE.md`.
+    Two decisions, one mechanism, and two different reasons. `RTP007` is not
+    gated on because the signal is unreachable for mq-agent, so the gate could
+    never legitimately fire. `RTP010` is reachable and a gate would fire — but
+    the dependency cone is empty, so every refusal would be unrelated to the
+    execution being protected. Both are recorded in
+    `docs/RUNTIME_PROVENANCE.md`.
 
     Read as names the code actually references, not as words in the file — the
     docstring explains at length why these are not gated on here, and a text

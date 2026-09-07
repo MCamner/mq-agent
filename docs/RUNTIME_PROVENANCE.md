@@ -399,7 +399,7 @@ The reachable drift is `running` against `checkout`: a live process from one
 commit while its checkout moved to another, demonstrated for mq-mcp in Phase 4.
 That signal is real. The next section is about where it may be used.
 
-## Why the guard does not gate on RTP010 either
+## Why the guard does not gate on RTP010 — for a different reason
 
 RTP010 is the reachable finding RTP007 was not: a live component running code
 its checkout has left behind. The tempting next step is to refuse execution
@@ -430,10 +430,24 @@ with _execution_outcome(...)       the run happens and is recorded
 if brain and not dry_run:          MultiMCPBridge() — a write, 48 lines later
 ```
 
-So the dependency cone of mq-agent's guarded executions is empty. A stale
-mq-mcp cannot make an mq-agent execution unattributable, because no mq-agent
-execution consumes mq-mcp. A stack-wide RTP010 gate would refuse nothing —
-the same shape as the RTP007 gate above, found the same way.
+So the dependency cone of mq-agent's guarded executions is empty, and there are
+zero mq-agent executions RTP010 can legitimately refuse.
+
+That is a different failure from RTP007's, and the two must not be filed
+together. A stack-wide RTP010 gate *would* fire — the signal is reachable, and
+a stale mq-mcp is a real state a guard could ask about. Every refusal would
+simply be unrelated to the execution being protected: mq-agent's own evidence
+stays attributable, because no mq-agent execution consumes mq-mcp.
+
+| | RTP007 | RTP010 |
+| --- | --- | --- |
+| the signal | unreachable | reachable |
+| the gate | cannot legitimately fire | can fire |
+| what a refusal would be | impossible | unrelated to the run it protects |
+
+Unreachable and non-causal both end in *no gate*, and they end there for
+opposite reasons. Recording only the shared conclusion would let the next
+person re-derive the wrong one.
 
 RTP010 therefore stays where it is useful and true:
 

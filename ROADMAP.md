@@ -714,9 +714,12 @@ nothing about the case it was built for.
 * [x] **5.2e — RTP010 is not a `runtime_guard` input.** Measured before
   decided: nine guarded execution paths, one of which touches mq-mcp at all,
   and that contact is a `--brain` write forty-eight lines after the execution
-  record closed. The dependency cone is empty — no guarded mq-agent execution
-  takes input from mq-mcp, so a stale mq-mcp cannot make mq-agent's own
-  evidence unattributable. RTP010 remains a provenance finding, a candidate
+  record closed. The dependency cone is empty, so there are zero mq-agent
+  executions RTP010 can legitimately refuse. Not the RTP007 case: that signal
+  was unreachable, while this one is reachable and a stack-wide gate would
+  genuinely fire — every refusal simply unrelated to the execution it protects,
+  because no guarded mq-agent execution takes input from mq-mcp. RTP010 remains
+  a provenance finding, a candidate
   release-gate blocker, and a policy input for an operation that actually
   consumes the stale component. Do not add a stack-wide RTP010 guard without
   first establishing that the affected component lies in the execution's
