@@ -351,14 +351,62 @@ def test_a_verified_remote_records_when_it_was_checked() -> None:
     _validator(PROVENANCE).validate(_provenance(remote_verified=True, components=[verified]))
 
 
-# --- execution outcome is untouched in phase 0 ----------------------------
+# --- what execution outcome took from provenance, and what it did not -----
+#
+# Phase 0 asserted this contract was untouched, and that guard did its job: it
+# failed when Phase 5.2b changed it. The change was deliberate, decided in
+# mqobsidian DEC-006, so the guard moves to the new boundary rather than being
+# deleted. What it protects is the same thing — that an execution record does
+# not quietly become a copy of the provenance model.
 
 
-def test_phase_0_does_not_change_the_execution_outcome_contract() -> None:
+def test_the_execution_record_carries_a_projection_not_an_identity() -> None:
+    """Four fields answering "which code produced this". Not the identity
+    record: install type, process metadata and local paths answer a different
+    question, and an execution store is not the place to keep them."""
+    execution = _schema("execution_outcome.schema.json")
+    fingerprint = execution["properties"]["runtime_fingerprint"]
+
+    assert set(fingerprint["properties"]) == {
+        "component",
+        "version",
+        "commit",
+        "identity_quality",
+    }
+    assert fingerprint["additionalProperties"] is False
+
+
+def test_the_execution_record_carries_no_comparison_or_policy() -> None:
+    """Provenance compares and reduces. An execution record only attributes."""
+    execution = _schema("execution_outcome.schema.json")
+    fields = set(execution["properties"]) | set(
+        execution["properties"]["runtime_fingerprint"]["properties"]
+    )
+
+    for owned_elsewhere in (
+        "matches_checkout",
+        "installed_matches_checkout",
+        "running_matches_checkout",
+        "reasons",
+        "reason_codes",
+        "status",
+        "comparison",
+    ):
+        assert owned_elsewhere not in fields
+
+
+def test_the_fingerprint_stays_optional() -> None:
+    """Records written before it exist and are not backfilled."""
     execution = _schema("execution_outcome.schema.json")
 
-    assert "runtime_identity" not in execution["properties"]
-    assert "fingerprint" not in json.dumps(execution)
+    assert "runtime_fingerprint" not in execution["required"]
+
+
+def test_the_entrypoint_enum_is_unchanged() -> None:
+    """`runtime` names which entrypoint ran; `component` names whose code it
+    was. Adding the second must not have redefined the first."""
+    execution = _schema("execution_outcome.schema.json")
+
     assert execution["properties"]["runtime"]["enum"] == [
         "swarm",
         "executor",
