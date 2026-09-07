@@ -397,8 +397,79 @@ absence of knowledge is allowed, contradiction is not.
 
 The reachable drift is `running` against `checkout`: a live process from one
 commit while its checkout moved to another, demonstrated for mq-mcp in Phase 4.
-Whether that should gate anything is a later phase's question, and a different
-one.
+That signal is real. The next section is about where it may be used.
+
+## Why the guard does not gate on RTP010 — for a different reason
+
+RTP010 is the reachable finding RTP007 was not: a live component running code
+its checkout has left behind. The tempting next step is to refuse execution
+while any component in the stack reports it.
+
+> **A provenance mismatch becomes an execution policy input only when the
+> mismatched component participates in that execution. Presence in the stack is
+> not dependency.**
+
+That rule was applied to mq-agent by measurement rather than argument. Of the
+nine entrypoints that establish a recordable runtime before executing, exactly
+one touches mq-mcp at all:
+
+| | |
+| --- | --- |
+| guarded execution paths | 9 |
+| paths that reach mq-mcp | 1 — `signal` |
+
+And the single contact is outside the execution it appears to belong to. In
+`signal`, the execution record opens and closes around the agent run; the MCP
+call happens afterwards, under `if brain and not dry_run`, and it *writes* a
+review rather than supplying an input the result depends on:
+
+```text
+_require_recordable_runtime()      the identity is established
+with _execution_outcome(...)       the run happens and is recorded
+...                                the record is closed
+if brain and not dry_run:          MultiMCPBridge() — a write, 48 lines later
+```
+
+So the dependency cone of mq-agent's guarded executions is empty, and there are
+zero mq-agent executions RTP010 can legitimately refuse.
+
+That is a different failure from RTP007's, and the two must not be filed
+together. A stack-wide RTP010 gate *would* fire — the signal is reachable, and
+a stale mq-mcp is a real state a guard could ask about. Every refusal would
+simply be unrelated to the execution being protected: mq-agent's own evidence
+stays attributable, because no mq-agent execution consumes mq-mcp.
+
+| | RTP007 | RTP010 |
+| --- | --- | --- |
+| the signal | unreachable | reachable |
+| the gate | cannot legitimately fire | can fire |
+| what a refusal would be | impossible | unrelated to the run it protects |
+
+Unreachable and non-causal both end in *no gate*, and they end there for
+opposite reasons. Recording only the shared conclusion would let the next
+person re-derive the wrong one.
+
+RTP010 therefore stays where it is useful and true:
+
+* **provenance and dashboard** — reported as `WARN` with its restart action;
+* **the release gate** — a release claims something about the whole stack, so
+  stack-level staleness is legitimately its business;
+* **an operation that consumes the component** — dependency-specific policy,
+  decided per operation.
+
+The remaining edge is `signal --brain`, which writes into a possibly stale
+mq-mcp. That is an ingress question — whether mq-mcp should accept evidence
+under a runtime identity it knows is behind its checkout — and it belongs to
+mq-mcp, not to this guard.
+
+The rule to apply before building any future gate:
+
+```text
+operation depends on component X          not:   stack contains RTP010
+        + X has RTP010                                    ↓
+              ↓                                    block mq-agent
+    operation-specific policy
+```
 
 ## Provenance reports facts, not policy
 
