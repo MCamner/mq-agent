@@ -283,31 +283,40 @@ def test_redirected_stores_are_still_not_guarded(monkeypatch, tmp_path) -> None:
 
 
 def test_a_real_run_records_the_runtime_that_produced_it(tmp_path, monkeypatch) -> None:
-    """Drive an entrypoint and read what it wrote.
+    """Drive the entrypoint and read what it wrote.
+
+    Two environment facts this has to work around, rather than assume away.
 
     The suite redirects both evidence stores, so `production_stores_at_risk()`
-    is empty and the guard does not run — which is the escape working, and why
-    a scratch record carries no fingerprint. Attribution comes from the guard,
-    so a run the guard never judged has none to carry, and the field is absent
-    rather than invented.
+    is empty and the guard does not run — the escape working, and why a scratch
+    record carries no fingerprint. The run is told its evidence is production
+    while the file still points at `tmp_path`.
 
-    To exercise the guarded path without writing to the operator's store, the
-    run is told its evidence is production while the file still points at
-    `tmp_path`.
+    And an entrypoint resolves its credentials before opening the record, so
+    without a key it exits before writing anything. That is deliberate: a
+    missing key used to write a run that failed in 0 ms, indistinguishable from
+    a real execution failure. So the client is stubbed rather than the test
+    depending on a key that exists on one machine and not in CI.
     """
     store = tmp_path / "exec.jsonl"
     monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(store))
     monkeypatch.setenv("MQ_AGENT_TELEMETRY", "on")
+
+    from mq_agent import main
+
     monkeypatch.setattr(
-        runtime_guard, "production_stores_at_risk", lambda *a, **k: ("MQ_AGENT_EXECUTION_OUTCOMES",)
+        runtime_guard,
+        "production_stores_at_risk",
+        lambda *a, **k: ("MQ_AGENT_EXECUTION_OUTCOMES",),
     )
-    monkeypatch.setattr(runtime_guard, "check", lambda *a, **k: runtime_guard.Verdict(
-        allowed=True, identity=_identity()
-    ))
+    monkeypatch.setattr(
+        runtime_guard,
+        "check",
+        lambda *a, **k: runtime_guard.Verdict(allowed=True, identity=_identity()),
+    )
+    monkeypatch.setattr(main, "_client", lambda: object())
 
-    from mq_agent.main import app
-
-    result = CliRunner().invoke(app, ["docs-audit", str(tmp_path), "--json"])
+    result = CliRunner().invoke(main.app, ["docs-audit", str(tmp_path), "--json"])
     assert result.exit_code in (0, 1), result.output
 
     records = [json.loads(line) for line in store.read_text().splitlines() if line]
