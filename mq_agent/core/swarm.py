@@ -142,7 +142,16 @@ class SwarmRunner:
         path: str = ".",
         dry_run: bool = False,
         approve: bool = False,
+        runtime_fingerprint: dict[str, Any] | None = None,
     ) -> SwarmResult:
+        """Run every agent in the config and record one outcome for the swarm.
+
+        `runtime_fingerprint` arrives already projected from the identity the
+        caller's guard established. A swarm record and a single-agent record
+        must attribute themselves the same way, or a reader cannot tell an
+        entrypoint that does not report its runtime from one that could not
+        observe it.
+        """
         results: list[AgentResult] = []
         swarm_start = time.monotonic()
 
@@ -195,12 +204,16 @@ class SwarmRunner:
 
         # A dry run executed nothing, so it has no outcome to record.
         if not dry_run:
-            self._record_outcome(config, swarm_result)
+            self._record_outcome(config, swarm_result, runtime_fingerprint)
 
         return swarm_result
 
     @staticmethod
-    def _record_outcome(config: SwarmConfig, result: SwarmResult) -> None:
+    def _record_outcome(
+        config: SwarmConfig,
+        result: SwarmResult,
+        runtime_fingerprint: dict[str, Any] | None = None,
+    ) -> None:
         """Emit one mq.execution-outcome.v1 record for a completed swarm run.
 
         Telemetry observes the run; it never changes it. emit_execution_outcome
@@ -236,6 +249,7 @@ class SwarmRunner:
             # run that made several decisions. Applied-route facts belong to
             # `mq.model-route-outcome.v1`, correlated back by `execution_run_id`.
             agents=[_agent_record(r) for r in result.results],
+            runtime_fingerprint=runtime_fingerprint,
         )
 
     def plan(self, config: SwarmConfig, path: str = ".") -> list[dict]:
