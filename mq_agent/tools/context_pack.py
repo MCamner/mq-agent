@@ -412,6 +412,21 @@ summary: {pack_summary}
 {_exclusion_lines(pack_exclusions)}
 """
 
+    # Skills remain a separate machine contract; only render into Markdown here.
+    from mq_agent.skills.inventory import resolve_repo
+    from mq_agent.skills.route import route_skills
+    from mq_agent.skills.render import render_pack_section
+
+    if repo_line:
+        try:
+            skill_repo = resolve_repo(repo_line, repos_root)
+        except ValueError:
+            content += "\n## Selected skills\n\nSelection unavailable: repository directory not found.\n"
+        else:
+            content += "\n" + render_pack_section(
+                route_skills(task, skill_repo, target=target, vault=vault)
+            )
+
     return {
         "task": task,
         "target": target,

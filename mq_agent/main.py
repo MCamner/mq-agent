@@ -25,6 +25,7 @@ from mq_agent.cli.render import (
     print_tool_spec,
 )
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
+from mq_agent.skills.cli import app as skills_app
 from mq_agent.tools.applied_routing import DEFAULT_ROUTE
 from mq_agent.tools.model_routing import LOCAL_ROUTE_TIMEOUT_SECONDS
 from mq_agent.workflows.cli import workflow_app
@@ -41,6 +42,8 @@ app = typer.Typer(
 
 mcp_app = typer.Typer(help="Inspect and manage the local mq-mcp tool server.")
 app.add_typer(mcp_app, name="mcp")
+
+app.add_typer(skills_app, name="skills")
 
 memory_app = typer.Typer(help="Semantic repository memory commands.")
 app.add_typer(memory_app, name="memory")
