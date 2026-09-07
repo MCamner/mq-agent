@@ -23,7 +23,7 @@ import os
 import sys
 from functools import lru_cache
 from datetime import UTC, datetime
-from importlib.metadata import PackageNotFoundError, distribution, version
+from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -77,11 +77,17 @@ def identity_validator() -> Draft202012Validator:
     return Draft202012Validator(schema, registry=schema_registry())
 
 
-def package_version() -> str | None:
-    """The installed distribution's version, or None when it cannot be read."""
+def package_version(dist: Any = None) -> str | None:
+    """The version of the distribution that owns this code, or None.
+
+    Never a distribution that merely shares the name: that would put a
+    stranger's version on this runtime's identity.
+    """
+    if dist is None:
+        return None
     try:
-        return version(DISTRIBUTION)
-    except PackageNotFoundError:
+        return dist.version or None
+    except (AttributeError, ValueError):
         return None
 
 
@@ -90,18 +96,108 @@ def module_path() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-def _direct_url() -> dict[str, Any] | None:
-    """The PEP 610 record of how this distribution was installed, if any."""
+#: The file this module was loaded from — the subject every claim about the
+#: installed runtime is checked against. A directory is a neighbourhood; a file
+#: is a thing.
+MODULE_FILE = Path(__file__).resolve()
+
+
+def _within(child: Path, parent: Path) -> bool:
     try:
-        raw = distribution(DISTRIBUTION).read_text("direct_url.json")
-    except (PackageNotFoundError, OSError):
+        return child == parent or child.is_relative_to(parent)
+    except (OSError, ValueError):
+        return False
+
+
+def describes_imported_code(
+    metadata: Any, subject: Path, owned_files: set[Path] | None
+) -> bool:
+    """Whether an installed distribution may speak for the code that was
+    imported.
+
+    `distribution("mq-agent")` finds a distribution by *name*, and a name is
+    not a subject. A virtualenv can hold an installed mq-agent while the
+    running code was imported from a checkout somewhere else; its version, its
+    commit and its install type would then describe code this process never
+    ran. Nothing about the record would look wrong — and an editable stranger
+    pointing at another checkout hands over that checkout's HEAD, which reads
+    as a mismatch against this one and would refuse a legitimate run.
+
+    Ownership is the distribution's own file list, never the directory it sits
+    in: a site-packages holds every distribution in the environment, so "the
+    imported file is under the install root" proves only that they are
+    neighbours. `RECORD` names what this distribution actually installed.
+
+    An editable install is the exception that carries its own evidence: it
+    records the directory it points at, and the imported file has to be inside
+    it.
+    """
+    if isinstance(metadata, dict):
+        dir_info = metadata.get("dir_info")
+        if isinstance(dir_info, dict) and dir_info.get("editable") is True:
+            raw_url = metadata.get("url")
+            if not isinstance(raw_url, str) or not raw_url:
+                return False
+            recorded = unquote(urlparse(raw_url).path)
+            return bool(recorded) and _within(subject, Path(recorded))
+    return owned_files is not None and subject in owned_files
+
+
+def _installed_files(dist: Any) -> set[Path] | None:
+    """What this distribution installed, resolved. None when it cannot say."""
+    try:
+        entries = dist.files
+    except Exception:
+        return None
+    if not entries:
+        return None
+    owned: set[Path] = set()
+    for entry in entries:
+        try:
+            owned.add(Path(str(dist.locate_file(entry))).resolve())
+        except (OSError, ValueError):
+            continue
+    return owned or None
+
+
+def bound_distribution(subject: Path | None = None) -> tuple[Any, Any] | None:
+    """The installed distribution that owns the imported code, if any.
+
+    Everything drawn from installation metadata — version, commit, install
+    type — comes through here, so nothing can be bound for one field and
+    unbound for another. None is a fact about the runtime, not a failure: a
+    checkout run installs nothing, and a distribution that merely shares the
+    name owns nothing.
+    """
+    target = subject or MODULE_FILE
+    try:
+        dist = distribution(DISTRIBUTION)
+    except (PackageNotFoundError, OSError, ValueError):
+        return None
+    metadata = _read_direct_url(dist)
+    if not describes_imported_code(metadata, target, _installed_files(dist)):
+        return None
+    return dist, metadata
+
+
+def _read_direct_url(dist: Any) -> dict[str, Any] | None:
+    try:
+        raw = dist.read_text("direct_url.json")
+    except (OSError, ValueError):
         return None
     if not raw:
         return None
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
     except json.JSONDecodeError:
         return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _direct_url() -> dict[str, Any] | None:
+    """The PEP 610 record of the distribution that owns this code, if any."""
+    bound = bound_distribution()
+    return bound[1] if bound is not None else None
 
 
 def install_source(direct_url: Any) -> tuple[str, str | None]:
@@ -237,7 +333,9 @@ def observe_installed() -> dict[str, Any]:
     carries no commit metadata yet, so its identity is `partial` — weaker, and
     honest about it, rather than filled in from the latest tag.
     """
-    direct_url = _direct_url()
+    bound = bound_distribution()
+    dist = bound[0] if bound is not None else None
+    direct_url = bound[1] if bound is not None else None
     install_type, source_path = install_source(direct_url)
 
     # A VCS install states its own commit and PEP 610 requires it, so it wins
@@ -250,7 +348,7 @@ def observe_installed() -> dict[str, Any]:
             commit = checkout_head(source)
 
     return build_identity(
-        version=package_version(),
+        version=package_version(dist),
         commit=commit,
         install_type=install_type,
         source_path=source_path,
