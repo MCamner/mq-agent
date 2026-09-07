@@ -549,7 +549,7 @@
             }
           },
           {
-            "$comment": "Nobody asked, so nothing was observed about reachability.",
+            "$comment": "Nobody asked, so nothing was observed: no endpoint and no reachability. The three states are exactly false/null, true/false and true/true.",
             "if": {
               "properties": {
                 "running_probe": {
@@ -572,8 +572,47 @@
               "properties": {
                 "running_probe": {
                   "properties": {
+                    "endpoint": {
+                      "type": "null"
+                    },
                     "reachable": {
                       "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "$comment": "Somebody asked, so both what was asked and whether it answered were observed.",
+            "if": {
+              "properties": {
+                "running_probe": {
+                  "type": "object",
+                  "properties": {
+                    "attempted": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "attempted"
+                  ]
+                }
+              },
+              "required": [
+                "running_probe"
+              ]
+            },
+            "then": {
+              "properties": {
+                "running_probe": {
+                  "properties": {
+                    "endpoint": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "reachable": {
+                      "type": "boolean"
                     }
                   }
                 }

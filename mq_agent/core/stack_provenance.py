@@ -91,8 +91,21 @@ def status_for(reasons: list[str]) -> str:
     return worst
 
 
-def _commit_of(identity: Any) -> str | None:
+def _commit_of(identity: Any, name: str) -> str | None:
+    """A commit this component was actually observed at, or None.
+
+    Fail-closed, because a comparison is a claim. A record that fails the
+    contract is not an identity whatever fields it carries, and a valid record
+    naming another component is an identity for something else — using its
+    commit would report this component at a commit nobody ever saw it on, and
+    would tell an operator to restart it on that basis. `RTP013` names the
+    contradiction; the comparison stays null because nothing was compared.
+    """
     if not isinstance(identity, dict):
+        return None
+    if list(runtime_identity.identity_validator().iter_errors(identity)):
+        return None
+    if identity.get("component") != name:
         return None
     commit = identity.get("commit")
     return commit if isinstance(commit, str) else None
@@ -102,9 +115,10 @@ def compare(component: dict[str, Any]) -> dict[str, bool | None]:
     """The five edges. Every one is None unless both sides were observed."""
     checkout = component.get("checkout") or {}
     release = component.get("release")
+    name = component.get("name") or ""
     head = checkout.get("head") if isinstance(checkout, dict) else None
-    installed = _commit_of(component.get("installed"))
-    running = _commit_of(component.get("running"))
+    installed = _commit_of(component.get("installed"), name)
+    running = _commit_of(component.get("running"), name)
 
     return {
         "installed_matches_checkout": runtime_identity.installed_matches_checkout(

@@ -201,12 +201,21 @@ accepts any component name, so a perfectly valid record can describe something
 else. Filed under `mq-mcp`, it makes the provenance record contradict itself.
 Both identity layers are checked this way.
 
-The schema holds the two ends of the probe: a reported identity requires
-`attempted` and `reachable` to be true, and an unattempted probe requires
-`reachable` to be null rather than false. Both are stated **per component** — an
-`if` over `items` holds only when every component matches, so at the array
-level one component reporting an identity would go unchecked whenever another
-reported none.
+**An identity that fails either check is not half of a comparison.** Naming the
+contradiction is not enough: a rejected record still carries a commit, and using
+it would report the component at a commit nobody ever saw it on — and tell an
+operator to restart it on that basis. The comparison stays `null`, because
+nothing was compared.
+
+The schema closes the probe to exactly those three states: an unattempted probe
+carries no endpoint and no reachability, an attempted one carries both, and a
+reported identity requires `attempted` and `reachable` to be true. `attempted:
+true` with `reachable: null` would claim a question was asked whose answer
+nobody wrote down.
+
+All of it is stated **per component** — an `if` over `items` holds only when
+every component matches, so at the array level one component reporting an
+identity would go unchecked whenever another reported none.
 
 mq-agent produces no identity for another component. It asks, validates, and
 compares; `installed` stays null for mq-mcp because this process can read its

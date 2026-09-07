@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from functools import lru_cache
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, distribution, version
 from pathlib import Path
@@ -70,6 +71,7 @@ def schema_registry() -> Registry:
     )
 
 
+@lru_cache(maxsize=1)
 def identity_validator() -> Draft202012Validator:
     schema = json.loads(_schema_path(IDENTITY_SCHEMA).read_text(encoding="utf-8"))
     return Draft202012Validator(schema, registry=schema_registry())

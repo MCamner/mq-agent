@@ -268,6 +268,130 @@ def test_an_identity_naming_another_component_contradicts_the_record(
     assert assessed["status"] == "FAIL"
 
 
+def test_an_identity_for_something_else_is_not_half_of_a_comparison(
+    answers, monkeypatch, tmp_path
+):
+    """RTP013 is not enough on its own.
+
+    A valid record naming another component still carried a commit, and the
+    comparison used it — producing `running_matches_checkout: false` and RTP010
+    beside the RTP013. That mismatch was never observed: we saw an identity for
+    something else, not mq-mcp on another commit. The next action said to
+    restart mq-mcp on the strength of it.
+    """
+    import subprocess
+
+    root = _repository(tmp_path)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True
+    ).stdout.strip()
+    answers(_identity(component="something-else", commit="a" * 40))
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: root)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    assessed = stack_provenance.assess(observed)
+
+    assert assessed["checkout"]["head"] == head
+    assert assessed["comparison"]["running_matches_checkout"] is None
+    assert assessed["comparison"]["running_matches_installed"] is None
+    assert "RTP010_RUNNING_CHECKOUT_MISMATCH" not in assessed["reasons"]
+    assert "RTP013_RUNTIME_IDENTITY_INVALID" in assessed["reasons"]
+
+
+def test_an_invalid_record_carrying_a_commit_field_is_still_not_a_commit(
+    answers, monkeypatch, tmp_path
+):
+    """A dict that fails the schema is not an identity, whatever it contains."""
+    root = _repository(tmp_path)
+    answers({"banana": 42, "commit": "a" * 40})
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: root)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    assessed = stack_provenance.assess(observed)
+
+    assert assessed["comparison"]["running_matches_checkout"] is None
+    assert "RTP010_RUNNING_CHECKOUT_MISMATCH" not in assessed["reasons"]
+
+
+def test_no_action_rests_on_an_identity_that_was_never_established(
+    answers, monkeypatch, tmp_path
+):
+    """Telling an operator to restart mq-mcp needs an observation of mq-mcp."""
+    root = _repository(tmp_path)
+    answers(_identity(component="something-else", commit="a" * 40))
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: root)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    record = stack_provenance.build([observed])
+
+    assert "restart" not in (record["summary"]["next_action"] or "")
+
+
+@pytest.mark.parametrize(
+    "probe",
+    [
+        {"attempted": True, "endpoint": "http://x", "reachable": None},
+        {"attempted": True, "endpoint": None, "reachable": True},
+        {"attempted": False, "endpoint": "http://x", "reachable": None},
+    ],
+)
+def test_the_probe_has_exactly_three_states(probe):
+    """Documented as three; the schema allowed a fourth.
+
+    `attempted: true` with `reachable: null` claimed a question was asked whose
+    answer nobody recorded, which is not one of the states the reduction knows
+    how to read.
+    """
+    validator = _provenance_validator()
+    record = stack_provenance.build(
+        [
+            {
+                "name": "mq-mcp",
+                "checkout": None,
+                "integration": None,
+                "remote": None,
+                "installed": None,
+                "running": None,
+                "running_probe": probe,
+                "release": None,
+            }
+        ]
+    )
+
+    assert list(validator.iter_errors(record)), f"a fourth state validated: {probe}"
+
+
+@pytest.mark.parametrize(
+    "probe",
+    [
+        {"attempted": False, "endpoint": None, "reachable": None},
+        {"attempted": True, "endpoint": "http://x", "reachable": False},
+        {"attempted": True, "endpoint": "http://x", "reachable": True},
+    ],
+)
+def test_the_three_real_states_all_validate(probe):
+    validator = _provenance_validator()
+    record = stack_provenance.build(
+        [
+            {
+                "name": "mq-mcp",
+                "checkout": None,
+                "integration": None,
+                "remote": None,
+                "installed": None,
+                "running": None,
+                "running_probe": probe,
+                "release": None,
+            }
+        ]
+    )
+
+    assert not list(validator.iter_errors(record)), f"a real state was rejected: {probe}"
+
+
 def test_an_installed_identity_must_also_name_its_own_component():
     """Both identity layers, one rule."""
     assessed = stack_provenance.assess(
