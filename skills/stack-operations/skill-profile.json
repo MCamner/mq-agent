@@ -1,0 +1,22 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "stack"
+  ],
+  "intents": [],
+  "domains": [
+    "stack"
+  ],
+  "risks": [
+    "cross_repo"
+  ],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "stack-operations",
+  "description": "Operate and maintain cross-repository MQ stack commands."
+}

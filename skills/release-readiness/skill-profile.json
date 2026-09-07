@@ -1,0 +1,22 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [
+    "release"
+  ],
+  "domains": [
+    "release"
+  ],
+  "risks": [],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "release-readiness",
+  "description": "Validate mq-agent release readiness."
+}

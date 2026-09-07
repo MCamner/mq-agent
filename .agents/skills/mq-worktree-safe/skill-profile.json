@@ -1,0 +1,22 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [],
+  "domains": [
+    "git"
+  ],
+  "risks": [
+    "git_write"
+  ],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "mq-worktree-safe",
+  "description": "Isolate branch and worktree changes safely."
+}

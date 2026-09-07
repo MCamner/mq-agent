@@ -1,0 +1,20 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [],
+  "domains": [
+    "ci"
+  ],
+  "risks": [],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "ci-diagnosis",
+  "description": "Diagnose failing CI, tests, lint and type checks."
+}

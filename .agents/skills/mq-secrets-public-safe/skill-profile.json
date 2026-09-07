@@ -1,0 +1,27 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo",
+    "stack"
+  ],
+  "intents": [],
+  "domains": [
+    "security"
+  ],
+  "risks": [
+    "public_surface",
+    "secret_exposure"
+  ],
+  "required_for": [
+    "public_surface",
+    "secret_exposure"
+  ],
+  "supersedes": [],
+  "skill": "mq-secrets-public-safe",
+  "description": "Check public changes and secret-exposure boundaries."
+}

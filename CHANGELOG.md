@@ -9,6 +9,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* Deterministic `skills inventory`, `skills profile`, and `skills route` commands,
+  eight skill profiles, observed Codex/Claude discovery, required-skill handling,
+  JSON output, explanations, and skill selection in context-pack Markdown.
+  Vocabulary and schemas are owned by mqobsidian.
+
 ## [v1.27.0] — 2026-09-06
 
 Theme: execution instrumentation and evidence integrity. Every significant run

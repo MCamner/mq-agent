@@ -40,6 +40,7 @@ This page is a projection of it.
 | [`mq-agent score`](#mq-agent-score) | command | Quick README score (0–100) and publish checklist — no AI, instant result. Requires repo-signal to be installed: uv pip install repo-signal |
 | [`mq-agent ship`](#mq-agent-ship) | group | Inspect release state, proof, and audit evidence (read-only). |
 | [`mq-agent signal`](#mq-agent-signal) | command | Run a full repo-signal assessment: scan + README score + publish checklist + AI plan. Requires repo-signal to be installed: uv pip install repo-signal |
+| [`mq-agent skills`](#mq-agent-skills) | group | Inspect and select local skills for a task. |
 | [`mq-agent stack`](#mq-agent-stack) | group | mq-stack repo inventory, status, and Obsidian export. |
 | [`mq-agent swarm`](#mq-agent-swarm) | group | Multi-agent swarm workflows. |
 | [`mq-agent task`](#mq-agent-task) | group | Run declarative YAML task workflows. |
@@ -1700,6 +1701,69 @@ Run a full repo-signal assessment: scan + README score + publish checklist + AI 
 | `--dry-run` | No | `false` | — |
 | `--json` | No | `false` | — |
 | `--brain` | No | `false` | Record signal result to mqobsidian second brain |
+
+## `mq-agent skills`
+
+Inspect and select local skills for a task.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent skills inventory`](#mq-agent-skills-inventory) | Show profiles, support and actual discovery separately. |
+| [`mq-agent skills profile`](#mq-agent-skills-profile) | Show vocabulary matches without selecting or running skills. |
+| [`mq-agent skills route`](#mq-agent-skills-route) | Select skills deterministically; 0 complete/empty, 1 partial, 2 invalid. |
+
+## `mq-agent skills inventory`
+
+Show profiles, support and actual discovery separately.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | `.` | Repository name or directory |
+| `--vault` | No | — | mqobsidian contracts; defaults to MQ_OBSIDIAN_DIR or ~/mqobsidian |
+| `--json` | No | `false` | — |
+
+## `mq-agent skills profile`
+
+Show vocabulary matches without selecting or running skills.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK` | Yes | — | — |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | `.` | Repository name or directory |
+| `--target` | No | `codex` | codex, claude, or both |
+| `--vault` | No | — | mqobsidian contracts; defaults to MQ_OBSIDIAN_DIR or ~/mqobsidian |
+| `--json` | No | `false` | — |
+
+## `mq-agent skills route`
+
+Select skills deterministically; 0 complete/empty, 1 partial, 2 invalid.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK` | Yes | — | — |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | `.` | Repository name or directory |
+| `--target` | No | `codex` | codex, claude, or both |
+| `--vault` | No | — | mqobsidian contracts; defaults to MQ_OBSIDIAN_DIR or ~/mqobsidian |
+| `--json` | No | `false` | — |
+| `--explain` | No | `false` | — |
 
 ## `mq-agent stack`
 
