@@ -760,18 +760,21 @@ def test_the_renderer_never_reaches_its_own_conclusion(monkeypatch) -> None:
     assert "restart" not in output.lower()
 
 
-def test_the_json_surface_is_untouched_by_any_of_this(monkeypatch) -> None:
-    """5.3b is human rendering. The contract does not move."""
-    component = _live("/repo")
-    monkeypatch.setattr(
-        "mq_agent.core.stack_provenance.observe",
-        lambda **_: stack_provenance.build([component]),
-    )
+def test_the_json_surface_is_byte_identical(monkeypatch) -> None:
+    """5.3b is human rendering. The machine surface does not move at all.
+
+    Compared as text, not as a parsed structure. An earlier version of this
+    test round-tripped the output through `json.loads` and compared dicts,
+    which is green through a change of indent, separators, key order or the
+    trailing newline — every way this surface could actually shift without the
+    contract noticing.
+    """
+    record = stack_provenance.build([_live("/repo")])
+    record["generated_at"] = "2026-09-08T00:00:00Z"
+    monkeypatch.setattr("mq_agent.core.stack_provenance.observe", lambda **_: record)
+
     result = cli.invoke(app, ["stack", "provenance", "--json"])
 
     assert result.exit_code == 0
-    record = json.loads(result.output)
-    _validator().validate(record)
-    assert record == stack_provenance.build([component]) | {
-        "generated_at": record["generated_at"]
-    }
+    assert result.output == json.dumps(record, indent=2) + "\n"
+    _validator().validate(json.loads(result.output))
