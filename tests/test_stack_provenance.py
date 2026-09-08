@@ -591,22 +591,39 @@ def test_the_same_directory_spelled_differently_is_the_same_directory(source) ->
 
 
 def test_a_stale_install_still_outranks_a_stale_process() -> None:
-    """The precedence RTP009 → RTP010 is unchanged by any of this."""
+    """The precedence RTP009 → RTP010 is unchanged by any of this.
+
+    The installed commit is the checkout's, so `RTP007` does not fire and
+    cannot answer for the other two. An earlier version of this test left the
+    fixture's mismatched install in place and passed on `RTP007`'s reinstall —
+    green, and proving a different precedence than the one it named.
+
+    `source_path` is null so that RTP010's own remedy would be the wide one.
+    RTP009 outranks it and knows more: what is installed *was* observed here,
+    and it is newer than what is running.
+    """
     both = _component(
         installed=runtime_identity.build_identity(
-            version="1.28.0", commit="def5678", install_type="editable"
+            version="1.28.0", commit="abc1234", install_type="editable"
         ),
         running=runtime_identity.build_identity(
             version="1.28.0",
             commit="999aaaa",
             install_type="editable",
-            source_path="/repo",
+            source_path=None,
         ),
     )
+    assessed = stack_provenance.build([both])["components"][0]
+    assert "RTP007_INSTALLED_CHECKOUT_MISMATCH" not in assessed["reasons"]
+    assert "RTP009_RUNNING_INSTALLED_MISMATCH" in assessed["reasons"]
+    assert "RTP010_RUNNING_CHECKOUT_MISMATCH" in assessed["reasons"]
 
-    action = stack_provenance.build([both])["summary"]["next_action"] or ""
+    action = stack_provenance.build([both])["summary"]["next_action"]
 
-    assert "reinstall" in action.lower()
+    assert action == stack_provenance._TEMPLATES[
+        "RTP009_RUNNING_INSTALLED_MISMATCH"
+    ].format(component="mq-agent")
+    assert "verify or update" not in (action or "")
 
 
 def test_the_narrow_remedy_is_the_declared_one(monkeypatch) -> None:
