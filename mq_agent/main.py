@@ -5094,8 +5094,12 @@ def stack_provenance_cmd(
     }
 
     def _row(label: str, value: object) -> None:
+        # Soft wrap so a long value stays on its label's line and the terminal
+        # decides where to break it. Rich's own wrapping put paths — the two
+        # rows that can be long, and the ones 5.3a made load-bearing — on the
+        # next line at column zero, orphaned from the label.
         shown = "—" if value is None else str(value)
-        console.print(f"    {label:<16}{shown}")
+        console.print(f"    {label:<16}{shown}", soft_wrap=True)
 
     console.print()
     console.rule("[bold]Runtime Provenance[/bold]")
@@ -5105,6 +5109,7 @@ def stack_provenance_cmd(
         checkout = component.get("checkout")
         console.print("\n  CHECKOUT")
         if checkout:
+            _row("path", checkout.get("path"))
             _row("branch", checkout.get("branch"))
             _row("commit", (checkout.get("head") or "")[:7] or None)
             clean = checkout.get("worktree_clean")
@@ -5112,14 +5117,26 @@ def stack_provenance_cmd(
         else:
             _row("", "not a checkout")
 
-        installed = component.get("installed") or {}
+        installed = component.get("installed")
         console.print("\n  INSTALLED")
-        _row("version", installed.get("version"))
-        _row("source", installed.get("install_type"))
-        _row("commit", (installed.get("commit") or "")[:7] or None)
-        _row("identity", installed.get("identity_quality"))
-        matches = component["comparison"]["installed_matches_checkout"]
-        _row("checkout", "MATCH" if matches else "MISMATCH" if matches is False else None)
+        if installed is None:
+            # Four em dashes would read as a layer that was looked at and found
+            # empty. Nobody looked: mq-agent reads its own distribution
+            # metadata and not another environment's, so this is the ordinary
+            # state for a component that lives elsewhere.
+            _row("", "not observed")
+        else:
+            _row("version", installed.get("version"))
+            _row("source", installed.get("install_type"))
+            _row("commit", (installed.get("commit") or "")[:7] or None)
+            # `unknown` is the opposite claim: a layer that was observed and
+            # could not be identified.
+            _row("identity", installed.get("identity_quality"))
+            matches = component["comparison"]["installed_matches_checkout"]
+            _row(
+                "checkout",
+                "MATCH" if matches else "MISMATCH" if matches is False else None,
+            )
 
         probe = component.get("running_probe")
         running = component.get("running") or {}
@@ -5133,6 +5150,10 @@ def stack_provenance_cmd(
         else:
             _row("version", running.get("version"))
             _row("commit", (running.get("commit") or "")[:7] or None)
+            # The checkout this process says it was loaded from. After 5.3a it
+            # is what separates "restart" from "verify the install, then
+            # restart", so hiding it would show the remedy without its reason.
+            _row("source_path", running.get("source_path"))
             _row("identity", running.get("identity_quality"))
             against_checkout = component["comparison"]["running_matches_checkout"]
             _row(

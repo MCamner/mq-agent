@@ -527,6 +527,29 @@ operation:
 
 `mq-agent stack provenance` blocks nothing.
 
+### Presentation shows; it does not conclude
+
+> **Presentation may expose the evidence and the reducer's conclusion. It must
+> not derive a conclusion of its own.**
+
+The human renderer prints `components`, `reasons` and `summary.next_action` as
+it finds them. It does not look at `source_path`, compare it to the checkout
+and decide on a remedy — that reasoning lives in the reducer, and a second
+implementation of it would be free to disagree with the first. A test replaces
+`next_action` with a sentinel string and requires exactly that string on screen.
+
+Two distinctions the renderer does have to keep, because both are absences that
+mean different things:
+
+| Rendered | Means |
+| --- | --- |
+| `not observed` | nobody looked — the ordinary state of `installed` for a component in another environment |
+| `identity  unknown` | a layer was observed and could not be identified |
+| `not asked` | this component has no process to ask |
+| `nothing answered at …` | it was asked and nothing was listening |
+
+`mq-hal` consumes the same record and is bound by the same rule.
+
 ## Ownership
 
 | Repo | Owns |

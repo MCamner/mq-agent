@@ -646,3 +646,132 @@ def test_every_evidence_driven_code_still_declares_its_precedence() -> None:
     assert set(stack_provenance.EVIDENCE_ACTIONS) <= {
         code for code, _ in stack_provenance.NEXT_ACTIONS
     }
+
+
+# --- the renderer shows the evidence, and derives nothing from it ----------
+
+
+def _rendered(component: dict, monkeypatch) -> str:
+    monkeypatch.setattr(
+        "mq_agent.core.stack_provenance.observe",
+        lambda **_: stack_provenance.build([component]),
+    )
+    result = cli.invoke(app, ["stack", "provenance"])
+    assert result.exit_code == 0
+    return result.output
+
+
+def _live(source_path: str | None) -> dict:
+    """mq-mcp answering, stale against its checkout, `installed` unobserved."""
+    return _component(
+        name="mq-mcp",
+        installed=None,
+        running=runtime_identity.build_identity(
+            component="mq-mcp",
+            version="2.0.2",
+            commit="0e9e073",
+            install_type="unknown",
+            source_path=source_path,
+        ),
+        running_probe={
+            "attempted": True,
+            "endpoint": "http://127.0.0.1:8765/runtime-identity",
+            "reachable": True,
+        },
+    )
+
+
+def test_an_unobserved_installed_layer_says_so(monkeypatch) -> None:
+    """Four em dashes read as "observed, and every field was empty"."""
+    output = _rendered(_live("/repo"), monkeypatch)
+    installed = output.split("INSTALLED", 1)[1].split("RUNNING", 1)[0]
+
+    assert "not observed" in installed
+    assert "—" not in installed
+
+
+def test_an_identity_nobody_could_read_is_not_an_absent_layer(monkeypatch) -> None:
+    """`unknown` means a layer was observed and could not be identified.
+
+    Rendering it as "not observed" would erase the difference between a
+    question nobody asked and one that was asked and could not be answered.
+    """
+    unreadable = _component(
+        installed=runtime_identity.build_identity(
+            version=None, commit=None, install_type="unknown"
+        )
+    )
+    output = _rendered(unreadable, monkeypatch)
+    installed = output.split("INSTALLED", 1)[1].split("RUNNING", 1)[0]
+
+    assert "unknown" in installed
+    assert "not observed" not in installed
+
+
+def test_the_running_layer_shows_the_checkout_it_names(monkeypatch) -> None:
+    """The evidence behind the remedy, made visible."""
+    output = _rendered(_live("/repo"), monkeypatch)
+
+    assert "source_path" in output
+    assert "/repo" in output
+
+
+def test_a_running_layer_that_names_no_checkout_shows_that_too(monkeypatch) -> None:
+    output = _rendered(_live(None), monkeypatch)
+    running = output.split("RUNNING", 1)[1].split("RELEASE", 1)[0]
+
+    assert "source_path" in running
+
+
+@pytest.mark.parametrize("source", ["/repo", None])
+def test_both_remedies_are_shown_with_the_facts_that_produced_them(
+    monkeypatch, source
+) -> None:
+    """Same finding, same status, and whichever action the reducer chose."""
+    component = _live(source)
+    expected = stack_provenance.build([component])["summary"]["next_action"]
+    output = _rendered(component, monkeypatch)
+
+    assert "RTP010_RUNNING_CHECKOUT_MISMATCH" in output
+    assert "WARN" in output
+    assert "0e9e073" in output, "the running commit"
+    assert "abc1234" in output, "the checkout commit"
+    assert expected is not None
+    # Rendered in a bordered console, so compare on words rather than on lines.
+    for word in expected.split():
+        assert word in output
+
+
+def test_the_renderer_never_reaches_its_own_conclusion(monkeypatch) -> None:
+    """The one test that pins the invariant.
+
+    The causal reasoning behind RTP010's remedy lives in the reducer. If the
+    renderer re-derived it — seeing `source_path` equal to the checkout and
+    saying "restart" itself — this sentinel would not survive to the screen.
+    """
+    component = _live("/repo")
+    record = stack_provenance.build([component])
+    record["summary"]["next_action"] = "SENTINEL-ACTION-9c3f"
+    monkeypatch.setattr("mq_agent.core.stack_provenance.observe", lambda **_: record)
+
+    output = cli.invoke(app, ["stack", "provenance"]).output
+
+    assert "SENTINEL-ACTION-9c3f" in output
+    assert "restart" not in output.lower()
+
+
+def test_the_json_surface_is_untouched_by_any_of_this(monkeypatch) -> None:
+    """5.3b is human rendering. The contract does not move."""
+    component = _live("/repo")
+    monkeypatch.setattr(
+        "mq_agent.core.stack_provenance.observe",
+        lambda **_: stack_provenance.build([component]),
+    )
+    result = cli.invoke(app, ["stack", "provenance", "--json"])
+
+    assert result.exit_code == 0
+    record = json.loads(result.output)
+    _validator().validate(record)
+    assert record == stack_provenance.build([component]) | {
+        "generated_at": record["generated_at"]
+    }

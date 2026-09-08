@@ -737,9 +737,14 @@ nothing about the case it was built for.
   compared, and otherwise widens to "verify or update the installation against
   the current checkout, then restart". Not "reinstall": which world this is, is
   exactly what was not established.
-* [ ] **5.3b — dashboard presentation.** `WARN` is already right; what remains
-  is showing running, checkout and `installed: not observed` beside the
-  finding.
+* [x] **5.3b — the evidence is on screen, and the renderer concludes nothing.**
+  An unobserved `installed` layer said `—` four times, which reads as a layer
+  that was looked at and found empty; it now says `not observed`, kept distinct
+  from an `identity` of `unknown`. `running.source_path` is shown, because
+  after 5.3a it is what separates the two remedies and the operator could
+  otherwise see the remedy without its reason. The renderer prints
+  `summary.next_action` and never re-derives it — pinned by a sentinel.
+  `--json` is unchanged.
 * [ ] **5.4 — `mq-hal` presentation.**
 
 ### Success criterion
