@@ -745,7 +745,19 @@ nothing about the case it was built for.
   otherwise see the remedy without its reason. The renderer prints
   `summary.next_action` and never re-derives it — pinned by a sentinel.
   `--json` is unchanged.
-* [ ] **5.4 — `mq-hal` presentation.**
+* [x] **5.4a₀ — declare the producer before any consumer declares the edge.**
+  mq-agent has produced `mq.stack-provenance.v1` since Phase 0 without saying
+  so in its repository contract. The compatibility engine reads `contracts` as
+  what a repo produces, so the omission was invisible until a consumer declared
+  the other half: `mq-hal` adding `compatibility.consumes` would have produced
+  `MQC013_CONTRACT_UNPRODUCED` against *itself* and no relationship at all —
+  measured with synthetic repos rather than predicted. Declaring the contract
+  first turns the same pair into an edge. No schema, runtime behaviour or
+  provenance semantics change.
+* [ ] **5.4 — `mq-hal` presentation.** Consumer boundary, JSON transport and
+  failure boundary, then human presentation. `mq-hal` declares consumption and
+  presents the record; it owns no reason codes, comparisons, status or
+  remediation of its own.
 
 ### Success criterion
 

@@ -1612,3 +1612,32 @@ def test_mcp_incident_fixture_distinguishes_a_lock_from_a_declared_boundary(
     assert open_report["status"] == "FAIL"
     assert bounded_report["status"] == "PASS"
     assert release_blockers(bounded_report) == {}
+
+
+# ── a produced contract the repo does not declare ──────────────────────────
+
+
+def test_this_repo_declares_the_provenance_contract_it_produces() -> None:
+    """The compatibility graph cannot see an undeclared producer.
+
+    mq-agent had produced `mq.stack-provenance.v1` since Phase 0 without
+    declaring it, so a consumer that declared the other half was reported as
+    `MQC013_CONTRACT_UNPRODUCED` — a finding about the consumer, caused by the
+    producer's silence, and no relationship edge at all.
+
+    Read through the engine's own extractor rather than by looking at the JSON,
+    and named by the producer's constant rather than by a repeated string: a
+    contract renamed at the producer must fail here rather than leave a stale
+    declaration that still parses.
+    """
+    from pathlib import Path
+
+    from mq_agent.core.stack_provenance import SCHEMA_ID
+    from mq_agent.tools.stack_compatibility import (
+        _declared_compatibility,
+        _read_contract,
+    )
+
+    contract, _ = _read_contract(Path(__file__).resolve().parents[1])
+
+    assert SCHEMA_ID in _declared_compatibility(contract)["produces"]
