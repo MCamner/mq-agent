@@ -728,7 +728,18 @@ nothing about the case it was built for.
   dependency edge points outward: mq-agent writes a review into a possibly
   stale mq-mcp's brain. Whether that post should be refused or annotated is
   mq-mcp's evidence-ingress discipline, not mq-agent's guard.
-* [ ] **5.3 — dashboard presentation.**
+* [x] **5.3 — a remedy is only as precise as the evidence behind it.** `RTP010`
+  reduced to "restart {component}" unconditionally, which is a guess whenever
+  `installed` was not observed — the ordinary case for a component in another
+  environment. Restart and reinstall-then-restart are both consistent with the
+  same observation, and the wrong one looks like it worked. The action now
+  narrows to a restart only where `running.source_path` is the checkout being
+  compared, and otherwise widens to "verify or update the installation against
+  the current checkout, then restart". Not "reinstall": which world this is, is
+  exactly what was not established.
+* [ ] **5.3 — dashboard presentation.** `WARN` is already right; what remains
+  is showing running, checkout and `installed: not observed` beside the
+  finding.
 * [ ] **5.4 — `mq-hal` presentation.**
 
 ### Success criterion

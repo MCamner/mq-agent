@@ -22,6 +22,14 @@ severity here.
 restarting: restarting a process that runs a stale install starts the same
 stale code again.
 
+**An action may narrow when the evidence establishes the cause, and must widen
+when several causes remain observationally equivalent.** A finding names a
+difference, not its reason. `RTP010` is the case: the running commit is not the
+checkout's, and when nobody could observe what is installed, "the process
+outlived a checkout move" and "the installation itself is old" produce the same
+observation. Naming one of them would hand the operator an action that can look
+like it worked without having worked.
+
 This module decides nothing. Whether a difference blocks a release belongs to
 the release cockpit, and whether it blocks writing evidence belongs to
 `runtime_guard`.
@@ -29,6 +37,7 @@ the release cockpit, and whether it blocks writing evidence belongs to
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from typing import Any
 
 from . import runtime_identity
@@ -267,12 +276,88 @@ def assess(component: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+#: The declared strings, by code. An evidence-driven remedy narrows to the one
+#: the registry already holds rather than restating it, so the registry stays
+#: the single place the wording is edited.
+_TEMPLATES: dict[str, str] = dict(NEXT_ACTIONS)
+
+
+def _running_sourced_from_checkout(component: dict[str, Any]) -> bool:
+    """Whether the running code demonstrably came from the checkout compared.
+
+    `source_path` is the producer's binding to its own imported file: an
+    editable install records the directory PEP 610 names, and a runtime run
+    straight from a checkout records the checkout that contains the module it
+    imported. A built artifact records null, because there is no checkout
+    behind it. So a `source_path` equal to the observed checkout is evidence
+    that this process loaded that tree — not merely that both exist on one
+    machine.
+
+    Anything less is False. Absence is not a match.
+    """
+    running = component.get("running")
+    checkout = component.get("checkout")
+    if not isinstance(running, dict) or not isinstance(checkout, dict):
+        return False
+
+    source = running.get("source_path")
+    path = checkout.get("path")
+    if not isinstance(source, str) or not isinstance(path, str):
+        return False
+    if not source or not path:
+        return False
+
+    # `/repo` and `/repo/` are one directory. Compared purely: `PurePosixPath`
+    # touches no disk, and `realpath` would have made this reducer read the
+    # filesystem — an answer that could change with the state of the disk at
+    # reduce time rather than with what was observed. That also means symlinks
+    # are not followed: two spellings that only the filesystem knows are the
+    # same directory are treated as different, which errs toward the wider
+    # remedy rather than toward a confident wrong one.
+    return PurePosixPath(source) == PurePosixPath(path)
+
+
+def _running_checkout_action(component: dict[str, Any]) -> str:
+    """RTP010's remedy, which the finding alone does not determine.
+
+    `RTP010` says only that the running commit is not the checkout's. When
+    nobody could observe what is installed — the ordinary case for a component
+    in another environment, where `installed` is null by design — two different
+    worlds produce that one observation:
+
+        checkout B, installed B, running A   restarting is enough
+        checkout B, installed A, running A   restarting re-runs A
+
+    Telling an operator to restart in the second world hands them an action
+    that looks like it worked and did not. So the narrow remedy is offered only
+    where the running identity binds itself to this checkout, and otherwise the
+    remedy widens to cover both worlds. It says "verify or update" rather than
+    "reinstall" because which of the two it is, is precisely what was not
+    established.
+    """
+    if _running_sourced_from_checkout(component):
+        return _TEMPLATES["RTP010_RUNNING_CHECKOUT_MISMATCH"]
+    return (
+        "verify or update {component}'s installation against the current "
+        "checkout, then restart it: what is installed could not be observed"
+    )
+
+
+#: Findings whose remedy depends on more than the finding. Everything else
+#: reduces to one fixed string; these read the evidence that was established.
+EVIDENCE_ACTIONS: dict[str, Any] = {
+    "RTP010_RUNNING_CHECKOUT_MISMATCH": _running_checkout_action,
+}
+
+
 def next_action(components: list[dict[str, Any]]) -> str | None:
     """Exactly one action, or none. Never one that assumes an unmade check."""
     for code, template in NEXT_ACTIONS:
         for component in components:
             if code in component.get("reasons", []):
-                return template.format(component=component.get("name", "the component"))
+                resolve = EVIDENCE_ACTIONS.get(code)
+                text = resolve(component) if resolve is not None else template
+                return text.format(component=component.get("name", "the component"))
     return None
 
 

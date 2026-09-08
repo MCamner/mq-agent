@@ -490,7 +490,29 @@ def test_a_process_running_another_commit_is_reported_as_a_mismatch(
     assert assessed["status"] == "WARN"
 
 
-def test_the_action_for_a_stale_process_is_to_restart_it(answers, monkeypatch, tmp_path):
+def test_a_process_that_names_this_checkout_only_needs_restarting(
+    answers, monkeypatch, tmp_path
+):
+    """It reported the tree it was loaded from, and that tree has moved on."""
+    root = _repository(tmp_path)
+    answers(_identity(commit="c" * 40, source_path=str(root)))
+    monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: root)
+
+    observed = stack_provenance.observe_mq_mcp()
+    assert observed is not None
+    record = stack_provenance.build([observed])
+
+    action = record["summary"]["next_action"] or ""
+    assert "restart mq-mcp" in action
+    assert "install" not in action
+
+
+def test_a_stale_process_that_names_no_checkout_gets_the_wider_remedy(
+    answers, monkeypatch, tmp_path
+):
+    """`installed` is null for another environment by design, so a bare
+    "restart" would be a guess between two worlds — and in one of them it
+    re-runs the same stale code."""
     root = _repository(tmp_path)
     answers(_identity(commit="c" * 40))
     monkeypatch.setattr(runtime_identity, "mq_mcp_root", lambda: root)
@@ -499,7 +521,9 @@ def test_the_action_for_a_stale_process_is_to_restart_it(answers, monkeypatch, t
     assert observed is not None
     record = stack_provenance.build([observed])
 
-    assert "restart mq-mcp" in (record["summary"]["next_action"] or "")
+    action = record["summary"]["next_action"] or ""
+    assert "restart" in action
+    assert "install" in action
 
 
 # --- the record says whether anyone asked ---------------------------------
@@ -631,6 +655,23 @@ def test_the_consumer_cannot_produce_an_identity_even_if_it_wanted_to():
 
     for producing in ("subprocess", "importlib", "os", "httpx"):
         assert producing not in imported
+
+    # `pathlib` is allowed only for the pure half. `Path` reads the disk, and a
+    # reducer that reads the disk answers with the state of the machine at
+    # reduce time instead of with what was observed.
+    from_pathlib = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module == "pathlib"
+        for alias in node.names
+    }
+    assert from_pathlib <= {"PurePath", "PurePosixPath", "PureWindowsPath"}
+    assert "pathlib" not in {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
 
 
 def test_what_the_component_said_is_what_is_recorded(answers, monkeypatch):
