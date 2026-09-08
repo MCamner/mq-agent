@@ -506,3 +506,143 @@ def test_the_human_output_names_the_reason_and_the_action(monkeypatch) -> None:
 
     assert "RTP001_DIRTY_WORKTREE" in output
     assert "commit or stash" in output
+
+
+# --- RTP010's remedy depends on what was established, not only on the finding
+
+
+def _stale_process(source_path: str | None) -> dict:
+    """A live component whose commit is not its checkout's — RTP010.
+
+    Only `source_path` varies, so a difference in the action can come from
+    nothing else.
+    """
+    return _component(
+        name="mq-mcp",
+        installed=None,
+        running=runtime_identity.build_identity(
+            component="mq-mcp",
+            version="2.0.2",
+            commit="999aaaa",
+            install_type="unknown",
+            source_path=source_path,
+        ),
+        running_probe={
+            "attempted": True,
+            "endpoint": "http://127.0.0.1:8765/runtime-identity",
+            "reachable": True,
+        },
+    )
+
+
+def _action_for(component: dict) -> str:
+    record = stack_provenance.build([component])
+    assert "RTP010_RUNNING_CHECKOUT_MISMATCH" in record["components"][0]["reasons"]
+    return record["summary"]["next_action"] or ""
+
+
+def test_a_process_sourced_from_this_checkout_only_needs_restarting() -> None:
+    """The identity was frozen from this checkout, so restarting re-reads it."""
+    action = _action_for(_stale_process("/repo"))
+
+    assert "restart" in action.lower()
+    assert "install" not in action.lower()
+
+
+def test_an_unobservable_installation_widens_the_remedy(tmp_path) -> None:
+    """`installed` is null and the running code names no checkout.
+
+    Restart and reinstall-then-restart are both consistent with this
+    observation, and a bare restart would re-run the same stale install.
+    """
+    action = _action_for(_stale_process(None))
+
+    assert "restart" in action.lower()
+    assert "install" in action.lower()
+
+
+def test_a_process_from_another_checkout_is_not_merely_stale() -> None:
+    """Same finding, different world: this is not a process that outlived a
+    checkout move, so `restart` alone would be a guess."""
+    action = _action_for(_stale_process("/somewhere/else"))
+
+    assert "install" in action.lower()
+
+
+def test_the_narrow_remedy_needs_the_evidence_that_earns_it() -> None:
+    """One fact separates the two remedies, and nothing else does."""
+    narrow = _action_for(_stale_process("/repo"))
+    wide = _action_for(_stale_process(None))
+
+    assert narrow != wide
+
+
+@pytest.mark.parametrize("source", ["/repo/", "/repo/./", "/repo//"])
+def test_the_same_directory_spelled_differently_is_the_same_directory(source) -> None:
+    """A trailing slash is not a different checkout.
+
+    Only spellings a pure comparison can settle. `/repo/sub/..` is deliberately
+    not one of them: whether it is `/repo` depends on whether `sub` is a
+    symlink, and only the disk knows that. The reducer does not ask.
+    """
+    action = _action_for(_stale_process(source))
+
+    assert "install" not in action.lower()
+
+
+def test_a_stale_install_still_outranks_a_stale_process() -> None:
+    """The precedence RTP009 → RTP010 is unchanged by any of this.
+
+    The installed commit is the checkout's, so `RTP007` does not fire and
+    cannot answer for the other two. An earlier version of this test left the
+    fixture's mismatched install in place and passed on `RTP007`'s reinstall —
+    green, and proving a different precedence than the one it named.
+
+    `source_path` is null so that RTP010's own remedy would be the wide one.
+    RTP009 outranks it and knows more: what is installed *was* observed here,
+    and it is newer than what is running.
+    """
+    both = _component(
+        installed=runtime_identity.build_identity(
+            version="1.28.0", commit="abc1234", install_type="editable"
+        ),
+        running=runtime_identity.build_identity(
+            version="1.28.0",
+            commit="999aaaa",
+            install_type="editable",
+            source_path=None,
+        ),
+    )
+    assessed = stack_provenance.build([both])["components"][0]
+    assert "RTP007_INSTALLED_CHECKOUT_MISMATCH" not in assessed["reasons"]
+    assert "RTP009_RUNNING_INSTALLED_MISMATCH" in assessed["reasons"]
+    assert "RTP010_RUNNING_CHECKOUT_MISMATCH" in assessed["reasons"]
+
+    action = stack_provenance.build([both])["summary"]["next_action"]
+
+    assert action == stack_provenance._TEMPLATES[
+        "RTP009_RUNNING_INSTALLED_MISMATCH"
+    ].format(component="mq-agent")
+    assert "verify or update" not in (action or "")
+
+
+def test_the_narrow_remedy_is_the_declared_one(monkeypatch) -> None:
+    """The registry entry is not decoration.
+
+    RTP010's precedence and its narrow wording both live in `NEXT_ACTIONS`. If
+    the resolver restated the string instead of reading it, editing the
+    registry would silently change nothing.
+    """
+    monkeypatch.setitem(
+        stack_provenance._TEMPLATES,
+        "RTP010_RUNNING_CHECKOUT_MISMATCH",
+        "power-cycle {component}",
+    )
+
+    assert _action_for(_stale_process("/repo")) == "power-cycle mq-mcp"
+
+
+def test_every_evidence_driven_code_still_declares_its_precedence() -> None:
+    assert set(stack_provenance.EVIDENCE_ACTIONS) <= {
+        code for code, _ in stack_provenance.NEXT_ACTIONS
+    }

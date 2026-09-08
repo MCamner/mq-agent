@@ -341,6 +341,41 @@ the next action is **not** "restart the process" — that starts the same stale
 installation again. It is "reinstall from the current checkout"; only then does
 a restart change anything.
 
+### An action is only as precise as the evidence behind it
+
+> **`next_action` may narrow when provenance establishes the cause, but must
+> widen when several causes remain observationally equivalent.**
+
+A finding names a difference, not its reason. `RTP010` says the running commit
+is not the checkout's — and for a component in another environment `installed`
+is null by design, because this process can read its own distribution metadata
+and not another's. Two different worlds then produce the same observation:
+
+```text
+World A                      World B
+checkout   B                 checkout   B
+installed  B                 installed  A      ← unobserved in both
+running    A                 running    A
+
+restarting is enough         restarting re-runs A
+```
+
+The distinction is decidable when the running identity binds itself to the
+checkout being compared. `source_path` is that binding: an editable install
+records the directory PEP 610 names, a runtime started from a checkout records
+the checkout containing the module it imported, and a built artifact records
+null. It is the same ownership rule Phase 5.0 established for `installed` —
+proved by the imported file, never by two things sharing a machine.
+
+| What was established | Remedy |
+| --- | --- |
+| `running.source_path` is the observed checkout | restart the process |
+| `source_path` is null, or names another checkout | verify or update the installation against the current checkout, then restart |
+
+The wide remedy deliberately does not say "reinstall". Which of the two worlds
+this is, is exactly what was not observed, so "verify or update if needed, then
+restart" is the strongest claim the evidence carries.
+
 ## Attribution on an execution record
 
 An execution outcome can say which code produced it, as an optional
