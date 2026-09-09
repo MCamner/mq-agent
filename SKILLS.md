@@ -16,6 +16,7 @@ The table below is generated from SKILL.md frontmatter by
 | Skill | Description |
 | ----- | ----------- |
 | [ci-diagnosis](skills/ci-diagnosis/SKILL.md) | Use when CI is failing. Diagnoses test, lint, and type check failures and generates fix steps. |
+| [github-branch-protection](skills/github-branch-protection/SKILL.md) | Inspect or configure GitHub default-branch protection with pull-request enforcement, repository-specific status checks, and explicit mutation approval. Use when GitHub reports that main or the default branch is unprotected. |
 | [mq-mcp-review-orchestration](skills/mq-mcp-review-orchestration/SKILL.md) | Use when adding or changing mq-agent workflows that route review, risk, security, architecture, or repo-aware cognition work through mq-mcp. |
 | [release-readiness](skills/release-readiness/SKILL.md) | Use when preparing an mq-agent release. Validates git state, version alignment, changelog, tests, CI, the stack contract gate, and release-notes draft. |
 | [repo-audit](skills/repo-audit/SKILL.md) | Use when auditing a repository for code quality, git state, structure, and test coverage. Read-only, safe to run anywhere. |
