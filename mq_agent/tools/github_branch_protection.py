@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 import tempfile
-from typing import Any
+from typing import Any, Protocol
 
 
 IGNORED_CHECKS = {"build", "deploy", "report-build-status"}
@@ -19,6 +19,10 @@ class ApprovalRequired(RuntimeError):
 
 class ExistingProtectionError(RuntimeError):
     pass
+
+
+class GhJsonClient(Protocol):
+    def json(self, *args: str) -> Any: ...
 
 
 class Gh:
@@ -41,7 +45,7 @@ def parse_checks(value: str) -> list[str]:
     return sorted({item.strip() for item in value.split(",") if item.strip()})
 
 
-def discover_pr_checks(gh: Gh, repo: str) -> list[str]:
+def discover_pr_checks(gh: GhJsonClient, repo: str) -> list[str]:
     pulls = gh.json(
         "pr",
         "list",
