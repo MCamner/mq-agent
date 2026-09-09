@@ -7,6 +7,8 @@ from __future__ import annotations
 import subprocess
 import sys
 
+from mq_agent.core.credentials import resolve_openai_api_key
+
 
 def run_checks() -> list[tuple[str, bool, str]]:
     """Run all environment checks.
@@ -14,12 +16,15 @@ def run_checks() -> list[tuple[str, bool, str]]:
     Returns a list of (name, ok, fix_action) tuples.  fix_action is empty
     when the check passes.
     """
-    import os
-
     checks: list[tuple[str, bool, str]] = []
 
-    has_key = bool(os.environ.get("OPENAI_API_KEY"))
-    checks.append(("OPENAI_API_KEY", has_key, "export OPENAI_API_KEY=sk-..."))
+    credential = resolve_openai_api_key()
+    has_key = bool(credential.key)
+    checks.append((
+        "OPENAI_API_KEY",
+        has_key,
+        "Store the key in macOS Keychain service mq-openai-api-key or export OPENAI_API_KEY",
+    ))
 
     git_ok = subprocess.run(["git", "--version"], capture_output=True).returncode == 0
     checks.append(("git", git_ok, "Install git"))

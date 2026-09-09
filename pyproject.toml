@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mq-agent = "mq_agent.main:app"
+mq-agent = "mq_agent.entrypoint:app"
 
 [project.optional-dependencies]
 signal = [
