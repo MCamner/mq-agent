@@ -1,0 +1,25 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [
+    "inspect",
+    "fix"
+  ],
+  "domains": [
+    "repo"
+  ],
+  "risks": [
+    "repo_write"
+  ],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "github-branch-protection",
+  "description": "Inspect and safely configure GitHub default-branch protection."
+}
