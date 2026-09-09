@@ -7,6 +7,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from mq_agent.core.credentials import install_openai_api_key
+
 try:
     from dotenv import dotenv_values
     _HAS_DOTENV = True
@@ -18,10 +20,20 @@ _DEFAULT_MQ_MCP_DIR = Path.home() / "mq-mcp" / "mq-mcp"
 
 
 def _child_env(server_dir: Path) -> dict:
+    """Build mq-mcp's child environment without accepting secrets from .env."""
     base = os.environ.copy()
     env_file = server_dir / ".env"
     if _HAS_DOTENV and env_file.exists():
-        base.update({k: v for k, v in dotenv_values(env_file).items() if v is not None})
+        base.update({
+            k: v
+            for k, v in dotenv_values(env_file).items()
+            if v is not None and k != "OPENAI_API_KEY"
+        })
+
+    # OPENAI_API_KEY has one process-scoped precedence rule across mq-agent and
+    # mq-mcp: an explicitly inherited value wins; otherwise macOS Keychain is
+    # consulted. A stale .env secret can therefore never override a rotated key.
+    install_openai_api_key(base)
     return base
 
 

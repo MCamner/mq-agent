@@ -1,6 +1,7 @@
 """Tests for mq_agent.core.diagnostics."""
 from __future__ import annotations
 
+from mq_agent.core.credentials import OpenAICredential
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
 
 
@@ -45,7 +46,7 @@ def test_required_checks_pass_true_when_first_four_ok():
 
 def test_required_checks_pass_false_when_one_required_fails():
     checks = [
-        ("OPENAI_API_KEY", False, "export OPENAI_API_KEY=sk-..."),
+        ("OPENAI_API_KEY", False, "configure OpenAI credential"),
         ("git", True, ""),
         ("uv", True, ""),
         ("Python ≥ 3.11", True, ""),
@@ -72,9 +73,28 @@ def test_run_checks_git_available():
 
 
 def test_run_checks_with_no_api_key(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(
+        "mq_agent.core.diagnostics.resolve_openai_api_key",
+        lambda: OpenAICredential(None, "missing"),
+    )
+
     checks = run_checks()
+
     key_checks = [(name, ok, _) for name, ok, _ in checks if "OPENAI" in name]
     assert len(key_checks) == 1
-    _, ok, _ = key_checks[0]
+    _, ok, action = key_checks[0]
     assert ok is False
+    assert "Keychain" in action
+
+
+def test_run_checks_accepts_keychain_credential(monkeypatch):
+    monkeypatch.setattr(
+        "mq_agent.core.diagnostics.resolve_openai_api_key",
+        lambda: OpenAICredential("keychain-secret", "keychain"),
+    )
+
+    checks = run_checks()
+
+    key_checks = [(name, ok, _) for name, ok, _ in checks if "OPENAI" in name]
+    assert len(key_checks) == 1
+    assert key_checks[0][1] is True
