@@ -14,7 +14,8 @@ def test_memory_status_runs(monkeypatch, tmp_path):
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
     result = runner.invoke(app, ["memory", "status", str(tmp_path)])
     assert result.exit_code == 0
-    assert "missing-vector-store" in result.output
+    # No override is a normal state: the canonical store answers and says so.
+    assert "canonical" in result.output
 
 
 def test_memory_status_json(monkeypatch, tmp_path):
@@ -29,13 +30,15 @@ def test_memory_status_json(monkeypatch, tmp_path):
     assert data["vector_store_id"] == "vs_test"
 
 
-def test_memory_status_json_missing_store(monkeypatch, tmp_path):
+def test_memory_status_json_without_an_override(monkeypatch, tmp_path):
+    from mq_agent.memory.semantic import CANONICAL_VECTOR_STORE_ID
+
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
     result = runner.invoke(app, ["memory", "status", str(tmp_path), "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["enabled"] is False
-    assert data["vector_store_id"] is None
+    assert data["vector_store_id"] == CANONICAL_VECTOR_STORE_ID
+    assert data["vector_store_source"] == "canonical"
 
 
 # ── memory build dry-run ───────────────────────────────────────────────────
@@ -97,11 +100,13 @@ def test_memory_refresh_approve_propagates_failure(monkeypatch, tmp_path):
 
 # ── memory doctor ──────────────────────────────────────────────────────────
 
-def test_memory_doctor_unhealthy_without_vector_store(monkeypatch, tmp_path):
+def test_memory_doctor_does_not_fail_on_a_missing_override(monkeypatch, tmp_path):
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
     result = runner.invoke(app, ["memory", "doctor", str(tmp_path)])
-    assert result.exit_code == 1
-    assert "OPENAI_VECTOR_STORE_ID" in result.output
+    assert result.exit_code == 0
+    assert "canonical" in result.output
 
 
 def test_memory_doctor_healthy(monkeypatch, tmp_path):
@@ -135,10 +140,14 @@ def test_memory_doctor_json_healthy(monkeypatch, tmp_path):
 
 
 def test_memory_doctor_json_unhealthy(monkeypatch, tmp_path):
+    """A real fault still fails; the vector store is no longer one of them."""
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
+    import mq_agent.memory.semantic as sem
+    monkeypatch.setattr(sem, "repo_signal_available", lambda: False)
     result = runner.invoke(app, ["memory", "doctor", str(tmp_path), "--json"])
     assert result.exit_code == 1
     data = json.loads(result.output)
     assert data["healthy"] is False
     failing = [i for i in data["items"] if not i["ok"]]
-    assert any("OPENAI_VECTOR_STORE_ID" in i["label"] for i in failing)
+    assert any(i["label"] == "repo-signal" for i in failing)
+    assert all(i["label"] != "vector store" for i in failing)
