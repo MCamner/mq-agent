@@ -1,39 +1,14 @@
 """Tests for mq_agent.memory.semantic — no OpenAI calls, no repo-signal required."""
 
-from mq_agent.memory.semantic import SemanticMemoryStatus, get_vector_store_id, status
+from mq_agent.memory.semantic import SemanticMemoryStatus, status
+
+# Resolution itself is covered in tests/test_vector_store_identity.py, which
+# owns the canonical-versus-override contract. These tests cover status().
 
 
-def test_get_vector_store_id_missing(monkeypatch):
-    monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
-    assert get_vector_store_id() is None
-
-
-def test_get_vector_store_id_present(monkeypatch):
-    monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "vs_test123")
-    assert get_vector_store_id() == "vs_test123"
-
-
-def test_get_vector_store_id_strips_whitespace(monkeypatch):
-    monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "  vs_test  ")
-    assert get_vector_store_id() == "vs_test"
-
-
-def test_get_vector_store_id_empty_string(monkeypatch):
-    monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "")
-    assert get_vector_store_id() is None
-
-
-def test_get_vector_store_id_whitespace_only(monkeypatch):
-    monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "   ")
-    assert get_vector_store_id() is None
-
-
-def test_memory_status_missing_vector_store(monkeypatch, tmp_path):
+def test_memory_status_reports_the_repo_it_was_asked_about(monkeypatch, tmp_path):
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
     state = status(tmp_path)
-    assert state.status == "missing-vector-store"
-    assert state.enabled is False
-    assert state.vector_store_id is None
     assert state.repo_path == str(tmp_path.resolve())
 
 

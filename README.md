@@ -661,8 +661,8 @@ Memory upload is explicit and gated. mq-agent never uploads silently.
 ```text
 $ mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       missing-vector-store                                           │
-│ vector store: (not set — export OPENAI_VECTOR_STORE_ID)                      │
+│ status:       ready                                                          │
+│ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (canonical)                │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -673,8 +673,7 @@ Add --no-dry-run to execute, or use memory refresh --approve.
 
 $ mq-agent memory doctor
 ╭──────────────────────── Memory Doctor ───────────────────────────╮
-│ ✗ OPENAI_VECTOR_STORE_ID: (not set)                              │
-│   fix: export OPENAI_VECTOR_STORE_ID=vs_...                      │
+│ ✓ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (canonical)              │
 │ ✓ repo-signal: available                                         │
 │ ✓ repo path: /path/to/mq-agent                                   │
 ╰──────────────────────────────────────────────────────────────────╯

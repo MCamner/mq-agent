@@ -33,19 +33,18 @@ mq-agent memory doctor --json   # machine-readable diagnostics
 ```text
 $ mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       missing-vector-store                                           │
-│ vector store: (not set — export OPENAI_VECTOR_STORE_ID)                      │
+│ status:       ready                                                          │
+│ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (canonical)                │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 $ mq-agent memory doctor
-╭──────────────────────── Memory Doctor ───────────────────────────╮
-│ ✗ OPENAI_VECTOR_STORE_ID: (not set)                              │
-│   fix: export OPENAI_VECTOR_STORE_ID=vs_...                      │
-│ ✓ repo-signal: available                                         │
-│ ✓ repo path: /path/to/mq-agent                                   │
-╰──────────────────────────────────────────────────────────────────╯
+╭──────────────────────────── Memory Doctor ───────────────────────────────────╮
+│ ✓ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (canonical)              │
+│ ✓ repo-signal: available                                                     │
+│ ✓ repo path: /path/to/mq-agent                                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
 $ mq-agent memory build .
  Would run: repo-signal semantic-upload
@@ -54,7 +53,7 @@ Add --no-dry-run to execute, or use memory refresh --approve.
 $ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
 │ status:       ready                                                          │
-│ vector store: vs_abc                                                         │
+│ vector store: vs_abc (OPENAI_VECTOR_STORE_ID)                                │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -62,16 +61,30 @@ $ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
 
 ---
 
-## Environment
+## Which store answers
 
-Semantic memory requires a vector store ID:
+mq-agent owns a canonical store and always has a memory. The id is declared in
+`mq_agent/memory/semantic.py`, not recovered from the machine:
+
+| Source | When it applies | Reported as |
+| --- | --- | --- |
+| `OPENAI_VECTOR_STORE_ID` | set to a non-empty value | `OPENAI_VECTOR_STORE_ID` |
+| canonical | unset, empty, or whitespace-only | `canonical` |
 
 ```bash
-export OPENAI_VECTOR_STORE_ID="vs_..."
+# point a command at a different store, for one run
+OPENAI_VECTOR_STORE_ID="vs_..." mq-agent memory status
 ```
 
-If the variable is not set, `mq-agent memory status` reports the state clearly
-and no upload is attempted.
+`status`, `doctor` and both `--json` outputs always name which of the two
+applied, so a fallback is never silent.
+
+Resolution reads the process environment and nothing else. There is no `.env`
+discovery and no shell-out, so the store cannot change with the directory a
+command happens to run in. A store id is an addressable name, not a credential;
+the API key stays out of the repository.
+
+The canonical id is `vs_69ffa9a4ef5c81919d7d237c3ecdc260`.
 
 ---
 
@@ -104,18 +117,6 @@ mq-agent memory refresh . --approve
 ---
 
 ## Failure states
-
-### Missing vector store
-
-```text
-status: missing-vector-store
-```
-
-Fix:
-
-```bash
-export OPENAI_VECTOR_STORE_ID="vs_..."
-```
 
 ### Missing repo-signal
 
