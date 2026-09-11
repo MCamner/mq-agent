@@ -21,26 +21,50 @@ Deletion or replacement of existing vector-store files is destructive. Prefer th
 
 For `macos-scripts`, prefer the `mq-agent` semantic memory commands:
 
-```bash
-mq-agent memory status --json
-mq-agent memory build /Users/mansys/macos-scripts
-mq-agent memory refresh --approve /Users/mansys/macos-scripts
-```
-
-If `OPENAI_API_KEY` is missing from the process environment, load it without printing it:
+Name the target repository explicitly rather than assuming where it is checked
+out. A repo's identity is not its location on one machine:
 
 ```bash
-zsh -lc 'set -a; source ~/.env 2>/dev/null || true; source /Users/mansys/macos-scripts/.env 2>/dev/null || true; set +a; mq-agent memory refresh --approve /Users/mansys/macos-scripts'
+REPO_PATH="${REPO_PATH:?set REPO_PATH to the target repository}"
+
+mq-agent memory status --json "$REPO_PATH"
+mq-agent memory build "$REPO_PATH"
+mq-agent memory refresh --approve "$REPO_PATH"
 ```
+
+This skill is used most often for `macos-scripts`, but it applies to any MQ repo
+with semantic repository memory.
 
 Use `memory build` as the preview. It should report the intended `repo-signal semantic-upload` action and must not upload.
+
+## Missing Credentials
+
+If `OPENAI_API_KEY` is unavailable, do not search login shells or arbitrary
+dotfiles. Stop and ask for it to be made available through the process
+environment or the supported project configuration.
+
+The resolution order is fixed, and ends in a failure rather than a guess:
+
+```text
+explicit configuration
+→ process environment
+→ supported .env discovery
+→ clear failure
+```
+
+Starting a login shell to hunt for a credential is slow, can hang, and on macOS
+may print restored-session text that looks like a value. A credential that
+exists only inside an interactive dotfile is invisible to every other caller and
+untestable. `repo-signal` removed exactly this pattern from its own
+configuration resolution; a runbook that teaches it back would undo the
+guarantee.
 
 ## Verify Freshness
 
 After refresh, verify both OpenAI metadata and local retrieval:
 
 ```bash
-mq-agent memory status --json
+mq-agent memory status --json "$REPO_PATH"
 curl -sS "https://api.openai.com/v1/vector_stores/$VECTOR_STORE_ID" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: application/json"
@@ -49,7 +73,11 @@ mq-agent memory search "recent repo-specific terms" --json
 
 Report the vector store ID, status, file counts, newest uploaded file, and whether retrieval worked.
 
-For `macos-scripts`, the active store should come from `mq-agent memory status --json`, not old helper-script defaults. Historical scripts may reference an older default store.
+The active store comes from `mq-agent memory status --json "$REPO_PATH"`, not
+from old helper-script defaults. That output carries `vector_store_source`,
+which says whether the id came from an explicit `OPENAI_VECTOR_STORE_ID` or from
+mq-agent's canonical store — report which, because the two can differ. Historical
+`macos-scripts` shell scripts hardcode an older, different default store.
 
 ## MCP Troubleshooting
 
@@ -80,7 +108,12 @@ Keep the final report short:
 ## Evals
 
 - A freshness check identifies the active vector store from
-  `mq-agent memory status --json`, not from older helper-script defaults.
+  `mq-agent memory status --json`, not from older helper-script defaults, and
+  reports its `vector_store_source`.
+- A missing `OPENAI_API_KEY` stops and asks for it in the process environment,
+  and never sources a dotfile or starts a login shell to find one.
+- Commands name the target repository through an explicit variable rather than
+  a hard-coded checkout path.
 - A refresh request runs a dry-run/preview first, states the repo path and target
   vector store ID, and only uploads after explicit approval in the current turn.
 - A post-refresh report includes OpenAI file/vector-store status and one

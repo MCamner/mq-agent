@@ -38,6 +38,12 @@ jobs:
       - name: Vendored contracts match canonical
         run: uv run python scripts/check-vendored-contracts.py --canonical-root .canonical-contracts
 
+      # The script existed but ran nowhere, so a skill could be added without
+      # its SKILLS.md row or its .agents/ mirror and still show a green PR.
+      # macos-scripts and mq-mcp both run this in CI; this repo did not.
+      - name: Skills are consistent (frontmatter, cross-refs, paths, SKILLS.md)
+        run: ./scripts/check-skills.sh
+
       - name: Run tests
         run: uv run pytest -v
 
