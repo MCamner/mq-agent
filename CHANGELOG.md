@@ -9,6 +9,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+* mq-agent owns a canonical vector store and always has a memory.
+
+  The store id previously existed only in gitignored `.env` files. With none
+  present, `memory status` reported `missing-vector-store` and mq-agent had no
+  memory at all, while the macos-scripts shell consumers silently fell back to
+  a *different* store. Which memory answered depended on untracked files on the
+  machine.
+
+  `CANONICAL_VECTOR_STORE_ID` is now declared in `mq_agent/memory/semantic.py`
+  and `resolve_vector_store_id()` returns both the id and its source: an
+  explicit `OPENAI_VECTOR_STORE_ID` wins, and anything unset, empty or
+  whitespace-only means the canonical store. `status`, `doctor` and both
+  `--json` outputs name which of the two applied, so a fallback is never
+  silent.
+
+  Resolution reads the process environment and nothing else — no `.env`
+  discovery and no shell-out — so the store cannot change with the directory a
+  command runs in. A store id is an addressable name, not a credential; the API
+  key stays out of the repository.
+
+  Contract changes: `memory status` no longer reports `missing-vector-store`,
+  `memory doctor` no longer fails on an unset `OPENAI_VECTOR_STORE_ID`, the
+  doctor item is `vector store` rather than `OPENAI_VECTOR_STORE_ID`, and both
+  `--json` payloads gain `vector_store_source`.
+
 ### Added
 
 * Deterministic `skills inventory`, `skills profile`, and `skills route` commands,
