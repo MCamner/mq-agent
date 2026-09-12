@@ -9,6 +9,79 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Theme: runtime provenance. An execution outcome record says what a run did; it
+could not say which build produced it. Every identity layer — checkout,
+integration, remote, installed, running, release — is now observed separately,
+compared one edge at a time, and reduced to one status and one next action.
+
+### Added
+
+* Runtime provenance, Phase 0 through Phase 5.
+
+  Two contracts, frozen before any code. `mq.runtime-identity.v1` says what one
+  runtime is: component, version and commit, because two builds can carry the
+  same semver and a version alone does not identify a runtime.
+  `mq.stack-provenance.v1` says what was observed across the six layers, with
+  one comparison per edge and no generic `synced`, `healthy` or `aligned`
+  boolean — a schema test forbids the words, because one flag over all the
+  edges answers none of their questions.
+
+  `null` is not `false`. True means checked and matching, false means checked
+  and differing, null means nobody looked. A repository with no `origin/main`
+  cannot say whether HEAD was pushed, and `remote.verification_attempted` and
+  `running_probe` record whether anyone asked, so "never asked" stays distinct
+  from "asked and unreachable".
+
+  Status is derived, never asserted: a pure function of the reason codes, which
+  are a pure function of the observations. `RTP001`–`RTP017` is the registry;
+  an ordinary mismatch is `WARN`, an unobservable identity is `UNAVAILABLE`,
+  and `FAIL` is reserved for identity data that is malformed or
+  self-contradictory. Unknown is never automatically failure.
+
+  `install_type` is proven, never guessed. PEP 610 proves less than it first
+  appears — `dir_info` without `editable: true` and an index install with no
+  record at all both stay `unknown` rather than being inferred.
+
+* `mq-agent stack provenance`, with `--json`. Read-only, local and
+  network-free, and it always exits 0: provenance reports facts and owns no
+  blocking decision, which stays with the release cockpit and `runtime_guard`.
+  `--refresh` is the only step that touches the network, and it uses
+  `git ls-remote` rather than `fetch` — a query does not change the checkout
+  being observed.
+
+* Live runtime identity. `mq-mcp` reports `mq.runtime-identity.v1` about itself
+  over its existing loopback observability route, and `mq-agent` compares
+  `running` against `installed` and `checkout`. The identity is taken once at
+  process start and never re-read: a producer that read `VERSION` and `HEAD`
+  when the request arrived would let a process started from commit A report
+  itself as B after the checkout moved, which is precisely the drift this
+  release exists to expose. `mq-mcp` does not import the `mq-agent` package —
+  the contract crosses the repository boundary, the implementation does not.
+
+* Runtime fingerprints on execution records. `mq.execution-outcome.v1` gains an
+  optional fingerprint — `component`, `version`, `commit`, `identity_quality` —
+  as an additive `v1` extension per mqobsidian DEC-006, with no historical
+  record rewritten or backfilled. The fingerprint is a projection of the
+  identity `runtime_guard` already established, not a second observation:
+  observing again at write time would attribute a run to whatever the checkout
+  had since become.
+
+* Deterministic `skills inventory`, `skills profile`, and `skills route`
+  commands, eight skill profiles, observed Codex/Claude discovery,
+  required-skill handling, JSON output, explanations, and skill selection in
+  context-pack Markdown. Vocabulary and schemas are owned by mqobsidian.
+
+* `.mq/repo-contract.json` declares `mq.stack-provenance.v1` under the contracts
+  this repository produces. mq-agent had produced it since Phase 0 without
+  saying so, and the compatibility engine reads `contracts` as what a repo
+  produces — so a consumer declaring the other half would have produced
+  `MQC013_CONTRACT_UNPRODUCED` against *itself* and no relationship at all.
+  Measured with synthetic repos rather than predicted. Declaring the producer
+  first turns the same pair into an edge, which is what `mq-hal` v2.4.0 then
+  consumed.
+
+* Branch protection is declared as a workflow rather than as console state.
+
 ### Changed
 
 * mq-agent owns a canonical vector store and always has a memory.
@@ -36,12 +109,65 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   doctor item is `vector store` rather than `OPENAI_VECTOR_STORE_ID`, and both
   `--json` payloads gain `vector_store_source`.
 
-### Added
+* Pushing a `v*` tag publishes the GitHub release. Publishing was a manual
+  `gh release create`, and a manual step gets skipped — across the MQ stack
+  every missing release sat in a repo that published by hand. The notes come
+  from that version's CHANGELOG section and never from the commit range, since
+  a tag placed late makes the range describe the wrong work.
 
-* Deterministic `skills inventory`, `skills profile`, and `skills route` commands,
-  eight skill profiles, observed Codex/Claude discovery, required-skill handling,
-  JSON output, explanations, and skill selection in context-pack Markdown.
-  Vocabulary and schemas are owned by mqobsidian.
+* A changelog section that is missing, empty, or over the size limit now fails
+  the publication with exit 6 instead of publishing a truncated remainder.
+  Automation cannot promise a release under every condition; what it can
+  promise is that a forgotten publication is impossible and every other
+  publication error is loud.
+
+* CI lints `tests/` as well as `mq_agent/`, and `./scripts/check-skills.sh`
+  runs as a blocking gate. The script existed but ran in no workflow, so a
+  skill could be added without its `SKILLS.md` row or its `.agents/` mirror and
+  still show a green PR.
+
+* `remediation` for a running↔checkout mismatch narrows to a restart only where
+  the running process's `source_path` is the checkout being compared, and
+  otherwise widens to verifying the installation first. Restart and
+  reinstall-then-restart are both consistent with the same observation, and the
+  wrong one looks like it worked.
+
+* An unobserved `installed` layer renders as `not observed` rather than `—`,
+  which read as a layer that was looked at and found empty. `--json` is
+  unchanged.
+
+### Fixed
+
+* OpenAI credential resolution prefers an explicit process credential and
+  otherwise reads the macOS Keychain, so a stale `.env` secret can no longer
+  override a rotated key. The Keychain read is a fixed-argv call to
+  `/usr/bin/security` with a two-second timeout and no shell; the secret is
+  never printed, and its non-secret source is reported instead.
+
+* `mq-mcp` startup fails closed when port 8765 is already owned. The PID is not
+  published until the child survives the immediate-failure window, and listener
+  ownership is verified after spawn where observable. Covers stale listeners,
+  bind races, immediate failures and invalid port configuration.
+
+* Runtime schemas are proven to ship in the built wheel. v1.27 shipped
+  `execution_outcome.schema.json` without a force-include line: the loader fell
+  back to the repo root, every test passed from a checkout, and every installed
+  runtime silently recorded nothing. Two invariants now compare the declaration
+  against a real built wheel in both directions.
+
+* A runtime's identity is bound to the code it imported, not to a distribution
+  name. Version, commit and install type come from the distribution shown to
+  own the imported file, which is the precondition for trusting the signal at
+  all — a stranger distribution sharing the name used to fabricate an
+  installed↔checkout difference that was not there.
+
+* A revision the contract cannot express is absent rather than coerced, so a
+  non-git VCS install no longer produces a record this repository's own
+  validator rejects.
+
+* The vector-store refresh skill no longer tells a reader to recover a missing
+  `OPENAI_API_KEY` by sourcing a dotfile through a login shell, and names the
+  target repository through a variable instead of one machine's checkout path.
 
 ## [v1.27.0] — 2026-09-06
 

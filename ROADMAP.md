@@ -7,7 +7,8 @@ Deferred: v1.29.0 — MCP tool contract checking.
 
 ## Current status
 
-All release phases complete through v1.26.0.
+All release phases complete through v1.27.0. v1.28.0 is feature-complete on
+`main` and unreleased.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -33,7 +34,7 @@ All release phases complete through v1.26.0.
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
 | v1.26.0 | Stack Compatibility Gate | Released v1.26.0 |
 | v1.27.0 | Execution instrumentation and evidence integrity | Released v1.27.0 |
-| v1.28.0 | Runtime provenance | Phase 0 complete |
+| v1.28.0 | Runtime provenance | Phase 0-5 complete, unreleased |
 
 ## Completed — v1.24.1 Post-release stabilization
 
@@ -451,10 +452,13 @@ change.
 
 ## Next release — v1.28.0 Runtime provenance
 
-* **Status:** Phase 0 complete — contracts and semantics are frozen and proven
-  by tests. No runtime is instrumented yet.
+* **Status:** Phase 0 through Phase 5 complete and on `main`, unreleased. The
+  contracts are frozen, every layer from checkout to running process is
+  observed, and `mq-hal` v2.4.0 presents the record. One item is deferred
+  rather than done: `signal --brain` ingress, recorded under Phase 5 below.
 * **Priority:** P1 — the layer directly above execution evidence. An outcome
-  record says what a run did; it cannot yet say which build produced it.
+  record says what a run did; before this release it could not say which build
+  produced it.
 * **Owner:** `mq-agent`
 * **Contracts:** `mq.runtime-identity.v1`, `mq.stack-provenance.v1`
 * **Semantics:** `docs/RUNTIME_PROVENANCE.md`
@@ -675,6 +679,13 @@ silent, and passing. Without a live proof, a large number of correct nulls
 would become the practical evidence that the feature works, and they prove
 nothing about the case it was built for.
 
+**Met**, in #269, against a real process rather than a fixture: checkout
+`0fd2f44` clean, a running mq-mcp still reporting `0e9e073`,
+`running_matches_checkout: false`, `RTP010_RUNNING_CHECKOUT_MISMATCH` at `WARN`,
+and the next action naming the restart. The control case was run too — with the
+server stopped, `running` is null, both comparisons are null, and no reason code
+is issued.
+
 ### Phase 5 — Consumers
 
 * [x] **5.0 — bind this runtime's identity to the code it imported.** A
@@ -724,10 +735,23 @@ nothing about the case it was built for.
   consumes the stale component. Do not add a stack-wide RTP010 guard without
   first establishing that the affected component lies in the execution's
   dependency cone. See `docs/RUNTIME_PROVENANCE.md`.
-* [ ] **`signal --brain` — an ingress question, left open.** The one real
-  dependency edge points outward: mq-agent writes a review into a possibly
-  stale mq-mcp's brain. Whether that post should be refused or annotated is
-  mq-mcp's evidence-ingress discipline, not mq-agent's guard.
+* **`signal --brain` — an ingress question, deferred out of v1.28.0 rather than
+  left open.** The one real dependency edge points outward: mq-agent writes a
+  review into a possibly stale mq-mcp's brain. Whether that post should be
+  refused or annotated is mq-mcp's evidence-ingress discipline, not mq-agent's
+  guard.
+
+  It does not block the release, and the reason is structural rather than a
+  judgement call. The write happens after the execution record has closed —
+  `mq_agent/main.py` opens `_execution_outcome` around the assessment and posts
+  to the bridge below it — so no mq-agent record can be falsified by a stale
+  peer on the receiving end. The release's own success criterion asks which of
+  four layers differ and what to do next; it is answerable without this. What
+  remains is a policy question about evidence arriving at mq-mcp, owned by
+  mq-mcp, and 5.2e already established the precondition for anything stricter:
+  do not add a stack-wide RTP010 guard without first showing the affected
+  component lies in the execution's dependency cone. For `signal --brain` it
+  does not.
 * [x] **5.3a — a remedy is only as precise as the evidence behind it.** `RTP010`
   reduced to "restart {component}" unconditionally, which is a guess whenever
   `installed` was not observed — the ordinary case for a component in another
@@ -754,10 +778,16 @@ nothing about the case it was built for.
   measured with synthetic repos rather than predicted. Declaring the contract
   first turns the same pair into an edge. No schema, runtime behaviour or
   provenance semantics change.
-* [ ] **5.4 — `mq-hal` presentation.** Consumer boundary, JSON transport and
-  failure boundary, then human presentation. `mq-hal` declares consumption and
-  presents the record; it owns no reason codes, comparisons, status or
-  remediation of its own.
+* [x] **5.4 — `mq-hal` presentation.** Delivered in `mq-hal` v2.4.0, released
+  2026-09-09, as its 5.4a/5.4b/5.4c. `mq-hal provenance` renders the record and
+  `--json` prints the producer's bytes unchanged; `.mq/repo-contract.json`
+  declares `mq.stack-provenance.v1` under `compatibility.consumes`, which is the
+  other half of 5.4a₀ above and the first consumption edge `mq-hal` declares.
+  Transport and presentation are separate modules held to opposite rules, and
+  exit codes separate transport from verdict — any obtained record exits 0
+  whatever its status. `mq-hal` owns no reason codes, comparisons, status or
+  remediation, and `mq-hal` `docs/INTEGRATION.md` carries that as a durable
+  rule. Nothing further is owed here by `mq-agent`.
 
 ### Success criterion
 
