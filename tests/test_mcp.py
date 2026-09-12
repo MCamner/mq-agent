@@ -373,11 +373,18 @@ def test_manager_start_success(tmp_path):
     mock_proc.pid = 99999
     mock_proc.poll.return_value = None
 
+    # The child environment resolves OPENAI_API_KEY, which on macOS reads the
+    # login Keychain. This test is about start(), so the credential boundary is
+    # stated rather than inherited from the machine — and the Popen mock below
+    # replaces a module attribute the whole interpreter shares, so a real
+    # subprocess.run reaching it from inside credentials would break on the mock
+    # rather than on anything start() did.
     with patch.object(manager, "PID_FILE", pid_file):
-        with patch.object(manager, "mq_mcp_dir", return_value=fake_dir):
-            with patch("mq_agent.mcp.manager.subprocess.Popen", return_value=mock_proc):
-                with patch("mq_agent.mcp.manager.time.sleep"):
-                    already, pid, msg = manager.start()
+        with patch.object(manager, "install_openai_api_key"):
+            with patch.object(manager, "mq_mcp_dir", return_value=fake_dir):
+                with patch("mq_agent.mcp.manager.subprocess.Popen", return_value=mock_proc):
+                    with patch("mq_agent.mcp.manager.time.sleep"):
+                        already, pid, msg = manager.start()
 
     assert already is False
     assert pid == 99999

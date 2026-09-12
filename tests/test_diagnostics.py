@@ -1,8 +1,31 @@
 """Tests for mq_agent.core.diagnostics."""
 from __future__ import annotations
 
+import pytest
+
+from mq_agent.core import diagnostics
 from mq_agent.core.credentials import OpenAICredential
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
+
+
+@pytest.fixture(autouse=True)
+def _declared_credential(monkeypatch):
+    """Every check in this file runs against a stated credential, never the machine's.
+
+    `run_checks()` resolves `OPENAI_API_KEY`, which on macOS reads the login
+    Keychain. The tests below assert the *shape* of the check list — how many
+    items, which names, in what order — and none of them are about whether this
+    developer happens to hold a key. Without a declared credential they were
+    reading one, and on Linux CI they were not, so the same assertions were
+    exercising two different code paths.
+
+    The two tests that are about the credential set their own, after this.
+    """
+    monkeypatch.setattr(
+        diagnostics,
+        "resolve_openai_api_key",
+        lambda: OpenAICredential("declared-by-test", "env"),
+    )
 
 
 def test_run_checks_returns_seven_items():
