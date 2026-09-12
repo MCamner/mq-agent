@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -44,6 +44,6 @@
       "promotion-policy.v1"
     ]
   },
-  "next_focus": "v1.28.0 — Runtime provenance: reconcile checkout, installed, running, release and commit identity so evidence can be attributed to a build",
+  "next_focus": "",
   "release_mode": "pull_request"
 }

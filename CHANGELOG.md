@@ -9,7 +9,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Theme: runtime provenance. An execution outcome record says what a run did; it
+## [v1.28.0] — 2026-09-12
+
+Theme: Runtime Provenance. An execution outcome record says what a run did; it
 could not say which build produced it. Every identity layer — checkout,
 integration, remote, installed, running, release — is now observed separately,
 compared one edge at a time, and reduced to one status and one next action.
@@ -168,6 +170,15 @@ compared one edge at a time, and reduced to one status and one next action.
 * The vector-store refresh skill no longer tells a reader to recover a missing
   `OPENAI_API_KEY` by sourcing a dotfile through a login shell, and names the
   target repository through a variable instead of one machine's checkout path.
+
+* No test reads this machine's Keychain. Resolving `OPENAI_API_KEY` on macOS
+  reads the login Keychain, and seven tests reached that call without stating a
+  credential of their own, so their outcome depended on what this machine held.
+  CI never saw it — resolution returns early off `sys.platform`, so the only
+  platform exercising the path is the one with no CI job, and
+  `./release-check.sh` was `BLOCKED` locally while every check was green. An
+  autouse fixture now refuses the probe rather than faking a value, so a test
+  that needs a credential has to declare one.
 
 ## [v1.27.0] — 2026-09-06
 

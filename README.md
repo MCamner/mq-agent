@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.27.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.28.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -296,6 +296,40 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.28.0 status
+
+Runtime Provenance. Every identity layer — checkout, integration, remote,
+installed, running, release — is observed separately and compared one edge at a
+time, so an execution record can say which build produced it.
+
+- [x] test: no test reads this machine's Keychain (#287)
+- [x] docs: make the roadmaps and changelog describe what is on main (#286)
+- [x] update project files (#282)
+- [x] feat(memory): give mq-agent's memory a name and show where it came from (#285)
+- [x] chore(release): a truncated section is not the changelog, so fail instead (#284)
+- [x] chore(release): publish the release when the tag is pushed (#283)
+- [x] fix(mcp): fail closed when port 8765 is already owned (#281)
+- [x] fix: resolve rotated OpenAI key from macOS Keychain (#280)
+- [x] feat: add GitHub branch protection workflow (#279)
+- [x] chore(contracts): declare the provenance contract this repo produces — 5.4a0 (#278)
+- [x] feat(provenance): show the evidence, and conclude nothing from it — 5.3b (#277)
+- [x] feat(provenance): a remedy is only as precise as the evidence behind it (#276)
+- [x] docs(provenance): a component in the stack is not a dependency — Phase 5.2e (#275)
+- [x] feat(telemetry): an execution record says which code produced it (#274)
+- [x] feat(contracts): vendor the runtime fingerprint, and answer the reader first (#273)
+- [x] fix(provenance): a revision this contract cannot express is absent (#272)
+- [x] fix(provenance): bind this runtime's identity to the code it imported (#271)
+- [x] feat(skills): add deterministic task-aware skill selection (#270)
+- [x] feat(provenance): compare a live component against its checkout — Phase 4b (#269)
+- [x] docs(roadmap): a correct null is not proof that Phase 4 works (#268)
+- [x] feat(provenance): verify the remote only when asked (#267)
+- [x] feat(provenance): reduce observations to a status and one action — Phase 2b (#266)
+- [x] feat(provenance): observe integration and release identity (#265)
+- [x] feat(provenance): identify the running mq-agent runtime (#264)
+- [x] test(packaging): prove runtime schemas ship in the wheel (#263)
+- [x] chore(ci): lint tests with ruff (#262)
+- [x] feat(provenance): freeze the runtime provenance contracts — Phase 0 (#261)
 
 ## v1.27.0 status
 
