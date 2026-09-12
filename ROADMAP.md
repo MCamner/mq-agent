@@ -1,14 +1,18 @@
 # mq-agent Roadmap
 
-Released: v1.26.0 — Stack Compatibility Gate.
 Released: v1.27.0 — Execution instrumentation and evidence integrity.
-Next: v1.28.0 — Runtime provenance.
+Released: v1.28.0 — Runtime Provenance.
+Next: undecided — no scope is committed.
 Deferred: v1.29.0 — MCP tool contract checking.
 
 ## Current status
 
-All release phases complete through v1.27.0. v1.28.0 is feature-complete on
-`main` and unreleased.
+All release phases complete through v1.28.0. Nothing unreleased is on `main`.
+
+No next release is scoped. v1.29.0 remains deferred and not started, and the one
+item v1.28.0 deliberately did not close — `signal --brain` ingress — is owned by
+`mq-mcp`, not by this repo. The next scope should come from a real consumer
+need rather than from the existence of an empty version number.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -34,7 +38,7 @@ All release phases complete through v1.27.0. v1.28.0 is feature-complete on
 | v1.25.1 | Release Cockpit post-release audit fix | Released v1.25.1 |
 | v1.26.0 | Stack Compatibility Gate | Released v1.26.0 |
 | v1.27.0 | Execution instrumentation and evidence integrity | Released v1.27.0 |
-| v1.28.0 | Runtime provenance | Phase 0-5 complete, unreleased |
+| v1.28.0 | Runtime Provenance | Released v1.28.0 |
 
 ## Completed — v1.24.1 Post-release stabilization
 
@@ -450,11 +454,11 @@ Phase 0 and Phase 1 together, on `Swarm.run` alone. One instrumented path with
 a settled contract is worth more than seven paths writing a shape that has to
 change.
 
-## Next release — v1.28.0 Runtime provenance
+## Released — v1.28.0 Runtime Provenance
 
-* **Status:** Phase 0 through Phase 5 complete and on `main`, unreleased. The
+* **Status:** Released 2026-09-12. Phase 0 through Phase 5 complete. The
   contracts are frozen, every layer from checkout to running process is
-  observed, and `mq-hal` v2.4.0 presents the record. One item is deferred
+  observed, and `mq-hal` v2.4.0 presents the record. One item was deferred
   rather than done: `signal --brain` ingress, recorded under Phase 5 below.
 * **Priority:** P1 — the layer directly above execution evidence. An outcome
   record says what a run did; before this release it could not say which build

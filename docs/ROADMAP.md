@@ -13,8 +13,8 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.27.0 — Execution instrumentation and evidence integrity
-Current:  v1.28.0 — Runtime provenance
+Released: v1.28.0 — Runtime Provenance
+Next:     undecided — no scope is committed
 Deferred: v1.29.0 — MCP tool contract checking
 ```
 
@@ -91,13 +91,13 @@ Completed foundation:
 | v1.25.1 | Release Cockpit post-release audit fix       | Released |
 | v1.26.0 | Stack Compatibility Gate                     | Released |
 | v1.27.0 | Execution instrumentation & evidence integrity | Released |
-| v1.28.0 | Runtime provenance                            | Phase 0-5, unreleased |
+| v1.28.0 | Runtime Provenance                            | Released |
 
 ---
 
-## Next release
+## Current release
 
-### v1.28.0 — Runtime provenance
+### v1.28.0 — Runtime Provenance
 
 Goal: answer mechanically whether the source checkout, the installed runtime,
 the running runtime and the release identity are the same code — and if not,
@@ -110,7 +110,7 @@ A mismatch is `WARN`, an unobservable identity is `UNAVAILABLE`, and provenance
 itself blocks nothing — the release cockpit and `runtime_guard` keep their own
 policies.
 
-Phases 0 through 5 are complete and on `main`, unreleased: the two contracts
+Phases 0 through 5 are complete and released: the two contracts
 and the `RTP` reason-code registry, self identity, the checkout, integration and
 release layers, the reduction to one status and one next action, `--refresh` for
 explicit remote verification, the first live runtime, and the consumers.
