@@ -56,3 +56,40 @@ def _production_stores_are_unreachable() -> None:
         configured = os.environ.get(name)
         assert configured is not None, f"{name} was not redirected for tests"
         assert Path(configured) != Path.home() / ".mq-agent" / filename
+
+
+#: The one call that reads this machine's login Keychain.
+_KEYCHAIN_READER = "security"
+
+
+@pytest.fixture(autouse=True)
+def _keychain_is_unreachable(monkeypatch) -> None:
+    """No test's outcome may depend on this machine's Keychain contents.
+
+    `_child_env` resolves `OPENAI_API_KEY` through `/usr/bin/security` on macOS,
+    so on a developer's machine the suite was reading a real credential store —
+    ambient state, by the same argument the evidence stores above make. Linux CI
+    never saw it: `resolve_openai_api_key` returns early off `sys.platform`, so
+    the platform that runs this stack was the only one exercising the path, and
+    it is the platform with no CI.
+
+    The probe is refused rather than faked. A test that needs a resolved
+    credential states it, as `tests/test_credentials.py` does by passing
+    `platform=` and stubbing the call itself; a test that does not need one must
+    not silently acquire whatever this machine happens to hold.
+    """
+    from mq_agent.core import credentials
+
+    real_run = credentials.subprocess.run
+
+    def refuse_keychain(*args, **kwargs):
+        argv = args[0] if args else kwargs.get("args")
+        first = str(argv[0]) if isinstance(argv, (list, tuple)) and argv else ""
+        if first.endswith(_KEYCHAIN_READER):
+            raise AssertionError(
+                "a test reached this machine's Keychain through "
+                f"{first}. Stub the credential boundary in the test instead."
+            )
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(credentials.subprocess, "run", refuse_keychain)
