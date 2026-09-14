@@ -564,20 +564,28 @@ def doctor():
 
 # ── review ─────────────────────────────────────────────────────────────────
 
-def _mq_mcp_receiver_observation() -> dict[str, Any] | None:
+def _mq_mcp_receiver_observation(
+    receiver: Any = None,
+) -> dict[str, Any] | None:
     """What this run can say about the mq-mcp that is about to take the write.
 
     Observed here, at write time, and deliberately so: the producer identity is
     frozen before the run because it describes code that already executed, but
-    the receiver is whatever process answers now. Returns None when there is
-    nothing to say — no checkout on this machine and nothing answering — and
-    the payload then omits the observation rather than sending an empty one.
+    the receiver is whatever process answers now.
+
+    `receiver` is the live identity read from the answering process. Passing it
+    replaces only the running layer: the checkout, remote and release layers
+    stay this repo's own observation, and the findings stay derived from them.
+    Returns None when there is nothing to say, and the payload then omits the
+    observation rather than sending an empty one.
     """
     from mq_agent.core import stack_provenance
 
     component = stack_provenance.observe_mq_mcp()
     if component is None:
         return None
+    if receiver is not None and receiver.identity is not None:
+        component = {**component, "running": receiver.identity}
     return stack_provenance.project_receiver_observation(stack_provenance.assess(component))
 
 
@@ -1717,7 +1725,20 @@ def signal(
         console.print(f"\n[dim]Next: {publish['next_action']}[/dim]")
 
     if brain and not dry_run:
+        from mq_agent.core import receiver_launch
         from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+        # The write needs a receiver that can identify itself. Start one when
+        # nothing answers, and read the identity from the process that answers
+        # — never from what was launched (docs/RUNTIME_PROVENANCE.md).
+        receiver = receiver_launch.ensure_receiver()
+        if not receiver.usable:
+            console.print(
+                f"[yellow]Brain write skipped:[/yellow] no identified mq-mcp receiver "
+                f"({receiver.reason})."
+            )
+            return
+
         _brain_record_review(
             MultiMCPBridge(),
             f"repo-signal:{result.get('repo', path)}",
@@ -1730,7 +1751,7 @@ def signal(
                 "publish": result.get("publish"),
             },
             producer=fingerprint,
-            receiver_observation=_mq_mcp_receiver_observation(),
+            receiver_observation=_mq_mcp_receiver_observation(receiver),
         )
 
 
