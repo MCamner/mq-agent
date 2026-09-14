@@ -514,6 +514,56 @@ Comparison stays here. `mq-mcp` consumes the findings and makes exactly one
 check of its own, which this repo cannot make for it: that the observation is
 about the process holding the record.
 
+### A receiver may be started by the producer
+
+The first version of this observed whatever was already running, and sent
+`running: null` when nothing was. mq-mcp refuses that — an observation whose
+`running` is not an identity record is malformed, not absent — so
+`signal --brain` wrote nothing on any machine with no mq-mcp process
+answering, which is the ordinary case.
+
+Starting one is allowed. What is not allowed is letting the act of starting it
+become the source of its identity:
+
+> A receiver may be started by the producer. The observation is valid only if
+> the receiver identity is read, after start, from the receiver process that is
+> actually running — never derived from the launch arguments, the checkout, the
+> configuration, the expected version, or the identity the producer intended to
+> start.
+
+The invariant:
+
+```text
+who started the receiver  !=  source of the receiver identity
+```
+
+A producer that reported the identity it meant to launch would be attesting to
+its own intent, not to the code that took the write. That is the same class of
+claim as a runtime reading its version from a sibling checkout, which this
+whole contract exists to prevent.
+
+Fail-closed at every step, because a review recorded under an unverified
+receiver is worse than a review not recorded:
+
+```text
+receiver start failed            no brain write
+receiver never becomes ready     no brain write
+live identity unavailable        no brain write
+live identity malformed          no brain write
+live identity obtained           attach observation
+                                 receiver gate decides admission
+```
+
+Readiness is its own step. `mcp.manager.start()` waits only long enough to
+catch a process that dies immediately; the port may not be bound when it
+returns, and probing too early reports an absent receiver for one that is
+merely still starting.
+
+Lifecycle provenance is recorded internally as
+`receiver_origin = existing | started_by_cli`. It is not part of the payload
+that crosses to mq-mcp — the receiver's admission decision must not depend on
+who started it — but it is what makes both paths provable in a test.
+
 The rule to apply before building any future gate:
 
 ```text
