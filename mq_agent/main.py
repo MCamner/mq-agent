@@ -134,14 +134,23 @@ def _execution_outcome(
     (routing is advisory: `route inspect` and `route shadow` are its only
     callers), so claiming one would record a decision nothing made.
 
-    `runtime_fingerprint` arrives already projected from the identity
-    `runtime_guard` established before the run was allowed to start. It is a
-    finished value, not something observed here: reading the runtime at write
-    time would attribute the execution to whatever the checkout had become by
-    then. Absent when no identity was established — which is a fact about the
-    observation, not about the runtime.
+    `runtime_fingerprint` is the identity `runtime_guard` established before
+    the run was allowed to start, narrowed here to the four fields an execution
+    record keeps. It is a finished value, not something observed here: reading
+    the runtime at write time would attribute the execution to whatever the
+    checkout had become by then. Absent when no identity was established —
+    which is a fact about the observation, not about the runtime.
     """
-    from mq_agent.tools.execution_outcome import emit_execution_outcome
+    from mq_agent.tools.execution_outcome import (
+        emit_execution_outcome,
+        project_runtime_fingerprint,
+    )
+
+    fingerprint = (
+        project_runtime_fingerprint(runtime_fingerprint)
+        if runtime_fingerprint is not None
+        else None
+    )
 
     # The run id is minted here, not inside the emitter, because a routing
     # decision taken during the run has to carry it as `execution_run_id` while
@@ -171,7 +180,7 @@ def _execution_outcome(
                 exit_status=record["exit_status"],
                 latency_ms=int((time.monotonic() - start) * 1000),
                 model=record.get("model"),
-                runtime_fingerprint=runtime_fingerprint,
+                runtime_fingerprint=fingerprint,
             )
 
 
@@ -270,7 +279,6 @@ def _require_recordable_runtime() -> dict[str, Any] | None:
     and there is nothing to protect, which is exactly what the test suite does.
     """
     from mq_agent.core.runtime_guard import check, production_stores_at_risk
-    from mq_agent.tools.execution_outcome import project_runtime_fingerprint
 
     at_risk = production_stores_at_risk()
     if not at_risk:
@@ -280,13 +288,12 @@ def _require_recordable_runtime() -> dict[str, Any] | None:
         return None
     verdict = check()
     if verdict.allowed:
-        # The fact the guard established, narrowed once, here. Carried onward as
-        # data so no later step has to observe the runtime again.
-        return (
-            project_runtime_fingerprint(verdict.identity)
-            if verdict.identity is not None
-            else None
-        )
+        # The whole record the guard established, carried onward as data so no
+        # later step has to observe the runtime again. Each consumer narrows it
+        # for itself: the execution record keeps four fields, the brain payload
+        # needs a full mq.runtime-identity.v1 record because the receiver
+        # validates what it is sent.
+        return verdict.identity
 
     console.print(
         f"[bold red]Refusing to run:[/bold red] this run's evidence could not be "
@@ -557,8 +564,38 @@ def doctor():
 
 # ── review ─────────────────────────────────────────────────────────────────
 
-def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
-    """Record a completed review to the mqobsidian second brain. Silent on failure."""
+def _mq_mcp_receiver_observation() -> dict[str, Any] | None:
+    """What this run can say about the mq-mcp that is about to take the write.
+
+    Observed here, at write time, and deliberately so: the producer identity is
+    frozen before the run because it describes code that already executed, but
+    the receiver is whatever process answers now. Returns None when there is
+    nothing to say — no checkout on this machine and nothing answering — and
+    the payload then omits the observation rather than sending an empty one.
+    """
+    from mq_agent.core import stack_provenance
+
+    component = stack_provenance.observe_mq_mcp()
+    if component is None:
+        return None
+    return stack_provenance.project_receiver_observation(stack_provenance.assess(component))
+
+
+def _brain_record_review(
+    bridge: Any,
+    source: str,
+    result: Any,
+    *,
+    producer: dict[str, Any] | None = None,
+    receiver_observation: dict[str, Any] | None = None,
+) -> None:
+    """Record a completed review to the mqobsidian second brain. Silent on failure.
+
+    `producer` is this runtime's own identity and `receiver_observation` is what
+    was observed about the receiver. Both are omitted from the call when absent:
+    an empty object would claim an observation nobody made, and the receiver
+    treats a malformed one as a refusal.
+    """
     # Resolve "." or directory paths to a human-readable repo name for the slug.
     source_label = source
     if source not in ("diff",) and (source in (".", "./") or os.path.isdir(source)):
@@ -593,14 +630,20 @@ def _brain_record_review(bridge: Any, source: str, result: Any) -> None:
     elif isinstance(result, dict):
         raw = json.dumps(result, indent=2, default=str)[:4000]
 
-    brain_result = bridge.call_tool("brain_record_review", {
+    arguments: dict[str, Any] = {
         "source": source_label,
         "finding_count": finding_count,
         "top_risks": top_risks[:5],
         "suggested_next_steps": [],
         "confidence": "high" if finding_count > 0 else "medium",
         "raw_summary": raw,
-    })
+    }
+    if producer is not None:
+        arguments["producer"] = producer
+    if receiver_observation is not None:
+        arguments["receiver_observation"] = receiver_observation
+
+    brain_result = bridge.call_tool("brain_record_review", arguments)
 
     if isinstance(brain_result, list) and brain_result:
         brain_result = brain_result[0].get("text", brain_result) if isinstance(brain_result[0], dict) else brain_result
@@ -1686,6 +1729,8 @@ def signal(
                 "scores": result.get("scores"),
                 "publish": result.get("publish"),
             },
+            producer=fingerprint,
+            receiver_observation=_mq_mcp_receiver_observation(),
         )
 
 

@@ -492,10 +492,27 @@ RTP010 therefore stays where it is useful and true:
 * **an operation that consumes the component** — dependency-specific policy,
   decided per operation.
 
-The remaining edge is `signal --brain`, which writes into a possibly stale
+The remaining edge was `signal --brain`, which writes into a possibly stale
 mq-mcp. That is an ingress question — whether mq-mcp should accept evidence
 under a runtime identity it knows is behind its checkout — and it belongs to
-mq-mcp, not to this guard.
+mq-mcp, not to this guard. It is now answered there: mq-mcp refuses evidence
+whose provenance contradicts itself and accepts a stale receiver with a
+warning, recording the decision with the record.
+
+What this repo sends it is deliberately narrow. `signal --brain` carries the
+producer identity the guard already established, plus a projection of what this
+run observed about mq-mcp: `{component, running, findings}` and nothing else.
+`running_matches_checkout` does not cross the boundary — it is the intermediate
+value this repo's reducer turns into a finding, and sending it would give the
+receiver a second route to RTP semantics. The findings are the one
+authoritative signal, and only those about the running layer travel: a dirty
+worktree or an uncontacted remote are true of the checkout, not of the process
+taking the write, and a receiver that warns on every finding it is given would
+warn on everything.
+
+Comparison stays here. `mq-mcp` consumes the findings and makes exactly one
+check of its own, which this repo cannot make for it: that the observation is
+about the process holding the record.
 
 The rule to apply before building any future gate:
 
