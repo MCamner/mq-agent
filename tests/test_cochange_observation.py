@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from mq_agent.memory.cochange_observation import (
     EVIDENCE_SOURCE,
     PRODUCER,
@@ -195,3 +197,101 @@ def test_emit_observation_best_effort_on_bad_vault(tmp_path):
     rec = build_observation(_cochange_json(), "mq-mcp/bridge.py")
     assert rec is not None
     assert emit_observation(rec, vault=bad) is None
+
+
+# ── repo identity: the directory is not the repo ─────────────────────────────
+
+def _worktree(tmp_path, *, dir_name="mq-mcp-review-context", contract='{"repo": "mq-mcp"}'):
+    """A worktree whose directory name differs from the repo it belongs to."""
+    root = tmp_path / dir_name
+    root.mkdir(parents=True)
+    if contract is not None:
+        (root / ".mq").mkdir()
+        (root / ".mq" / "repo-contract.json").write_text(contract, encoding="utf-8")
+    return root
+
+
+def test_repository_comes_from_the_repo_contract_not_the_directory(tmp_path):
+    """Bridget reports the git root's directory name, which a worktree changes.
+
+    Observed live: a co-change run inside /Users/mansys/mq-mcp-review-context
+    emitted repository="mq-mcp-review-context" — a repo that does not exist.
+    mqobsidian validates and stores that field, so the record is archived under
+    a name nothing else in the stack uses.
+    """
+    root = _worktree(tmp_path)
+
+    rec = build_observation(
+        _cochange_json(repo=root.name), "mq-mcp/bridge.py", repo_root=root
+    )
+
+    assert rec is not None
+    assert rec["repository"] == "mq-mcp"
+    assert rec["repository"] != "mq-mcp-review-context"
+
+
+def test_the_contract_wins_over_whatever_bridget_reported(tmp_path):
+    root = _worktree(tmp_path)
+
+    rec = build_observation(
+        _cochange_json(repo="/somewhere/else/wrong-name"), "mq-mcp/bridge.py", repo_root=root
+    )
+
+    assert rec["repository"] == "mq-mcp"
+
+
+def test_without_a_contract_the_basename_still_applies(tmp_path):
+    """The fallback is explicit, and keeps the public-safety guarantee."""
+    root = _worktree(tmp_path, dir_name="plain-repo", contract=None)
+
+    rec = build_observation(
+        _cochange_json(repo="/Users/x/plain-repo"), "mq-mcp/bridge.py", repo_root=root
+    )
+
+    assert rec["repository"] == "plain-repo"
+
+
+def test_without_a_repo_root_nothing_changes(tmp_path):
+    """Callers that pass no root keep the previous behaviour exactly."""
+    rec = build_observation(_cochange_json(repo="/Users/x/mq-mcp"), "mq-mcp/bridge.py")
+
+    assert rec["repository"] == "mq-mcp"
+
+
+@pytest.mark.parametrize(
+    "contract",
+    ["{ not json", "[]", '{"repo": ""}', '{"repo": 7}', '{"role": "runtime"}'],
+    ids=["malformed", "not-an-object", "empty", "not-a-string", "no-repo-key"],
+)
+def test_an_unusable_contract_falls_back_rather_than_raising(tmp_path, contract):
+    root = _worktree(tmp_path, dir_name="fallback-repo", contract=contract)
+
+    rec = build_observation(
+        _cochange_json(repo="/Users/x/fallback-repo"), "mq-mcp/bridge.py", repo_root=root
+    )
+
+    assert rec["repository"] == "fallback-repo"
+
+
+def test_the_contract_never_leaks_an_absolute_path(tmp_path):
+    """Public-safety holds whichever branch produced the name."""
+    root = _worktree(tmp_path, contract='{"repo": "/Users/mansys/secret/mq-mcp"}')
+
+    rec = build_observation(
+        _cochange_json(repo=root.name), "mq-mcp/bridge.py", repo_root=root
+    )
+
+    assert "/Users/" not in rec["repository"]
+    assert rec["repository"] == "mq-mcp"
+
+
+def test_emit_cochange_passes_the_repo_root_through(tmp_path):
+    """The fix is worthless if the one real caller does not supply the root."""
+    root = _worktree(tmp_path)
+    vault = tmp_path / "vault"
+
+    emit_cochange(root, "mq-mcp/bridge.py", runner=lambda *a, **k: _cochange_json(repo=root.name),
+                  vault=vault)
+
+    line = observations_inbox(vault).read_text(encoding="utf-8").splitlines()[0]
+    assert json.loads(line)["repository"] == "mq-mcp"
