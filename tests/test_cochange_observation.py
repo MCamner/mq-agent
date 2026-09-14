@@ -237,6 +237,7 @@ def test_the_contract_wins_over_whatever_bridget_reported(tmp_path):
         _cochange_json(repo="/somewhere/else/wrong-name"), "mq-mcp/bridge.py", repo_root=root
     )
 
+    assert rec is not None
     assert rec["repository"] == "mq-mcp"
 
 
@@ -248,6 +249,7 @@ def test_without_a_contract_the_basename_still_applies(tmp_path):
         _cochange_json(repo="/Users/x/plain-repo"), "mq-mcp/bridge.py", repo_root=root
     )
 
+    assert rec is not None
     assert rec["repository"] == "plain-repo"
 
 
@@ -255,6 +257,7 @@ def test_without_a_repo_root_nothing_changes(tmp_path):
     """Callers that pass no root keep the previous behaviour exactly."""
     rec = build_observation(_cochange_json(repo="/Users/x/mq-mcp"), "mq-mcp/bridge.py")
 
+    assert rec is not None
     assert rec["repository"] == "mq-mcp"
 
 
@@ -270,6 +273,7 @@ def test_an_unusable_contract_falls_back_rather_than_raising(tmp_path, contract)
         _cochange_json(repo="/Users/x/fallback-repo"), "mq-mcp/bridge.py", repo_root=root
     )
 
+    assert rec is not None
     assert rec["repository"] == "fallback-repo"
 
 
@@ -281,6 +285,7 @@ def test_the_contract_never_leaks_an_absolute_path(tmp_path):
         _cochange_json(repo=root.name), "mq-mcp/bridge.py", repo_root=root
     )
 
+    assert rec is not None
     assert "/Users/" not in rec["repository"]
     assert rec["repository"] == "mq-mcp"
 

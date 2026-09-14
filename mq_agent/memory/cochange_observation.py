@@ -113,7 +113,7 @@ def _slug(target: str) -> str:
     return s or "target"
 
 
-def repo_identity(repo_root: Path | None, fallback: str) -> str:
+def repo_identity(repo_root: str | Path | None, fallback: str) -> str:
     """The repo's declared name, or the fallback basename.
 
     The directory is not the repo. Bridget reports the git root's directory
