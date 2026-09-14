@@ -113,12 +113,37 @@ def _slug(target: str) -> str:
     return s or "target"
 
 
+def repo_identity(repo_root: str | Path | None, fallback: str) -> str:
+    """The repo's declared name, or the fallback basename.
+
+    The directory is not the repo. Bridget reports the git root's directory
+    name, so a worktree emits the worktree's name — a repo that exists nowhere
+    else in the stack, archived under that name by mqobsidian. The committed
+    ``.mq/repo-contract.json`` carries the identity that survives a worktree.
+
+    The fallback stays a basename, so the public-safety guarantee holds on
+    either branch: no absolute path reaches the record.
+    """
+    if repo_root is not None:
+        try:
+            contract = json.loads(
+                (Path(repo_root) / ".mq" / "repo-contract.json").read_text(encoding="utf-8")
+            )
+            name = contract["repo"]
+            if isinstance(name, str) and name.strip():
+                return Path(name).name
+        except Exception:
+            pass
+    return Path(fallback).name or fallback
+
+
 def build_observation(
     cochange_json: dict,
     target: str,
     *,
     min_confidence: float = _DEFAULT_MIN_CONFIDENCE,
     min_support: int = _DEFAULT_MIN_SUPPORT,
+    repo_root: str | Path | None = None,
 ) -> dict | None:
     """Build a ``memory-observation.v1`` record from co-change evidence (pure).
 
@@ -162,7 +187,7 @@ def build_observation(
         "id": f"mo-cochange-{_slug(rel_target)}-{now.strftime('%Y%m%dT%H%M%SZ')}",
         "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "producer": PRODUCER,
-        "repository": Path(repo).name or repo,
+        "repository": repo_identity(repo_root, repo),
         "workflow": "co-change",
         "title": "Co-change cluster detected",
         "observation": (
@@ -215,7 +240,10 @@ def emit_cochange(
     if not data:
         return None
     record = build_observation(
-        data, target, min_confidence=min_confidence, min_support=min_support
+        data, target,
+        min_confidence=min_confidence,
+        min_support=min_support,
+        repo_root=repo,
     )
     if record is None:
         return None
