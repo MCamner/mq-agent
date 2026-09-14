@@ -381,6 +381,43 @@ def build(
     }
 
 
+#: Findings about the process that would take a write, as opposed to facts
+#: about a checkout, an installation or a release. Only these are sent to a
+#: receiver's ingress: it warns on any finding it is given, so including a
+#: dirty worktree or an uncontacted remote — true, and true of the checkout
+#: rather than of the running process — would make the warning mean nothing.
+RUNNING_LAYER_FINDINGS = (
+    "RTP008_RUNNING_IDENTITY_UNKNOWN",
+    "RTP009_RUNNING_INSTALLED_MISMATCH",
+    "RTP010_RUNNING_CHECKOUT_MISMATCH",
+    "RTP013_RUNTIME_IDENTITY_INVALID",
+)
+
+
+def project_receiver_observation(component: dict[str, Any]) -> dict[str, Any]:
+    """The smallest thing a receiver's ingress policy needs about itself.
+
+    Pure, and deliberately narrow. `running_matches_checkout` stays here: it is
+    the intermediate value this module's own reducer turns into a finding, and
+    sending it would give the receiver a second route to RTP semantics. The
+    findings are the one authoritative signal that crosses the boundary.
+
+    Nothing is re-derived and nothing is invented — a component with no running
+    identity projects a null, which is what was observed.
+    """
+    name = component.get("name", "")
+    reasons = component.get("reasons") or []
+    return {
+        "component": name,
+        "running": component.get("running"),
+        "findings": [
+            {"component": name, "code": code}
+            for code in reasons
+            if code in RUNNING_LAYER_FINDINGS
+        ],
+    }
+
+
 def observe_component(
     name: str = runtime_identity.COMPONENT, *, refresh: bool = False
 ) -> dict[str, Any]:
