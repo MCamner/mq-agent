@@ -10,6 +10,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from mq_agent.core.mq_mcp_layout import mq_mcp_layout
+
 DEFAULT_PROFILES: dict[str, str] = {
     "fast": "qwen3:4b-instruct",
     "review": "qwen3:4b-instruct",
@@ -247,8 +249,15 @@ def _model_installed(model: str, installed: list[str]) -> bool:
 
 
 def _mq_learn_modelfile_path() -> Path:
-    mq_mcp_dir = Path(os.environ.get("MQ_MCP_DIR", Path.home() / "mq-mcp")).expanduser()
-    return mq_mcp_dir / "models" / "ollama" / "Modelfile.mq-learn"
+    """`models/` is kept at mq-mcp's repository root, not in its project dir.
+
+    Reading MQ_MCP_DIR as given resolved the project directory on a machine
+    configured that way, and the drift check then reported "not found" instead
+    of comparing anything — quietly, because its failure mode is WARN.
+    """
+    resolved = mq_mcp_layout()
+    root = resolved.root or resolved.configured
+    return root / "models" / "ollama" / "Modelfile.mq-learn"
 
 
 def _check_mq_learn_modelfile(model: str, installed: list[str]) -> dict[str, Any]:

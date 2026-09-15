@@ -20,13 +20,13 @@ no prompts/stdout/secrets are included.
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from ..core.mq_mcp_layout import mq_mcp_run_dir
 from ..workflows.observation import default_vault
 
 SCHEMA_ID = "memory-observation.v1"
@@ -57,13 +57,6 @@ def observations_inbox(vault: Path | None = None) -> Path:
     return (vault or default_vault()) / "memory" / "observations" / "mq-agent.observations.jsonl"
 
 
-def _mq_mcp_dir(mq_mcp_dir: str | Path | None = None) -> Path:
-    if mq_mcp_dir:
-        return Path(mq_mcp_dir).expanduser()
-    env = os.environ.get("MQ_MCP_DIR")
-    return Path(env).expanduser() if env else Path.home() / "mq-mcp"
-
-
 def run_cochange(
     repo: str | Path,
     target: str,
@@ -77,7 +70,10 @@ def run_cochange(
     that does not parse as the expected co-change JSON. This is the injectable
     seam — tests pass a fake runner instead.
     """
-    project = _mq_mcp_dir(mq_mcp_dir) / "mq-mcp"
+    # bridge.py sits beside server.py, so the canonical project directory is
+    # the one to run from. Appending "/mq-mcp" unconditionally added one
+    # directory too many when MQ_MCP_DIR already named the project.
+    project = mq_mcp_run_dir(mq_mcp_dir)
     # Pass an ABSOLUTE target. bridge.py must run from the mq-mcp project (so it
     # can spawn server.py), so `uv --directory` makes cwd the mq-mcp project, NOT
     # `repo`. Bridget resolves the analyzed repo from the target file's git

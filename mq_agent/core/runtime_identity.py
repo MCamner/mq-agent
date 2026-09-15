@@ -32,6 +32,7 @@ from urllib.parse import unquote, urlparse
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
+from .mq_mcp_layout import mq_mcp_root as _layout_root
 from .runtime_guard import _probe, repository_root
 
 #: The component this module identifies. Other MQ components report their own.
@@ -602,18 +603,11 @@ def mq_mcp_endpoint() -> str:
 def mq_mcp_root() -> Path | None:
     """mq-mcp's checkout, when this machine has one.
 
-    `MQ_MCP_DIR` names the package directory in existing callers, so the
-    checkout is its parent when that is where the repository lives.
+    Resolved through `mq_mcp_layout`, which reads MQ_MCP_DIR once for every
+    consumer, so this answer and the project directory a child is started in
+    can never come from different trees.
     """
-    raw = os.environ.get("MQ_MCP_DIR", "")
-    candidates = (
-        [Path(raw).expanduser(), Path(raw).expanduser().parent] if raw
-        else [Path.home() / "mq-mcp"]
-    )
-    for candidate in candidates:
-        if (candidate / ".git").exists():
-            return candidate
-    return None
+    return _layout_root()
 
 
 def probe_running(endpoint: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:

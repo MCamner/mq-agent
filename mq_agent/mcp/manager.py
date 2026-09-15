@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from mq_agent.core.credentials import install_openai_api_key
+from mq_agent.core.mq_mcp_layout import mq_mcp_run_dir
 
 try:
     from dotenv import dotenv_values
@@ -18,7 +19,6 @@ except ImportError:
     _HAS_DOTENV = False
 
 PID_FILE = Path.home() / ".mq-agent" / "mq-mcp.pid"
-_DEFAULT_MQ_MCP_DIR = Path.home() / "mq-mcp" / "mq-mcp"
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8765
 
@@ -114,22 +114,11 @@ def _listener_belongs_to_start(listener_pid: int, started_pid: int) -> bool | No
 def mq_mcp_dir() -> Path:
     """The directory holding server.py, which is where the child must run.
 
-    MQ_MCP_DIR has existed in both shapes in local setups: the repo root
-    (~/mq-mcp) and the Python package directory inside it (~/mq-mcp/mq-mcp).
-    Taking it as given resolved the repo root on a machine configured that way,
-    and `uv run mcp run server.py` then started in a directory with no
-    server.py and exited rc=1. Probe for the marker file, the way
-    runtime_identity.mq_mcp_root probes for .git.
-
-    Returns the configured path unchanged when neither shape holds; start()
-    reports that as a missing directory rather than this raising.
+    Resolved through `mq_mcp_layout`, which reads MQ_MCP_DIR once for every
+    consumer. Returns the configured path unchanged when neither shape holds;
+    start() reports that as a missing directory rather than this raising.
     """
-    raw = os.environ.get("MQ_MCP_DIR", "")
-    base = Path(raw).expanduser().resolve() if raw else _DEFAULT_MQ_MCP_DIR
-    for candidate in (base, base / "mq-mcp"):
-        if (candidate / "server.py").exists():
-            return candidate
-    return base
+    return mq_mcp_run_dir()
 
 
 def read_pid() -> int | None:
