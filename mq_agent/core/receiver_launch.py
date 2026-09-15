@@ -27,6 +27,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from mq_agent.core.mq_mcp_endpoint import resolve_mq_mcp_endpoint
 from mq_agent.core.runtime_identity import MQ_MCP, mq_mcp_endpoint, probe_running
 
 #: How many times to re-ask after a start before giving up. `manager.start()`
@@ -109,7 +110,16 @@ def ensure_receiver(
 
     The identity always comes from the answering process.
     """
+    target = resolve_mq_mcp_endpoint()
+    if not target.usable:
+        # A target the operator configured and this runtime cannot use. Probing
+        # elsewhere, or starting a local process to stand in for it, would put
+        # the write somewhere nobody asked for.
+        return ReceiverResult(None, EXISTING, target.reason)
+
     endpoint = mq_mcp_endpoint()
+    if endpoint is None:
+        return ReceiverResult(None, EXISTING, "endpoint-unresolved")
 
     running, _probe = probe_running(endpoint)
     if running is not None:

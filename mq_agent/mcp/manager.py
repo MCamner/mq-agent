@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from mq_agent.core.credentials import install_openai_api_key
+from mq_agent.core.mq_mcp_endpoint import _valid_port, resolve_mq_mcp_endpoint
 from mq_agent.core.mq_mcp_layout import mq_mcp_run_dir
 
 try:
@@ -20,7 +21,6 @@ except ImportError:
 
 PID_FILE = Path.home() / ".mq-agent" / "mq-mcp.pid"
 _DEFAULT_HOST = "127.0.0.1"
-_DEFAULT_PORT = 8765
 
 
 def _child_env(server_dir: Path) -> dict:
@@ -38,18 +38,31 @@ def _child_env(server_dir: Path) -> dict:
     # mq-mcp: an explicitly inherited value wins; otherwise macOS Keychain is
     # consulted. A stale .env secret can therefore never override a rotated key.
     install_openai_api_key(base)
+
+    # The child binds the canonical target, not whatever it inherited. An
+    # explicitly configured endpoint outranks MQ_MCP_HOST/MQ_MCP_PORT, so
+    # passing the inherited variables through would let mq-agent probe one port
+    # and the process bind another. Only the child's copy is written; the
+    # parent's environment is left alone.
+    target = resolve_mq_mcp_endpoint()
+    if target.usable and target.host and target.port:
+        base["MQ_MCP_HOST"] = target.host
+        base["MQ_MCP_PORT"] = str(target.port)
+    else:
+        base.pop("MQ_MCP_HOST", None)
+        base.pop("MQ_MCP_PORT", None)
     return base
 
 
 def _endpoint(env: dict) -> tuple[str, int] | None:
-    """Return the mq-mcp bind endpoint declared for the child process."""
-    host = str(env.get("MQ_MCP_HOST") or _DEFAULT_HOST).strip() or _DEFAULT_HOST
-    raw_port = str(env.get("MQ_MCP_PORT") or _DEFAULT_PORT).strip()
-    try:
-        port = int(raw_port)
-    except ValueError:
-        return None
-    if not 1 <= port <= 65535:
+    """Return the mq-mcp bind endpoint declared for the child process.
+
+    Read back from the child environment `_child_env` already stamped, so the
+    preflight port check and the process cannot disagree about the target.
+    """
+    host = str(env.get("MQ_MCP_HOST") or "").strip()
+    port = _valid_port(env.get("MQ_MCP_PORT"))
+    if not host or port is None:
         return None
     return host, port
 
