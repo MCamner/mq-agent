@@ -247,10 +247,21 @@ def test_nothing_to_observe_sends_no_observation(monkeypatch):
 
 def test_signal_sends_both_halves(monkeypatch):
     """The wiring itself: the fingerprint established before the run, and the
-    receiver observed after it, both reach the brain call."""
+    receiver observed after it, both reach the brain call.
+
+    Asserted on the source because signal() is a long Typer command and the
+    call is the thing under test. The observation argument is checked by shape
+    rather than by exact spelling — it gained the live receiver in
+    feat/signal-brain-live-receiver, and pinning the literal text made an
+    intended change look like a regression.
+    """
     import inspect
+    import re
     from mq_agent import main
 
     source = inspect.getsource(main.signal)
     assert "producer=fingerprint" in source
-    assert "receiver_observation=_mq_mcp_receiver_observation()" in source
+    assert re.search(r"receiver_observation=_mq_mcp_receiver_observation\(", source)
+    # the receiver handed in is the live one, not something derived locally
+    assert "receiver_launch.ensure_receiver()" in source
+    assert "receiver.usable" in source
