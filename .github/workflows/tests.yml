@@ -60,3 +60,69 @@ jobs:
       # app. Wiki publishing is warn-only and lives outside CI.
       - name: Command reference is current
         run: uv run python tools/generate_command_reference.py --check
+
+  # The stack runs macOS; the job above runs ubuntu. Everything in
+  # mq_agent/core/credentials.py after the `sys.platform != "darwin"` early
+  # return is therefore never executed by CI — the Keychain lookup, the
+  # service/account resolution, and the /usr/bin/security call. So is the
+  # conftest guard that refuses a test reaching this machine's Keychain: on
+  # ubuntu the code returns before subprocess.run, so a test that would reach
+  # it cannot be seen. That guard can only fire here.
+  #
+  # This job does not duplicate the one above. It runs release-check.sh, which
+  # is the canonical release gate and ran nowhere in CI until now — `mq-agent
+  # stack release-check` is a different, cross-repo metadata check and never
+  # invokes the script. It also carries a check the ubuntu job does not have:
+  # uv.lock's mq-agent version against VERSION.
+  #
+  # mypy is added because release-check.sh does not run it, and the ubuntu job
+  # does. Without it the two gates would disagree about what "passing" means.
+  #
+  # Deliberately not covered here: real process start and port binding. The
+  # receiver tests monkeypatch `probe_running`, `start_receiver` and `_sleep`,
+  # and nothing in the suite binds a port, so running them on macOS proves the
+  # platform branch and nothing more. A test that actually starts mq-mcp is
+  # worth having and belongs in its own change, where a red job means a
+  # platform bug rather than a leaked child process.
+  macos-runtime:
+    name: macOS runtime and release gate
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      # `uv sync` rather than `uv pip install`, because the smoke scripts fall
+      # back to .venv/bin/mq-agent when no mq-agent is on PATH — which is the
+      # case on a runner — and sync is what guarantees that path exists. It is
+      # also lockfile-faithful, which is what release-check.sh's first check
+      # asserts.
+      - name: Install from the lockfile
+        run: uv sync --extra dev --extra signal
+
+      # The `signal` extra declares repo-signal>=0.7.0, which resolves to 1.0.0
+      # on PyPI, while signal_tools requires >= 1.4.2 — so a lockfile install
+      # alone leaves nine signal tests failing. The ubuntu job installs from git
+      # for the same reason.
+      - name: Install repo-signal
+        run: uv pip install "repo-signal @ git+https://github.com/MCamner/repo-signal.git@main"
+
+      # UV_NO_SYNC because release-check.sh calls `uv run` internally, and
+      # `uv run` reconciles the environment with the lockfile — which reverts
+      # the git install above to the PyPI 1.0.0 and reintroduces the failures
+      # the previous step exists to prevent. Measured, not assumed.
+      #
+      # Human mode, not --json: --json always exits 0 and carries the verdict
+      # in a field, so CI would go green on a BLOCKED repo.
+      - name: Release gate
+        env:
+          UV_NO_SYNC: "1"
+        run: ./release-check.sh
+
+      - name: Type check
+        env:
+          UV_NO_SYNC: "1"
+        run: uv run mypy mq_agent/ tests/ --ignore-missing-imports
