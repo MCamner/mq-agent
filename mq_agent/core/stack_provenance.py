@@ -452,7 +452,14 @@ def observe_mq_mcp(*, refresh: bool = False) -> dict[str, Any] | None:
     """
     root = runtime_identity.mq_mcp_root()
     endpoint = runtime_identity.mq_mcp_endpoint()
-    running, probe = runtime_identity.probe_running(endpoint)
+    if endpoint is None:
+        # The configured target cannot be used, so nothing was asked. That is a
+        # different fact from asking and getting no answer, and the probe says
+        # which: `attempted` is false, exactly as for a component with no
+        # process to ask at all.
+        running, probe = None, {"attempted": False, "endpoint": None, "reachable": None}
+    else:
+        running, probe = runtime_identity.probe_running(endpoint)
     if root is None and not probe["reachable"]:
         return None
     return {

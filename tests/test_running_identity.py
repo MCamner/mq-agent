@@ -75,7 +75,9 @@ def refuses(monkeypatch):
 def test_a_component_that_answers_is_reported_as_running(answers):
     answers(_identity())
 
-    running, probe = runtime_identity.probe_running(runtime_identity.mq_mcp_endpoint())
+    endpoint = runtime_identity.mq_mcp_endpoint()
+    assert endpoint is not None
+    running, probe = runtime_identity.probe_running(endpoint)
 
     assert running == _identity()
     assert probe["attempted"] is True
@@ -85,7 +87,9 @@ def test_a_component_that_answers_is_reported_as_running(answers):
 
 def test_nothing_listening_is_recorded_as_asked_and_absent(refuses):
     """The control case. A stopped server is a fact, not a fault."""
-    running, probe = runtime_identity.probe_running(runtime_identity.mq_mcp_endpoint())
+    endpoint = runtime_identity.mq_mcp_endpoint()
+    assert endpoint is not None
+    running, probe = runtime_identity.probe_running(endpoint)
 
     assert running is None
     assert probe["attempted"] is True
@@ -212,7 +216,9 @@ def test_a_status_code_is_an_answer(answers):
     """
     answers(_identity(), status_code=404)
 
-    running, probe = runtime_identity.probe_running(runtime_identity.mq_mcp_endpoint())
+    endpoint = runtime_identity.mq_mcp_endpoint()
+    assert endpoint is not None
+    running, probe = runtime_identity.probe_running(endpoint)
 
     assert probe["reachable"] is True
     assert running is None

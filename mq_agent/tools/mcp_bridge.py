@@ -201,7 +201,18 @@ class MultiMCPBridge:
 
     def __init__(self):
         from ..core.config import get_mcp_servers
+        from ..core.mq_mcp_endpoint import resolve_mq_mcp_endpoint
+
         self.servers = get_mcp_servers()
+        # mq-mcp's address is the canonical target — the one that is probed and
+        # bound — not the entry get_mcp_servers() fills in. A refused target
+        # drops the server rather than falling back to a default the operator
+        # did not ask for.
+        target = resolve_mq_mcp_endpoint()
+        if target.usable and target.base_url:
+            self.servers["mq-mcp"] = target.base_url
+        else:
+            self.servers.pop("mq-mcp", None)
         self.bridges = {name: MCPBridge(url) for name, url in self.servers.items()}
 
     def is_available(self) -> bool:

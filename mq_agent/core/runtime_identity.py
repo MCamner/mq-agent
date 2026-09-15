@@ -19,7 +19,6 @@ Nothing in this module touches the network.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from functools import lru_cache
@@ -593,11 +592,20 @@ RUNNING_PATH = "/runtime-identity"
 PROBE_HTTP_TIMEOUT = 2.0
 
 
-def mq_mcp_endpoint() -> str:
-    """The local bridge address, honouring the same variables mq-mcp reads."""
-    host = os.environ.get("MQ_MCP_HOST", "127.0.0.1")
-    port = os.environ.get("MQ_MCP_PORT", "8765")
-    return f"http://{host}:{port}{RUNNING_PATH}"
+def mq_mcp_endpoint() -> str | None:
+    """The address to ask, or None when the configured target cannot be used.
+
+    Resolved through `mq_mcp_endpoint.resolve_mq_mcp_endpoint`, the one target
+    that is also bound and written to. None is fail-closed: a target the
+    operator configured and this runtime cannot use is not a reason to probe
+    somewhere else.
+    """
+    from mq_agent.core.mq_mcp_endpoint import resolve_mq_mcp_endpoint
+
+    resolved = resolve_mq_mcp_endpoint()
+    if not resolved.usable:
+        return None
+    return f"{resolved.base_url}{RUNNING_PATH}"
 
 
 def mq_mcp_root() -> Path | None:
