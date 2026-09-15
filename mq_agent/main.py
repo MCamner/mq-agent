@@ -1737,6 +1737,13 @@ def signal(
                 f"[yellow]Brain write skipped:[/yellow] no identified mq-mcp receiver "
                 f"({receiver.reason})."
             )
+            # The reason alone is a slug. Naming the move matters most for the
+            # refusal that reads like a timing problem and is not one: an
+            # mq-mcp too old to identify itself answers forever, so an operator
+            # told only "never ready" retries the one remedy that cannot work.
+            remedy = receiver_launch.remedy_for(receiver.reason)
+            if remedy:
+                console.print(f"[dim]{remedy}[/dim]")
             return
 
         _brain_record_review(
