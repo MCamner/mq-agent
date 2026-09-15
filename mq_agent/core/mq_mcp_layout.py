@@ -11,7 +11,8 @@ Consumers ask two different questions of that variable, and both are legitimate:
 * **the checkout** — for identity, the commit, and files kept at the root such
   as `models/ollama/Modelfile.mq-learn`;
 * **the project** — for anything spawned with `uv --directory`, because that is
-  where `server.py` and `bridge.py` live.
+  where the entrypoints live: `server.py` for the MCP server, `bridge.py` for
+  Bridget's co-change evidence.
 
 Four modules had grown their own reading, each probing for a different marker
 or not probing at all, and two of them were already wrong on a machine
@@ -50,9 +51,12 @@ from pathlib import Path
 #: Marks the checkout. Present at the repository root and nowhere below it.
 ROOT_MARKER = ".git"
 
-#: Marks the runnable project. `bridge.py` and `pyproject.toml` sit beside it,
-#: so one probe settles where every child process must run.
-PROJECT_MARKER = "server.py"
+#: Marks the runnable project: the entrypoints mq-agent spawns there. In
+#: mq-mcp they sit together beside pyproject.toml, so either one settles the
+#: directory. Probing for only `server.py` was narrower than the consumers —
+#: `run_cochange` starts `bridge.py`, and a tree carrying that entrypoint and
+#: not the other resolved to the repo root, one directory too high.
+PROJECT_MARKERS = ("server.py", "bridge.py")
 
 #: The project's directory name inside the repository.
 PROJECT_DIRNAME = "mq-mcp"
@@ -86,9 +90,10 @@ def _configured(mq_mcp_dir: str | Path | None = None) -> Path:
     return Path.home() / DEFAULT_DIRNAME
 
 
-def _first_with(marker: str, candidates: tuple[Path, ...]) -> Path | None:
+def _first_with(markers: tuple[str, ...], candidates: tuple[Path, ...]) -> Path | None:
+    """First candidate carrying any of the markers. Order of candidates wins."""
     for candidate in candidates:
-        if (candidate / marker).exists():
+        if any((candidate / marker).exists() for marker in markers):
             return candidate
     return None
 
@@ -115,8 +120,8 @@ def mq_mcp_layout(mq_mcp_dir: str | Path | None = None) -> MqMcpLayout:
         return MqMcpLayout(configured=configured, root=None, project=None)
     return MqMcpLayout(
         configured=configured,
-        root=_first_with(ROOT_MARKER, (configured, configured.parent)),
-        project=_first_with(PROJECT_MARKER, (configured, configured / PROJECT_DIRNAME)),
+        root=_first_with((ROOT_MARKER,), (configured, configured.parent)),
+        project=_first_with(PROJECT_MARKERS, (configured, configured / PROJECT_DIRNAME)),
     )
 
 

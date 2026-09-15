@@ -24,6 +24,18 @@ mq-agent never directly executes arbitrary shell. Every call goes through the sa
 uv --directory ~/mq-mcp/mq-mcp run python server.py
 ```
 
+`MQ_MCP_DIR` may name either the `mq-mcp` repository root or the executable
+project directory inside it. mq-agent reads the variable once, in
+`mq_agent/core/mq_mcp_layout.py`, and answers both questions from that single
+reading: the checkout (which holds `.git` and `models/`) and the project (which
+holds `server.py` and `bridge.py`). Every consumer — the MCP server launcher,
+runtime identity, the Ollama drift check, and Bridget/CG-2 co-change — uses it,
+so they cannot disagree about which tree they mean.
+
+The path must be absolute. A relative value resolves to nothing rather than
+being expanded, because probing it would ask the current working directory, and
+the same setting would then mean different things from different terminals.
+
 Verify it is running:
 
 ```bash

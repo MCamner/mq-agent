@@ -17,11 +17,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from jsonschema import Draft202012Validator
 
-from mq_agent.core import stack_provenance
+from mq_agent.core import receiver_launch, stack_provenance
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -265,3 +266,57 @@ def test_signal_sends_both_halves(monkeypatch):
     # the receiver handed in is the live one, not something derived locally
     assert "receiver_launch.ensure_receiver()" in source
     assert "receiver.usable" in source
+
+
+def test_signal_actually_hands_over_the_fingerprint_it_established(monkeypatch):
+    """The same wiring, driven rather than read.
+
+    Reading the source proves the call is spelled correctly; it cannot prove the
+    command reaches it, or that the value handed over is the one the runtime
+    guard established rather than something rebuilt on the way. Running the
+    command through the CLI does.
+
+    Recovered from concurrent work that asserted this before the argument was
+    renamed from `runtime_fingerprint` to `producer`. The test was written
+    against the old name and could not be taken as it stood; what it covers is
+    not otherwise covered.
+    """
+    from typer.testing import CliRunner
+
+    from mq_agent.main import app
+
+    fingerprint = {
+        "schema": "mq.runtime-identity.v1",
+        "component": "mq-agent",
+        "version": "1.28.0",
+        "commit": "a" * 40,
+        "install_type": "editable",
+        "identity_quality": "verified",
+    }
+    result_payload = {
+        "repo": "demo",
+        "project_type": "python",
+        "scores": {"overall": 90, "readme": 90, "readme_max": 100,
+                   "publish": 5, "publish_total": 6},
+        "readme": {"missing": []},
+        "publish": {"status": "ready", "next_action": ""},
+        "focus_areas": [],
+        "steps": [],
+    }
+
+    with (
+        patch("mq_agent.tools.signal_tools.signal_available", return_value=True),
+        patch("mq_agent.agents.signal_agent.SignalAgent") as MockAgent,
+        patch("mq_agent.main._client"),
+        patch("mq_agent.main._require_recordable_runtime", return_value=fingerprint),
+        patch("mq_agent.core.receiver_launch.ensure_receiver") as mock_receiver,
+        patch("mq_agent.main._brain_record_review") as mock_brain,
+    ):
+        MockAgent.return_value.run.return_value = result_payload
+        mock_receiver.return_value = receiver_launch.ReceiverResult(
+            identity(), receiver_launch.EXISTING
+        )
+        invocation = CliRunner().invoke(app, ["signal", ".", "--brain"])
+
+    assert invocation.exit_code == 0, invocation.output
+    assert mock_brain.call_args.kwargs["producer"] == fingerprint
