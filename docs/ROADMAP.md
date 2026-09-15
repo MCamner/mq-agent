@@ -117,7 +117,10 @@ explicit remote verification, the first live runtime, and the consumers.
 Phase 4's completion criterion was met against a real process rather than a
 fixture — a running mq-mcp caught still reporting the commit it started from
 after its checkout had moved. `mq-hal` v2.4.0 presents the record and owns none
-of its semantics. `signal --brain` ingress is deferred to mq-mcp, which owns it.
+of its semantics. The post-release `signal --brain` ingress path is now closed:
+mq-agent supplies producer identity, gets an identified live mq-mcp receiver by
+reusing or starting one, sends the receiver observation, and mq-mcp owns the
+pre-write admission decision and provenance persistence.
 The phase plan is canonical in the root `ROADMAP.md`.
 
 ---

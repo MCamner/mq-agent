@@ -9,6 +9,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+* `signal --brain` now sends the validated producer runtime identity plus a
+  live mq-mcp receiver observation so mq-mcp can apply its ingress decision and
+  persist admitted provenance. It reuses an existing receiver or starts one
+  when needed, then reads identity from the live process before writing.
+
+* Co-change memory intake resolves `MQ_MCP_DIR` as either the mq-mcp repository
+  root or the executable project directory. This prevents a duplicate
+  `/mq-mcp` path from making Bridget/CG-2 evidence look unavailable.
+
 ## [v1.28.0] — 2026-09-12
 
 Theme: Runtime Provenance. An execution outcome record says what a run did; it
