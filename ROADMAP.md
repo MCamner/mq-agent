@@ -7,12 +7,15 @@ Deferred: v1.29.0 — MCP tool contract checking.
 
 ## Current status
 
-All release phases complete through v1.28.0. Nothing unreleased is on `main`.
+All release phases complete through v1.28.0. Unreleased work closes the
+post-release `signal --brain` ingress path: mq-agent sends producer identity,
+gets an identified live mq-mcp receiver by reusing or starting one, and sends a
+receiver observation while mq-mcp owns the pre-write admission decision and
+persistence of admitted provenance.
 
-No next release is scoped. v1.29.0 remains deferred and not started, and the one
-item v1.28.0 deliberately did not close — `signal --brain` ingress — is owned by
-`mq-mcp`, not by this repo. The next scope should come from a real consumer
-need rather than from the existence of an empty version number.
+No next release is scoped. v1.29.0 remains deferred and not started. The next
+scope should come from a real consumer need rather than from the existence of
+an empty version number.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -458,8 +461,10 @@ change.
 
 * **Status:** Released 2026-09-12. Phase 0 through Phase 5 complete. The
   contracts are frozen, every layer from checkout to running process is
-  observed, and `mq-hal` v2.4.0 presents the record. One item was deferred
-  rather than done: `signal --brain` ingress, recorded under Phase 5 below.
+  observed, and `mq-hal` v2.4.0 presents the record. At release time,
+  `signal --brain` ingress was deferred to mq-mcp. The post-release ingress
+  path has since been closed: mq-agent gets an identified live receiver, and
+  mq-mcp gates the write before persistence.
 * **Priority:** P1 — the layer directly above execution evidence. An outcome
   record says what a run did; before this release it could not say which build
   produced it.
@@ -739,11 +744,11 @@ is issued.
   consumes the stale component. Do not add a stack-wide RTP010 guard without
   first establishing that the affected component lies in the execution's
   dependency cone. See `docs/RUNTIME_PROVENANCE.md`.
-* **`signal --brain` — an ingress question, deferred out of v1.28.0 rather than
-  left open.** The one real dependency edge points outward: mq-agent writes a
-  review into a possibly stale mq-mcp's brain. Whether that post should be
-  refused or annotated is mq-mcp's evidence-ingress discipline, not mq-agent's
-  guard.
+* **`signal --brain` — post-release ingress path closed.** At release time,
+  `signal --brain` ingress was deferred to mq-mcp. The post-release path has
+  since been closed: mq-agent supplies producer identity, gets an identified
+  live receiver by reusing or starting mq-mcp, sends the receiver observation,
+  and mq-mcp owns the pre-write admission decision and provenance persistence.
 
   It does not block the release, and the reason is structural rather than a
   judgement call. The write happens after the execution record has closed —
