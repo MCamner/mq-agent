@@ -151,6 +151,56 @@ def test_the_cwd_is_never_consulted(tmp_path, monkeypatch):
     assert resolved.project is None
 
 
+def test_a_relative_setting_resolves_to_nothing(tmp_path, monkeypatch):
+    """A relative path cannot be probed without consulting the cwd.
+
+    `Path("mq-mcp").exists()` asks the current directory, so probing a relative
+    setting would smuggle the cwd back in through the marker check — the one
+    input this resolver must not have. There is no correct base to expand it
+    against either: the operator's home is a guess, and the cwd is the thing
+    being excluded. So it resolves to nothing.
+    """
+    _checkout(tmp_path)
+    monkeypatch.setenv("MQ_MCP_DIR", "mq-mcp")
+    monkeypatch.chdir(tmp_path)
+
+    resolved = layout.mq_mcp_layout()
+
+    assert resolved.root is None
+    assert resolved.project is None
+    assert resolved.configured == Path("mq-mcp"), "kept as set, so the error names it"
+
+
+def test_a_relative_setting_gives_the_same_answer_from_every_directory(
+    tmp_path, monkeypatch
+):
+    """The invariant, stated where it actually broke.
+
+    Before this, MQ_MCP_DIR=mq-mcp resolved to `mq-mcp/mq-mcp` from the parent
+    and to `.` from inside the checkout — the same configuration, two answers,
+    one of them the operator's terminal.
+    """
+    root, _ = _checkout(tmp_path)
+    monkeypatch.setenv("MQ_MCP_DIR", "mq-mcp")
+
+    monkeypatch.chdir(tmp_path)
+    from_parent = layout.mq_mcp_layout()
+    monkeypatch.chdir(root)
+    from_inside = layout.mq_mcp_layout()
+
+    assert from_parent == from_inside
+
+
+def test_a_relative_setting_never_starts_a_child_in_the_cwd(tmp_path, monkeypatch):
+    """`uv --directory .` would run whatever the operator was standing in."""
+    root, _ = _checkout(tmp_path)
+    monkeypatch.setenv("MQ_MCP_DIR", "mq-mcp")
+    monkeypatch.chdir(root)
+
+    assert layout.mq_mcp_run_dir() == Path("mq-mcp")
+    assert layout.mq_mcp_run_dir() != Path(".")
+
+
 def test_resolution_starts_nothing(tmp_path, monkeypatch):
     """A lookup is a lookup. Processes belong to the consumers."""
     root, _ = _checkout(tmp_path)

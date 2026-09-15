@@ -29,7 +29,11 @@ the two can never describe different checkouts.
 
 Resolution never consults the current directory. Standing inside an mq-mcp
 checkout must not change where a child process is started, or an operator's
-answer would depend on which terminal they happened to be in.
+answer would depend on which terminal they happened to be in. That is why a
+relative setting resolves to nothing rather than being expanded: probing it
+would ask the cwd through the marker check, and `MQ_MCP_DIR=mq-mcp` did resolve
+to `mq-mcp/mq-mcp` from the parent directory and to `.` from inside the
+checkout — the same configuration, two answers, one of them a terminal.
 
 Absence is reported rather than invented. A directory that is neither shape
 resolves to nothing, and the consumer's own failure path names the path the
@@ -102,6 +106,13 @@ def mq_mcp_layout(mq_mcp_dir: str | Path | None = None) -> MqMcpLayout:
     always the resolved root's child.
     """
     configured = _configured(mq_mcp_dir)
+    if not configured.is_absolute():
+        # Probing it would ask the current directory — `Path("mq-mcp").exists()`
+        # is a question about the operator's terminal — and there is no other
+        # base to expand it against. Resolving to nothing keeps the answer the
+        # same from every directory; `configured` is kept as set so the
+        # consumer's failure names what the operator wrote.
+        return MqMcpLayout(configured=configured, root=None, project=None)
     return MqMcpLayout(
         configured=configured,
         root=_first_with(ROOT_MARKER, (configured, configured.parent)),
