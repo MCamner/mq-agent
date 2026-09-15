@@ -190,6 +190,66 @@ def test_run_cochange_passes_absolute_target(monkeypatch):
     assert target_arg == "/repos/macos-scripts/terminal/menu.sh"
 
 
+# The two shapes MQ_MCP_DIR is allowed in, asserted at the consumer that
+# spawns Bridget. Recovered from concurrent work that predates #294; the
+# resolver moved to mq_agent.core.mq_mcp_layout, but these fixtures carry
+# coverage #294 did not have — they build a project directory holding
+# bridge.py and no server.py, and that is what showed the project marker was
+# too narrow for the consumer that runs bridge.py.
+def test_run_cochange_accepts_mq_mcp_dir_as_project_dir(monkeypatch, tmp_path):
+    # Some local environments set MQ_MCP_DIR to the runnable Python project
+    # directory itself. Do not append a second /mq-mcp in that case.
+    from mq_agent.memory import cochange_observation as co
+
+    project = tmp_path / "mq-mcp"
+    project.mkdir()
+    (project / "bridge.py").write_text("# Bridget entrypoint\n", encoding="utf-8")
+    captured: dict = {}
+
+    class _Result:
+        returncode = 0
+        stdout = json.dumps({"repo": "mq-mcp", "target": "mq-mcp/bridge.py", "rows": []})
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return _Result()
+
+    monkeypatch.setenv("MQ_MCP_DIR", str(project))
+    monkeypatch.setattr(co.subprocess, "run", fake_run)
+
+    co.run_cochange("/repos/mq-mcp", "mq-mcp/bridge.py")
+
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("--directory") + 1] == str(project)
+
+
+def test_run_cochange_accepts_mq_mcp_dir_as_repo_root(monkeypatch, tmp_path):
+    # The historical shape is repo root, with the runnable project under /mq-mcp.
+    from mq_agent.memory import cochange_observation as co
+
+    root = tmp_path / "checkout"
+    project = root / "mq-mcp"
+    project.mkdir(parents=True)
+    (project / "bridge.py").write_text("# Bridget entrypoint\n", encoding="utf-8")
+    captured: dict = {}
+
+    class _Result:
+        returncode = 0
+        stdout = json.dumps({"repo": "mq-mcp", "target": "mq-mcp/bridge.py", "rows": []})
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return _Result()
+
+    monkeypatch.setenv("MQ_MCP_DIR", str(root))
+    monkeypatch.setattr(co.subprocess, "run", fake_run)
+
+    co.run_cochange("/repos/mq-mcp", "mq-mcp/bridge.py")
+
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("--directory") + 1] == str(project)
+
+
 def test_emit_observation_best_effort_on_bad_vault(tmp_path):
     # vault path is a FILE, so mkdir of the inbox dir fails — must not raise.
     bad = tmp_path / "not-a-dir"

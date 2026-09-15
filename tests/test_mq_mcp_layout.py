@@ -124,6 +124,24 @@ def test_a_checkout_without_the_project_still_reports_the_root(tmp_path, monkeyp
     assert resolved.project is None
 
 
+@pytest.mark.parametrize("marker", ["server.py", "bridge.py"])
+def test_either_entrypoint_marks_the_project(tmp_path, monkeypatch, marker):
+    """Both entrypoints are spawned from that directory, so either identifies it.
+
+    Probing for `server.py` alone was narrower than the consumers: `run_cochange`
+    starts `bridge.py`, and a tree carrying only that resolved one directory too
+    high, to the repo root. Found by coverage recovered from concurrent work.
+    """
+    root = tmp_path / "mq-mcp"
+    project = root / "mq-mcp"
+    project.mkdir(parents=True)
+    (root / ".git").mkdir()
+    (project / marker).write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setenv("MQ_MCP_DIR", str(root))
+
+    assert layout.mq_mcp_layout().project == project
+
+
 def test_a_project_outside_a_checkout_still_reports_the_project(tmp_path, monkeypatch):
     """A wheel or a copied tree has no .git. That is not a broken project."""
     project = tmp_path / "mq-mcp"
