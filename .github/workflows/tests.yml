@@ -19,9 +19,6 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e ".[dev,signal]"
 
-      - name: Install repo-signal
-        run: uv pip install "repo-signal @ git+https://github.com/MCamner/repo-signal.git@main"
-
       # mqobsidian owns these contracts; this repo vendors them so an installed
       # mq-agent needs no vault checkout. Blocking here, on the consumer, and
       # deliberately not mirrored in mqobsidian: two blocking cross-repo gates
@@ -103,26 +100,10 @@ jobs:
       - name: Install from the lockfile
         run: uv sync --extra dev --extra signal
 
-      # The `signal` extra declares repo-signal>=0.7.0, which resolves to 1.0.0
-      # on PyPI, while signal_tools requires >= 1.4.2 — so a lockfile install
-      # alone leaves nine signal tests failing. The ubuntu job installs from git
-      # for the same reason.
-      - name: Install repo-signal
-        run: uv pip install "repo-signal @ git+https://github.com/MCamner/repo-signal.git@main"
-
-      # UV_NO_SYNC because release-check.sh calls `uv run` internally, and
-      # `uv run` reconciles the environment with the lockfile — which reverts
-      # the git install above to the PyPI 1.0.0 and reintroduces the failures
-      # the previous step exists to prevent. Measured, not assumed.
-      #
       # Human mode, not --json: --json always exits 0 and carries the verdict
       # in a field, so CI would go green on a BLOCKED repo.
       - name: Release gate
-        env:
-          UV_NO_SYNC: "1"
         run: ./release-check.sh
 
       - name: Type check
-        env:
-          UV_NO_SYNC: "1"
         run: uv run mypy mq_agent/ tests/ --ignore-missing-imports

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">mq-agent score checklist</title>
+  <desc id="desc">Terminal-style screenshot of mq-agent showing a README score and publish checklist.</desc>
+  <rect width="960" height="540" fill="#101014"/>
+  <rect x="48" y="48" width="864" height="444" rx="14" fill="#17171d" stroke="#f0b35a" stroke-width="3"/>
+  <text x="84" y="104" fill="#f0b35a" font-family="JetBrains Mono, Menlo, monospace" font-size="28">mq-agent score .</text>
+  <text x="84" y="168" fill="#f4f1e8" font-family="JetBrains Mono, Menlo, monospace" font-size="24">README score: 100/100 [██████████]</text>
+  <text x="84" y="224" fill="#7ee787" font-family="JetBrains Mono, Menlo, monospace" font-size="22">✓ title  ✓ install  ✓ usage  ✓ examples</text>
+  <text x="84" y="276" fill="#7ee787" font-family="JetBrains Mono, Menlo, monospace" font-size="22">✓ screenshots/demo  ✓ roadmap  ✓ license</text>
+  <text x="84" y="352" fill="#f4f1e8" font-family="JetBrains Mono, Menlo, monospace" font-size="24">Publish checklist: 16/16 [OK]</text>
+  <text x="84" y="408" fill="#9cdcfe" font-family="JetBrains Mono, Menlo, monospace" font-size="22">Repo looks publish-ready from the static checklist.</text>
+</svg>

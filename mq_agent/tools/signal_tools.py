@@ -15,11 +15,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-_MIN_VERSION = (1, 4, 2)
-_INSTALL_HINT = (
-    "uv tool install "
-    "'repo-signal[ai,vector] @ git+https://github.com/MCamner/repo-signal.git@v1.4.2'"
-)
+_MIN_VERSION = (1, 7, 1)
+_INSTALL_HINT = "uv tool install 'repo-signal[ai,vector]>=1.7.1'"
 
 _README_LABEL_TO_KEY = {
     "title": "title",

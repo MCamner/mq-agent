@@ -11,7 +11,7 @@ def test_resolver_skips_stale_project_binary_for_compatible_uv_tool(monkeypatch)
     monkeypatch.setattr(
         signal_tools,
         "_probe_version",
-        lambda executable: (1, 0, 0) if executable == stale else (1, 4, 2),
+        lambda executable: (1, 0, 0) if executable == stale else (1, 7, 1),
     )
 
     executable, error = signal_tools._resolve_repo_signal()
@@ -29,7 +29,7 @@ def test_resolver_reports_old_candidates_and_uv_tool_fix(monkeypatch):
 
     assert executable is None
     assert error is not None
-    assert "need >= 1.4.2" in error
+    assert "need >= 1.7.1" in error
     assert stale in error
     assert "uv tool install" in error
     assert "[ai,vector]" in error

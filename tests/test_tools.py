@@ -181,6 +181,6 @@ def test_version_guard_old_version_triggers_error_message(monkeypatch):
 
     msg = signal_tools._not_available_msg()
     assert "too old" in msg
-    assert "1.4.2" in msg
+    assert "1.7.1" in msg
     assert stale in msg
     assert "uv tool install" in msg
