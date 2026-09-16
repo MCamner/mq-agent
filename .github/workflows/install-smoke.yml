@@ -20,9 +20,6 @@ jobs:
       - name: Install
         run: uv pip install -e ".[signal]"
 
-      - name: Install repo-signal
-        run: uv pip install "repo-signal @ git+https://github.com/MCamner/repo-signal.git@main"
-
       - name: Help
         run: uv run mq-agent --help
 

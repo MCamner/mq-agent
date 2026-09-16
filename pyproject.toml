@@ -26,7 +26,7 @@ mq-agent = "mq_agent.entrypoint:app"
 
 [project.optional-dependencies]
 signal = [
-    "repo-signal>=0.7.0",
+    "repo-signal>=1.7.1",
 ]
 dev = [
     "pytest>=7.0.0",
