@@ -42,6 +42,30 @@ READY_INTERVAL_SECONDS = 0.5
 EXISTING = "existing"
 STARTED_BY_CLI = "started_by_cli"
 
+#: Something answers the endpoint and carries no identity. A build from before
+#: the /runtime-identity route replies 404, which `probe_running` records as
+#: reachable with nothing to report. Kept apart from `receiver-never-ready`
+#: because the remedies are opposites: one is waited out, the other never is.
+NO_IDENTITY_ROUTE = "receiver-has-no-identity-route"
+NEVER_READY = "receiver-never-ready"
+
+#: What to do about a refusal, for the reasons where waiting is not it. Kept
+#: here beside the reasons that produce them so the two cannot drift apart, and
+#: deliberately not exhaustive: a reason with no entry prints on its own rather
+#: than inviting a guess.
+REMEDIES: dict[str, str] = {
+    NO_IDENTITY_ROUTE: (
+        "something is answering that port and cannot identify itself — "
+        "update mq-mcp, or stop whatever else is bound there"
+    ),
+    NEVER_READY: "mq-mcp did not finish starting — try again, or start it by hand",
+}
+
+
+def remedy_for(reason: str | None) -> str | None:
+    """The operator's next move, when there is one worth naming."""
+    return REMEDIES.get(reason or "")
+
 _REQUIRED = ("schema", "component", "version", "commit", "install_type", "identity_quality")
 _SCHEMA = "mq.runtime-identity.v1"
 
@@ -121,20 +145,32 @@ def ensure_receiver(
     if endpoint is None:
         return ReceiverResult(None, EXISTING, "endpoint-unresolved")
 
-    running, _probe = probe_running(endpoint)
+    running, probe = probe_running(endpoint)
     if running is not None:
         reason = _identity_is_sound(running)
         return ReceiverResult(None if reason else running, EXISTING, reason)
+    if probe["reachable"]:
+        # Something owns the endpoint and cannot identify itself. Starting a
+        # second one would fail on the port and report *that* as the problem,
+        # which names the symptom and hides the cause.
+        return ReceiverResult(None, EXISTING, NO_IDENTITY_ROUTE)
 
     already_running, pid, message = start_receiver()
     if pid is None:
         return ReceiverResult(None, STARTED_BY_CLI, message)
 
+    answered = False
     for _ in range(attempts):
         _sleep(interval)
-        running, _probe = probe_running(endpoint)
+        running, probe = probe_running(endpoint)
         if running is not None:
             reason = _identity_is_sound(running)
             return ReceiverResult(None if reason else running, STARTED_BY_CLI, reason)
+        # Only the final state decides: a server can bind before its routes are
+        # mounted, so one 404 on the way up must not condemn a receiver that
+        # goes on to identify itself.
+        answered = bool(probe["reachable"])
 
-    return ReceiverResult(None, STARTED_BY_CLI, "receiver-never-ready")
+    return ReceiverResult(
+        None, STARTED_BY_CLI, NO_IDENTITY_ROUTE if answered else NEVER_READY
+    )
