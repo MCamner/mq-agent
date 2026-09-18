@@ -120,6 +120,20 @@ Proceed? Yes/No/Modify
 - default to no push/merge
 - default to `$MQ_OBSIDIAN_DIR` for Obsidian paths
 
+## Evals
+
+### Should trigger
+
+- "design the prompt flow for this mqlaunch entry"
+- "should this command ask or take a flag?"
+- "add an approval gate to this destructive command"
+
+### Should not trigger
+
+- "implement the command I already designed" → use `mq-subagent-driven-development`
+- "the stack command surface is out of sync" → use `stack-operations`
+- "polish the terminal output colours" → out of scope for this repo
+
 ## Guardrails
 
 Never:

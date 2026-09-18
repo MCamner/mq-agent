@@ -107,6 +107,21 @@ Output:
 Yes/No
 ```
 
+## Evals
+
+### Should trigger
+
+- "check this for secrets before I open the PR"
+- "is this generated AGENTS.md safe to publish?"
+- "I changed the workflow env vars — anything leaking?"
+- "scan before we make this repo public"
+
+### Should not trigger
+
+- "audit code quality and test coverage" → use `repo-audit`
+- "score the README for publish readiness" → use `signal-assessment`
+- "the release gate is red" → use `release-readiness`
+
 ## Guardrails
 
 Never:

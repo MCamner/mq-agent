@@ -7,7 +7,10 @@
 #   3. skill cross-references ("use `<skill>`") point to existing skills
 #   4. backticked file paths in SKILL.md files exist in the repo
 #   5. the SKILLS.md table between the GENERATED markers matches frontmatter
-#   6. every built-in skill is discoverable through .agents/skills/
+#   6. every built-in skill is discoverable, identically, through both
+#      .agents/skills/ (Codex) and .claude/skills/ (Claude Code); neither tree
+#      carries a skill that has no canonical definition under skills/; and
+#      every entry is a link to skills/ rather than a copy of it
 #
 # Usage:
 #   ./scripts/check-skills.sh          # check only
@@ -68,7 +71,7 @@ while IFS=: read -r file token; do
   token="${token#\`}"; token="${token%\`}"
   [[ "$token" == *"*"* || "$token" == *" "* ]] && continue   # globs, phrases
   [[ "$token" == -* || "$token" == /* || "$token" == .* ]] && continue
-  [[ "$token" == \<* ]] && continue                          # placeholders
+  [[ "$token" == *"<"* ]] && continue                        # placeholders (<name>, a/<b>.md)
   # A path is valid if it exists (relative to repo root or the skill's own
   # directory, so a skill may reference its own assets), or if git ignores it
   # — a generated artifact (e.g. generated/tool-index.json) is absent from a
@@ -119,21 +122,70 @@ else
   fi
 fi
 
-# --- 6: Codex discovery ------------------------------------------------------
+# --- 6: agent discovery parity ----------------------------------------------
+#
+# Both agents must see the same skill surface. A skill that lives in only one
+# tree, or whose copy has drifted from skills/, is a silent split: Codex and
+# Claude Code then follow different instructions for the same task name.
+
+AGENT_TREES=(.agents/skills .claude/skills)
 
 DISCOVERY_FAIL=0
+
+# 6a: every canonical skill reaches both agents, byte-identical.
 for skill_md in skills/*/SKILL.md; do
   name="$(basename "$(dirname "$skill_md")")"
-  discovered=".agents/skills/$name/SKILL.md"
-  if [[ ! -f "$discovered" ]]; then
-    fail "$name is not discoverable at $discovered"
-    DISCOVERY_FAIL=1
-  elif ! cmp -s "$skill_md" "$discovered"; then
-    fail "$discovered differs from canonical $skill_md"
-    DISCOVERY_FAIL=1
-  fi
+  for tree in "${AGENT_TREES[@]}"; do
+    discovered="$tree/$name/SKILL.md"
+    if [[ ! -f "$discovered" ]]; then
+      fail "$name is not discoverable at $discovered"
+      DISCOVERY_FAIL=1
+    elif ! cmp -s "$skill_md" "$discovered"; then
+      fail "$discovered differs from canonical $skill_md"
+      DISCOVERY_FAIL=1
+    fi
+  done
 done
-[[ $DISCOVERY_FAIL -eq 0 ]] && ok "Codex skill discovery"
+
+# 6b: neither tree carries a skill with no canonical definition. A real
+# directory here (rather than a link into skills/) is a second source of truth.
+for tree in "${AGENT_TREES[@]}"; do
+  [[ -d "$tree" ]] || continue
+  for entry in "$tree"/*/; do
+    [[ -e "$entry" ]] || continue
+    name="$(basename "$entry")"
+    if [[ ! -f "skills/$name/SKILL.md" ]]; then
+      fail "$tree/$name has no canonical definition at skills/$name/SKILL.md"
+      DISCOVERY_FAIL=1
+    fi
+  done
+done
+
+# 6c: every entry is a link into skills/, not a copy. Content comparison alone
+# cannot see this: a copied SKILL.md is byte-identical on the day it is made
+# and drifts silently afterwards, which is how five skills came to exist twice.
+# A link out of the repo is rejected for the same reason -- it puts the source
+# of truth somewhere this repo's checks never run.
+for tree in "${AGENT_TREES[@]}"; do
+  [[ -d "$tree" ]] || continue
+  for entry in "$tree"/*; do
+    [[ -e "$entry" || -L "$entry" ]] || continue
+    name="$(basename "$entry")"
+    expected="../../skills/$name"
+    if [[ ! -L "$entry" ]]; then
+      fail "$entry is a copy; it must be a symlink to $expected"
+      DISCOVERY_FAIL=1
+      continue
+    fi
+    target="$(readlink "$entry")"
+    if [[ "$target" != "$expected" ]]; then
+      fail "$entry links to '$target'; expected '$expected'"
+      DISCOVERY_FAIL=1
+    fi
+  done
+done
+
+[[ $DISCOVERY_FAIL -eq 0 ]] && ok "agent discovery parity"
 
 if [[ $FAIL -ne 0 ]]; then
   echo "check-skills: FAILED"

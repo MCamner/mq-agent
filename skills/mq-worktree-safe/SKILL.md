@@ -121,6 +121,21 @@ If checks fail before work starts, report this as **pre-existing baseline failur
 - Notes: <important constraints>
 ```
 
+## Evals
+
+### Should trigger
+
+- "set up an isolated worktree before I refactor this"
+- "I want to try a risky dependency bump without touching my checkout"
+- "start work on this cross-repo change safely"
+- "I need a clean baseline before implementing"
+
+### Should not trigger
+
+- "which branches are safe to delete?" → use `repo-audit`
+- "plan this multi-step change" → use `mq-writing-plans`
+- "execute the plan task by task" → use `mq-subagent-driven-development`
+
 ## Guardrails
 
 Never:

@@ -70,15 +70,15 @@ Every plan starts with:
 
 Each task must be small enough to review independently.
 
-```md
+````md
 ### Task N: <name>
 
 **Purpose:** <why this task exists>
 
 **Files:**
-- Create: `path/file.ext`
-- Modify: `path/file.ext`
-- Read-only reference: `path/file.ext`
+- Create: `<path>/<file>.ext`
+- Modify: `<path>/<file>.ext`
+- Read-only reference: `<path>/<file>.ext`
 
 **Steps:**
 1. Read current file state.
@@ -98,7 +98,7 @@ Each task must be small enough to review independently.
 **Commit suggestion:**
 `type(scope): imperative summary`
 
-```
+````
 
 ## Task sizing
 
@@ -134,6 +134,21 @@ Fix context system.
 - Gates: <summary>
 - Recommended first task: <task>
 ```
+
+## Evals
+
+### Should trigger
+
+- "plan this before we start coding"
+- "write an implementation plan for the roadmap item"
+- "this touches mq-agent and mq-mcp — what is the order of work?"
+- "hand this off to Codex with a spec"
+
+### Should not trigger
+
+- "just fix this one-line typo" → no plan needed, edit directly
+- "the plan exists, start implementing" → use `mq-subagent-driven-development`
+- "is the repo ready to release?" → use `release-readiness`
 
 ## Guardrails
 

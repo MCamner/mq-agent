@@ -135,7 +135,7 @@ Ask before committing, pushing, merging, deleting branches, or pruning worktrees
 | 1 | pass | pass | pass | ready |
 
 ## Changed files
-- `path/file`
+- `<path>/<file>`
 
 ## Recommended commits
 1. `type(scope): message`
@@ -144,6 +144,20 @@ Ask before committing, pushing, merging, deleting branches, or pruning worktrees
 - Commit? yes/no
 - Push? yes/no
 ```
+
+## Evals
+
+### Should trigger
+
+- "execute the plan in docs/plans/, one task at a time"
+- "implement task 3 and review it before moving on"
+- "run the implementer/reviewer loop on this spec"
+
+### Should not trigger
+
+- "there is no plan yet" → use `mq-writing-plans`
+- "I need an isolated checkout first" → use `mq-worktree-safe`
+- "review this finished diff for bugs" → use `repo-audit`
 
 ## Guardrails
 
