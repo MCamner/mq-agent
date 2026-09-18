@@ -1,11 +1,16 @@
 import subprocess
 
+# Hard blocks promised by docs/SAFETY_CONTRACT.md. These are rejected by the
+# shell tool itself, after any higher-level approval decision.
 BLOCKED = [
-    "rm -rf /",
-    "sudo rm -rf",
+    "rm -rf",
+    "sudo",
+    "chmod 777",
+    "curl | bash",
+    "wget | sh",
+    "> /dev/sda",
     "mkfs",
     "dd if=",
-    "> /dev/sda",
     ":(){ :|:& };:",  # fork bomb
 ]
 
