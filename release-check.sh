@@ -69,7 +69,11 @@ run_check "pytest" uv run --extra dev --extra signal pytest tests/ -q --tb=no
 
 say ""
 say "--- Lint ---"
-run_check "ruff" uv run --extra dev ruff check mq_agent/
+run_check "ruff" uv run --extra dev ruff check mq_agent/ tests/
+
+say ""
+say "--- Type check ---"
+run_check "mypy" uv run --extra dev mypy mq_agent/ tests/ --ignore-missing-imports
 
 say ""
 say "--- Docs consistency ---"
@@ -78,6 +82,14 @@ run_check "check-docs-consistency.sh" bash "$ROOT/scripts/check-docs-consistency
 say ""
 say "--- Skills consistency ---"
 run_check "check-skills.sh" bash "$ROOT/scripts/check-skills.sh"
+
+say ""
+say "--- Command reference ---"
+run_check "generate_command_reference.py" uv run --extra dev python tools/generate_command_reference.py --check
+
+say ""
+say "--- Gate parity ---"
+run_check "check-gate-parity.py" uv run --extra dev python "$ROOT/scripts/check-gate-parity.py"
 
 say ""
 say "--- mqlaunch smoke ---"
