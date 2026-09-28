@@ -41,10 +41,14 @@ def canonical(tmp_path) -> Path:
     return root
 
 
-def test_the_manifest_lists_both_contracts_this_repo_vendors() -> None:
+def test_the_manifest_lists_all_contracts_this_repo_vendors() -> None:
     contracts = {entry["contract"] for entry in _manifest()["contracts"]}
 
-    assert contracts == {"mq.execution-outcome.v1", "mq.model-route-outcome.v1"}
+    assert contracts == {
+        "mq.execution-outcome.v1",
+        "mq.model-route-outcome.v1",
+        "notebook-corpus-index.v1",
+    }
 
 
 def test_matching_copies_pass(canonical) -> None:
