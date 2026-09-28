@@ -2988,6 +2988,135 @@ def notebook_pack_cmd(
     console.print(f"{mode}: {report['pack_dir']}")
 
 
+@notebook_app.command("catalog")
+def notebook_catalog_cmd(
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Inspect one local Drive-corpus catalog without reading file bodies."""
+    from mq_agent.notebook_corpus_search import catalog_summary, load_json
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        report = catalog_summary(load_json(Path(catalog).expanduser()))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        return
+    console.rule("[bold]notebook corpus catalog[/bold]")
+    console.print(f"snapshot: {report['snapshot_at']}")
+    console.print(f"notebooks: {report['notebooks']}  items: {report['items']}")
+    console.print(f"duplicate hash groups: {report['duplicate_hash_groups']}")
+    for role, count in report["roles"].items():
+        console.print(f"  {role}: {count}")
+
+
+@notebook_app.command("search")
+def notebook_search_cmd(
+    query: Annotated[str, typer.Argument(help="Lexical corpus query")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    text_hits: Annotated[str, typer.Option("--text-hits", help="Optional provider text-hit metadata JSON")] = "",
+    top_k: Annotated[int, typer.Option("--top-k", min=1, help="Maximum returned candidates")] = 10,
+    connector_calls: Annotated[int, typer.Option("--connector-calls", min=0, help="Adapter calls represented by supplied text hits")] = 0,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Search local corpus metadata plus optional provider text-match metadata."""
+    from mq_agent.notebook_corpus_search import load_json, search_catalog
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        catalog_doc = load_json(Path(catalog).expanduser())
+        text_doc = load_json(Path(text_hits).expanduser()) if text_hits else None
+        report = search_catalog(
+            catalog_doc,
+            query,
+            top_k=top_k,
+            text_hits=text_doc,
+            connector_calls=connector_calls,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        return
+    console.rule("[bold]notebook corpus search[/bold]")
+    console.print(f"query: {report['query']}")
+    console.print(f"terms: {', '.join(report['terms']) or '(none)'}")
+    if not report["results"]:
+        console.print("[yellow]no result[/yellow]")
+    for index, row in enumerate(report["results"], start=1):
+        console.print(
+            f"{index:>2}. [{row['source_role']}] {row['title']} "
+            f"— {row['notebook_title']} (score {row['score']})"
+        )
+        console.print(
+            f"    match: {', '.join(row['match_channels'])}; "
+            f"terms: {', '.join(row['matched_terms'])}"
+        )
+    trace = report["trace"]
+    console.print(
+        f"[dim]considered {trace['metadata_items_considered']} metadata items; "
+        f"returned {trace['returned']}; bodies {trace['file_bodies_fetched']}; "
+        f"bytes {trace['bytes_fetched']}; connector calls {trace['connector_calls']}[/dim]"
+    )
+
+
+@notebook_app.command("show")
+def notebook_show_cmd(
+    identifier: Annotated[str, typer.Argument(help="Logical or Drive notebook/item identity")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show one catalog notebook or item by exact identity."""
+    from mq_agent.notebook_corpus_search import load_json, show_catalog_entry
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        report = show_catalog_entry(load_json(Path(catalog).expanduser()), identifier)
+    except KeyError as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "NOT_FOUND", "identifier": identifier}))
+        else:
+            console.print(f"[yellow]not found:[/yellow] {identifier}")
+        raise typer.Exit(1) from exc
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        return
+    console.rule("[bold]notebook corpus entry[/bold]")
+    if report["kind"] == "item":
+        row = report["item"]
+        console.print(f"item: {row['title']}")
+        console.print(f"role: {row['classification']['role']}")
+        console.print(f"notebook: {report['notebook']['title']}")
+    else:
+        console.print(f"notebook: {report['notebook']['title']}")
+        console.print(f"items: {len(report['items'])}")
+
+
 @context_app.command("export")
 def context_export_cmd(
     repo: Annotated[str, typer.Option("--repo", help="Repo name to export")] = "",
