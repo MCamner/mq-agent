@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import copy
+import json
+from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
+
+from mq_agent.main import app
 
 from mq_agent.notebook_corpus import build_from_document
 from mq_agent.notebook_corpus_search import (
@@ -11,6 +16,9 @@ from mq_agent.notebook_corpus_search import (
     search_catalog,
     show_catalog_entry,
 )
+
+
+runner = CliRunner()
 
 
 FROZEN_QUERIES = [
@@ -225,3 +233,83 @@ def test_show_unknown_identifier_fails_closed():
 
 def test_query_terms_does_not_semantically_expand():
     assert query_terms("Find sources about MCP in Python") == ["mcp", "python"]
+
+
+
+def _write_catalog(tmp_path: Path) -> Path:
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(_catalog()), encoding="utf-8")
+    return path
+
+
+def test_cli_catalog_json(tmp_path):
+    path = _write_catalog(tmp_path)
+    result = runner.invoke(app, ["notebook", "catalog", "--catalog", str(path), "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["notebooks"] == 4
+    assert payload["items"] == 5
+
+
+def test_cli_search_json_is_machine_readable(tmp_path):
+    path = _write_catalog(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "search",
+            FROZEN_QUERIES[0],
+            "--catalog",
+            str(path),
+            "--top-k",
+            "2",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["results"][0]["source_role"] == "source"
+    assert payload["trace"]["file_bodies_fetched"] == 0
+
+
+def test_cli_negative_control_returns_successful_empty_result(tmp_path):
+    path = _write_catalog(tmp_path)
+    result = runner.invoke(
+        app,
+        ["notebook", "search", FROZEN_QUERIES[5], "--catalog", str(path), "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["results"] == []
+    assert payload["trace"]["no_result"] is True
+
+
+def test_cli_show_json(tmp_path):
+    catalog = _catalog()
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(catalog), encoding="utf-8")
+    identifier = catalog["items"][0]["item_id"]
+
+    result = runner.invoke(
+        app,
+        ["notebook", "show", identifier, "--catalog", str(path), "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["kind"] == "item"
+
+
+def test_cli_show_missing_is_nonzero(tmp_path):
+    path = _write_catalog(tmp_path)
+    result = runner.invoke(
+        app,
+        ["notebook", "show", "missing", "--catalog", str(path), "--json"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "NOT_FOUND"
