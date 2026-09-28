@@ -1138,7 +1138,21 @@ Build local source packs for optional synthesis providers.
 
 | Subcommand | Description |
 |---|---|
+| [`mq-agent notebook catalog`](#mq-agent-notebook-catalog) | Inspect one local Drive-corpus catalog without reading file bodies. |
 | [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
+| [`mq-agent notebook search`](#mq-agent-notebook-search) | Search local corpus metadata plus optional provider text-match metadata. |
+| [`mq-agent notebook show`](#mq-agent-notebook-show) | Show one catalog notebook or item by exact identity. |
+
+## `mq-agent notebook catalog`
+
+Inspect one local Drive-corpus catalog without reading file bodies.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--json` | No | `false` | — |
 
 ## `mq-agent notebook pack`
 
@@ -1158,6 +1172,43 @@ Preview or build one local, provenance-bearing notebook source pack.
 | `--output-root` | No | `""` | Local output root (default: `<vault>`/.notebooklm) |
 | `--write` | No | `false` | Materialize the local pack; preview is the default |
 | `--replace` | No | `false` | Replace an existing owned pack; requires --write |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook search`
+
+Search local corpus metadata plus optional provider text-match metadata.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Lexical corpus query |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--text-hits` | No | `""` | Optional provider text-hit metadata JSON |
+| `--top-k` | No | `10` | Maximum returned candidates |
+| `--connector-calls` | No | `0` | Adapter calls represented by supplied text hits |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook show`
+
+Show one catalog notebook or item by exact identity.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `IDENTIFIER` | Yes | — | Logical or Drive notebook/item identity |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
 | `--json` | No | `false` | — |
 
 ## `mq-agent obsidian`
