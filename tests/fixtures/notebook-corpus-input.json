@@ -1,0 +1,24 @@
+{
+  "corpus_key": "notebooklm-archive",
+  "snapshot_at": "2026-09-28T16:32:50Z",
+  "notebooks": [
+    {
+      "drive_item_id": "example-notebook-a",
+      "title": "Example notebook"
+    }
+  ],
+  "items": [
+    {
+      "drive_item_id": "example-file-a",
+      "notebook_drive_item_id": "example-notebook-a",
+      "parent_drive_item_id": "example-sources-folder",
+      "relative_path": "Sources/example.pdf",
+      "title": "example.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1234,
+      "modified_time": "2026-09-27T10:00:00Z",
+      "origin_provider": "takeout",
+      "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}
