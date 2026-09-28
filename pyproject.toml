@@ -50,6 +50,7 @@ packages = ["mq_agent"]
 "schemas/execution_outcome.schema.json" = "mq_agent/schemas/execution_outcome.schema.json"
 "schemas/runtime_identity.schema.json" = "mq_agent/schemas/runtime_identity.schema.json"
 "schemas/stack_provenance.schema.json" = "mq_agent/schemas/stack_provenance.schema.json"
+"schemas/notebook_corpus_index.schema.json" = "mq_agent/schemas/notebook_corpus_index.schema.json"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
