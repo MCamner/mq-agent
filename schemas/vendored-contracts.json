@@ -11,6 +11,11 @@
       "contract": "mq.model-route-outcome.v1",
       "canonical": "schemas/mq.model-route-outcome.v1.json",
       "vendored": "schemas/model_route_outcome.schema.json"
+    },
+    {
+      "contract": "notebook-corpus-index.v1",
+      "canonical": "schemas/notebook-corpus-index.v1.json",
+      "vendored": "schemas/notebook_corpus_index.schema.json"
     }
   ]
 }
