@@ -184,7 +184,7 @@ def test_evaluation_uses_exact_frozen_d4_queries_and_can_measure_improvement():
 def test_negative_control_can_report_semantic_regression():
     catalog = _catalog()
     index = build_semantic_index(catalog, _texts(), KeywordEmbedding())
-    expected = {query: [] for query in FROZEN_D4_QUERIES}
+    expected: dict[str, list[str]] = {query: [] for query in FROZEN_D4_QUERIES}
 
     report = evaluate_semantic_vs_d4(
         catalog,
