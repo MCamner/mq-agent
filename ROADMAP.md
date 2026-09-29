@@ -2,20 +2,20 @@
 
 Released: v1.27.0 — Execution instrumentation and evidence integrity.
 Released: v1.28.0 — Runtime Provenance.
+Released: v1.29.0 — NotebookLM Knowledge Pipeline.
 Next: undecided — no scope is committed.
-Deferred: v1.29.0 — MCP tool contract checking.
+Deferred: MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
 
-All release phases complete through v1.28.0. Unreleased work closes the
-post-release `signal --brain` ingress path: mq-agent sends producer identity,
-gets an identified live mq-mcp receiver by reusing or starting one, and sends a
-receiver observation while mq-mcp owns the pre-write admission decision and
-persistence of admitted provenance.
+All release phases complete through v1.29.0. The NotebookLM archive now has a
+deterministic corpus contract, quota-aware Drive inventory, lexical and local
+semantic retrieval, bounded evidence reads, cross-notebook research, interaction
+gap analysis, SHA-256-backed incremental sync, and an Atlas-safe evidence
+handoff. The post-v1.28 `signal --brain` provenance work is also included.
 
-No next release is scoped. v1.29.0 remains deferred and not started. The next
-scope should come from a real consumer need rather than from the existence of
-an empty version number.
+No next release is scoped. MCP tool contract checking remains deferred without
+pre-allocating the next version number.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -42,6 +42,23 @@ an empty version number.
 | v1.26.0 | Stack Compatibility Gate | Released v1.26.0 |
 | v1.27.0 | Execution instrumentation and evidence integrity | Released v1.27.0 |
 | v1.28.0 | Runtime Provenance | Released v1.28.0 |
+| v1.29.0 | NotebookLM Knowledge Pipeline | Released v1.29.0 |
+
+## Released — v1.29.0 NotebookLM Knowledge Pipeline
+
+Released 2026-09-29. NotebookLM material is now a governed MQ knowledge source
+rather than a loose Drive archive.
+
+* [x] Deterministic corpus builder and `notebook-corpus-index.v1`.
+* [x] Quota-aware Google Drive inventory and mixed legacy/canonical layout support.
+* [x] Metadata/text search, bounded selective retrieval, cross-notebook research,
+  and interaction-gap analysis.
+* [x] Local Ollama semantic retrieval with disposable, provenance-bearing vectors.
+* [x] P0-P5 operator pipeline: build, status, sync, evidence, and Atlas handoff.
+* [x] Reconciled manifest integrity gate with verified SHA-256 overlay.
+* [x] Incremental NEW/CHANGED/REMOVED/UNCHANGED sync with vector reuse.
+* [x] Atlas evidence workspace that keeps derived/interactions non-claim-eligible.
+* [x] Signal/mq-mcp ingress provenance hardening and CI/release-gate parity.
 
 ## Completed — v1.24.1 Post-release stabilization
 
