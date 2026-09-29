@@ -3245,6 +3245,7 @@ def notebook_retrieve_cmd(
     try:
         catalog_doc = load_json(Path(catalog).expanduser())
         text_doc = load_json(Path(text_hits).expanduser()) if text_hits else None
+        provider: Any
         if scope == "live-runtime":
             class _NoFetch:
                 def fetch_text(self, drive_item_id, mime_type, *, max_bytes):
