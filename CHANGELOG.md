@@ -9,16 +9,59 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.29.0] — 2026-09-29
+
+Theme: NotebookLM Knowledge Pipeline. NotebookLM archive material is promoted
+from a Drive-backed corpus experiment into an operator-facing MQ knowledge
+pipeline with deterministic accounting, bounded retrieval, incremental local
+semantic indexing, provenance-bearing evidence, and an Atlas-safe evidence
+handoff.
+
+### Added
+
+* NotebookLM corpus stages D3-D8: deterministic corpus materialization,
+  metadata/text search, quota-aware Google Drive inventory, bounded selective
+  evidence retrieval, cross-notebook research, interaction-gap analysis, and a
+  disposable local semantic retrieval experiment backed by Ollama embeddings.
+
+* Operational P0-P5 NotebookLM pipeline through `mq-agent notebook`:
+  `build`, `status`, `sync`, `evidence`, and `atlas`. P0 materializes
+  the canonical `notebook-corpus-index.v1`; P1 builds the local semantic
+  index; P2 exposes corpus search; P3 computes NEW/CHANGED/REMOVED/UNCHANGED
+  state and reuses unchanged vectors; P4 retrieves bounded evidence; P5 emits
+  an Atlas-safe claim/evidence bundle and optional immutable evidence workspace.
+
+* Reconciled NotebookLM manifest overlay. The manifest acts as an integrity
+  gate for notebook/item/role accounting, applies verified SHA-256 hashes where
+  available, supports both legacy and canonical NotebookLM layouts, and fails
+  closed on unknown roles or corpus drift.
+
+* Atlas evidence capture with explicit full-capture bounds. Only grounded
+  `source` material is claim-eligible; derived artifacts, interaction history,
+  and truncated captures cannot be promoted into proof.
+
+### Changed
+
+* `signal --brain` now binds producer provenance to an identified live mq-mcp
+  receiver before writeback. Receiver probing, endpoint selection, and the
+  actual write target use the same resolved mq-mcp endpoint.
+
+* Shared Codex/Claude skills are canonicalized, the release gate is exercised
+  on macOS where the stack actually runs, and local/workflow gate parity is
+  enforced in CI.
+
+* The optional `signal` dependency uses the published `repo-signal>=1.7.1`
+  package.
+
 ### Fixed
 
-* `signal --brain` now sends the validated producer runtime identity plus a
-  live mq-mcp receiver observation so mq-mcp can apply its ingress decision and
-  persist admitted provenance. It reuses an existing receiver or starts one
-  when needed, then reads identity from the live process before writing.
+* Co-change and mq-mcp path resolution accept `MQ_MCP_DIR` as either the
+  repository root or executable project directory, avoiding duplicated
+  `/mq-mcp` paths and worktree/repository confusion.
 
-* Co-change memory intake resolves `MQ_MCP_DIR` as either the mq-mcp repository
-  root or the executable project directory. This prevents a duplicate
-  `/mq-mcp` path from making Bridget/CG-2 evidence look unavailable.
+* Receiver identity handling distinguishes an answering-but-unidentified
+  process from an identified runtime and keeps provenance admission fail
+  closed.
 
 ## [v1.28.0] — 2026-09-12
 
