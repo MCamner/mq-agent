@@ -97,12 +97,13 @@ def classify_path(
         return {"role": "metadata-or-other", "method": "structural"}
 
     role_by_folder = {
-        "Sources": "source",
-        "Artifacts": "derived",
-        "Notes": "derived-note",
-        "Chat History": "interaction",
+        "sources": "source",
+        "artifacts": "derived",
+        "notes": "derived-note",
+        "chat history": "interaction",
+        "discovered sources": "metadata-or-other",
     }
-    role = role_by_folder.get(parts[0])
+    role = role_by_folder.get(parts[0].lower())
     if role is None:
         return {"role": "unknown", "method": "unknown"}
     return {"role": role, "method": "structural"}
