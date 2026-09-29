@@ -175,19 +175,19 @@ def test_gap_analysis_marks_source_derived_missing_and_stale_states():
 
     transport = next(
         row for row in report["gaps"]
-        if "transport should MCP use" in row["question"]
+        if row["question_key"] == "what transport should mcp use"
     )
     oauth = next(
         row for row in report["gaps"]
-        if "rotate OAuth tokens" in row["question"]
+        if row["question_key"] == "how do we rotate oauth tokens"
     )
     missing = next(
         row for row in report["gaps"]
-        if "missing topic" in row["question"]
+        if row["question_key"] == "what evidence do we have for the missing topic"
     )
     python = next(
         row for row in report["gaps"]
-        if "Python packaging" in row["question"]
+        if row["question_key"] == "what changed in python packaging"
     )
 
     assert transport["gap_state"] == "SOURCE_MATCHES_PRESENT"
