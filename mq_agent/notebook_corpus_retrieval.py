@@ -244,11 +244,19 @@ def retrieve_evidence(
     # D4 already sorted candidates. Preserve relevance ordering within each
     # authority class while ensuring source evidence is attempted before derived.
     for role in ("source", "derived", "derived-note", "metadata-or-other", "unknown"):
-        for row in ranked["results"]:
-            if row["source_role"] == "interaction":
-                continue
-            if row["source_role"] != role:
-                continue
+        role_rows = [
+            row
+            for row in ranked["results"]
+            if row["source_role"] == role and row["source_role"] != "interaction"
+        ]
+        if role != "source":
+            role_rows.sort(
+                key=lambda row: (
+                    str(row["notebook_id"]) not in source_by_notebook,
+                    ranked["results"].index(row),
+                )
+            )
+        for row in role_rows:
             selected.append(row)
             if len(selected) >= max_files:
                 break
@@ -270,11 +278,20 @@ def retrieve_evidence(
             break
         budget = min(max_bytes_per_file, remaining)
 
-        fetched = provider.fetch_text(
-            str(row["drive_item_id"]),
-            str(row["mime_type"]),
-            max_bytes=budget,
-        )
+        try:
+            fetched = provider.fetch_text(
+                str(row["drive_item_id"]),
+                str(row["mime_type"]),
+                max_bytes=budget,
+            )
+        except Exception as exc:
+            fetched = {
+                "status": "unavailable",
+                "reason": f"provider_error:{type(exc).__name__}",
+                "text": "",
+                "bytes_fetched": 0,
+                "truncated": False,
+            }
         status = str(fetched.get("status", "unavailable"))
         role = str(row["source_role"])
         has_ranked_source = str(row["notebook_id"]) in source_by_notebook
