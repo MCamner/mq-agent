@@ -2988,6 +2988,322 @@ def notebook_pack_cmd(
     console.print(f"{mode}: {report['pack_dir']}")
 
 
+@notebook_app.command("build")
+def notebook_build_cmd(
+    d3_input: Annotated[str, typer.Option("--d3-input", help="Normalized Drive inventory projection")] = ".mq/notebook-corpus/d3-input.json",
+    catalog: Annotated[str, typer.Option("--catalog", help="Canonical local corpus catalog")] = ".mq/notebook-corpus/catalog.json",
+    checkpoint: Annotated[str, typer.Option("--checkpoint", help="P0 catalog build checkpoint")] = ".mq/notebook-corpus/catalog.checkpoint.json",
+    semantic: Annotated[bool, typer.Option("--semantic", help="Also build the local semantic index (P1)")] = False,
+    semantic_index: Annotated[str, typer.Option("--semantic-index", help="Local semantic index output")] = ".mq/notebook-corpus/semantic-index.json",
+    sync_state: Annotated[str, typer.Option("--sync-state", help="Local incremental sync state")] = ".mq/notebook-corpus/sync-state.json",
+    embed_model: Annotated[str, typer.Option("--embed-model", help="Ollama embedding model")] = "nomic-embed-text",
+    ollama_host: Annotated[str, typer.Option("--ollama-host", help="Optional Ollama host override")] = "",
+    access_token_env: Annotated[str, typer.Option("--access-token-env", help="Environment variable containing a Drive OAuth access token")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Build P0 and optionally P1, then record the P3 baseline."""
+    from mq_agent.notebook_pipeline import (
+        build_catalog_stage,
+        build_semantic_stage,
+        load_json,
+        sync_catalog,
+    )
+
+    try:
+        p0 = build_catalog_stage(
+            d3_input=Path(d3_input).expanduser(),
+            catalog=Path(catalog).expanduser(),
+            checkpoint=Path(checkpoint).expanduser(),
+        )
+        p1 = None
+        if semantic:
+            from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+            from mq_agent.notebook_corpus_semantic import OllamaEmbeddingProvider
+
+            token = os.getenv(access_token_env, "")
+            if not token:
+                raise ValueError(f"missing Drive access token in {access_token_env}")
+            embeddings = (
+                OllamaEmbeddingProvider(model=embed_model, host=ollama_host)
+                if ollama_host
+                else OllamaEmbeddingProvider(model=embed_model)
+            )
+            p1 = build_semantic_stage(
+                load_json(Path(catalog)),
+                GoogleDriveSelectiveFetcher(token),
+                embeddings,
+                output_path=Path(semantic_index).expanduser(),
+            )
+        p3 = sync_catalog(
+            catalog_path=Path(catalog).expanduser(),
+            state_path=Path(sync_state).expanduser(),
+            write=True,
+        )
+        report = {"status": "PASS", "P0": p0, "P1": p1, "P3_baseline": p3}
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+    console.rule("[bold]notebook knowledge build[/bold]")
+    console.print(
+        f"P0: {p0['notebooks']} notebooks / {p0['items']} items "
+        f"-> {p0['catalog']}"
+    )
+    if p1:
+        console.print(
+            f"P1: {p1['chunks']} semantic chunks "
+            f"({p1['embedding_dimension']} dimensions)"
+        )
+    console.print(
+        f"P3 baseline: {p3['items']} items; "
+        f"hash-backed {p3['hash_backed_items']}"
+    )
+
+
+@notebook_app.command("status")
+def notebook_status_cmd(
+    catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
+    semantic_index: Annotated[str, typer.Option("--semantic-index")] = ".mq/notebook-corpus/semantic-index.json",
+    sync_state: Annotated[str, typer.Option("--sync-state")] = ".mq/notebook-corpus/sync-state.json",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Show P0-P5 NotebookLM pipeline readiness without provider calls."""
+    from mq_agent.notebook_pipeline import pipeline_status
+
+    try:
+        report = pipeline_status(
+            catalog_path=Path(catalog).expanduser(),
+            semantic_path=Path(semantic_index).expanduser(),
+            state_path=Path(sync_state).expanduser(),
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False))
+        return
+    console.rule("[bold]notebook knowledge status[/bold]")
+    console.print(f"status: {report['status']}")
+    if report["status"] == "NOT_BUILT":
+        console.print(f"catalog: {report['catalog']}")
+        return
+    console.print(
+        f"notebooks: {report['notebooks']}  items: {report['items']}  "
+        f"unknown: {report['unknown']}"
+    )
+    console.print(
+        f"indexable: {report['indexable_items']}  "
+        f"semantic items: {report['semantic_items']}  "
+        f"chunks: {report['semantic_chunks']}"
+    )
+    console.print(
+        "sync state: "
+        + ("present" if report["sync_state_present"] else "missing")
+    )
+
+
+@notebook_app.command("sync")
+def notebook_sync_cmd(
+    catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
+    d3_input: Annotated[str, typer.Option("--d3-input", help="Optional refreshed D3 projection to materialize before diffing")] = "",
+    checkpoint: Annotated[str, typer.Option("--checkpoint")] = ".mq/notebook-corpus/catalog.checkpoint.json",
+    sync_state: Annotated[str, typer.Option("--sync-state")] = ".mq/notebook-corpus/sync-state.json",
+    semantic: Annotated[bool, typer.Option("--semantic", help="Incrementally update semantic vectors for NEW/CHANGED items")] = False,
+    semantic_index: Annotated[str, typer.Option("--semantic-index")] = ".mq/notebook-corpus/semantic-index.json",
+    embed_model: Annotated[str, typer.Option("--embed-model")] = "nomic-embed-text",
+    ollama_host: Annotated[str, typer.Option("--ollama-host")] = "",
+    access_token_env: Annotated[str, typer.Option("--access-token-env")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """P3: diff the current catalog and optionally update only changed vectors."""
+    from mq_agent.notebook_pipeline import (
+        build_catalog_stage,
+        incremental_semantic_sync,
+        load_json,
+        sync_catalog,
+    )
+
+    try:
+        p0 = None
+        if d3_input:
+            p0 = build_catalog_stage(
+                d3_input=Path(d3_input).expanduser(),
+                catalog=Path(catalog).expanduser(),
+                checkpoint=Path(checkpoint).expanduser(),
+            )
+
+        preview = sync_catalog(
+            catalog_path=Path(catalog).expanduser(),
+            state_path=Path(sync_state).expanduser(),
+            write=False,
+        )
+        semantic_report = None
+        if semantic:
+            from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+            from mq_agent.notebook_corpus_semantic import OllamaEmbeddingProvider
+
+            token = os.getenv(access_token_env, "")
+            if not token:
+                raise ValueError(f"missing Drive access token in {access_token_env}")
+            semantic_path = Path(semantic_index).expanduser()
+            previous_index = load_json(semantic_path) if semantic_path.is_file() else None
+            embeddings = (
+                OllamaEmbeddingProvider(model=embed_model, host=ollama_host)
+                if ollama_host
+                else OllamaEmbeddingProvider(model=embed_model)
+            )
+            semantic_report = incremental_semantic_sync(
+                load_json(Path(catalog)),
+                previous_index,
+                preview,
+                GoogleDriveSelectiveFetcher(token),
+                embeddings,
+                output_path=semantic_path,
+            )
+
+        committed = sync_catalog(
+            catalog_path=Path(catalog).expanduser(),
+            state_path=Path(sync_state).expanduser(),
+            write=True,
+        )
+        report = {
+            "status": "PASS",
+            "P0": p0,
+            "P3": committed,
+            "semantic": semantic_report,
+        }
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+    console.rule("[bold]notebook incremental sync[/bold]")
+    console.print(
+        f"NEW {len(committed['added'])}  "
+        f"CHANGED {len(committed['changed'])}  "
+        f"REMOVED {len(committed['removed'])}  "
+        f"UNCHANGED {len(committed['unchanged'])}"
+    )
+    console.print(
+        f"hash-backed: {committed['hash_backed_items']}  "
+        f"metadata signatures: {committed['metadata_signature_items']}"
+    )
+    if semantic_report:
+        console.print(
+            f"semantic: reused {semantic_report['reused_chunks']} chunks; "
+            f"new {semantic_report['new_chunks']}"
+        )
+
+
+@notebook_app.command("evidence")
+def notebook_evidence_cmd(
+    query: Annotated[str, typer.Argument(help="Claim/question to ground in NotebookLM corpus")],
+    catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
+    max_files: Annotated[int, typer.Option("--max-files", min=1)] = 4,
+    access_token_env: Annotated[str, typer.Option("--access-token-env")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """P4: retrieve bounded, provenance-bearing evidence for mq-agent."""
+    from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+    from mq_agent.notebook_pipeline import evidence_stage, load_json
+
+    try:
+        token = os.getenv(access_token_env, "")
+        if not token:
+            raise ValueError(f"missing Drive access token in {access_token_env}")
+        report = evidence_stage(
+            load_json(Path(catalog)),
+            query,
+            GoogleDriveSelectiveFetcher(token),
+            max_files=max_files,
+        )
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+    console.rule("[bold]notebook evidence[/bold]")
+    console.print(f"status: {report['status']}")
+    for index, row in enumerate(report["evidence"], start=1):
+        prov = row["provenance"]
+        console.print(
+            f"{index:>2}. [{prov['source_role']}] {prov['title']} "
+            f"— {prov['notebook_title']}"
+        )
+        console.print(
+            f"    claim-eligible={row['claim_eligible']} "
+            f"grounding={row['grounding_status']}"
+        )
+
+
+@notebook_app.command("atlas")
+def notebook_atlas_cmd(
+    claim: Annotated[str, typer.Argument(help="Document claim Atlas should verify")],
+    catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
+    max_files: Annotated[int, typer.Option("--max-files", min=1)] = 4,
+    output: Annotated[str, typer.Option("--output", help="Optional JSON evidence bundle path")] = "",
+    access_token_env: Annotated[str, typer.Option("--access-token-env")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """P5: emit an Atlas-safe claim/evidence bundle from NotebookLM sources."""
+    from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+    from mq_agent.notebook_pipeline import (
+        atlas_evidence_bundle,
+        evidence_stage,
+        load_json,
+        write_json,
+    )
+
+    try:
+        token = os.getenv(access_token_env, "")
+        if not token:
+            raise ValueError(f"missing Drive access token in {access_token_env}")
+        retrieval = evidence_stage(
+            load_json(Path(catalog)),
+            claim,
+            GoogleDriveSelectiveFetcher(token),
+            max_files=max_files,
+        )
+        report = atlas_evidence_bundle(retrieval, claim=claim)
+        if output:
+            write_json(Path(output), report)
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+    console.rule("[bold]Atlas NotebookLM evidence[/bold]")
+    console.print(f"status: {report['status']}")
+    console.print(f"claim-eligible grounded sources: {report['claim_eligible_count']}")
+    if output:
+        console.print(f"bundle: {Path(output).expanduser()}")
+
+
 @notebook_app.command("inventory")
 def notebook_inventory_cmd(
     root_id: Annotated[str, typer.Option("--root-id", help="Configured Drive corpus root item ID")] = "",
