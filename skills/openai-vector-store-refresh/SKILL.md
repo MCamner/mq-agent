@@ -121,7 +121,6 @@ Keep the final report short:
 - A sandbox-only Python/httpx `Operation not permitted` failure is diagnosed
   separately from MCP server health by checking the HTTP endpoints directly.
 
-
 ## Latest-only semantics
 
 `mq-agent memory status --json` distinguishes `configured`, `reachable`

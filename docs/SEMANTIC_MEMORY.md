@@ -103,7 +103,8 @@ mq-agent never uploads memory silently.
 | `memory status`              | read-only             |
 | `memory build .`             | dry-run by default    |
 | `memory build . --no-dry-run`| routes through latest-only refresh safety |
-| `memory refresh . --approve` | uploads only when no competing retrieval generation exists |\n| `memory refresh . --approve --cleanup-stale` | uploads, verifies, then detaches stale retrieval generations |
+| `memory refresh . --approve` | uploads only when no competing retrieval generation exists |
+| `memory refresh . --approve --cleanup-stale` | uploads, verifies, then detaches stale retrieval generations |
 
 ---
 
@@ -116,8 +117,8 @@ mq-agent memory status
 # 2. Preview what would be uploaded
 mq-agent memory build .
 
-# 3. Upload when ready
-mq-agent memory refresh . --approve
+# 3. Upload when ready. Existing/stale generations need explicit replacement.
+mq-agent memory refresh . --approve --cleanup-stale
 ```
 
 ---
@@ -127,7 +128,8 @@ mq-agent memory refresh . --approve
 ### Missing repo-signal
 
 ```text
-status: missing-repo-signal
+status: degraded
+repo-signal: not found
 ```
 
 Fix:
@@ -142,7 +144,6 @@ uv pip install repo-signal
 
 Semantic memory should make mq-agent more context-aware without making it
 less predictable. No memory action happens invisibly.
-
 
 ## Freshness contract
 
