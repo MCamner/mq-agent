@@ -1141,7 +1141,8 @@ Build local source packs for optional synthesis providers.
 | [`mq-agent notebook catalog`](#mq-agent-notebook-catalog) | Inspect one local Drive-corpus catalog without reading file bodies. |
 | [`mq-agent notebook inventory`](#mq-agent-notebook-inventory) | Inventory the configured Drive corpus using read-only metadata APIs. |
 | [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
-| [`mq-agent notebook retrieve`](#mq-agent-notebook-retrieve) | Fetch a bounded provenance-bearing evidence bundle from D4 candidates. |\n| [`mq-agent notebook research`](#mq-agent-notebook-research) | Synthesize D5 evidence across notebooks with deterministic provenance gates. |
+| [`mq-agent notebook retrieve`](#mq-agent-notebook-retrieve) | Fetch a bounded provenance-bearing evidence bundle from D4 candidates. |
+| [`mq-agent notebook research`](#mq-agent-notebook-research) | Synthesize D5 evidence across notebooks with deterministic provenance gates. |
 | [`mq-agent notebook search`](#mq-agent-notebook-search) | Search local corpus metadata plus optional provider text-match metadata. |
 | [`mq-agent notebook show`](#mq-agent-notebook-show) | Show one catalog notebook or item by exact identity. |
 
