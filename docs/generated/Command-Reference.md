@@ -1173,6 +1173,7 @@ P5: emit an Atlas-safe claim/evidence bundle from NotebookLM sources.
 | `--catalog` | No | `.mq/notebook-corpus/catalog.json` | — |
 | `--max-files` | No | `4` | — |
 | `--output` | No | `""` | Optional JSON evidence bundle path |
+| `--workspace` | No | `""` | Optional immutable Atlas evidence workspace directory |
 | `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | — |
 | `--json` | No | `false` | — |
 
