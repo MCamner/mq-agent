@@ -81,6 +81,12 @@ class _IdentityInspection:
     latest_upload: str
 
 
+@dataclass
+class _FilenameIndex:
+    names: dict[str, str] = field(default_factory=dict)
+    loaded: bool = False
+
+
 CANONICAL_VECTOR_STORE_ID = "vs_69ffa9a4ef5c81919d7d237c3ecdc260"
 
 # macos-scripts has a tracked regression test proving its shell consumers were
@@ -169,11 +175,32 @@ def _attributes(item: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, dict) else {}
 
 
+def _load_filename_index(client: Any, index: _FilenameIndex) -> bool:
+    """Load OpenAI file id -> filename once for legacy identity fallback."""
+    if index.loaded:
+        return True
+
+    try:
+        files = _page_items(client.files.list(limit=10_000, order="desc"))
+    except Exception:
+        return False
+
+    index.names.update(
+        {
+            str(getattr(item, "id", "")): str(getattr(item, "filename", ""))
+            for item in files
+            if getattr(item, "id", None)
+        }
+    )
+    index.loaded = True
+    return True
+
+
 def _matches_identity(
     client: Any,
     item: Any,
     repo_name: str,
-    filename_cache: dict[str, str],
+    filename_index: _FilenameIndex,
 ) -> tuple[bool, bool]:
     """Return (matches, known) for repo + symbol-memory identity."""
     attrs = _attributes(item)
@@ -194,21 +221,21 @@ def _matches_identity(
     if not file_id:
         return False, False
 
-    if file_id not in filename_cache:
-        try:
-            stored = client.files.retrieve(file_id)
-            filename_cache[file_id] = str(getattr(stored, "filename", ""))
-        except Exception:
-            return False, False
+    if not _load_filename_index(client, filename_index):
+        return False, False
 
-    return filename_cache[file_id] == f"{repo_name}-symbol-memory.md", True
+    filename = filename_index.names.get(file_id)
+    if filename is None:
+        return False, False
+
+    return filename == f"{repo_name}-symbol-memory.md", True
 
 
 def _identity_files(
     client: Any,
     store_id: str,
     repo_name: str,
-    filename_cache: dict[str, str],
+    filename_index: _FilenameIndex,
 ) -> tuple[list[Any], bool]:
     try:
         page = client.vector_stores.files.list(store_id, limit=100, order="desc")
@@ -219,7 +246,7 @@ def _identity_files(
     matches: list[Any] = []
     complete = True
     for item in candidates:
-        is_match, known = _matches_identity(client, item, repo_name, filename_cache)
+        is_match, known = _matches_identity(client, item, repo_name, filename_index)
         complete = complete and known
         if is_match:
             matches.append(item)
@@ -233,13 +260,13 @@ def _inspect_identity(
     current_revision: str,
 ) -> _IdentityInspection:
     repo_name = _repo_name(repo)
-    cache: dict[str, str] = {}
+    filename_index = _FilenameIndex()
 
     authoritative, authoritative_complete = _identity_files(
         client,
         authoritative_store_id,
         repo_name,
-        cache,
+        filename_index,
     )
     active = [
         item
@@ -271,7 +298,12 @@ def _inspect_identity(
         store_id = str(getattr(store, "id", ""))
         if not store_id or store_id == authoritative_store_id:
             continue
-        files, complete = _identity_files(client, store_id, repo_name, cache)
+        files, complete = _identity_files(
+            client,
+            store_id,
+            repo_name,
+            filename_index,
+        )
         non_authoritative_complete = non_authoritative_complete and complete
         known_non_authoritative += sum(
             1
@@ -409,14 +441,14 @@ def _detach_stale_generations(
 ) -> tuple[str, ...]:
     """Detach stale retrieval generations without deleting Storage file objects."""
     repo_name = _repo_name(repo)
-    cache: dict[str, str] = {}
+    filename_index = _FilenameIndex()
     detached: list[str] = []
 
     authoritative, _ = _identity_files(
         client,
         authoritative_store_id,
         repo_name,
-        cache,
+        filename_index,
     )
     for item in authoritative:
         file_id = str(getattr(item, "id", ""))
@@ -429,7 +461,12 @@ def _detach_stale_generations(
         detached.append(f"{authoritative_store_id}:{file_id}")
 
     for retired_store_id in RETIRED_VECTOR_STORE_IDS_BY_REPO.get(repo_name, ()):
-        files, _ = _identity_files(client, retired_store_id, repo_name, cache)
+        files, _ = _identity_files(
+            client,
+            retired_store_id,
+            repo_name,
+            filename_index,
+        )
         for item in files:
             file_id = str(getattr(item, "id", ""))
             if not file_id:

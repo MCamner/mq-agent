@@ -53,8 +53,18 @@ class FakeVectorStores:
 class FakeFiles:
     def __init__(self, filenames):
         self.filenames = filenames
+        self.list_calls = 0
+        self.retrieve_calls = 0
+
+    def list(self, **kwargs):
+        self.list_calls += 1
+        return [
+            SimpleNamespace(id=file_id, filename=filename)
+            for file_id, filename in self.filenames.items()
+        ]
 
     def retrieve(self, file_id):
+        self.retrieve_calls += 1
         return SimpleNamespace(id=file_id, filename=self.filenames[file_id])
 
 
@@ -155,6 +165,37 @@ def test_single_unversioned_generation_is_unknown_not_ready(monkeypatch, tmp_pat
     assert state.stored_source_revision == ""
     assert state.freshness == "unknown"
     assert state.status == "degraded"
+
+
+def test_legacy_filename_fallback_loads_file_index_once(monkeypatch, tmp_path):
+    store = sem.CANONICAL_VECTOR_STORE_ID
+    legacy = SimpleNamespace(
+        id="file_legacy",
+        created_at=10,
+        status="completed",
+        attributes={},
+    )
+    unrelated = SimpleNamespace(
+        id="file_other",
+        created_at=11,
+        status="completed",
+        attributes={},
+    )
+    data = {store: [legacy, unrelated]}
+    client = FakeClient(
+        data,
+        {
+            "file_legacy": "macos-scripts-symbol-memory.md",
+            "file_other": "unrelated.md",
+        },
+    )
+    _patch_identity(monkeypatch, client)
+
+    state = sem.status(tmp_path)
+
+    assert state.authoritative_active_count == 1
+    assert client.files.list_calls == 1
+    assert client.files.retrieve_calls == 0
 
 
 def test_build_pins_repo_signal_to_the_reported_store(monkeypatch, tmp_path):
