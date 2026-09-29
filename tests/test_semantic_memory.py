@@ -18,21 +18,33 @@ def test_memory_status_returns_semantic_memory_status(monkeypatch, tmp_path):
     assert isinstance(state, SemanticMemoryStatus)
 
 
-def test_memory_status_with_vector_store_no_repo_signal(monkeypatch, tmp_path):
+def test_memory_status_without_repo_signal_is_degraded(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "vs_abc")
-    # repo-signal is unlikely to be missing but we mock it
     import mq_agent.memory.semantic as sem
+
     monkeypatch.setattr(sem, "repo_signal_available", lambda: False)
     state = status(tmp_path)
-    assert state.status == "missing-repo-signal"
+
+    assert state.status == "degraded"
     assert state.enabled is False
+    assert state.configured is True
+    assert state.reachable is None
+    assert state.freshness == "unknown"
     assert state.vector_store_id == "vs_abc"
 
 
-def test_memory_status_ready(monkeypatch, tmp_path):
+def test_memory_status_configured_without_openai_probe_is_degraded(
+    monkeypatch,
+    tmp_path,
+):
     monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "vs_abc")
     import mq_agent.memory.semantic as sem
+
     monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
     state = status(tmp_path)
-    assert state.status == "ready"
-    assert state.enabled is True
+
+    assert state.status == "degraded"
+    assert state.enabled is False
+    assert state.configured is True
+    assert state.reachable is None
+    assert state.freshness == "unknown"

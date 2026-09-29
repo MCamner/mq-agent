@@ -16,6 +16,11 @@
       "contract": "notebook-corpus-index.v1",
       "canonical": "schemas/notebook-corpus-index.v1.json",
       "vendored": "schemas/notebook_corpus_index.schema.json"
+    },
+    {
+      "contract": "mq.semantic-refresh.v1",
+      "canonical": "schemas/mq.semantic-refresh.v1.json",
+      "vendored": "schemas/semantic_refresh.schema.json"
     }
   ]
 }

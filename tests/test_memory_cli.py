@@ -25,8 +25,11 @@ def test_memory_status_json(monkeypatch, tmp_path):
     result = runner.invoke(app, ["memory", "status", str(tmp_path), "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["status"] == "ready"
-    assert data["enabled"] is True
+    assert data["status"] == "degraded"
+    assert data["enabled"] is False
+    assert data["configured"] is True
+    assert data["reachable"] is None
+    assert data["freshness"] == "unknown"
     assert data["vector_store_id"] == "vs_test"
 
 
@@ -56,20 +59,47 @@ def test_memory_build_dry_run_explicit(tmp_path):
     assert "Would run" in result.output
 
 
-def test_memory_build_no_dry_run_calls_build(monkeypatch, tmp_path):
-    import subprocess
-    fake = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
-    monkeypatch.setattr("mq_agent.memory.semantic.subprocess.run", lambda *a, **kw: fake)
+def test_memory_build_no_dry_run_uses_refresh_safety(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    import mq_agent.memory.semantic as sem
+
+    seen = {}
+    fake = SimpleNamespace(
+        returncode=0,
+        stdout="uploaded",
+        stderr="",
+        error="",
+        uploaded=True,
+    )
+
+    def _refresh(path, *, cleanup_stale=False):
+        seen["cleanup_stale"] = cleanup_stale
+        return fake
+
+    monkeypatch.setattr(sem, "refresh", _refresh)
     result = runner.invoke(app, ["memory", "build", str(tmp_path), "--no-dry-run"])
+
     assert result.exit_code == 0
+    assert seen["cleanup_stale"] is False
     assert "built" in result.output.lower()
 
 
-def test_memory_build_no_dry_run_failure(monkeypatch, tmp_path):
-    import subprocess
-    fake = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="error")
-    monkeypatch.setattr("mq_agent.memory.semantic.subprocess.run", lambda *a, **kw: fake)
+def test_memory_build_no_dry_run_propagates_refresh_failure(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    import mq_agent.memory.semantic as sem
+
+    fake = SimpleNamespace(
+        returncode=2,
+        stdout="",
+        stderr="",
+        error="replacement requires cleanup",
+        uploaded=False,
+    )
+    monkeypatch.setattr(sem, "refresh", lambda *a, **kw: fake)
     result = runner.invoke(app, ["memory", "build", str(tmp_path), "--no-dry-run"])
+
     assert result.exit_code != 0
 
 
@@ -82,20 +112,72 @@ def test_memory_refresh_requires_approve(tmp_path):
 
 
 def test_memory_refresh_with_approve(monkeypatch, tmp_path):
-    import subprocess
-    fake = subprocess.CompletedProcess(args=[], returncode=0, stdout="uploaded", stderr="")
-    monkeypatch.setattr("mq_agent.memory.semantic.subprocess.run", lambda *a, **kw: fake)
+    from types import SimpleNamespace
+
+    import mq_agent.memory.semantic as sem
+
+    fake = SimpleNamespace(
+        returncode=0,
+        stdout="uploaded",
+        stderr="",
+        detached=(),
+        error="",
+        postcondition_status="PASS",
+        uploaded=True,
+    )
+    monkeypatch.setattr(sem, "refresh", lambda *a, **kw: fake)
     result = runner.invoke(app, ["memory", "refresh", str(tmp_path), "--approve"])
     assert result.exit_code == 0
     assert "refreshed" in result.output.lower()
 
 
 def test_memory_refresh_approve_propagates_failure(monkeypatch, tmp_path):
-    import subprocess
-    fake = subprocess.CompletedProcess(args=[], returncode=2, stdout="", stderr="upload failed")
-    monkeypatch.setattr("mq_agent.memory.semantic.subprocess.run", lambda *a, **kw: fake)
+    from types import SimpleNamespace
+
+    import mq_agent.memory.semantic as sem
+
+    fake = SimpleNamespace(
+        returncode=2,
+        stdout="",
+        stderr="upload failed",
+        detached=(),
+        error="replacement requires cleanup",
+        postcondition_status="FAIL",
+        uploaded=False,
+    )
+    monkeypatch.setattr(sem, "refresh", lambda *a, **kw: fake)
     result = runner.invoke(app, ["memory", "refresh", str(tmp_path), "--approve"])
     assert result.exit_code != 0
+
+
+def test_memory_refresh_cleanup_flag_is_explicit(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    import mq_agent.memory.semantic as sem
+
+    seen = {}
+    fake = SimpleNamespace(
+        returncode=0,
+        stdout="uploaded",
+        stderr="",
+        detached=("vs:file_old",),
+        error="",
+        postcondition_status="PASS",
+        uploaded=True,
+    )
+
+    def _refresh(path, *, cleanup_stale=False):
+        seen["cleanup_stale"] = cleanup_stale
+        return fake
+
+    monkeypatch.setattr(sem, "refresh", _refresh)
+    result = runner.invoke(
+        app,
+        ["memory", "refresh", str(tmp_path), "--approve", "--cleanup-stale"],
+    )
+    assert result.exit_code == 0
+    assert seen["cleanup_stale"] is True
+    assert "Detached 1" in result.output
 
 
 # ── memory doctor ──────────────────────────────────────────────────────────

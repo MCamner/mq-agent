@@ -20,10 +20,10 @@ audit / release-check / score with repo context
 ## Commands
 
 ```bash
-mq-agent memory status          # check vector store and repo-signal availability
+mq-agent memory status          # configured / reachable / freshness / generation counts
 mq-agent memory doctor          # diagnose environment with actionable fixes
 mq-agent memory build .         # dry-run semantic upload (safe default)
-mq-agent memory refresh . --approve  # upload semantic memory (requires approval)
+mq-agent memory refresh . --approve  # first generation / no competing retrieval state\nmq-agent memory refresh . --approve --cleanup-stale  # explicit latest-only replacement
 mq-agent memory status --json   # machine-readable output
 mq-agent memory doctor --json   # machine-readable diagnostics
 ```
@@ -33,8 +33,14 @@ mq-agent memory doctor --json   # machine-readable diagnostics
 ```text
 $ mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       ready                                                          │
+│ status:       degraded                                                       │
+│ configured:   true                                                           │
+│ reachable:    unknown                                                        │
+│ freshness:    unknown                                                        │
 │ vector store: vs_69ffa9a4ef5c81919d7d237c3ecdc260 (canonical)                │
+│ active gens:  unknown                                                        │
+│ outside auth: unknown                                                        │
+│ latest upload: unknown                                                       │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -96,8 +102,9 @@ mq-agent never uploads memory silently.
 |------------------------------|-----------------------|
 | `memory status`              | read-only             |
 | `memory build .`             | dry-run by default    |
-| `memory build . --no-dry-run`| uploads after prompt  |
-| `memory refresh . --approve` | uploads (gate open)   |
+| `memory build . --no-dry-run`| routes through latest-only refresh safety |
+| `memory refresh . --approve` | uploads only when no competing retrieval generation exists |
+| `memory refresh . --approve --cleanup-stale` | uploads, verifies, then detaches stale retrieval generations |
 
 ---
 
@@ -110,8 +117,8 @@ mq-agent memory status
 # 2. Preview what would be uploaded
 mq-agent memory build .
 
-# 3. Upload when ready
-mq-agent memory refresh . --approve
+# 3. Upload when ready. Existing/stale generations need explicit replacement.
+mq-agent memory refresh . --approve --cleanup-stale
 ```
 
 ---
@@ -121,7 +128,8 @@ mq-agent memory refresh . --approve
 ### Missing repo-signal
 
 ```text
-status: missing-repo-signal
+status: degraded
+repo-signal: not found
 ```
 
 Fix:
@@ -136,3 +144,32 @@ uv pip install repo-signal
 
 Semantic memory should make mq-agent more context-aware without making it
 less predictable. No memory action happens invisibly.
+
+## Freshness contract
+
+`memory status` no longer uses `ready` as a synonym for "configured".
+
+- `configured`: an authoritative vector-store id is resolved.
+- `reachable`: OpenAI metadata could be read with the process credential.
+- `freshness`: `fresh`, `stale`, or `unknown`.
+- `ready`: only when the store is reachable, exactly one authoritative
+  generation exists, no non-authoritative retrieval generation is present,
+  the stored `source_revision` equals the repo HEAD, and repo-signal is
+  available.
+
+Historical generations without `source_revision` are `unknown`, never
+silently fresh. Multiple completed generations are `stale`.
+
+## Latest-only replacement
+
+A refresh that would append beside an existing retrieval generation is refused
+before upload unless `--cleanup-stale` is present. With that explicit flag,
+mq-agent uploads first, verifies the new completed generation, writes
+`source_revision` metadata, and only then detaches stale vector-store
+attachments. Underlying OpenAI Storage file objects are retained.
+
+For macos-scripts, the retired store
+`vs_69f93de12f508191bd6a36ea3b825beb` is also eligible for identity-scoped
+cleanup because macos-scripts' tracked smoke test proves its consumers have
+migrated to the canonical resolver. mq-mcp's legacy repo-knowledge store is not
+treated as retired because mq-mcp still documents it as the `ask` CLI store.
