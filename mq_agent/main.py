@@ -3304,6 +3304,124 @@ def notebook_retrieve_cmd(
     )
 
 
+@notebook_app.command("research")
+def notebook_research_cmd(
+    question: Annotated[str, typer.Argument(help="Cross-notebook research question")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    text_hits: Annotated[str, typer.Option("--text-hits", help="Optional provider text-hit metadata JSON")] = "",
+    scope: Annotated[str, typer.Option("--scope", help="archive or live-runtime")] = "archive",
+    top_k: Annotated[int, typer.Option("--top-k", min=1)] = 20,
+    max_files: Annotated[int, typer.Option("--max-files", min=1)] = 8,
+    max_bytes_per_file: Annotated[int, typer.Option("--max-bytes-per-file", min=1)] = 65536,
+    max_total_bytes: Annotated[int, typer.Option("--max-total-bytes", min=1)] = 524288,
+    excerpt_chars: Annotated[int, typer.Option("--excerpt-chars", min=1)] = 4000,
+    access_token_env: Annotated[str, typer.Option("--access-token-env", help="Environment variable containing a Drive OAuth access token")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    model: Annotated[str, typer.Option("--model", help="Ollama model; default is current mq-agent model profile")] = "",
+    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Ollama synthesis timeout in seconds")] = 60,
+    review_candidate_out: Annotated[str, typer.Option("--review-candidate-out", help="Optional local JSON review-candidate path; never promotes memory")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Synthesize D5 evidence across notebooks with deterministic provenance gates."""
+    from mq_agent.notebook_corpus_research import (
+        OllamaResearchSynthesizer,
+        research_notebooks,
+        write_review_candidate,
+    )
+    from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+    from mq_agent.notebook_corpus_search import load_json
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+
+    try:
+        catalog_doc = load_json(Path(catalog).expanduser())
+        text_doc = load_json(Path(text_hits).expanduser()) if text_hits else None
+
+        provider: Any
+        if scope == "live-runtime":
+            class _NoFetch:
+                def fetch_text(self, drive_item_id, mime_type, *, max_bytes):
+                    raise AssertionError("live-runtime scope must not fetch corpus content")
+            provider = _NoFetch()
+        else:
+            token = os.getenv(access_token_env, "")
+            if not token:
+                raise ValueError(f"missing Drive access token in {access_token_env}")
+            provider = GoogleDriveSelectiveFetcher(token)
+
+        synthesizer = OllamaResearchSynthesizer(
+            model=model or None,
+            timeout=timeout,
+        )
+        report = research_notebooks(
+            catalog_doc,
+            question,
+            provider,
+            synthesizer,
+            top_k=top_k,
+            max_files=max_files,
+            max_bytes_per_file=max_bytes_per_file,
+            max_total_bytes=max_total_bytes,
+            excerpt_chars=excerpt_chars,
+            text_hits=text_doc,
+            scope=scope,
+        )
+        saved = None
+        if review_candidate_out and report["status"] == "RESEARCH_READY":
+            saved = write_review_candidate(
+                report,
+                Path(review_candidate_out),
+            )
+            report["review_candidate"] = str(saved)
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+
+    console.rule("[bold]notebook cross-research[/bold]")
+    console.print(f"status: {report['status']}")
+    if report.get("reason"):
+        console.print(f"reason: {report['reason']}")
+
+    for index, finding in enumerate(report["common_findings"], start=1):
+        console.print(f"[bold]finding {index}:[/bold] {finding['claim']}")
+        for source in finding["support"]:
+            console.print(
+                f"    source: {source['title']} — {source['notebook_title']} "
+                f"({source['drive_item_id']})"
+            )
+
+    for index, disagreement in enumerate(report["disagreements"], start=1):
+        console.print(f"[bold yellow]disagreement {index}:[/bold yellow] {disagreement['topic']}")
+        for position in disagreement["positions"]:
+            console.print(f"    - {position['claim']}")
+            for source in position["support"]:
+                console.print(
+                    f"      source: {source['title']} — {source['notebook_title']} "
+                    f"({source['drive_item_id']})"
+                )
+
+    if report["derived_interpretations"]:
+        console.print("[dim]derived interpretations (secondary only):[/dim]")
+        for item in report["derived_interpretations"]:
+            console.print(f"    - {item['interpretation']}")
+
+    if report["unanswered_questions"]:
+        console.print("[yellow]unanswered:[/yellow]")
+        for item in report["unanswered_questions"]:
+            console.print(f"    - {item}")
+
+    if report.get("review_candidate"):
+        console.print(f"[dim]review candidate: {report['review_candidate']}[/dim]")
+
+
 @notebook_app.command("show")
 def notebook_show_cmd(
     identifier: Annotated[str, typer.Argument(help="Logical or Drive notebook/item identity")],

@@ -1141,6 +1141,7 @@ Build local source packs for optional synthesis providers.
 | [`mq-agent notebook catalog`](#mq-agent-notebook-catalog) | Inspect one local Drive-corpus catalog without reading file bodies. |
 | [`mq-agent notebook inventory`](#mq-agent-notebook-inventory) | Inventory the configured Drive corpus using read-only metadata APIs. |
 | [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
+| [`mq-agent notebook research`](#mq-agent-notebook-research) | Synthesize D5 evidence across notebooks with deterministic provenance gates. |
 | [`mq-agent notebook retrieve`](#mq-agent-notebook-retrieve) | Fetch a bounded provenance-bearing evidence bundle from D4 candidates. |
 | [`mq-agent notebook search`](#mq-agent-notebook-search) | Search local corpus metadata plus optional provider text-match metadata. |
 | [`mq-agent notebook show`](#mq-agent-notebook-show) | Show one catalog notebook or item by exact identity. |
@@ -1192,6 +1193,34 @@ Preview or build one local, provenance-bearing notebook source pack.
 | `--output-root` | No | `""` | Local output root (default: `<vault>`/.notebooklm) |
 | `--write` | No | `false` | Materialize the local pack; preview is the default |
 | `--replace` | No | `false` | Replace an existing owned pack; requires --write |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook research`
+
+Synthesize D5 evidence across notebooks with deterministic provenance gates.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUESTION` | Yes | — | Cross-notebook research question |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--text-hits` | No | `""` | Optional provider text-hit metadata JSON |
+| `--scope` | No | `archive` | archive or live-runtime |
+| `--top-k` | No | `20` | — |
+| `--max-files` | No | `8` | — |
+| `--max-bytes-per-file` | No | `65536` | — |
+| `--max-total-bytes` | No | `524288` | — |
+| `--excerpt-chars` | No | `4000` | — |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | Environment variable containing a Drive OAuth access token |
+| `--model` | No | `""` | Ollama model; default is current mq-agent model profile |
+| `--timeout` | No | `60` | Ollama synthesis timeout in seconds |
+| `--review-candidate-out` | No | `""` | Optional local JSON review-candidate path; never promotes memory |
 | `--json` | No | `false` | — |
 
 ## `mq-agent notebook retrieve`
