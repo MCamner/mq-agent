@@ -1146,6 +1146,9 @@ Build local source packs for optional synthesis providers.
 | [`mq-agent notebook research`](#mq-agent-notebook-research) | Synthesize D5 evidence across notebooks with deterministic provenance gates. |
 | [`mq-agent notebook retrieve`](#mq-agent-notebook-retrieve) | Fetch a bounded provenance-bearing evidence bundle from D4 candidates. |
 | [`mq-agent notebook search`](#mq-agent-notebook-search) | Search local corpus metadata plus optional provider text-match metadata. |
+| [`mq-agent notebook semantic-build`](#mq-agent-notebook-semantic-build) | Build a disposable local D8 semantic experiment index. |
+| [`mq-agent notebook semantic-eval`](#mq-agent-notebook-semantic-eval) | Compare D8 semantic retrieval with D4 on the exact frozen query set. |
+| [`mq-agent notebook semantic-search`](#mq-agent-notebook-semantic-search) | Search the disposable D8 semantic index without changing evidence roles. |
 | [`mq-agent notebook show`](#mq-agent-notebook-show) | Show one catalog notebook or item by exact identity. |
 
 ## `mq-agent notebook catalog`
@@ -1300,6 +1303,59 @@ Search local corpus metadata plus optional provider text-match metadata.
 | `--text-hits` | No | `""` | Optional provider text-hit metadata JSON |
 | `--top-k` | No | `10` | Maximum returned candidates |
 | `--connector-calls` | No | `0` | Adapter calls represented by supplied text hits |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook semantic-build`
+
+Build a disposable local D8 semantic experiment index.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--output` | No | `.mq/notebook-corpus/semantic-index.json` | Disposable local semantic index JSON |
+| `--model` | No | `nomic-embed-text` | Local Ollama embedding model |
+| `--max-files` | No | `50` | — |
+| `--max-bytes-per-file` | No | `65536` | — |
+| `--max-total-bytes` | No | `1048576` | — |
+| `--chunk-chars` | No | `2000` | — |
+| `--overlap-chars` | No | `200` | — |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook semantic-eval`
+
+Compare D8 semantic retrieval with D4 on the exact frozen query set.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--index` | No | `.mq/notebook-corpus/semantic-index.json` | Disposable semantic index JSON |
+| `--expected` | No | `""` | JSON map of frozen query -> expected Drive item ids |
+| `--model` | No | `nomic-embed-text` | Local Ollama embedding model |
+| `--top-k` | No | `5` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook semantic-search`
+
+Search the disposable D8 semantic index without changing evidence roles.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Semantic experiment query |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--index` | No | `.mq/notebook-corpus/semantic-index.json` | Disposable semantic index JSON |
+| `--model` | No | `nomic-embed-text` | Local Ollama embedding model |
+| `--top-k` | No | `10` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent notebook show`
