@@ -6,7 +6,7 @@ from mq_agent.notebook_corpus import build_from_document
 from mq_agent.notebook_corpus_research import research_notebooks, write_review_candidate
 
 
-class FakeFetcher:
+runner = CliRunner()\n\n\nclass FakeFetcher:
     def __init__(self, payloads):
         self.payloads = payloads
         self.calls = []
@@ -303,3 +303,28 @@ def test_review_candidate_is_local_candidate_not_durable_memory(tmp_path):
 
     assert payload["status"] == "candidate"
     assert "no automatic durable-memory promotion" in payload["note"]
+
+
+def test_cli_live_runtime_delegates_without_drive_or_ollama_call(tmp_path, monkeypatch):
+    monkeypatch.delenv("MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN", raising=False)
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(_catalog()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "research",
+            "what does mq-agent do now",
+            "--catalog",
+            str(path),
+            "--scope",
+            "live-runtime",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "DELEGATE_RUNTIME"
+    assert payload["retrieval"]["trace"]["fetched"] == 0
