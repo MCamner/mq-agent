@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Any, Mapping, Protocol, Sequence
 
 from mq_agent.notebook_corpus import validate_catalog
-from mq_agent.notebook_corpus_search import query_terms, search_catalog
+from mq_agent.notebook_corpus_search import search_catalog
 
 _QUESTION_WORDS = (
     "what",
