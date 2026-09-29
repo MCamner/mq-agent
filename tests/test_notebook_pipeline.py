@@ -243,7 +243,7 @@ def test_p5_never_promotes_derived_material_to_claim_evidence():
         "evidence": [
             {
                 "claim_eligible": True,
-                "grounding_status": "grounded",
+                "grounding_status": "derived_with_source_candidate",
                 "excerpt": "Notebook generated interpretation",
                 "provenance": {
                     "item_id": "item-derived",
@@ -262,6 +262,31 @@ def test_p5_never_promotes_derived_material_to_claim_evidence():
     assert report["status"] == "INSUFFICIENT_EVIDENCE"
     assert report["claim_eligible_count"] == 0
     assert report["policy"]["derived_is_claim_evidence"] is False
+
+
+def test_p5_accepts_only_grounded_source_role():
+    retrieval = {
+        "evidence": [
+            {
+                "claim_eligible": True,
+                "grounding_status": "source",
+                "excerpt": "Primary source excerpt",
+                "provenance": {
+                    "item_id": "item-source",
+                    "drive_item_id": "source-1",
+                    "notebook_id": "nb-1",
+                    "notebook_title": "N",
+                    "title": "Source",
+                    "source_role": "source",
+                },
+            }
+        ]
+    }
+
+    report = atlas_evidence_bundle(retrieval, claim="A claim")
+
+    assert report["status"] == "SUPPORTED"
+    assert report["claim_eligible_count"] == 1
 
 
 def test_notebook_operator_commands_are_registered():
