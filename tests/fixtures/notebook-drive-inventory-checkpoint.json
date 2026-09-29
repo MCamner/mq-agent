@@ -1,0 +1,20 @@
+{
+  "schema": "notebook-drive-inventory-checkpoint.v1",
+  "root_drive_item_id": "example-root",
+  "status": "partial",
+  "mode": "full",
+  "pending": [
+    {
+      "folder_id": "example-root",
+      "relative_path": "",
+      "top_level_folder_id": null,
+      "page_token": null
+    }
+  ],
+  "folders": {},
+  "items": {},
+  "missing": {},
+  "change_token": null,
+  "pages_read": 0,
+  "last_error": null
+}
