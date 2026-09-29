@@ -43,6 +43,11 @@ Unsupported binary formats, including PDF, are reported as
 `unavailable/unsupported_mime` rather than being silently parsed or treated as
 read evidence.
 
+A successful HTTP read is not sufficient for evidence: if the bounded payload
+contains no readable text (for example because an exported HTML source begins
+with a large inline base64 image), the item is reported as
+`unavailable/no_readable_text_in_budget`. Empty text is never claim-eligible.
+
 This is intentional: the Takeout corpus commonly contains text/HTML
 representations of imported sources, and D5 must stay fail-closed when a body
 cannot be interpreted by the approved reader.
