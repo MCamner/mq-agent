@@ -245,10 +245,21 @@ def incremental_semantic_sync(
     unchanged_ids = {
         str(value) for value in (diff.get("unchanged") or [])
     }
+    previous_ids = {
+        str(row.get("drive_item_id"))
+        for row in (previous_index or {}).get("chunks", [])
+        if row.get("drive_item_id")
+    }
+    # A P3 baseline may exist before P1 has ever been built. In that case the
+    # catalog correctly says "unchanged", but there is no vector to reuse.
+    # Missing index coverage is therefore work to do, not evidence of stasis.
+    missing_from_index = unchanged_ids - previous_ids
+    delta_ids |= missing_from_index
+    reusable_ids = unchanged_ids & previous_ids
     kept = [
         dict(row)
         for row in (previous_index or {}).get("chunks", [])
-        if str(row.get("drive_item_id")) in unchanged_ids
+        if str(row.get("drive_item_id")) in reusable_ids
     ]
 
     delta_items = [
@@ -367,6 +378,7 @@ def atlas_evidence_bundle(
     evidence = []
     for row in retrieval.get("evidence", []):
         provenance = dict(row.get("provenance") or {})
+        source_role = provenance.get("source_role")
         evidence.append(
             {
                 "item_id": provenance.get("item_id"),
@@ -374,8 +386,10 @@ def atlas_evidence_bundle(
                 "notebook_id": provenance.get("notebook_id"),
                 "notebook_title": provenance.get("notebook_title"),
                 "title": provenance.get("title"),
-                "source_role": provenance.get("source_role"),
-                "claim_eligible": bool(row.get("claim_eligible")),
+                "source_role": source_role,
+                "claim_eligible": (
+                    source_role == "source" and bool(row.get("claim_eligible"))
+                ),
                 "grounding_status": row.get("grounding_status"),
                 "excerpt": row.get("excerpt", ""),
                 "content_sha256": provenance.get("content_sha256"),
