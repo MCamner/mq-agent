@@ -15,7 +15,7 @@ This workflow is for OpenAI vector stores and MQ semantic repository memory. It 
 
 Refreshing uploads repo-derived content to OpenAI. Before running the upload step, state the repo path and target vector store ID and get explicit approval if the user has not already granted it in the current turn. Never print API keys or `.env` contents.
 
-Deletion or replacement of existing vector-store files is destructive. Prefer the non-destructive MQ flow below unless the user explicitly requests cleanup.
+Deletion or replacement of existing vector-store attachments is destructive. Use `--cleanup-stale` only after the user explicitly requests cleanup. Cleanup detaches stale retrieval generations; it does not delete underlying OpenAI Storage file objects.
 
 ## Preferred MQ Flow
 
@@ -29,7 +29,7 @@ REPO_PATH="${REPO_PATH:?set REPO_PATH to the target repository}"
 
 mq-agent memory status --json "$REPO_PATH"
 mq-agent memory build "$REPO_PATH"
-mq-agent memory refresh --approve "$REPO_PATH"
+mq-agent memory refresh --approve --cleanup-stale "$REPO_PATH"
 ```
 
 This skill is used most often for `macos-scripts`, but it applies to any MQ repo
@@ -71,7 +71,7 @@ curl -sS "https://api.openai.com/v1/vector_stores/$VECTOR_STORE_ID" \
 mq-agent memory search "recent repo-specific terms" --json
 ```
 
-Report the vector store ID, status, file counts, newest uploaded file, and whether retrieval worked.
+Report configured/reachable/freshness separately, plus vector store ID, generation counts, newest uploaded file, and whether retrieval worked.
 
 The active store comes from `mq-agent memory status --json "$REPO_PATH"`, not
 from old helper-script defaults. That output carries `vector_store_source`,
@@ -120,3 +120,19 @@ Keep the final report short:
   retrieval or MCP verification result without printing secrets.
 - A sandbox-only Python/httpx `Operation not permitted` failure is diagnosed
   separately from MCP server health by checking the HTTP endpoints directly.
+
+
+## Latest-only semantics
+
+`mq-agent memory status --json` distinguishes `configured`, `reachable`
+and `freshness`. Treat `ready` as a proven current state, not merely as
+configuration.
+
+A refresh refuses to append beside an existing symbol-memory generation unless
+`--cleanup-stale` was explicitly requested. Cleanup uploads and verifies the
+new generation first, then detaches stale vector-store attachments. It does not
+delete the underlying OpenAI Storage file objects.
+
+The retired macos-scripts store may be cleaned for the macos-scripts identity.
+Do not treat mq-mcp's repo-knowledge store as retired while its documented
+`ask` consumer still uses it.

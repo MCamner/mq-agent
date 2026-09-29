@@ -761,7 +761,7 @@ Semantic repository memory commands.
 
 | Subcommand | Description |
 |---|---|
-| [`mq-agent memory build`](#mq-agent-memory-build) | Upload semantic repo memory via repo-signal. Dry-run by default. |
+| [`mq-agent memory build`](#mq-agent-memory-build) | Preview semantic repo memory upload. Non-dry-run uses refresh safety. |
 | [`mq-agent memory doctor`](#mq-agent-memory-doctor) | Diagnose semantic memory environment. |
 | [`mq-agent memory emit-cochange`](#mq-agent-memory-emit-cochange) | Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is the producer; Bridget/CG-2 is the evidence source. Writes nothing when no co-change cluster clears the gate. mqobsidian scores and promotes. |
 | [`mq-agent memory inbox-cochange`](#mq-agent-memory-inbox-cochange) | Operator-triggered co-change intake: emit → score → writeback → status. Runs the autonomous learning loop end-to-end for one file, but only when you ask (not auto-after-workflow). mq-agent orchestrates; Bridget/CG-2 is evidence source; mqobsidian owns scoring/writeback/status (invoked via its own local-only CLI). |
@@ -770,7 +770,7 @@ Semantic repository memory commands.
 | [`mq-agent memory link`](#mq-agent-memory-link) | Infer read-only link candidates between mqobsidian notes. |
 | [`mq-agent memory promote-from-review`](#mq-agent-memory-promote-from-review) | Approve a held promotion-review memory → promote it (co-change never auto-promotes). Appends a promotion-event + directive snapshot via mqobsidian's CLI. Dry-run by default. |
 | [`mq-agent memory query`](#mq-agent-memory-query) | Search mqobsidian memory notes. Alias: search-vault. |
-| [`mq-agent memory refresh`](#mq-agent-memory-refresh) | Refresh semantic repo memory. Requires --approve to upload. |
+| [`mq-agent memory refresh`](#mq-agent-memory-refresh) | Refresh semantic repo memory. Requires --approve; cleanup is explicit. |
 | [`mq-agent memory resolve-supersede`](#mq-agent-memory-resolve-supersede) | Accept or reject a deep-conflict supersede proposal (exactly one of --accept/--reject). |
 | [`mq-agent memory review-status`](#mq-agent-memory-review-status) | Show the mqobsidian scoring review state: tier tally + held review queues (read-only). Delegates to mqobsidian's local-only CLI; mq-agent stays the orchestrator so mqlaunch never reaches mqobsidian directly. |
 | [`mq-agent memory search`](#mq-agent-memory-search) | Search mq-mcp semantic memory. Read-only. Requires mq-mcp v1.4.0+. |
@@ -781,7 +781,7 @@ Semantic repository memory commands.
 
 ## `mq-agent memory build`
 
-Upload semantic repo memory via repo-signal. Dry-run by default.
+Preview semantic repo memory upload. Non-dry-run uses refresh safety.
 
 ### Arguments
 
@@ -924,7 +924,7 @@ Search mqobsidian memory notes. Alias: search-vault.
 
 ## `mq-agent memory refresh`
 
-Refresh semantic repo memory. Requires --approve to upload.
+Refresh semantic repo memory. Requires --approve; cleanup is explicit.
 
 ### Arguments
 
@@ -937,6 +937,7 @@ Refresh semantic repo memory. Requires --approve to upload.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--approve` | No | `false` | Allow upload |
+| `--cleanup-stale` | No | `false` | Detach stale retrieval generations after verified upload |
 
 ## `mq-agent memory resolve-supersede`
 
