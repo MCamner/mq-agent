@@ -399,7 +399,7 @@ def atlas_evidence_bundle(
     eligible = [
         row
         for row in evidence
-        if row["claim_eligible"] and row["grounding_status"] == "grounded"
+        if row["claim_eligible"] and row["source_role"] == "source"
     ]
     return {
         "schema": ATLAS_SCHEMA,
