@@ -64,9 +64,24 @@ def build_catalog_stage(
     d3_input: Path = DEFAULT_D3_INPUT,
     catalog: Path = DEFAULT_CATALOG,
     checkpoint: Path = DEFAULT_CATALOG_CHECKPOINT,
+    manifest: Path | None = None,
 ) -> dict[str, Any]:
-    """P0: materialize the canonical inbound corpus contract."""
+    """P0: materialize the canonical inbound corpus contract.
+
+    When a reconciled manifest is supplied it is an integrity gate, not merely
+    extra metadata: notebook/item/role accounting must match before hashes are
+    overlaid into the catalog input.
+    """
     document = load_json(d3_input)
+    manifest_report = None
+    if manifest is not None:
+        from mq_agent.notebook_manifest import apply_reconciled_manifest
+
+        document, manifest_report = apply_reconciled_manifest(
+            document,
+            load_json(manifest),
+        )
+
     result, state = materialize(
         document,
         catalog_path=catalog.expanduser(),
@@ -81,6 +96,7 @@ def build_catalog_stage(
         "items": len(result["items"]),
         "catalog_sha256": state["catalog_sha256"],
         "excluded_items": state["excluded_items"],
+        "manifest": manifest_report,
     }
 
 
