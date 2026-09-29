@@ -387,9 +387,12 @@ def refresh_changes(
                 normalized["relative_path"] = (
                     f"{parent_path}/{normalized['title']}".strip("/")
                 )
-                normalized["top_level_folder_id"] = (
-                    parent.get("top_level_folder_id") if parent else None
-                )
+                if parent_id == checkpoint["root_drive_item_id"]:
+                    normalized["top_level_folder_id"] = normalized["drive_item_id"]
+                else:
+                    normalized["top_level_folder_id"] = (
+                        parent.get("top_level_folder_id") if parent else None
+                    )
 
             if normalized["mime_type"] == FOLDER_MIME:
                 checkpoint["folders"][file_id] = normalized
@@ -418,7 +421,108 @@ def refresh_changes(
         return checkpoint
 
 
-def to_d3_input(\n    checkpoint: Mapping[str, Any],\n    *,\n    snapshot_at: str,\n    excluded_top_level_folder_ids: set[str] | None = None,\n) -> dict[str, Any]:\n    """Project a complete inventory into D3 normalized metadata.\n\n    Legacy archives store notebooks directly below the corpus root. Newer\n    archive-manager generations can store them below a reserved\n    notebooks/<name> container. Both layouts are projected as logical\n    notebooks; the container itself is never a notebook.\n    """\n\n    if checkpoint.get("status") != "current":\n        raise ValueError("inventory must be current before D3 projection")\n    excluded = excluded_top_level_folder_ids or set()\n    root_id = str(checkpoint["root_drive_item_id"])\n    folders = checkpoint["folders"]\n\n    canonical_containers = {\n        str(folder_id)\n        for folder_id, folder in folders.items()\n        if folder.get("parent_drive_item_id") == root_id\n        and str(folder.get("title", "")).lower() == "notebooks"\n    }\n\n    notebook_specs: dict[str, dict[str, str]] = {}\n    for folder_id, folder in folders.items():\n        folder_id = str(folder_id)\n        parent_id = str(folder.get("parent_drive_item_id", ""))\n        title = str(folder.get("title", ""))\n        relative_path = str(folder.get("relative_path", ""))\n\n        if parent_id == root_id:\n            if folder_id in excluded or folder_id in canonical_containers:\n                continue\n            notebook_specs[folder_id] = {\n                "drive_item_id": folder_id,\n                "title": title,\n                "archive_prefix": f"{title}/",\n            }\n            continue\n\n        if parent_id in canonical_containers:\n            notebook_specs[folder_id] = {\n                "drive_item_id": folder_id,\n                "title": title,\n                "archive_prefix": f"{relative_path}/",\n            }\n\n    notebooks = [\n        {"drive_item_id": spec["drive_item_id"], "title": spec["title"]}\n        for spec in notebook_specs.values()\n    ]\n\n    items: list[dict[str, Any]] = []\n    specs_by_prefix = sorted(\n        notebook_specs.values(),\n        key=lambda value: len(value["archive_prefix"]),\n        reverse=True,\n    )\n    for row in checkpoint["items"].values():\n        relative = str(row.get("relative_path", ""))\n        spec = next(\n            (\n                candidate\n                for candidate in specs_by_prefix\n                if relative.startswith(candidate["archive_prefix"])\n            ),\n            None,\n        )\n        if spec is None:\n            continue\n        notebook_relative = relative[len(spec["archive_prefix"]):]\n        items.append(\n            {\n                "drive_item_id": row["drive_item_id"],\n                "notebook_drive_item_id": spec["drive_item_id"],\n                "parent_drive_item_id": row["parent_drive_item_id"],\n                "relative_path": notebook_relative,\n                "archive_relative_path": relative,\n                "title": row["title"],\n                "mime_type": row["mime_type"],\n                "size_bytes": row["size_bytes"],\n                "modified_time": row["modified_time"],\n                "origin_provider": "google-drive",\n            }\n        )\n\n    return {\n        "corpus_key": "notebooklm-archive",\n        "snapshot_at": snapshot_at,\n        "notebooks": sorted(notebooks, key=lambda value: value["drive_item_id"]),\n        "items": sorted(items, key=lambda value: value["drive_item_id"]),\n    }\n\n
+def to_d3_input(
+    checkpoint: Mapping[str, Any],
+    *,
+    snapshot_at: str,
+    excluded_top_level_folder_ids: set[str] | None = None,
+) -> dict[str, Any]:
+    """Project a complete inventory into D3 normalized metadata.
+
+    Legacy archives store notebooks directly below the corpus root. Newer
+    archive-manager generations can store them below a reserved
+    notebooks/<name> container. Both layouts are projected as logical
+    notebooks; the container itself is never a notebook.
+    """
+
+    if checkpoint.get("status") != "current":
+        raise ValueError("inventory must be current before D3 projection")
+    excluded = excluded_top_level_folder_ids or set()
+    root_id = str(checkpoint["root_drive_item_id"])
+    folders = checkpoint["folders"]
+
+    canonical_containers = {
+        str(folder_id)
+        for folder_id, folder in folders.items()
+        if folder.get("parent_drive_item_id") == root_id
+        and str(folder.get("title", "")).lower() == "notebooks"
+    }
+
+    notebook_specs: dict[str, dict[str, str]] = {}
+    for folder_id, folder in folders.items():
+        folder_id = str(folder_id)
+        parent_id = str(folder.get("parent_drive_item_id", ""))
+        title = str(folder.get("title", ""))
+        relative_path = str(folder.get("relative_path", ""))
+
+        if parent_id == root_id:
+            if (
+                folder_id in excluded
+                or folder_id in canonical_containers
+                or title.lower() == "_manifest"
+            ):
+                continue
+            notebook_specs[folder_id] = {
+                "drive_item_id": folder_id,
+                "title": title,
+                "archive_prefix": f"{title}/",
+            }
+            continue
+
+        if parent_id in canonical_containers:
+            notebook_specs[folder_id] = {
+                "drive_item_id": folder_id,
+                "title": title,
+                "archive_prefix": f"{relative_path}/",
+            }
+
+    notebooks = [
+        {"drive_item_id": spec["drive_item_id"], "title": spec["title"]}
+        for spec in notebook_specs.values()
+    ]
+
+    items: list[dict[str, Any]] = []
+    specs_by_prefix = sorted(
+        notebook_specs.values(),
+        key=lambda value: len(value["archive_prefix"]),
+        reverse=True,
+    )
+    for row in checkpoint["items"].values():
+        relative = str(row.get("relative_path", ""))
+        spec = next(
+            (
+                candidate
+                for candidate in specs_by_prefix
+                if relative.startswith(candidate["archive_prefix"])
+            ),
+            None,
+        )
+        if spec is None:
+            continue
+        notebook_relative = relative[len(spec["archive_prefix"]):]
+        items.append(
+            {
+                "drive_item_id": row["drive_item_id"],
+                "notebook_drive_item_id": spec["drive_item_id"],
+                "parent_drive_item_id": row["parent_drive_item_id"],
+                "relative_path": notebook_relative,
+                "archive_relative_path": relative,
+                "title": row["title"],
+                "mime_type": row["mime_type"],
+                "size_bytes": row["size_bytes"],
+                "modified_time": row["modified_time"],
+                "origin_provider": "google-drive",
+            }
+        )
+
+    return {
+        "corpus_key": "notebooklm-archive",
+        "snapshot_at": snapshot_at,
+        "notebooks": sorted(notebooks, key=lambda value: value["drive_item_id"]),
+        "items": sorted(items, key=lambda value: value["drive_item_id"]),
+    }
+
+
 def atomic_write_checkpoint(path: Path, checkpoint: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(checkpoint, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
