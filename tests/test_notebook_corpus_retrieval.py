@@ -365,3 +365,22 @@ def test_cli_archive_requires_drive_token(tmp_path, monkeypatch):
     payload = json.loads(result.stdout)
     assert payload["status"] == "ERROR"
     assert "access token" in payload["error"]
+
+
+
+def test_drive_fetcher_rejects_html_without_readable_text_in_budget():
+    def handler(request):
+        return httpx.Response(
+            206,
+            content=b'<p><img alt=image src="data:image/jpeg;base64,AAAAAA">',
+        )
+
+    fetcher = GoogleDriveSelectiveFetcher(
+        "token",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = fetcher.fetch_text("item", "text/html", max_bytes=64)
+
+    assert result["status"] == "unavailable"
+    assert result["reason"] == "no_readable_text_in_budget"
