@@ -47,6 +47,7 @@ def test_the_manifest_lists_all_contracts_this_repo_vendors() -> None:
     assert contracts == {
         "mq.execution-outcome.v1",
         "mq.model-route-outcome.v1",
+        "mq.semantic-refresh.v1",
         "notebook-corpus-index.v1",
     }
 

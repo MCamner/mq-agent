@@ -2758,22 +2758,54 @@ def memory_status_cmd(
         typer.echo(json.dumps({
             "status": state.status,
             "enabled": state.enabled,
+            "configured": state.configured,
+            "reachable": state.reachable,
+            "fresh": state.fresh,
+            "freshness": state.freshness,
             "vector_store_id": state.vector_store_id,
             "vector_store_source": state.vector_store_source,
             "repo_signal_available": state.repo_signal_available,
             "repo_path": state.repo_path,
+            "current_source_revision": state.current_source_revision,
+            "stored_source_revision": state.stored_source_revision,
+            "authoritative_active_count": state.authoritative_active_count,
+            "non_authoritative_retrieval_count": state.non_authoritative_retrieval_count,
+            "latest_upload": state.latest_upload,
+            "reachability_error": state.reachability_error,
         }, indent=2))
         return
 
-    color = "green" if state.enabled else "yellow" if state.status == "missing-repo-signal" else "red"
+    color = (
+        "green"
+        if state.status == "ready"
+        else "yellow"
+        if state.status == "degraded"
+        else "red"
+    )
+    reachable = "unknown" if state.reachable is None else str(state.reachable).lower()
     lines = (
         f"[bold]status:[/bold]       [{color}]{state.status}[/{color}]\n"
-        f"[bold]vector store:[/bold] {state.vector_store_id} [dim]({state.vector_store_source})[/dim]\n"
-        f"[bold]repo-signal:[/bold]  {'[green]available[/green]' if state.repo_signal_available else '[yellow]not found[/yellow]'}\n"
+        f"[bold]configured:[/bold]   {str(state.configured).lower()}\n"
+        f"[bold]reachable:[/bold]    {reachable}\n"
+        f"[bold]freshness:[/bold]    {state.freshness}\n"
+        f"[bold]vector store:[/bold] {state.vector_store_id} "
+        f"[dim]({state.vector_store_source})[/dim]\n"
+        f"[bold]active gens:[/bold]  "
+        f"{state.authoritative_active_count if state.authoritative_active_count is not None else 'unknown'}\n"
+        f"[bold]outside auth:[/bold] "
+        f"{state.non_authoritative_retrieval_count if state.non_authoritative_retrieval_count is not None else 'unknown'}\n"
+        f"[bold]latest upload:[/bold] {state.latest_upload or 'unknown'}\n"
+        f"[bold]repo-signal:[/bold]  "
+        f"{'[green]available[/green]' if state.repo_signal_available else '[yellow]not found[/yellow]'}\n"
         f"[bold]repo:[/bold]         {state.repo_path}"
     )
-    console.print(Panel(lines, title="[bold]Semantic Memory[/bold]",
-                        border_style="green" if state.enabled else "yellow"))
+    console.print(
+        Panel(
+            lines,
+            title="[bold]Semantic Memory[/bold]",
+            border_style="green" if state.enabled else "yellow",
+        )
+    )
 
 
 # ── memory build ───────────────────────────────────────────────────────────
@@ -2783,25 +2815,39 @@ def memory_build_cmd(
     path: Annotated[str, typer.Argument(help="Repo path")] = ".",
     dry_run: Annotated[bool, typer.Option("--dry-run/--no-dry-run")] = True,
 ):
-    """Upload semantic repo memory via repo-signal. Dry-run by default."""
-    from mq_agent.memory.semantic import build as mem_build
+    """Preview semantic repo memory upload. Non-dry-run uses refresh safety."""
+    from mq_agent.memory.semantic import refresh as mem_refresh
+    from mq_agent.memory.semantic import resolve_vector_store_id
 
     if dry_run:
-        console.print("[blue][dry-run][/blue] Would run: [bold]repo-signal semantic-upload[/bold]")
-        console.print("Add [bold]--no-dry-run[/bold] to execute, or use [bold]memory refresh --approve[/bold].")
+        store_id, source = resolve_vector_store_id()
+        console.print(
+            "[blue][dry-run][/blue] Would run: "
+            f"[bold]repo-signal semantic-upload --vector-store-id {store_id}[/bold]"
+        )
+        console.print(f"Target source: [dim]{source}[/dim]")
+        console.print(
+            "Use [bold]memory refresh --approve[/bold] for a first generation, "
+            "or add [bold]--cleanup-stale[/bold] for explicit replacement."
+        )
         return
 
     with console.status("[bold cyan]Building semantic memory...[/bold cyan]"):
-        result = mem_build(path, dry_run=False)
+        result = mem_refresh(path, cleanup_stale=False)
 
     if result.stdout:
         console.print(result.stdout)
     if result.stderr:
         console.print(f"[yellow]{result.stderr}[/yellow]")
+    if result.error:
+        console.print(f"[bold red]{result.error}[/bold red]")
     if result.returncode != 0:
         console.print(f"[bold red]Build failed (exit {result.returncode})[/bold red]")
         raise typer.Exit(result.returncode)
-    console.print("[bold green]✓ Semantic memory built[/bold green]")
+    if result.uploaded:
+        console.print("[bold green]✓ Semantic memory built[/bold green]")
+    else:
+        console.print("[bold green]✓ Semantic memory already fresh[/bold green]")
 
 
 # ── memory refresh ─────────────────────────────────────────────────────────
@@ -2810,26 +2856,56 @@ def memory_build_cmd(
 def memory_refresh_cmd(
     path: Annotated[str, typer.Argument(help="Repo path")] = ".",
     approve: Annotated[bool, typer.Option("--approve", help="Allow upload")] = False,
+    cleanup_stale: Annotated[
+        bool,
+        typer.Option(
+            "--cleanup-stale",
+            help="Detach stale retrieval generations after verified upload",
+        ),
+    ] = False,
 ):
-    """Refresh semantic repo memory. Requires --approve to upload."""
-    from mq_agent.memory.semantic import build as mem_build
+    """Refresh semantic repo memory. Requires --approve; cleanup is explicit."""
+    from mq_agent.memory.semantic import refresh as mem_refresh
 
     if not approve:
-        console.print("[yellow]Refusing to upload semantic memory without [bold]--approve[/bold].[/yellow]")
+        console.print(
+            "[yellow]Refusing to upload semantic memory without "
+            "[bold]--approve[/bold].[/yellow]"
+        )
         console.print("Run [bold]mq-agent memory build .[/bold] first to preview.")
         raise typer.Exit(1)
 
     with console.status("[bold cyan]Refreshing semantic memory...[/bold cyan]"):
-        result = mem_build(path, dry_run=False)
+        result = mem_refresh(path, cleanup_stale=cleanup_stale)
 
     if result.stdout:
         console.print(result.stdout)
     if result.stderr:
         console.print(f"[yellow]{result.stderr}[/yellow]")
+    if result.detached:
+        console.print(
+            f"[yellow]Detached {len(result.detached)} stale "
+            "vector-store generation(s).[/yellow]"
+        )
+    if result.error:
+        console.print(f"[bold red]{result.error}[/bold red]")
     if result.returncode != 0:
-        console.print(f"[bold red]Refresh failed (exit {result.returncode})[/bold red]")
+        console.print(
+            f"[bold red]Refresh failed (exit {result.returncode}, "
+            f"postcondition {result.postcondition_status})[/bold red]"
+        )
         raise typer.Exit(result.returncode)
-    console.print("[bold green]✓ Semantic memory refreshed[/bold green]")
+
+    if not result.uploaded:
+        console.print(
+            "[bold green]✓ Semantic memory already fresh; no upload needed[/bold green]"
+        )
+        return
+
+    console.print(
+        "[bold green]✓ Semantic memory refreshed[/bold green] "
+        f"[dim](postcondition {result.postcondition_status})[/dim]"
+    )
 
 
 # ── agent-views rebuild ──────────────────────────────────────────────────────
