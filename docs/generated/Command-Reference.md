@@ -1187,6 +1187,7 @@ Build P0 and optionally P1, then record the P3 baseline.
 | `--d3-input` | No | `.mq/notebook-corpus/d3-input.json` | Normalized Drive inventory projection |
 | `--catalog` | No | `.mq/notebook-corpus/catalog.json` | Canonical local corpus catalog |
 | `--checkpoint` | No | `.mq/notebook-corpus/catalog.checkpoint.json` | P0 catalog build checkpoint |
+| `--manifest` | No | `""` | Optional reconciled NotebookLM manifest integrity overlay |
 | `--semantic` | No | `false` | Also build the local semantic index (P1) |
 | `--semantic-index` | No | `.mq/notebook-corpus/semantic-index.json` | Local semantic index output |
 | `--sync-state` | No | `.mq/notebook-corpus/sync-state.json` | Local incremental sync state |
@@ -1462,6 +1463,7 @@ P3: diff the current catalog and optionally update only changed vectors.
 | `--catalog` | No | `.mq/notebook-corpus/catalog.json` | — |
 | `--d3-input` | No | `""` | Optional refreshed D3 projection to materialize before diffing |
 | `--checkpoint` | No | `.mq/notebook-corpus/catalog.checkpoint.json` | — |
+| `--manifest` | No | `""` | Optional reconciled manifest used with --d3-input |
 | `--sync-state` | No | `.mq/notebook-corpus/sync-state.json` | — |
 | `--semantic` | No | `false` | Incrementally update semantic vectors for NEW/CHANGED items |
 | `--semantic-index` | No | `.mq/notebook-corpus/semantic-index.json` | — |
