@@ -300,3 +300,20 @@ def test_drive_fetcher_refuses_binary_mime_without_request():
     assert result["status"] == "unavailable"
     assert result["reason"] == "unsupported_mime"
     assert fetcher.request_count == 0
+
+
+
+def test_provider_exception_becomes_unavailable_record():
+    fetcher = FakeFetcher(
+        {
+            "source-a": RuntimeError("boom"),
+            "derived-a": _ok("derived"),
+        }
+    )
+
+    report = retrieve_evidence(_catalog(), "MCP Python", fetcher, max_files=2)
+
+    assert report["status"] == "MISSING_SOURCE"
+    assert report["evidence"][0]["fetch_status"] == "unavailable"
+    assert report["evidence"][0]["fetch_reason"] == "provider_error:RuntimeError"
+    assert report["evidence"][1]["fetch_status"] == "ok"
