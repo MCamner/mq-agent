@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.28.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.29.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -296,6 +296,22 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.29.0 status
+
+NotebookLM Knowledge Pipeline. The NotebookLM archive is now a governed MQ
+knowledge source with deterministic corpus accounting, local retrieval,
+incremental semantic sync, evidence provenance, and an Atlas-safe handoff.
+
+- [x] deterministic NotebookLM corpus builder and versioned corpus index
+- [x] metadata/text search baseline and quota-aware Google Drive inventory
+- [x] bounded selective evidence retrieval with source-role provenance
+- [x] cross-notebook research and interaction-gap analysis
+- [x] local Ollama semantic retrieval experiment
+- [x] operational P0-P5 build/status/sync/evidence/Atlas pipeline
+- [x] reconciled manifest integrity gate with SHA-256-backed incremental sync
+- [x] Atlas evidence workspace that never promotes derived material to claim evidence
+- [x] signal/mq-mcp ingress provenance hardening and CI/release-gate parity
 
 ## v1.28.0 status
 
