@@ -322,6 +322,7 @@ def analyze_gaps(
             {
                 "question_id": question["question_id"],
                 "question": text,
+                "question_key": question["question_key"],
                 "occurrence_count": question["occurrence_count"],
                 "notebook_count": question["notebook_count"],
                 "recurring": question["recurring"],
