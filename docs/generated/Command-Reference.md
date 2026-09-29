@@ -1139,6 +1139,7 @@ Build local source packs for optional synthesis providers.
 | Subcommand | Description |
 |---|---|
 | [`mq-agent notebook catalog`](#mq-agent-notebook-catalog) | Inspect one local Drive-corpus catalog without reading file bodies. |
+| [`mq-agent notebook inventory`](#mq-agent-notebook-inventory) | Inventory the configured Drive corpus using read-only metadata APIs. |
 | [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
 | [`mq-agent notebook search`](#mq-agent-notebook-search) | Search local corpus metadata plus optional provider text-match metadata. |
 | [`mq-agent notebook show`](#mq-agent-notebook-show) | Show one catalog notebook or item by exact identity. |
@@ -1152,6 +1153,24 @@ Inspect one local Drive-corpus catalog without reading file bodies.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook inventory`
+
+Inventory the configured Drive corpus using read-only metadata APIs.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--root-id` | No | `""` | Configured Drive corpus root item ID |
+| `--checkpoint` | No | `.mq/notebook-corpus/inventory.json` | Local inventory checkpoint JSON |
+| `--changes` | No | `false` | Use Drive change feed; requires a completed checkpoint |
+| `--max-pages` | No | — | Stop after N provider pages and keep partial state |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | Environment variable containing a Drive OAuth access token |
+| `--d3-input` | No | `""` | Optional path for normalized D3 input; requires current inventory |
+| `--snapshot-at` | No | `""` | Archive snapshot timestamp used only with --d3-input |
+| `--exclude-root-folder-id` | No | — | Top-level folder ID to exclude from notebook candidates (repeatable) |
 | `--json` | No | `false` | — |
 
 ## `mq-agent notebook pack`
