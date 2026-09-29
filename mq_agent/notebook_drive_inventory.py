@@ -280,7 +280,12 @@ def scan_full_page(
             checkpoint["missing"].pop(drive_id, None)
 
     if next_page_token:
+        # The current folder still has another provider page, but folders
+        # discovered on this successful page are already durable work. Keep
+        # them behind the current cursor so pagination can resume without
+        # losing descendants.
         pending[0] = {**task, "page_token": str(next_page_token)}
+        pending.extend(queued)
     else:
         pending.pop(0)
         pending.extend(queued)
