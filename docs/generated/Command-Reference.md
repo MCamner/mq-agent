@@ -1138,7 +1138,10 @@ Build local source packs for optional synthesis providers.
 
 | Subcommand | Description |
 |---|---|
+| [`mq-agent notebook atlas`](#mq-agent-notebook-atlas) | P5: emit an Atlas-safe claim/evidence bundle from NotebookLM sources. |
+| [`mq-agent notebook build`](#mq-agent-notebook-build) | Build P0 and optionally P1, then record the P3 baseline. |
 | [`mq-agent notebook catalog`](#mq-agent-notebook-catalog) | Inspect one local Drive-corpus catalog without reading file bodies. |
+| [`mq-agent notebook evidence`](#mq-agent-notebook-evidence) | P4: retrieve bounded, provenance-bearing evidence for mq-agent. |
 | [`mq-agent notebook gaps`](#mq-agent-notebook-gaps) | Find repeated, unsupported, derived-only, and stale research questions. |
 | [`mq-agent notebook inventory`](#mq-agent-notebook-inventory) | Inventory the configured Drive corpus using read-only metadata APIs. |
 | [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
@@ -1150,6 +1153,50 @@ Build local source packs for optional synthesis providers.
 | [`mq-agent notebook semantic-eval`](#mq-agent-notebook-semantic-eval) | Compare D8 semantic retrieval with D4 on the exact frozen query set. |
 | [`mq-agent notebook semantic-search`](#mq-agent-notebook-semantic-search) | Search the disposable D8 semantic index without changing evidence roles. |
 | [`mq-agent notebook show`](#mq-agent-notebook-show) | Show one catalog notebook or item by exact identity. |
+| [`mq-agent notebook status`](#mq-agent-notebook-status) | Show P0-P5 NotebookLM pipeline readiness without provider calls. |
+| [`mq-agent notebook sync`](#mq-agent-notebook-sync) | P3: diff the current catalog and optionally update only changed vectors. |
+
+## `mq-agent notebook atlas`
+
+P5: emit an Atlas-safe claim/evidence bundle from NotebookLM sources.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CLAIM` | Yes | — | Document claim Atlas should verify |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `.mq/notebook-corpus/catalog.json` | — |
+| `--max-files` | No | `4` | — |
+| `--max-bytes-per-file` | No | `1048576` | P5 full-capture limit per source |
+| `--output` | No | `""` | Optional JSON evidence bundle path |
+| `--workspace` | No | `""` | Optional immutable Atlas evidence workspace directory |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook build`
+
+Build P0 and optionally P1, then record the P3 baseline.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--d3-input` | No | `.mq/notebook-corpus/d3-input.json` | Normalized Drive inventory projection |
+| `--catalog` | No | `.mq/notebook-corpus/catalog.json` | Canonical local corpus catalog |
+| `--checkpoint` | No | `.mq/notebook-corpus/catalog.checkpoint.json` | P0 catalog build checkpoint |
+| `--manifest` | No | `""` | Optional reconciled NotebookLM manifest integrity overlay |
+| `--semantic` | No | `false` | Also build the local semantic index (P1) |
+| `--semantic-index` | No | `.mq/notebook-corpus/semantic-index.json` | Local semantic index output |
+| `--sync-state` | No | `.mq/notebook-corpus/sync-state.json` | Local incremental sync state |
+| `--embed-model` | No | `nomic-embed-text` | Ollama embedding model |
+| `--ollama-host` | No | `""` | Optional Ollama host override |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | Environment variable containing a Drive OAuth access token |
+| `--json` | No | `false` | — |
 
 ## `mq-agent notebook catalog`
 
@@ -1160,6 +1207,25 @@ Inspect one local Drive-corpus catalog without reading file bodies.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook evidence`
+
+P4: retrieve bounded, provenance-bearing evidence for mq-agent.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Claim/question to ground in NotebookLM corpus |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `.mq/notebook-corpus/catalog.json` | — |
+| `--max-files` | No | `4` | — |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent notebook gaps`
@@ -1373,6 +1439,39 @@ Show one catalog notebook or item by exact identity.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook status`
+
+Show P0-P5 NotebookLM pipeline readiness without provider calls.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `.mq/notebook-corpus/catalog.json` | — |
+| `--semantic-index` | No | `.mq/notebook-corpus/semantic-index.json` | — |
+| `--sync-state` | No | `.mq/notebook-corpus/sync-state.json` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook sync`
+
+P3: diff the current catalog and optionally update only changed vectors.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `.mq/notebook-corpus/catalog.json` | — |
+| `--d3-input` | No | `""` | Optional refreshed D3 projection to materialize before diffing |
+| `--checkpoint` | No | `.mq/notebook-corpus/catalog.checkpoint.json` | — |
+| `--manifest` | No | `""` | Optional reconciled manifest used with --d3-input |
+| `--sync-state` | No | `.mq/notebook-corpus/sync-state.json` | — |
+| `--semantic` | No | `false` | Incrementally update semantic vectors for NEW/CHANGED items |
+| `--semantic-index` | No | `.mq/notebook-corpus/semantic-index.json` | — |
+| `--embed-model` | No | `nomic-embed-text` | — |
+| `--ollama-host` | No | `""` | — |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent obsidian`

@@ -190,6 +190,7 @@ def retrieve_evidence(
     excerpt_chars: int = 4_000,
     text_hits: Sequence[Mapping[str, Any]] | None = None,
     scope: str = "archive",
+    include_capture: bool = False,
 ) -> dict[str, Any]:
     """Build a bounded evidence bundle without answer synthesis."""
 
@@ -320,22 +321,26 @@ def retrieve_evidence(
         bytes_fetched = int(fetched.get("bytes_fetched") or 0)
         total_bytes += bytes_fetched
 
-        evidence.append(
-            {
-                "fetch_status": status,
-                "fetch_reason": fetched.get("reason"),
-                "claim_eligible": claim_eligible,
-                "grounding_status": grounding_status,
-                "excerpt": (
-                    _excerpt(str(fetched.get("text", "")), max_chars=excerpt_chars)
-                    if status == "ok"
-                    else ""
-                ),
-                "bytes_fetched": bytes_fetched,
-                "truncated": bool(fetched.get("truncated", False)),
-                "provenance": _provenance(row),
-            }
-        )
+        evidence_row = {
+            "fetch_status": status,
+            "fetch_reason": fetched.get("reason"),
+            "claim_eligible": claim_eligible,
+            "grounding_status": grounding_status,
+            "excerpt": (
+                _excerpt(str(fetched.get("text", "")), max_chars=excerpt_chars)
+                if status == "ok"
+                else ""
+            ),
+            "bytes_fetched": bytes_fetched,
+            "truncated": bool(fetched.get("truncated", False)),
+            "provenance": _provenance(row),
+        }
+        if include_capture and status == "ok":
+            # Exact decoded text from the same bounded read used to establish
+            # claim eligibility. P4 leaves this out by default so normal JSON
+            # reports do not become accidental full-content exports.
+            evidence_row["captured_text"] = str(fetched.get("text", ""))
+        evidence.append(evidence_row)
 
     source_ok = any(item["claim_eligible"] for item in evidence)
     fetched_ok = sum(1 for item in evidence if item["fetch_status"] == "ok")

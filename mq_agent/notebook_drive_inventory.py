@@ -387,9 +387,12 @@ def refresh_changes(
                 normalized["relative_path"] = (
                     f"{parent_path}/{normalized['title']}".strip("/")
                 )
-                normalized["top_level_folder_id"] = (
-                    parent.get("top_level_folder_id") if parent else None
-                )
+                if parent_id == checkpoint["root_drive_item_id"]:
+                    normalized["top_level_folder_id"] = normalized["drive_item_id"]
+                else:
+                    normalized["top_level_folder_id"] = (
+                        parent.get("top_level_folder_id") if parent else None
+                    )
 
             if normalized["mime_type"] == FOLDER_MIME:
                 checkpoint["folders"][file_id] = normalized
@@ -426,47 +429,84 @@ def to_d3_input(
 ) -> dict[str, Any]:
     """Project a complete inventory into D3 normalized metadata.
 
-    Top-level folders are notebook candidates except locally configured excluded
-    folder IDs (for example a private manifest folder).
+    Legacy archives store notebooks directly below the corpus root. Newer
+    archive-manager generations can store them below a reserved
+    notebooks/<name> container. Both layouts are projected as logical
+    notebooks; the container itself is never a notebook.
     """
 
     if checkpoint.get("status") != "current":
         raise ValueError("inventory must be current before D3 projection")
     excluded = excluded_top_level_folder_ids or set()
     root_id = str(checkpoint["root_drive_item_id"])
+    folders = checkpoint["folders"]
 
-    notebooks: list[dict[str, Any]] = []
-    notebook_ids: set[str] = set()
-    for folder_id, folder in checkpoint["folders"].items():
-        if folder.get("parent_drive_item_id") != root_id:
-            continue
-        if folder_id in excluded:
-            continue
-        notebook_ids.add(str(folder_id))
-        notebooks.append(
-            {
-                "drive_item_id": str(folder_id),
-                "title": str(folder.get("title", "")),
+    canonical_containers = {
+        str(folder_id)
+        for folder_id, folder in folders.items()
+        if folder.get("parent_drive_item_id") == root_id
+        and str(folder.get("title", "")).lower() == "notebooks"
+    }
+
+    notebook_specs: dict[str, dict[str, str]] = {}
+    for folder_id, folder in folders.items():
+        folder_id = str(folder_id)
+        parent_id = str(folder.get("parent_drive_item_id", ""))
+        title = str(folder.get("title", ""))
+        relative_path = str(folder.get("relative_path", ""))
+
+        if parent_id == root_id:
+            if (
+                folder_id in excluded
+                or folder_id in canonical_containers
+                or title.lower() == "_manifest"
+            ):
+                continue
+            notebook_specs[folder_id] = {
+                "drive_item_id": folder_id,
+                "title": title,
+                "archive_prefix": f"{title}/",
             }
-        )
+            continue
+
+        if parent_id in canonical_containers:
+            notebook_specs[folder_id] = {
+                "drive_item_id": folder_id,
+                "title": title,
+                "archive_prefix": f"{relative_path}/",
+            }
+
+    notebooks = [
+        {"drive_item_id": spec["drive_item_id"], "title": spec["title"]}
+        for spec in notebook_specs.values()
+    ]
 
     items: list[dict[str, Any]] = []
+    specs_by_prefix = sorted(
+        notebook_specs.values(),
+        key=lambda value: len(value["archive_prefix"]),
+        reverse=True,
+    )
     for row in checkpoint["items"].values():
-        top_level = row.get("top_level_folder_id")
-        if not top_level or str(top_level) not in notebook_ids:
-            continue
         relative = str(row.get("relative_path", ""))
-        notebook_title = checkpoint["folders"][str(top_level)]["title"]
-        prefix = f"{notebook_title}/"
-        notebook_relative = (
-            relative[len(prefix):] if relative.startswith(prefix) else relative
+        spec = next(
+            (
+                candidate
+                for candidate in specs_by_prefix
+                if relative.startswith(candidate["archive_prefix"])
+            ),
+            None,
         )
+        if spec is None:
+            continue
+        notebook_relative = relative[len(spec["archive_prefix"]):]
         items.append(
             {
                 "drive_item_id": row["drive_item_id"],
-                "notebook_drive_item_id": str(top_level),
+                "notebook_drive_item_id": spec["drive_item_id"],
                 "parent_drive_item_id": row["parent_drive_item_id"],
                 "relative_path": notebook_relative,
+                "archive_relative_path": relative,
                 "title": row["title"],
                 "mime_type": row["mime_type"],
                 "size_bytes": row["size_bytes"],

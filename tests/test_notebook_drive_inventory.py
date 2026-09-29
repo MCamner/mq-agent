@@ -392,3 +392,97 @@ def test_cli_changes_requires_existing_checkpoint(tmp_path, monkeypatch):
     assert result.exit_code == 2
     payload = json.loads(result.stdout)
     assert "existing completed checkpoint" in payload["error"]
+
+
+def test_d3_projection_supports_legacy_and_canonical_notebook_layouts():
+    checkpoint = {
+        "schema": CHECKPOINT_SCHEMA,
+        "root_drive_item_id": "root",
+        "status": "current",
+        "mode": "changes",
+        "pending": [],
+        "folders": {
+            "legacy-nb": {
+                "drive_item_id": "legacy-nb",
+                "title": "Legacy Notebook",
+                "parent_drive_item_id": "root",
+                "relative_path": "Legacy Notebook",
+                "top_level_folder_id": "legacy-nb",
+            },
+            "canonical-container": {
+                "drive_item_id": "canonical-container",
+                "title": "notebooks",
+                "parent_drive_item_id": "root",
+                "relative_path": "notebooks",
+                "top_level_folder_id": "canonical-container",
+            },
+            "canonical-nb": {
+                "drive_item_id": "canonical-nb",
+                "title": "New Notebook",
+                "parent_drive_item_id": "canonical-container",
+                "relative_path": "notebooks/New Notebook",
+                "top_level_folder_id": "canonical-container",
+            },
+            "manifest": {
+                "drive_item_id": "manifest",
+                "title": "_manifest",
+                "parent_drive_item_id": "root",
+                "relative_path": "_manifest",
+                "top_level_folder_id": "manifest",
+            },
+        },
+        "items": {
+            "legacy-source": {
+                "drive_item_id": "legacy-source",
+                "title": "source.pdf",
+                "mime_type": "application/pdf",
+                "size_bytes": 10,
+                "modified_time": "2026-09-29T00:00:00Z",
+                "parent_drive_item_id": "legacy-nb",
+                "relative_path": "Legacy Notebook/Sources/source.pdf",
+                "top_level_folder_id": "legacy-nb",
+            },
+            "canonical-source": {
+                "drive_item_id": "canonical-source",
+                "title": "source.md",
+                "mime_type": "text/markdown",
+                "size_bytes": 11,
+                "modified_time": "2026-09-29T00:00:00Z",
+                "parent_drive_item_id": "canonical-nb",
+                "relative_path": "notebooks/New Notebook/sources/source.md",
+                "top_level_folder_id": "canonical-container",
+            },
+            "manifest-json": {
+                "drive_item_id": "manifest-json",
+                "title": "notebooklm-manifest.json",
+                "mime_type": "application/json",
+                "size_bytes": 12,
+                "modified_time": "2026-09-29T00:00:00Z",
+                "parent_drive_item_id": "manifest",
+                "relative_path": "_manifest/notebooklm-manifest.json",
+                "top_level_folder_id": "manifest",
+            },
+        },
+        "missing": {},
+        "change_token": "changes-1",
+        "pages_read": 1,
+        "last_error": None,
+    }
+
+    projected = to_d3_input(
+        checkpoint,
+        snapshot_at="2026-09-29T18:00:00Z",
+        excluded_top_level_folder_ids={"manifest"},
+    )
+
+    assert {row["drive_item_id"] for row in projected["notebooks"]} == {
+        "legacy-nb",
+        "canonical-nb",
+    }
+    by_id = {row["drive_item_id"]: row for row in projected["items"]}
+    assert by_id["legacy-source"]["relative_path"] == "Sources/source.pdf"
+    assert by_id["canonical-source"]["relative_path"] == "sources/source.md"
+    assert by_id["canonical-source"]["archive_relative_path"] == (
+        "notebooks/New Notebook/sources/source.md"
+    )
+    assert "manifest-json" not in by_id
