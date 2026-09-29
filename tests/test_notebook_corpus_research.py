@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import json
 
+from typer.testing import CliRunner
+
+from mq_agent.main import app
 from mq_agent.notebook_corpus import build_from_document
 from mq_agent.notebook_corpus_research import research_notebooks, write_review_candidate
 
 
-runner = CliRunner()\n\n\nclass FakeFetcher:
+runner = CliRunner()
+
+
+class FakeFetcher:
     def __init__(self, payloads):
         self.payloads = payloads
         self.calls = []
