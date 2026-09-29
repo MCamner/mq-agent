@@ -264,7 +264,7 @@ def test_rest_client_retries_403_rate_limit_and_429():
     def handler(request):
         return next(responses)
 
-    sleeps = []
+    sleeps: list[float] = []
     client = GoogleDriveRestClient(
         "token",
         client=httpx.Client(transport=httpx.MockTransport(handler)),
