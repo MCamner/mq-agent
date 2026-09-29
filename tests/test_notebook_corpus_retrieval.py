@@ -317,3 +317,52 @@ def test_provider_exception_becomes_unavailable_record():
     assert report["evidence"][0]["fetch_status"] == "unavailable"
     assert report["evidence"][0]["fetch_reason"] == "provider_error:RuntimeError"
     assert report["evidence"][1]["fetch_status"] == "ok"
+
+
+
+def test_cli_live_runtime_delegates_without_token(tmp_path, monkeypatch):
+    monkeypatch.delenv("MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN", raising=False)
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(_catalog()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "retrieve",
+            "what does mq-agent do now",
+            "--catalog",
+            str(path),
+            "--scope",
+            "live-runtime",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "DELEGATE_RUNTIME"
+    assert payload["trace"]["fetched"] == 0
+
+
+def test_cli_archive_requires_drive_token(tmp_path, monkeypatch):
+    monkeypatch.delenv("MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN", raising=False)
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(_catalog()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "retrieve",
+            "MCP Python",
+            "--catalog",
+            str(path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ERROR"
+    assert "access token" in payload["error"]
