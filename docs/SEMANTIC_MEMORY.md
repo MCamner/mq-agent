@@ -175,8 +175,12 @@ successful detach, refresh verifies the postcondition with a bounded retry
 window before reporting failure. Underlying OpenAI Storage file objects are
 retained.
 
-For macos-scripts, the retired store
-`vs_69f93de12f508191bd6a36ea3b825beb` is also eligible for identity-scoped
-cleanup because macos-scripts' tracked smoke test proves its consumers have
-migrated to the canonical resolver. mq-mcp's legacy repo-knowledge store is not
-treated as retired because mq-mcp still documents it as the `ask` CLI store.
+Retired stores are eligible only for identity-scoped symbol-memory cleanup:
+
+- macos-scripts: `vs_69f93de12f508191bd6a36ea3b825beb`, after its
+  tracked resolver regression test proved consumers migrated to canonical.
+- mq-mcp: `vs_6a0513bc1adc8191bc18affe4383d83f`, after mq-mcp
+  PR #88 migrated `ask` to canonical memory.
+
+Cleanup never treats those store IDs as authority to remove unrelated files.
+Only files matching the target repo + symbol-memory identity are detached.

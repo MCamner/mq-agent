@@ -90,11 +90,12 @@ class _FilenameIndex:
 
 CANONICAL_VECTOR_STORE_ID = "vs_69ffa9a4ef5c81919d7d237c3ecdc260"
 
-# macos-scripts has a tracked regression test proving its shell consumers were
-# migrated away from this retired store. Other legacy stores are deliberately
-# not assumed retired: mq-mcp still documents repo-knowledge as used by ask.
+# These entries are eligible only for repo + symbol-memory identity cleanup.
+# macos-scripts has a tracked resolver regression test; mq-mcp #88 migrated
+# ask to canonical memory and made its historical repo-knowledge store retired.
 RETIRED_VECTOR_STORE_IDS_BY_REPO: dict[str, tuple[str, ...]] = {
     "macos-scripts": ("vs_69f93de12f508191bd6a36ea3b825beb",),
+    "mq-mcp": ("vs_6a0513bc1adc8191bc18affe4383d83f",),
 }
 
 _UPLOAD_FILE_RE = re.compile(r"OpenAI file:\s*\x60([^\x60]+)\x60")
