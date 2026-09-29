@@ -4,7 +4,6 @@ import copy
 import json
 
 import httpx
-import pytest
 from typer.testing import CliRunner
 
 from mq_agent.main import app
