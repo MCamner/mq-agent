@@ -214,11 +214,35 @@ def test_incremental_semantic_sync_reuses_unchanged_vectors(tmp_path: Path):
     }
 
 
+def test_incremental_semantic_sync_bootstraps_missing_unchanged_index(tmp_path: Path):
+    catalog, _ = build_from_document(_d3())
+    provider = FakeTextProvider({"source-a": "bootstrap semantic material"})
+    embeddings = FakeEmbeddings()
+
+    report = incremental_semantic_sync(
+        catalog,
+        None,
+        {
+            "added": [],
+            "changed": [],
+            "removed": [],
+            "unchanged": ["source-a"],
+        },
+        provider,
+        embeddings,
+        output_path=tmp_path / "semantic.json",
+    )
+
+    assert report["reused_chunks"] == 0
+    assert report["new_chunks"] >= 1
+    assert provider.calls == ["source-a"]
+
+
 def test_p5_never_promotes_derived_material_to_claim_evidence():
     retrieval = {
         "evidence": [
             {
-                "claim_eligible": False,
+                "claim_eligible": True,
                 "grounding_status": "grounded",
                 "excerpt": "Notebook generated interpretation",
                 "provenance": {
