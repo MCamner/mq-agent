@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from typer.testing import CliRunner
 
 from mq_agent.main import app
@@ -99,6 +101,83 @@ def test_p0_materializes_catalog_and_status(tmp_path: Path):
     assert status["notebooks"] == 1
     assert status["items"] == 1
     assert status["unknown"] == 0
+
+
+def test_p0_reconciled_manifest_overlays_hash_and_role_gate(tmp_path: Path):
+    d3 = tmp_path / "d3.json"
+    manifest = tmp_path / "manifest.json"
+    catalog = tmp_path / "catalog.json"
+    checkpoint = tmp_path / "checkpoint.json"
+    d3.write_text(json.dumps(_d3()), encoding="utf-8")
+    manifest.write_text(
+        json.dumps(
+            {
+                "summary": {
+                    "processed_file_count": 1,
+                    "notebook_count": 1,
+                    "role_counts": {"source": 1},
+                },
+                "reconciliation": {"unknown_count": 0},
+                "files": [
+                    {
+                        "destination_path": "Notebook A/Sources/MCP Python.md",
+                        "sha256": "d" * 64,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_catalog_stage(
+        d3_input=d3,
+        catalog=catalog,
+        checkpoint=checkpoint,
+        manifest=manifest,
+    )
+
+    assert report["manifest"]["matched_items"] == 1
+    assert report["manifest"]["hashes_applied"] == 1
+    saved = json.loads(catalog.read_text(encoding="utf-8"))
+    assert saved["items"][0]["content_sha256"] == "d" * 64
+    assert saved["items"][0]["classification"] == {
+        "role": "source",
+        "method": "override",
+        "override_provenance": "notebooklm-manifest.reconciled:v1",
+    }
+
+
+def test_p0_reconciled_manifest_fails_closed_on_count_drift(tmp_path: Path):
+    d3 = tmp_path / "d3.json"
+    manifest = tmp_path / "manifest.json"
+    d3.write_text(json.dumps(_d3()), encoding="utf-8")
+    manifest.write_text(
+        json.dumps(
+            {
+                "summary": {
+                    "processed_file_count": 1,
+                    "notebook_count": 2,
+                    "role_counts": {"source": 1},
+                },
+                "reconciliation": {"unknown_count": 0},
+                "files": [
+                    {
+                        "destination_path": "Notebook A/Sources/MCP Python.md",
+                        "sha256": "d" * 64,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="notebook count differs"):
+        build_catalog_stage(
+            d3_input=d3,
+            catalog=tmp_path / "catalog.json",
+            checkpoint=tmp_path / "checkpoint.json",
+            manifest=manifest,
+        )
 
 
 def test_p3_prefers_sha256_and_detects_changed_removed_added():
