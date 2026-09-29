@@ -23,7 +23,8 @@ audit / release-check / score with repo context
 mq-agent memory status          # configured / reachable / freshness / generation counts
 mq-agent memory doctor          # diagnose environment with actionable fixes
 mq-agent memory build .         # dry-run semantic upload (safe default)
-mq-agent memory refresh . --approve  # first generation / no competing retrieval state\nmq-agent memory refresh . --approve --cleanup-stale  # explicit latest-only replacement
+mq-agent memory refresh . --approve  # first generation / no competing retrieval state
+mq-agent memory refresh . --approve --cleanup-stale  # explicit latest-only replacement
 mq-agent memory status --json   # machine-readable output
 mq-agent memory doctor --json   # machine-readable diagnostics
 ```
@@ -58,7 +59,10 @@ Add --no-dry-run to execute, or use memory refresh --approve.
 
 $ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       ready                                                          │
+│ status:       degraded                                                       │
+│ configured:   true                                                           │
+│ reachable:    unknown                                                        │
+│ freshness:    unknown                                                        │
 │ vector store: vs_abc (OPENAI_VECTOR_STORE_ID)                                │
 │ repo-signal:  available                                                      │
 │ repo:         /path/to/mq-agent                                              │
@@ -166,7 +170,10 @@ A refresh that would append beside an existing retrieval generation is refused
 before upload unless `--cleanup-stale` is present. With that explicit flag,
 mq-agent uploads first, verifies the new completed generation, writes
 `source_revision` metadata, and only then detaches stale vector-store
-attachments. Underlying OpenAI Storage file objects are retained.
+attachments. Because OpenAI list/delete visibility can converge shortly after a
+successful detach, refresh verifies the postcondition with a bounded retry
+window before reporting failure. Underlying OpenAI Storage file objects are
+retained.
 
 For macos-scripts, the retired store
 `vs_69f93de12f508191bd6a36ea3b825beb` is also eligible for identity-scoped

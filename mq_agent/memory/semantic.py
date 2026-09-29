@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -97,6 +98,10 @@ RETIRED_VECTOR_STORE_IDS_BY_REPO: dict[str, tuple[str, ...]] = {
 }
 
 _UPLOAD_FILE_RE = re.compile(r"OpenAI file:\s*\x60([^\x60]+)\x60")
+
+
+_POSTCONDITION_ATTEMPTS = 5
+_POSTCONDITION_DELAY_SECONDS = 0.5
 
 
 def resolve_vector_store_id() -> tuple[str, str]:
@@ -480,6 +485,58 @@ def _detach_stale_generations(
     return tuple(detached)
 
 
+def _postcondition_state(
+    inspection: _IdentityInspection,
+) -> tuple[str, int | None]:
+    non_authoritative_count = (
+        inspection.known_non_authoritative_retrieval_count
+        if inspection.non_authoritative_scope_complete
+        else None
+    )
+    status = (
+        "PASS"
+        if inspection.authoritative_active_count == 1
+        and non_authoritative_count == 0
+        and inspection.freshness == "fresh"
+        else "UNKNOWN"
+        if non_authoritative_count is None or inspection.freshness == "unknown"
+        else "FAIL"
+    )
+    return status, non_authoritative_count
+
+
+def _wait_for_postcondition(
+    client: Any,
+    repo: Path,
+    authoritative_store_id: str,
+    current_revision: str,
+    *,
+    attempts: int = _POSTCONDITION_ATTEMPTS,
+    delay_seconds: float = _POSTCONDITION_DELAY_SECONDS,
+) -> tuple[_IdentityInspection, int | None, str]:
+    """Wait briefly for vector-store list/delete visibility to converge."""
+    last: _IdentityInspection | None = None
+    last_count: int | None = None
+    last_status = "UNKNOWN"
+
+    for attempt in range(max(1, attempts)):
+        last = _inspect_identity(
+            client,
+            repo,
+            authoritative_store_id,
+            current_revision,
+        )
+        last_status, last_count = _postcondition_state(last)
+        if last_status == "PASS":
+            return last, last_count, last_status
+
+        if attempt + 1 < max(1, attempts):
+            time.sleep(delay_seconds)
+
+    assert last is not None
+    return last, last_count, last_status
+
+
 def refresh(
     repo_path: str | Path = ".",
     *,
@@ -654,20 +711,11 @@ def refresh(
                 error=f"stale-generation cleanup failed: {type(exc).__name__}: {exc}",
             )
 
-    after = _inspect_identity(client, repo, vector_store_id, revision)
-    non_authoritative_count = (
-        after.known_non_authoritative_retrieval_count
-        if after.non_authoritative_scope_complete
-        else None
-    )
-    postcondition = (
-        "PASS"
-        if after.authoritative_active_count == 1
-        and non_authoritative_count == 0
-        and after.freshness == "fresh"
-        else "UNKNOWN"
-        if non_authoritative_count is None or after.freshness == "unknown"
-        else "FAIL"
+    after, non_authoritative_count, postcondition = _wait_for_postcondition(
+        client,
+        repo,
+        vector_store_id,
+        revision,
     )
     returncode = 0 if postcondition == "PASS" else 3
 

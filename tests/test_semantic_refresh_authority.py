@@ -218,6 +218,92 @@ def test_build_pins_repo_signal_to_the_reported_store(monkeypatch, tmp_path):
     ]
 
 
+def test_postcondition_wait_retries_until_detach_is_visible(
+    monkeypatch,
+    tmp_path,
+):
+    stale = sem._IdentityInspection(
+        authoritative_files=(),
+        authoritative_active_count=2,
+        known_non_authoritative_retrieval_count=0,
+        non_authoritative_scope_complete=True,
+        freshness="stale",
+        stored_source_revision="",
+        latest_upload="",
+    )
+    fresh = sem._IdentityInspection(
+        authoritative_files=(),
+        authoritative_active_count=1,
+        known_non_authoritative_retrieval_count=0,
+        non_authoritative_scope_complete=True,
+        freshness="fresh",
+        stored_source_revision="rev-new",
+        latest_upload="",
+    )
+    inspections = iter([stale, fresh])
+    sleeps: list[float] = []
+
+    monkeypatch.setattr(
+        sem,
+        "_inspect_identity",
+        lambda *args, **kwargs: next(inspections),
+    )
+    monkeypatch.setattr(sem.time, "sleep", sleeps.append)
+
+    after, outside_count, status = sem._wait_for_postcondition(
+        object(),
+        tmp_path,
+        sem.CANONICAL_VECTOR_STORE_ID,
+        "rev-new",
+        attempts=5,
+        delay_seconds=0.25,
+    )
+
+    assert after is fresh
+    assert outside_count == 0
+    assert status == "PASS"
+    assert sleeps == [0.25]
+
+
+def test_postcondition_wait_stays_bounded_when_state_never_converges(
+    monkeypatch,
+    tmp_path,
+):
+    stale = sem._IdentityInspection(
+        authoritative_files=(),
+        authoritative_active_count=2,
+        known_non_authoritative_retrieval_count=0,
+        non_authoritative_scope_complete=True,
+        freshness="stale",
+        stored_source_revision="",
+        latest_upload="",
+    )
+    calls = []
+    sleeps: list[float] = []
+
+    def _inspect(*args, **kwargs):
+        calls.append(True)
+        return stale
+
+    monkeypatch.setattr(sem, "_inspect_identity", _inspect)
+    monkeypatch.setattr(sem.time, "sleep", sleeps.append)
+
+    after, outside_count, status = sem._wait_for_postcondition(
+        object(),
+        tmp_path,
+        sem.CANONICAL_VECTOR_STORE_ID,
+        "rev-new",
+        attempts=3,
+        delay_seconds=0.25,
+    )
+
+    assert after is stale
+    assert outside_count == 0
+    assert status == "FAIL"
+    assert len(calls) == 3
+    assert sleeps == [0.25, 0.25]
+
+
 def test_refresh_refuses_append_without_explicit_cleanup(monkeypatch, tmp_path):
     store = sem.CANONICAL_VECTOR_STORE_ID
     data = {store: [item("file_old", 10, revision="rev-old")]}
