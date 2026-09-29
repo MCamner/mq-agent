@@ -2993,6 +2993,7 @@ def notebook_build_cmd(
     d3_input: Annotated[str, typer.Option("--d3-input", help="Normalized Drive inventory projection")] = ".mq/notebook-corpus/d3-input.json",
     catalog: Annotated[str, typer.Option("--catalog", help="Canonical local corpus catalog")] = ".mq/notebook-corpus/catalog.json",
     checkpoint: Annotated[str, typer.Option("--checkpoint", help="P0 catalog build checkpoint")] = ".mq/notebook-corpus/catalog.checkpoint.json",
+    manifest: Annotated[str, typer.Option("--manifest", help="Optional reconciled NotebookLM manifest integrity overlay")] = "",
     semantic: Annotated[bool, typer.Option("--semantic", help="Also build the local semantic index (P1)")] = False,
     semantic_index: Annotated[str, typer.Option("--semantic-index", help="Local semantic index output")] = ".mq/notebook-corpus/semantic-index.json",
     sync_state: Annotated[str, typer.Option("--sync-state", help="Local incremental sync state")] = ".mq/notebook-corpus/sync-state.json",
@@ -3014,6 +3015,7 @@ def notebook_build_cmd(
             d3_input=Path(d3_input).expanduser(),
             catalog=Path(catalog).expanduser(),
             checkpoint=Path(checkpoint).expanduser(),
+            manifest=Path(manifest).expanduser() if manifest else None,
         )
         p1 = None
         if semantic:
@@ -3117,6 +3119,7 @@ def notebook_sync_cmd(
     catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
     d3_input: Annotated[str, typer.Option("--d3-input", help="Optional refreshed D3 projection to materialize before diffing")] = "",
     checkpoint: Annotated[str, typer.Option("--checkpoint")] = ".mq/notebook-corpus/catalog.checkpoint.json",
+    manifest: Annotated[str, typer.Option("--manifest", help="Optional reconciled manifest used with --d3-input")] = "",
     sync_state: Annotated[str, typer.Option("--sync-state")] = ".mq/notebook-corpus/sync-state.json",
     semantic: Annotated[bool, typer.Option("--semantic", help="Incrementally update semantic vectors for NEW/CHANGED items")] = False,
     semantic_index: Annotated[str, typer.Option("--semantic-index")] = ".mq/notebook-corpus/semantic-index.json",
@@ -3140,6 +3143,7 @@ def notebook_sync_cmd(
                 d3_input=Path(d3_input).expanduser(),
                 catalog=Path(catalog).expanduser(),
                 checkpoint=Path(checkpoint).expanduser(),
+                manifest=Path(manifest).expanduser() if manifest else None,
             )
 
         preview = sync_catalog(
