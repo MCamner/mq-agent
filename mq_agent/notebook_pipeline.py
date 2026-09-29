@@ -414,6 +414,7 @@ def materialize_atlas_evidence_workspace(
     sources_dir.mkdir(parents=True)
     records: list[dict[str, Any]] = []
     try:
+        excluded_truncated = 0
         for index, row in enumerate(retrieval.get("evidence", []), start=1):
             provenance = dict(row.get("provenance") or {})
             if (
@@ -421,6 +422,9 @@ def materialize_atlas_evidence_workspace(
                 or not bool(row.get("claim_eligible"))
                 or row.get("fetch_status") != "ok"
             ):
+                continue
+            if bool(row.get("truncated", False)):
+                excluded_truncated += 1
                 continue
             if "captured_text" not in row:
                 raise ValueError(
@@ -462,6 +466,7 @@ def materialize_atlas_evidence_workspace(
             "claim": claim,
             "retrieval_status": retrieval.get("status"),
             "source_count": len(records),
+            "excluded_truncated": excluded_truncated,
             "sources": records,
             "limitations": [
                 (
@@ -486,6 +491,7 @@ def materialize_atlas_evidence_workspace(
         "schema": ATLAS_WORKSPACE_SCHEMA,
         "path": str(target),
         "source_count": len(records),
+        "excluded_truncated": excluded_truncated,
         "manifest": str(target / "atlas-notebook-evidence.json"),
     }
 
