@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -24,6 +25,7 @@ from mq_agent.notebook_corpus_semantic import (
 PIPELINE_SCHEMA = "notebook-knowledge-pipeline.v1"
 SYNC_SCHEMA = "notebook-knowledge-sync-state.v1"
 ATLAS_SCHEMA = "atlas-notebook-evidence.v1"
+ATLAS_WORKSPACE_SCHEMA = "atlas-notebook-evidence-workspace.v1"
 
 DEFAULT_ROOT = Path(".mq/notebook-corpus")
 DEFAULT_D3_INPUT = DEFAULT_ROOT / "d3-input.json"
@@ -368,6 +370,7 @@ def evidence_stage(
     max_total_bytes: int = 262_144,
     excerpt_chars: int = 4_000,
     text_hits: Sequence[Mapping[str, Any]] | None = None,
+    include_capture: bool = False,
 ) -> dict[str, Any]:
     """P4: bounded evidence retrieval; only source-role rows can prove claims."""
     report = retrieve_evidence(
@@ -380,9 +383,111 @@ def evidence_stage(
         excerpt_chars=excerpt_chars,
         text_hits=text_hits,
         scope="archive",
+        include_capture=include_capture,
     )
     report["stage"] = "P4"
     return report
+
+
+def materialize_atlas_evidence_workspace(
+    retrieval: Mapping[str, Any],
+    *,
+    claim: str,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """P5: freeze the exact P4 source reads into an Atlas-verifiable workspace.
+
+    Atlas Core verifies these files as local evidence. The workspace records
+    the original Drive identity and archive digest separately; verification of
+    the local capture must never be described as proof that Drive is still
+    fresh after capture time.
+    """
+    target = output_dir.expanduser()
+    if target.exists():
+        raise ValueError(f"Atlas evidence workspace already exists: {target}")
+
+    temp = target.with_name(target.name + ".tmp")
+    if temp.exists():
+        raise ValueError(f"temporary Atlas evidence workspace exists: {temp}")
+
+    sources_dir = temp / "sources"
+    sources_dir.mkdir(parents=True)
+    records: list[dict[str, Any]] = []
+    try:
+        for index, row in enumerate(retrieval.get("evidence", []), start=1):
+            provenance = dict(row.get("provenance") or {})
+            if (
+                provenance.get("source_role") != "source"
+                or not bool(row.get("claim_eligible"))
+                or row.get("fetch_status") != "ok"
+            ):
+                continue
+            if "captured_text" not in row:
+                raise ValueError(
+                    "P5 workspace requires retrieval with include_capture=True"
+                )
+
+            text = str(row["captured_text"])
+            drive_item_id = str(provenance.get("drive_item_id") or "")
+            if not drive_item_id:
+                raise ValueError("claim-eligible evidence has no drive_item_id")
+            identity = hashlib.sha256(drive_item_id.encode("utf-8")).hexdigest()[:12]
+            relative_path = f"sources/{index:03d}-{identity}.txt"
+            destination = temp / relative_path
+            destination.write_text(text, encoding="utf-8")
+            captured_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+            records.append(
+                {
+                    "path": relative_path,
+                    "captured_sha256": captured_sha256,
+                    "drive_item_id": drive_item_id,
+                    "item_id": provenance.get("item_id"),
+                    "notebook_id": provenance.get("notebook_id"),
+                    "notebook_title": provenance.get("notebook_title"),
+                    "title": provenance.get("title"),
+                    "mime_type": provenance.get("mime_type"),
+                    "archive_content_sha256": provenance.get("content_sha256"),
+                    "bytes_fetched": int(row.get("bytes_fetched") or 0),
+                    "capture_truncated": bool(row.get("truncated", False)),
+                    "source_role": "source",
+                }
+            )
+
+        if not records:
+            raise ValueError("no claim-eligible source evidence to materialize")
+
+        manifest = {
+            "schema": ATLAS_WORKSPACE_SCHEMA,
+            "claim": claim,
+            "retrieval_status": retrieval.get("status"),
+            "source_count": len(records),
+            "sources": records,
+            "limitations": [
+                (
+                    "Atlas verifies the captured decoded text snapshot; "
+                    "this is not a claim that Google Drive remained unchanged "
+                    "after capture."
+                ),
+                (
+                    "A truncated capture supports only claims within captured "
+                    "content and cannot prove that omitted source text lacks a fact."
+                ),
+            ],
+        }
+        write_json(temp / "atlas-notebook-evidence.json", manifest)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temp.replace(target)
+    except Exception:
+        shutil.rmtree(temp, ignore_errors=True)
+        raise
+
+    return {
+        "schema": ATLAS_WORKSPACE_SCHEMA,
+        "path": str(target),
+        "source_count": len(records),
+        "manifest": str(target / "atlas-notebook-evidence.json"),
+    }
 
 
 def atlas_evidence_bundle(
