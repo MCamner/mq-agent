@@ -1139,8 +1139,10 @@ Build local source packs for optional synthesis providers.
 | Subcommand | Description |
 |---|---|
 | [`mq-agent notebook catalog`](#mq-agent-notebook-catalog) | Inspect one local Drive-corpus catalog without reading file bodies. |
+| [`mq-agent notebook gaps`](#mq-agent-notebook-gaps) | Find repeated, unsupported, derived-only, and stale research questions. |
 | [`mq-agent notebook inventory`](#mq-agent-notebook-inventory) | Inventory the configured Drive corpus using read-only metadata APIs. |
 | [`mq-agent notebook pack`](#mq-agent-notebook-pack) | Preview or build one local, provenance-bearing notebook source pack. |
+| [`mq-agent notebook questions`](#mq-agent-notebook-questions) | Extract recurring questions from interaction history without treating it as evidence. |
 | [`mq-agent notebook research`](#mq-agent-notebook-research) | Synthesize D5 evidence across notebooks with deterministic provenance gates. |
 | [`mq-agent notebook retrieve`](#mq-agent-notebook-retrieve) | Fetch a bounded provenance-bearing evidence bundle from D4 candidates. |
 | [`mq-agent notebook search`](#mq-agent-notebook-search) | Search local corpus metadata plus optional provider text-match metadata. |
@@ -1155,6 +1157,24 @@ Inspect one local Drive-corpus catalog without reading file bodies.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook gaps`
+
+Find repeated, unsupported, derived-only, and stale research questions.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--text-hits` | No | `""` | Optional provider text-hit metadata JSON for source/derived matching |
+| `--max-files` | No | `20` | Maximum interaction files to inspect |
+| `--max-bytes-per-file` | No | `65536` | — |
+| `--max-total-bytes` | No | `524288` | — |
+| `--top-k` | No | `20` | Maximum metadata/text candidates per question |
+| `--stale-after-days` | No | `365` | Age threshold for a stale source theme |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | Environment variable containing a Drive OAuth access token |
 | `--json` | No | `false` | — |
 
 ## `mq-agent notebook inventory`
@@ -1193,6 +1213,21 @@ Preview or build one local, provenance-bearing notebook source pack.
 | `--output-root` | No | `""` | Local output root (default: `<vault>`/.notebooklm) |
 | `--write` | No | `false` | Materialize the local pack; preview is the default |
 | `--replace` | No | `false` | Replace an existing owned pack; requires --write |
+| `--json` | No | `false` | — |
+
+## `mq-agent notebook questions`
+
+Extract recurring questions from interaction history without treating it as evidence.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Path to local notebook-corpus-index.v1 JSON |
+| `--max-files` | No | `20` | Maximum interaction files to inspect |
+| `--max-bytes-per-file` | No | `65536` | — |
+| `--max-total-bytes` | No | `524288` | — |
+| `--access-token-env` | No | `MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN` | Environment variable containing a Drive OAuth access token |
 | `--json` | No | `false` | — |
 
 ## `mq-agent notebook research`
