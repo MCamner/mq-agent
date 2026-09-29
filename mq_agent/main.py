@@ -3566,6 +3566,145 @@ def notebook_research_cmd(
         console.print(f"[dim]review candidate: {report['review_candidate']}[/dim]")
 
 
+@notebook_app.command("semantic-build")
+def notebook_semantic_build_cmd(
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    output: Annotated[str, typer.Option("--output", help="Disposable local semantic index JSON")] = ".mq/notebook-corpus/semantic-index.json",
+    model: Annotated[str, typer.Option("--model", help="Local Ollama embedding model")] = "nomic-embed-text",
+    max_files: Annotated[int, typer.Option("--max-files", min=1)] = 50,
+    max_bytes_per_file: Annotated[int, typer.Option("--max-bytes-per-file", min=1)] = 65536,
+    max_total_bytes: Annotated[int, typer.Option("--max-total-bytes", min=1)] = 1048576,
+    chunk_chars: Annotated[int, typer.Option("--chunk-chars", min=32)] = 2000,
+    overlap_chars: Annotated[int, typer.Option("--overlap-chars", min=0)] = 200,
+    access_token_env: Annotated[str, typer.Option("--access-token-env")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Build a disposable local D8 semantic experiment index."""
+    from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+    from mq_agent.notebook_corpus_search import load_json
+    from mq_agent.notebook_corpus_semantic import (
+        OllamaEmbeddingProvider,
+        build_semantic_index,
+        write_semantic_index,
+    )
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        token = os.getenv(access_token_env, "")
+        if not token:
+            raise ValueError(f"missing Drive access token in {access_token_env}")
+        index = build_semantic_index(
+            load_json(Path(catalog).expanduser()),
+            GoogleDriveSelectiveFetcher(token),
+            OllamaEmbeddingProvider(model=model),
+            max_files=max_files,
+            max_bytes_per_file=max_bytes_per_file,
+            max_total_bytes=max_total_bytes,
+            chunk_chars=chunk_chars,
+            overlap_chars=overlap_chars,
+        )
+        path = write_semantic_index(index, Path(output))
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+    report = {"status": "BUILT", "path": str(path), "trace": index["trace"]}
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False))
+        return
+    console.rule("[bold]notebook semantic experiment build[/bold]")
+    console.print(f"index: {path}")
+    console.print(f"chunks: {index['trace']['chunks']}")
+    console.print(f"bytes: {index['trace']['bytes_fetched']}")
+    console.print("[dim]disposable local index; hosted egress disabled[/dim]")
+
+
+@notebook_app.command("semantic-search")
+def notebook_semantic_search_cmd(
+    query: Annotated[str, typer.Argument(help="Semantic experiment query")],
+    index: Annotated[str, typer.Option("--index", help="Disposable semantic index JSON")] = ".mq/notebook-corpus/semantic-index.json",
+    model: Annotated[str, typer.Option("--model", help="Local Ollama embedding model")] = "nomic-embed-text",
+    top_k: Annotated[int, typer.Option("--top-k", min=1)] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Search the disposable D8 semantic index without changing evidence roles."""
+    from mq_agent.notebook_corpus_search import load_json
+    from mq_agent.notebook_corpus_semantic import OllamaEmbeddingProvider, semantic_search
+
+    try:
+        report = semantic_search(
+            load_json(Path(index).expanduser()),
+            query,
+            OllamaEmbeddingProvider(model=model),
+            top_k=top_k,
+        )
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False))
+        return
+    console.rule("[bold]notebook semantic experiment search[/bold]")
+    for i, row in enumerate(report["results"], start=1):
+        console.print(
+            f"{i:>2}. [{row['source_role']}] {row['title']} — "
+            f"{row['notebook_title']} score={row['score']:.4f}"
+        )
+
+
+@notebook_app.command("semantic-eval")
+def notebook_semantic_eval_cmd(
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    index: Annotated[str, typer.Option("--index", help="Disposable semantic index JSON")] = ".mq/notebook-corpus/semantic-index.json",
+    expected: Annotated[str, typer.Option("--expected", help="JSON map of frozen query -> expected Drive item ids")] = "",
+    model: Annotated[str, typer.Option("--model", help="Local Ollama embedding model")] = "nomic-embed-text",
+    top_k: Annotated[int, typer.Option("--top-k", min=1)] = 5,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Compare D8 semantic retrieval with D4 on the exact frozen query set."""
+    from mq_agent.notebook_corpus_search import load_json
+    from mq_agent.notebook_corpus_semantic import (
+        OllamaEmbeddingProvider,
+        evaluate_semantic_vs_d4,
+    )
+
+    if not catalog or not expected:
+        console.print("[bold red]--catalog and --expected are required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        report = evaluate_semantic_vs_d4(
+            load_json(Path(catalog).expanduser()),
+            load_json(Path(index).expanduser()),
+            OllamaEmbeddingProvider(model=model),
+            load_json(Path(expected).expanduser()),
+            top_k=top_k,
+        )
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False))
+        return
+    console.rule("[bold]notebook semantic experiment evaluation[/bold]")
+    console.print(f"decision: {report['decision']}")
+    metrics = report["metrics"]
+    console.print(
+        f"lexical {metrics['lexical_passes']}/{metrics['query_count']} | "
+        f"semantic {metrics['semantic_passes']}/{metrics['query_count']} | "
+        f"improvements {metrics['improvements']} | regressions {metrics['regressions']}"
+    )
+
+
 @notebook_app.command("show")
 def notebook_show_cmd(
     identifier: Annotated[str, typer.Argument(help="Logical or Drive notebook/item identity")],
