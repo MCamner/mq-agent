@@ -2822,7 +2822,7 @@ def memory_build_cmd(
     if dry_run:
         store_id, source = resolve_vector_store_id()
         console.print(
-            "[blue][dry-run][/blue] Would run: "
+            "[blue]dry-run[/blue] Would run: "
             f"[bold]repo-signal semantic-upload --vector-store-id {store_id}[/bold]"
         )
         console.print(f"Target source: [dim]{source}[/dim]")

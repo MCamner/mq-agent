@@ -124,7 +124,10 @@ def test_status_no_longer_reports_a_missing_store(monkeypatch, tmp_path):
     monkeypatch.setattr(sem, "repo_signal_available", lambda: False)
 
     state = status(tmp_path)
-    assert state.status == "missing-repo-signal"
+    assert state.status == "degraded"
+    assert state.configured is True
+    assert state.reachable is None
+    assert state.freshness == "unknown"
     assert "missing-vector-store" != state.status
 
 
