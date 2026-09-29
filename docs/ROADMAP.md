@@ -14,8 +14,9 @@ Current project phase:
 
 ```text
 Released: v1.28.0 — Runtime Provenance
+Released: v1.29.0 — NotebookLM Knowledge Pipeline
 Next:     undecided — no scope is committed
-Deferred: v1.29.0 — MCP tool contract checking
+Deferred: MCP tool contract checking — future scope
 ```
 
 Completed foundation:
@@ -92,36 +93,33 @@ Completed foundation:
 | v1.26.0 | Stack Compatibility Gate                     | Released |
 | v1.27.0 | Execution instrumentation & evidence integrity | Released |
 | v1.28.0 | Runtime Provenance                            | Released |
+| v1.29.0 | NotebookLM Knowledge Pipeline                    | Released |
 
 ---
 
 ## Current release
 
-### v1.28.0 — Runtime Provenance
+### v1.29.0 — NotebookLM Knowledge Pipeline
 
-Goal: answer mechanically whether the source checkout, the installed runtime,
-the running runtime and the release identity are the same code — and if not,
-which two layers differ and what the next action is.
+Released 2026-09-29. The NotebookLM archive is now a governed MQ knowledge
+source with deterministic accounting and explicit provenance boundaries.
 
-Identity is component + version + commit, because two builds can carry the same
-semver. Each edge of checkout → installed → running is compared separately;
-there is no generic `synced` boolean. `null` means not observed, never "differs".
-A mismatch is `WARN`, an unobservable identity is `UNAVAILABLE`, and provenance
-itself blocks nothing — the release cockpit and `runtime_guard` keep their own
-policies.
+The shipped path covers the full corpus lifecycle: deterministic materialization
+into `notebook-corpus-index.v1`, quota-aware Drive inventory, metadata/text
+search, bounded selective retrieval, cross-notebook research, interaction-gap
+analysis, a disposable local Ollama semantic index, and the operational P0-P5
+surface for build, status, incremental sync, evidence retrieval, and Atlas
+handoff.
 
-Phases 0 through 5 are complete and released: the two contracts
-and the `RTP` reason-code registry, self identity, the checkout, integration and
-release layers, the reduction to one status and one next action, `--refresh` for
-explicit remote verification, the first live runtime, and the consumers.
-Phase 4's completion criterion was met against a real process rather than a
-fixture — a running mq-mcp caught still reporting the commit it started from
-after its checkout had moved. `mq-hal` v2.4.0 presents the record and owns none
-of its semantics. The post-release `signal --brain` ingress path is now closed:
-mq-agent supplies producer identity, gets an identified live mq-mcp receiver by
-reusing or starting one, sends the receiver observation, and mq-mcp owns the
-pre-write admission decision and provenance persistence.
-The phase plan is canonical in the root `ROADMAP.md`.
+The reconciled manifest is an integrity gate rather than decoration: notebook,
+item, and role counts must agree; verified SHA-256 values drive incremental
+change detection; mixed legacy/canonical NotebookLM layouts are supported; and
+unknown roles fail closed. Atlas only treats grounded `source` material as
+claim evidence, never derived artifacts or interaction history.
+
+The release also includes the post-v1.28 signal/mq-mcp ingress provenance
+hardening, canonical shared skills, macOS release-gate coverage, and CI/local
+gate parity.
 
 ---
 
