@@ -2988,6 +2988,148 @@ def notebook_pack_cmd(
     console.print(f"{mode}: {report['pack_dir']}")
 
 
+@notebook_app.command("inventory")
+def notebook_inventory_cmd(
+    root_id: Annotated[str, typer.Option("--root-id", help="Configured Drive corpus root item ID")] = "",
+    checkpoint: Annotated[str, typer.Option("--checkpoint", help="Local inventory checkpoint JSON")] = ".mq/notebook-corpus/inventory.json",
+    changes: Annotated[bool, typer.Option("--changes", help="Use Drive change feed; requires a completed checkpoint")] = False,
+    max_pages: Annotated[int | None, typer.Option("--max-pages", min=1, help="Stop after N provider pages and keep partial state")] = None,
+    access_token_env: Annotated[str, typer.Option("--access-token-env", help="Environment variable containing a Drive OAuth access token")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    d3_input: Annotated[str, typer.Option("--d3-input", help="Optional path for normalized D3 input; requires current inventory")] = "",
+    snapshot_at: Annotated[str, typer.Option("--snapshot-at", help="Archive snapshot timestamp used only with --d3-input")] = "",
+    exclude_root_folder_id: Annotated[list[str], typer.Option("--exclude-root-folder-id", help="Top-level folder ID to exclude from notebook candidates (repeatable)")] = [],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Inventory the configured Drive corpus using read-only metadata APIs."""
+    from mq_agent.notebook_drive_inventory import (
+        GoogleDriveRestClient,
+        atomic_write_checkpoint,
+        load_checkpoint,
+        new_checkpoint,
+        refresh_changes,
+        run_full_scan,
+        to_d3_input,
+    )
+
+    path = Path(checkpoint).expanduser()
+    token = os.getenv(access_token_env, "")
+    if not token:
+        message = f"missing Drive access token in {access_token_env}"
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": message}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {message}")
+        raise typer.Exit(2)
+
+    if path.is_file():
+        state = load_checkpoint(path)
+        if root_id and state.get("root_drive_item_id") != root_id:
+            message = "--root-id does not match checkpoint root"
+            if json_out:
+                typer.echo(json.dumps({"status": "ERROR", "error": message}))
+            else:
+                console.print(f"[bold red]error:[/bold red] {message}")
+            raise typer.Exit(2)
+    else:
+        if changes:
+            message = "--changes requires an existing completed checkpoint"
+            if json_out:
+                typer.echo(json.dumps({"status": "ERROR", "error": message}))
+            else:
+                console.print(f"[bold red]error:[/bold red] {message}")
+            raise typer.Exit(2)
+        if not root_id:
+            message = "--root-id is required for the first inventory scan"
+            if json_out:
+                typer.echo(json.dumps({"status": "ERROR", "error": message}))
+            else:
+                console.print(f"[bold red]error:[/bold red] {message}")
+            raise typer.Exit(2)
+        state = new_checkpoint(root_id)
+
+    provider = GoogleDriveRestClient(token)
+    try:
+        if changes:
+            refresh_changes(provider, state, max_pages=max_pages)
+        else:
+            run_full_scan(provider, state, max_pages=max_pages)
+    except Exception as exc:
+        atomic_write_checkpoint(path, state)
+        report = {
+            "status": state.get("status", "partial"),
+            "error": str(exc),
+            "checkpoint": str(path),
+            "pages_read": state.get("pages_read", 0),
+            "request_count": provider.request_count,
+            "retry_count": provider.retry_count,
+        }
+        if json_out:
+            typer.echo(json.dumps(report, indent=2))
+        else:
+            console.print(f"[bold yellow]partial:[/bold yellow] {exc}")
+            console.print(f"checkpoint: {path}")
+        raise typer.Exit(1) from exc
+
+    atomic_write_checkpoint(path, state)
+
+    projected = None
+    if d3_input:
+        if not snapshot_at:
+            message = "--snapshot-at is required with --d3-input"
+            if json_out:
+                typer.echo(json.dumps({"status": "ERROR", "error": message}))
+            else:
+                console.print(f"[bold red]error:[/bold red] {message}")
+            raise typer.Exit(2)
+        projected = to_d3_input(
+            state,
+            snapshot_at=snapshot_at,
+            excluded_top_level_folder_ids=set(exclude_root_folder_id),
+        )
+        out = Path(d3_input).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(projected, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    report = {
+        "status": state["status"],
+        "mode": state["mode"],
+        "checkpoint": str(path),
+        "folders": len(state["folders"]),
+        "items": len(state["items"]),
+        "missing": len(state["missing"]),
+        "pending": len(state["pending"]),
+        "pages_read": state["pages_read"],
+        "request_count": provider.request_count,
+        "retry_count": provider.retry_count,
+        "change_token_present": bool(state.get("change_token")),
+        "d3_input": d3_input or None,
+        "d3_notebooks": len(projected["notebooks"]) if projected else None,
+        "d3_items": len(projected["items"]) if projected else None,
+    }
+    if json_out:
+        typer.echo(json.dumps(report, indent=2))
+        return
+
+    console.rule("[bold]notebook Drive inventory[/bold]")
+    console.print(f"status: {report['status']}  mode: {report['mode']}")
+    console.print(
+        f"folders: {report['folders']}  items: {report['items']}  "
+        f"missing: {report['missing']}  pending: {report['pending']}"
+    )
+    console.print(
+        f"requests: {report['request_count']}  retries: {report['retry_count']}"
+    )
+    console.print(f"checkpoint: {report['checkpoint']}")
+    if projected:
+        console.print(
+            f"D3 input: {report['d3_input']} "
+            f"({report['d3_notebooks']} notebooks / {report['d3_items']} items)"
+        )
+
+
 @notebook_app.command("catalog")
 def notebook_catalog_cmd(
     catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
