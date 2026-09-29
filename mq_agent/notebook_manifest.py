@@ -100,7 +100,7 @@ def apply_reconciled_manifest(
     }
     matched_paths: set[str] = set()
     hashes_applied = 0
-    roles = Counter()
+    roles: Counter[str] = Counter()
 
     for item in items:
         archive_path = _projected_archive_path(item, notebook_titles)
