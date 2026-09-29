@@ -17,6 +17,7 @@ from mq_agent.notebook_pipeline import (
     build_sync_state,
     diff_sync_state,
     incremental_semantic_sync,
+    materialize_atlas_evidence_workspace,
     pipeline_status,
     sync_catalog,
 )
@@ -315,6 +316,74 @@ def test_incremental_semantic_sync_bootstraps_missing_unchanged_index(tmp_path: 
     assert report["reused_chunks"] == 0
     assert report["new_chunks"] >= 1
     assert provider.calls == ["source-a"]
+
+
+def test_p5_materializes_exact_claim_eligible_source_capture(tmp_path: Path):
+    retrieval = {
+        "status": "EVIDENCE_READY",
+        "evidence": [
+            {
+                "fetch_status": "ok",
+                "claim_eligible": True,
+                "grounding_status": "source",
+                "captured_text": "line one\nline two\n",
+                "bytes_fetched": 18,
+                "truncated": False,
+                "provenance": {
+                    "item_id": "item-source",
+                    "drive_item_id": "drive-source",
+                    "notebook_id": "nb-1",
+                    "notebook_title": "Notebook",
+                    "title": "Source",
+                    "mime_type": "text/markdown",
+                    "source_role": "source",
+                    "content_sha256": "a" * 64,
+                },
+            },
+            {
+                "fetch_status": "ok",
+                "claim_eligible": False,
+                "grounding_status": "derived_with_source_candidate",
+                "captured_text": "generated",
+                "bytes_fetched": 9,
+                "truncated": False,
+                "provenance": {
+                    "drive_item_id": "derived",
+                    "source_role": "derived",
+                },
+            },
+        ],
+    }
+
+    report = materialize_atlas_evidence_workspace(
+        retrieval,
+        claim="A claim",
+        output_dir=tmp_path / "atlas-evidence",
+    )
+
+    assert report["source_count"] == 1
+    workspace = Path(report["path"])
+    manifest = json.loads(
+        (workspace / "atlas-notebook-evidence.json").read_text(encoding="utf-8")
+    )
+    assert manifest["schema"] == "atlas-notebook-evidence-workspace.v1"
+    assert manifest["source_count"] == 1
+    source = manifest["sources"][0]
+    captured = (workspace / source["path"]).read_text(encoding="utf-8")
+    assert captured == "line one\nline two\n"
+    assert source["source_role"] == "source"
+    assert source["archive_content_sha256"] == "a" * 64
+
+
+def test_p5_workspace_refuses_overwrite(tmp_path: Path):
+    target = tmp_path / "existing"
+    target.mkdir()
+    with pytest.raises(ValueError, match="already exists"):
+        materialize_atlas_evidence_workspace(
+            {"status": "EVIDENCE_READY", "evidence": []},
+            claim="A claim",
+            output_dir=target,
+        )
 
 
 def test_p5_never_promotes_derived_material_to_claim_evidence():
