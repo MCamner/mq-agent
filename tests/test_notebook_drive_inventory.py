@@ -4,6 +4,9 @@ import json
 
 import httpx
 import pytest
+from typer.testing import CliRunner
+
+from mq_agent.main import app
 
 from mq_agent.notebook_drive_inventory import (
     CHECKPOINT_SCHEMA,
@@ -16,6 +19,9 @@ from mq_agent.notebook_drive_inventory import (
     scan_full_page,
     to_d3_input,
 )
+
+
+runner = CliRunner()
 
 
 class FakeProvider:
@@ -291,3 +297,98 @@ def test_rest_client_does_not_retry_permission_403():
         client.list_children("root")
 
     assert client.retry_count == 0
+
+
+
+def test_cli_requires_token(tmp_path, monkeypatch):
+    monkeypatch.delenv("MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN", raising=False)
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "inventory",
+            "--root-id",
+            "root",
+            "--checkpoint",
+            str(tmp_path / "inventory.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ERROR"
+    assert "access token" in payload["error"]
+
+
+def test_cli_full_scan_writes_checkpoint_and_d3_projection(tmp_path, monkeypatch):
+    import mq_agent.notebook_drive_inventory as inventory
+
+    provider = _full_provider()
+
+    class FakeClient:
+        request_count = 4
+        retry_count = 0
+
+        def __init__(self, token):
+            assert token == "secret"
+
+        def list_children(self, folder_id, page_token=None):
+            return provider.list_children(folder_id, page_token)
+
+        def get_start_page_token(self):
+            return provider.get_start_page_token()
+
+        def list_changes(self, page_token):
+            return provider.list_changes(page_token)
+
+    monkeypatch.setattr(inventory, "GoogleDriveRestClient", FakeClient)
+    monkeypatch.setenv("MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN", "secret")
+
+    checkpoint = tmp_path / "inventory.json"
+    d3_input = tmp_path / "d3.json"
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "inventory",
+            "--root-id",
+            "root",
+            "--checkpoint",
+            str(checkpoint),
+            "--d3-input",
+            str(d3_input),
+            "--snapshot-at",
+            "2026-09-29T00:00:00Z",
+            "--exclude-root-folder-id",
+            "manifest",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "current"
+    assert payload["d3_notebooks"] == 1
+    assert payload["d3_items"] == 2
+    assert checkpoint.is_file()
+    assert d3_input.is_file()
+
+
+def test_cli_changes_requires_existing_checkpoint(tmp_path, monkeypatch):
+    monkeypatch.setenv("MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN", "secret")
+    result = runner.invoke(
+        app,
+        [
+            "notebook",
+            "inventory",
+            "--changes",
+            "--checkpoint",
+            str(tmp_path / "missing.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert "existing completed checkpoint" in payload["error"]
