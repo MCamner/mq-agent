@@ -241,7 +241,7 @@ def test_postcondition_wait_retries_until_detach_is_visible(
         latest_upload="",
     )
     inspections = iter([stale, fresh])
-    sleeps = []
+    sleeps: list[float] = []
 
     monkeypatch.setattr(
         sem,
@@ -279,7 +279,7 @@ def test_postcondition_wait_stays_bounded_when_state_never_converges(
         latest_upload="",
     )
     calls = []
-    sleeps = []
+    sleeps: list[float] = []
 
     def _inspect(*args, **kwargs):
         calls.append(True)
