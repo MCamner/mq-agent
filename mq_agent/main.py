@@ -3266,6 +3266,7 @@ def notebook_atlas_cmd(
     catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
     max_files: Annotated[int, typer.Option("--max-files", min=1)] = 4,
     output: Annotated[str, typer.Option("--output", help="Optional JSON evidence bundle path")] = "",
+    workspace: Annotated[str, typer.Option("--workspace", help="Optional immutable Atlas evidence workspace directory")] = "",
     access_token_env: Annotated[str, typer.Option("--access-token-env")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
@@ -3275,6 +3276,7 @@ def notebook_atlas_cmd(
         atlas_evidence_bundle,
         evidence_stage,
         load_json,
+        materialize_atlas_evidence_workspace,
         write_json,
     )
 
@@ -3287,8 +3289,15 @@ def notebook_atlas_cmd(
             claim,
             GoogleDriveSelectiveFetcher(token),
             max_files=max_files,
+            include_capture=bool(workspace),
         )
         report = atlas_evidence_bundle(retrieval, claim=claim)
+        if workspace:
+            report["workspace"] = materialize_atlas_evidence_workspace(
+                retrieval,
+                claim=claim,
+                output_dir=Path(workspace),
+            )
         if output:
             write_json(Path(output), report)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
@@ -3306,6 +3315,8 @@ def notebook_atlas_cmd(
     console.print(f"claim-eligible grounded sources: {report['claim_eligible_count']}")
     if output:
         console.print(f"bundle: {Path(output).expanduser()}")
+    if workspace:
+        console.print(f"workspace: {Path(workspace).expanduser()}")
 
 
 @notebook_app.command("inventory")
