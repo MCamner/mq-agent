@@ -41,3 +41,6 @@ templates/CLAUDE.md
 # AGENTS.md forbids committing, and each operator's client differs.
 .mcp.json
 .cursor/mcp.json
+
+# Disposable local NotebookLM Drive corpus state (contains real Drive IDs).
+.mq/notebook-corpus/
