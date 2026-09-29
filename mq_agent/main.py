@@ -3218,6 +3218,92 @@ def notebook_search_cmd(
     )
 
 
+@notebook_app.command("retrieve")
+def notebook_retrieve_cmd(
+    query: Annotated[str, typer.Argument(help="Archive retrieval question")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    text_hits: Annotated[str, typer.Option("--text-hits", help="Optional provider text-hit metadata JSON")] = "",
+    scope: Annotated[str, typer.Option("--scope", help="archive or live-runtime")] = "archive",
+    max_files: Annotated[int, typer.Option("--max-files", min=1, help="Maximum selected corpus items")] = 4,
+    max_bytes_per_file: Annotated[int, typer.Option("--max-bytes-per-file", min=1)] = 65536,
+    max_total_bytes: Annotated[int, typer.Option("--max-total-bytes", min=1)] = 262144,
+    excerpt_chars: Annotated[int, typer.Option("--excerpt-chars", min=1)] = 4000,
+    access_token_env: Annotated[str, typer.Option("--access-token-env", help="Environment variable containing a Drive OAuth access token")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Fetch a bounded provenance-bearing evidence bundle from D4 candidates."""
+    from mq_agent.notebook_corpus_retrieval import (
+        GoogleDriveSelectiveFetcher,
+        retrieve_evidence,
+    )
+    from mq_agent.notebook_corpus_search import load_json
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+
+    try:
+        catalog_doc = load_json(Path(catalog).expanduser())
+        text_doc = load_json(Path(text_hits).expanduser()) if text_hits else None
+        provider: Any
+        if scope == "live-runtime":
+            class _NoFetch:
+                def fetch_text(self, drive_item_id, mime_type, *, max_bytes):
+                    raise AssertionError("live-runtime scope must not fetch corpus content")
+            provider = _NoFetch()
+        else:
+            token = os.getenv(access_token_env, "")
+            if not token:
+                raise ValueError(f"missing Drive access token in {access_token_env}")
+            provider = GoogleDriveSelectiveFetcher(token)
+
+        report = retrieve_evidence(
+            catalog_doc,
+            query,
+            provider,
+            max_files=max_files,
+            max_bytes_per_file=max_bytes_per_file,
+            max_total_bytes=max_total_bytes,
+            excerpt_chars=excerpt_chars,
+            text_hits=text_doc,
+            scope=scope,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+
+    console.rule("[bold]notebook evidence retrieval[/bold]")
+    console.print(f"status: {report['status']}")
+    if report.get("reason"):
+        console.print(f"reason: {report['reason']}")
+    for index, item in enumerate(report["evidence"], start=1):
+        prov = item["provenance"]
+        claim = "claim-eligible" if item["claim_eligible"] else "secondary"
+        console.print(
+            f"{index:>2}. [{prov['source_role']}] {prov['title']} "
+            f"— {prov['notebook_title']} ({claim})"
+        )
+        console.print(
+            f"    fetch={item['fetch_status']} grounding={item['grounding_status']} "
+            f"bytes={item['bytes_fetched']}"
+        )
+        if item["excerpt"]:
+            console.print(f"    {item['excerpt']}")
+    trace = report["trace"]
+    console.print(
+        f"[dim]selected {trace['selected']}; fetched {trace['fetched']}; "
+        f"unavailable {trace['unavailable']}; bytes {trace['bytes_fetched']}; "
+        f"interaction rejected {trace['interaction_rejected']}[/dim]"
+    )
+
+
 @notebook_app.command("show")
 def notebook_show_cmd(
     identifier: Annotated[str, typer.Argument(help="Logical or Drive notebook/item identity")],
