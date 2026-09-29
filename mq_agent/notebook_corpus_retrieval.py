@@ -136,13 +136,22 @@ class GoogleDriveSelectiveFetcher:
 
         payload = response.content[:max_bytes]
         self.bytes_fetched += len(payload)
+        decoded = _decode_text(payload, effective_mime)
+        truncated = len(response.content) > max_bytes or response.status_code == 206
+        if not decoded.strip():
+            return {
+                "status": "unavailable",
+                "reason": "no_readable_text_in_budget",
+                "text": "",
+                "bytes_fetched": len(payload),
+                "truncated": truncated,
+            }
         return {
             "status": "ok",
             "reason": None,
-            "text": _decode_text(payload, effective_mime),
+            "text": decoded,
             "bytes_fetched": len(payload),
-            "truncated": len(response.content) > max_bytes
-            or response.status_code == 206,
+            "truncated": truncated,
         }
 
 
