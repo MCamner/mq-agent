@@ -55,7 +55,7 @@ def _catalog(*, duplicate_hash=False):
                 "size_bytes": 100,
                 "modified_time": "2026-09-27T10:00:00Z",
                 "origin_provider": "google-drive",
-                "content_sha256": "same" if duplicate_hash else "hash-a",
+                "content_sha256": ("d" * 64) if duplicate_hash else ("a" * 64),
             },
             {
                 "drive_item_id": "derived-a",
@@ -78,7 +78,7 @@ def _catalog(*, duplicate_hash=False):
                 "size_bytes": 100,
                 "modified_time": "2026-09-27T11:00:00Z",
                 "origin_provider": "google-drive",
-                "content_sha256": "same" if duplicate_hash else "hash-b",
+                "content_sha256": ("d" * 64) if duplicate_hash else ("b" * 64),
             },
             {
                 "drive_item_id": "derived-b",
@@ -271,7 +271,7 @@ def test_source_cannot_be_smuggled_into_derived_interpretation():
 def test_no_source_ready_bundle_never_calls_synthesizer():
     catalog = _catalog()
     catalog["items"] = [
-        row for row in catalog["items"] if row["source_role"] != "source"
+        row for row in catalog["items"] if row["classification"]["role"] != "source"
     ]
     synth = FakeSynthesizer(
         {
