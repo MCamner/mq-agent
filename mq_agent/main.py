@@ -3304,6 +3304,150 @@ def notebook_retrieve_cmd(
     )
 
 
+@notebook_app.command("questions")
+def notebook_questions_cmd(
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    max_files: Annotated[int, typer.Option("--max-files", min=1, help="Maximum interaction files to inspect")] = 20,
+    max_bytes_per_file: Annotated[int, typer.Option("--max-bytes-per-file", min=1)] = 65536,
+    max_total_bytes: Annotated[int, typer.Option("--max-total-bytes", min=1)] = 524288,
+    access_token_env: Annotated[str, typer.Option("--access-token-env", help="Environment variable containing a Drive OAuth access token")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Extract recurring questions from interaction history without treating it as evidence."""
+    from mq_agent.notebook_corpus_gaps import collect_questions
+    from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+    from mq_agent.notebook_corpus_search import load_json
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        token = os.getenv(access_token_env, "")
+        if not token:
+            raise ValueError(f"missing Drive access token in {access_token_env}")
+        report = collect_questions(
+            load_json(Path(catalog).expanduser()),
+            GoogleDriveSelectiveFetcher(token),
+            max_files=max_files,
+            max_bytes_per_file=max_bytes_per_file,
+            max_total_bytes=max_total_bytes,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+
+    console.rule("[bold]notebook interaction questions[/bold]")
+    for index, row in enumerate(report["questions"], start=1):
+        tags = []
+        if row["recurring"]:
+            tags.append("recurring")
+        if row["cross_notebook"]:
+            tags.append("cross-notebook")
+        suffix = f" [{' / '.join(tags)}]" if tags else ""
+        console.print(
+            f"{index:>2}. {row['question']} "
+            f"(seen {row['occurrence_count']}x, notebooks {row['notebook_count']}){suffix}"
+        )
+    trace = report["trace"]
+    console.print(
+        f"[dim]interaction files {trace['interaction_items_fetched']}/"
+        f"{trace['interaction_items_selected']}; bytes {trace['bytes_fetched']}; "
+        f"unique questions {trace['unique_questions']}[/dim]"
+    )
+    console.print("[dim]interaction history is inquiry history only; never claim evidence[/dim]")
+
+
+@notebook_app.command("gaps")
+def notebook_gaps_cmd(
+    catalog: Annotated[str, typer.Option("--catalog", help="Path to local notebook-corpus-index.v1 JSON")] = "",
+    text_hits: Annotated[str, typer.Option("--text-hits", help="Optional provider text-hit metadata JSON for source/derived matching")] = "",
+    max_files: Annotated[int, typer.Option("--max-files", min=1, help="Maximum interaction files to inspect")] = 20,
+    max_bytes_per_file: Annotated[int, typer.Option("--max-bytes-per-file", min=1)] = 65536,
+    max_total_bytes: Annotated[int, typer.Option("--max-total-bytes", min=1)] = 524288,
+    top_k: Annotated[int, typer.Option("--top-k", min=1, help="Maximum metadata/text candidates per question")] = 20,
+    stale_after_days: Annotated[int, typer.Option("--stale-after-days", min=1, help="Age threshold for a stale source theme")] = 365,
+    access_token_env: Annotated[str, typer.Option("--access-token-env", help="Environment variable containing a Drive OAuth access token")] = "MQ_NOTEBOOK_DRIVE_ACCESS_TOKEN",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Find repeated, unsupported, derived-only, and stale research questions."""
+    from mq_agent.notebook_corpus_gaps import analyze_gaps, collect_questions
+    from mq_agent.notebook_corpus_retrieval import GoogleDriveSelectiveFetcher
+    from mq_agent.notebook_corpus_search import load_json
+
+    if not catalog:
+        console.print("[bold red]--catalog is required[/bold red]")
+        raise typer.Exit(2)
+    try:
+        token = os.getenv(access_token_env, "")
+        if not token:
+            raise ValueError(f"missing Drive access token in {access_token_env}")
+        catalog_doc = load_json(Path(catalog).expanduser())
+        text_doc = load_json(Path(text_hits).expanduser()) if text_hits else None
+        questions = collect_questions(
+            catalog_doc,
+            GoogleDriveSelectiveFetcher(token),
+            max_files=max_files,
+            max_bytes_per_file=max_bytes_per_file,
+            max_total_bytes=max_total_bytes,
+        )
+        report = analyze_gaps(
+            catalog_doc,
+            questions,
+            text_hits=text_doc,
+            top_k=top_k,
+            stale_after_days=stale_after_days,
+        )
+        report["question_trace"] = questions["trace"]
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"status": "ERROR", "error": str(exc)}))
+        else:
+            console.print(f"[bold red]error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+        return
+
+    console.rule("[bold]notebook research gaps[/bold]")
+    for index, row in enumerate(report["gaps"], start=1):
+        console.print(
+            f"{index:>2}. [{row['gap_state']}] {row['question']} "
+            f"(seen {row['occurrence_count']}x, notebooks {row['notebook_count']})"
+        )
+        if row["source_matches"]:
+            console.print(
+                "    sources: "
+                + ", ".join(
+                    f"{item['title']} — {item['notebook_title']}"
+                    for item in row["source_matches"]
+                )
+            )
+        elif row["derived_matches"]:
+            console.print(
+                "    derived only: "
+                + ", ".join(
+                    f"{item['title']} — {item['notebook_title']}"
+                    for item in row["derived_matches"]
+                )
+            )
+    summary = report["summary"]
+    console.print(
+        f"[dim]no-source {summary['no_source_evidence']}; "
+        f"derived-only {summary['derived_only']}; "
+        f"stale {summary['stale_source_themes']}; "
+        f"source-present {summary['source_matches_present']}[/dim]"
+    )
+    console.print("[dim]interaction history locates inquiry gaps; it does not answer them[/dim]")
+
+
 @notebook_app.command("research")
 def notebook_research_cmd(
     question: Annotated[str, typer.Argument(help="Cross-notebook research question")],
