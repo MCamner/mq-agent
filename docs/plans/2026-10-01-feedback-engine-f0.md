@@ -94,7 +94,7 @@ image, NotebookLM or other task classes.
 
 ## Task 1 — Contract and bounded builder
 
-**Files**
+#### Files
 
 - Create: `schemas/feedback_experiment.schema.json`
 - Create: `mq_agent/feedback/models.py`
@@ -102,7 +102,7 @@ image, NotebookLM or other task classes.
 - Modify: `pyproject.toml`
 - Modify: `.mq/repo-contract.json`
 
-**Requirements**
+#### Requirements
 
 - Stable id: `mq.feedback-experiment.v1`.
 - Required experiment id, task class, repository identity, active/shadow
@@ -114,11 +114,11 @@ image, NotebookLM or other task classes.
 
 ## Task 2 — Append-only runtime store
 
-**Files**
+#### Files
 
 - Create: `mq_agent/feedback/store.py`
 
-**Requirements**
+#### Requirements
 
 - Default root `~/.mq/feedback`; override with `MQ_AGENT_FEEDBACK_DIR`.
 - Serialize append/rotation with an OS file lock.
@@ -131,12 +131,12 @@ image, NotebookLM or other task classes.
 
 ## Task 3 — Test isolation and negative coverage
 
-**Files**
+#### Files
 
 - Create: `tests/test_feedback_store.py`
 - Modify: `tests/conftest.py`
 
-**Requirements**
+#### Requirements
 
 - Tests always redirect `MQ_AGENT_FEEDBACK_DIR` away from the operator store.
 - Validate schema and packaging.
@@ -148,12 +148,12 @@ image, NotebookLM or other task classes.
 
 ## Task 4 — Documentation/release surfaces
 
-**Files**
+#### Files
 
 - Modify: `CHANGELOG.md`
 - Modify: `ROADMAP.md` only for F0 items actually proven by tests/CI.
 
-**Expected result**
+#### Expected result
 
 F0 is complete when one experiment can be built, correlated, sanitized,
 validated, appended, read, rotated and safely purged without touching a Git
