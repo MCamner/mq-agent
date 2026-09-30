@@ -16,7 +16,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   secret/private-path redaction, serialized writes, retention/rotation, corrupt
   record reporting, purge primitives, and pytest isolation from operator state.
 
-
 ## [v1.29.0] — 2026-09-29
 
 Theme: NotebookLM Knowledge Pipeline. NotebookLM archive material is promoted
