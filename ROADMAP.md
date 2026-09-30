@@ -538,7 +538,6 @@ traceable evidence:
 If the answer cannot be reproduced from stored evidence, the feedback engine is
 not ready regardless of how plausible the recommendation sounds.
 
-
 ## Released — v1.29.0 NotebookLM Knowledge Pipeline
 
 Released 2026-09-29. NotebookLM material is now a governed MQ knowledge source
