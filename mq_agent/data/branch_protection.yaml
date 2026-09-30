@@ -108,13 +108,13 @@ repos:
         reason: "release.yml triggers on v* tags only"
 
   repo-signal:
-    # repo-signal was protected by github_branch_protection.py before that
-    # tool's payload was corrected, so it still carries the older shape. These
-    # two are recorded rather than flattened: a PUT replaces the whole object,
-    # and dropping a setting nobody asked to drop is how protection quietly
-    # weakens. Aligning it with the rest of the stack is a separate decision.
-    required_approving_reviews: 0
-    required_conversation_resolution: true
+    # Was the one repo carrying a required_pull_request_reviews object and
+    # required_conversation_resolution, left there by github_branch_protection.py
+    # before that tool's payload was corrected — not by a decision about this
+    # repo. All 40 pull requests in its history have zero reviews and zero
+    # comments, so neither setting had ever been exercised, and
+    # dismiss_stale_reviews means nothing when zero approvals are required.
+    # Aligned with the stack defaults; the status checks are the gate.
     required_checks:
       - name: "Python 3.11"
         app_id: 15368
