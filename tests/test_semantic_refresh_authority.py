@@ -372,6 +372,42 @@ def test_cleanup_replaces_canonical_and_detaches_retired_macos_store(
     assert data[store][0].attributes["source_revision"] == "rev-new"
 
 
+def test_mq_mcp_retired_cleanup_is_identity_scoped(monkeypatch, tmp_path):
+    store = sem.CANONICAL_VECTOR_STORE_ID
+    retired = sem.RETIRED_VECTOR_STORE_IDS_BY_REPO["mq-mcp"][0]
+    keep = item("file_new", 30, revision="rev-new", repo="mq-mcp")
+    legacy_symbol = item("file_legacy_symbol", 5, revision="rev-old", repo="mq-mcp")
+    unrelated = SimpleNamespace(
+        id="file_unrelated",
+        created_at=4,
+        status="completed",
+        attributes={"repo": "mq-mcp", "memory_type": "documentation"},
+    )
+    data = {
+        store: [keep],
+        retired: [legacy_symbol, unrelated],
+    }
+    filenames = {
+        "file_new": "mq-mcp-symbol-memory.md",
+        "file_legacy_symbol": "mq-mcp-symbol-memory.md",
+        "file_unrelated": "mq-mcp__README.md",
+    }
+    client = FakeClient(data, filenames)
+    monkeypatch.setattr(sem, "_repo_name", lambda repo: "mq-mcp")
+
+    detached = sem._detach_stale_generations(
+        client,
+        tmp_path,
+        store,
+        "file_new",
+    )
+
+    assert detached == (f"{retired}:file_legacy_symbol",)
+    assert [entry.id for entry in data[store]] == ["file_new"]
+    assert [entry.id for entry in data[retired]] == ["file_unrelated"]
+    assert "file_legacy_symbol" in client.files.filenames
+
+
 def test_cleanup_never_deletes_underlying_openai_file_objects(monkeypatch, tmp_path):
     store = sem.CANONICAL_VECTOR_STORE_ID
     data = {store: [item("file_old", 10, revision="rev-old")]}
