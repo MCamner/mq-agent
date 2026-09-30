@@ -3,8 +3,8 @@
 Released: v1.27.0 — Execution instrumentation and evidence integrity.
 Released: v1.28.0 — Runtime Provenance.
 Released: v1.29.0 — NotebookLM Knowledge Pipeline.
-Next: undecided — no scope is committed.
-Deferred: MCP tool contract checking — future scope, no version assigned.
+Next: v1.30.0 — Evidence-Grounded Feedback Engine (Observe, Compare, Propose).
+Deferred: controlled activation/rollback and MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
 
@@ -14,8 +14,12 @@ semantic retrieval, bounded evidence reads, cross-notebook research, interaction
 gap analysis, SHA-256-backed incremental sync, and an Atlas-safe evidence
 handoff. The post-v1.28 `signal --brain` provenance work is also included.
 
-No next release is scoped. MCP tool contract checking remains deferred without
-pre-allocating the next version number.
+The next release is now scoped as v1.30.0: an evidence-grounded feedback engine
+that observes real executions, compares the active context/retrieval path with a
+zero-effect shadow candidate, and produces reviewable improvement candidates.
+v1.30.0 deliberately stops at `OBSERVE -> COMPARE -> PROPOSE`: it does not
+activate routing, retrieval, memory, or tool policy automatically. Controlled
+activation/rollback and MCP tool contract checking remain deferred.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -43,6 +47,497 @@ pre-allocating the next version number.
 | v1.27.0 | Execution instrumentation and evidence integrity | Released v1.27.0 |
 | v1.28.0 | Runtime Provenance | Released v1.28.0 |
 | v1.29.0 | NotebookLM Knowledge Pipeline | Released v1.29.0 |
+| v1.30.0 | Evidence-Grounded Feedback Engine | Planned |
+
+## Planned — v1.30.0 Evidence-Grounded Feedback Engine
+
+* **Status:** Planned.
+* **Priority:** P1 — next stack-level capability.
+* **Owner:** `mq-agent`.
+* **Primary consumers:** `mq-mcp`, `mq-hal`, `mqlaunch`, Codex/Claude through MCP.
+* **Evidence sources:** `mq.execution-outcome.v1`, repo/context provenance,
+  `repo-signal`, CodeGraph, NotebookLM corpus results, `mq-mcp` review evidence,
+  and optional Atlas evaluation.
+* **Release boundary:** `OBSERVE -> COMPARE -> PROPOSE` only.
+
+### Why this is the next capability
+
+The stack can already observe repositories, execution outcomes, provenance,
+visual artifacts, code structure, durable memory, and an external research
+corpus. The remaining system gap is the controlled feedback path between an
+observed outcome and the context used by the next run.
+
+Today the components can answer many separate questions:
+
+```text
+repo-signal        -> what is true about this repository?
+CodeGraph          -> how is the code structurally related?
+Notebook corpus    -> what external research material is relevant?
+mq-image-analyze   -> what does this visual artifact contain?
+mq-mcp             -> what tools/review evidence are available?
+mq-agent           -> what actually ran, by which route, with what outcome?
+mqobsidian         -> what reviewed knowledge is durable?
+```
+
+v1.30.0 closes the next bounded loop:
+
+```text
+task
+  -> active context/retrieval
+  -> real outcome
+  -> zero-effect shadow candidate
+  -> comparable evidence
+  -> improvement candidate
+  -> human review
+```
+
+The release does **not** make the system self-modifying. It creates the
+measurement and proposal layer required before any adaptive behavior can be
+considered safely.
+
+### Architecture and ownership
+
+| Capability | Owner | v1.30 boundary |
+| --- | --- | --- |
+| Experiment orchestration, correlation, comparison and candidate state | `mq-agent` | Authoritative implementation |
+| Runtime tool execution, retrieval adapters and MCP exposure | `mq-mcp` | Consumer/delegate; does not own feedback policy |
+| Durable reviewed memory, promotion rules and memory truth | `mqobsidian` | Existing promotion boundary remains authoritative |
+| Repo intelligence | `repo-signal` | Evidence producer only |
+| Visual evidence | `mq-image-analyze` | Evidence producer only |
+| Operator presentation | `mq-hal` | Read-only consumer; never recomputes verdicts |
+| Terminal menus/entrypoints | `mqlaunch` / `macos-scripts` | Thin delegation only |
+| Evidence evaluation | Atlas Core, optional | Evaluator only; never owns activation state |
+| Codex / Claude in VS Code | MCP clients | Consume `mq-mcp` tools; never bypass policy |
+
+Hard dependency direction:
+
+```text
+Codex / Claude / Bridget
+          |
+          v
+        mq-mcp
+          |
+          v
+        mq-agent <----- mqlaunch / scripts
+          |
+          +---- runtime feedback state
+          |
+          +---- mqobsidian promotion boundary
+          |
+          `---- mq-hal read-only presentation
+```
+
+`mq-agent` must not import client-specific behavior for Codex, Claude, VS Code,
+Bridget, or mqlaunch. All clients consume the same versioned CLI/JSON contract
+directly or through `mq-mcp`.
+
+### State and data boundary
+
+Feedback runtime state must live outside every Git working tree. Recent learn
+recovery incidents demonstrated that working-tree storage can be discarded by
+checkout/reset and that generated namespaces can overwrite authored material.
+
+Target runtime layout:
+
+```text
+~/.mq/feedback/
+  experiments.jsonl
+  comparisons.jsonl
+  candidates.jsonl
+  activations.jsonl        # reserved; no activation writes in v1.30
+  runs/
+    <feedback-run-id>.json
+```
+
+Rules:
+
+* [ ] Keep runtime records outside Git repos and outside `mqobsidian` canonical
+  durable memory.
+* [ ] Make event records append-only; never rewrite historical experiment or
+  comparison records in place.
+* [ ] Use atomic writes/locking so concurrent runs cannot interleave or truncate
+  JSONL records.
+* [ ] Give every record a stable `feedback_run_id` and correlate it to the
+  existing execution `run_id` when one exists.
+* [ ] Support an overrideable state root for tests and ephemeral environments.
+* [ ] Isolate all tests from the operator's real `~/.mq/feedback` store.
+* [ ] Bound retention/rotation; storage growth must not be unlimited.
+* [ ] Provide an explicit purge command for runtime feedback state.
+* [ ] Never store raw prompts, full diffs, source-file bodies, credentials,
+  private paths, or unrestricted tool stdout in feedback records.
+
+### Contract strategy
+
+Do not create one oversized contract. Separate immutable observations from
+derived comparison and proposal state.
+
+Planned mq-agent-owned runtime contracts:
+
+* [ ] `mq.feedback-experiment.v1` — identifies task class, active strategy,
+  shadow strategy, common snapshot/provenance, execution correlation and
+  experiment terminal state.
+* [ ] `mq.feedback-comparison.v1` — measured deltas and evidence references;
+  absent metrics remain absent rather than being invented as zero.
+* [ ] `mq.feedback-candidate.v1` — a reviewable proposal describing exactly
+  what might change, why, scope, evidence, limitations and rollback target.
+* [ ] `mq.feedback-report.v1` — stable aggregate surface for MCP, HAL, scripts
+  and CI consumers.
+* [ ] Register shipped contracts in `.mq/repo-contract.json`, package schemas
+  in the wheel, and add positive/negative schema tests.
+* [ ] Preserve backwards readability if a later contract version is introduced;
+  never rewrite old evidence into the newest shape.
+
+`mqobsidian` remains the owner of durable memory/promotion contracts. v1.30
+must not invent a second durable-memory schema merely to store a feedback
+candidate. Promotion is a separate explicit handoff after review.
+
+### Decision vocabulary
+
+Feedback conclusions must use bounded states rather than a hidden composite
+score:
+
+```text
+NO_DATA
+INSUFFICIENT_EVIDENCE
+NO_MATERIAL_DIFFERENCE
+CANDIDATE_BETTER
+CANDIDATE_WORSE
+CONFLICTING_EVIDENCE
+BLOCKED
+```
+
+* [ ] Define deterministic precedence for the decision states.
+* [ ] Require evidence references for every conclusion except `NO_DATA`.
+* [ ] Never emit `CANDIDATE_BETTER` from a model's self-assessment alone.
+* [ ] Keep uncertainty explicit when metrics are missing or incomparable.
+* [ ] Do not collapse conflicting metrics into one opaque score in v1.30.
+
+### Phase F0 — Baseline, threat model and storage
+
+Goal: create a safe place to record feedback experiments before any shadow
+comparison changes execution behavior.
+
+* [ ] Document the trust boundary for local files, OpenAI-hosted/vector
+  retrieval, NotebookLM/Drive material, CodeGraph and model-based evaluators.
+* [ ] Inventory the currently available execution/context metrics and mark
+  which are measured, inferred, optional or unavailable.
+* [ ] Define representative task classes for the first evaluation set;
+  start with `repo-review` and do not claim generality from one task class.
+* [ ] Implement the `~/.mq/feedback` state root with append-only event writers.
+* [ ] Add redaction and bounded-field validation before persistence.
+* [ ] Add corruption handling: a malformed historical line is reported and
+  skipped or quarantined; it must not silently change a verdict.
+* [ ] Add retention/rotation and purge behavior.
+* [ ] Add concurrency and crash-interruption tests.
+* [ ] Add test fixtures proving secrets, prompts, diffs and source bodies are
+  not persisted.
+
+**F0 exit gate:** an experiment record can be written, read, validated, rotated
+and correlated without touching a Git working tree or durable memory.
+
+### Phase F1 — Read-only operator surface
+
+Goal: make the new state inspectable before adding experiment execution.
+
+Initial CLI:
+
+```bash
+mq-agent feedback status
+mq-agent feedback status --json
+mq-agent feedback inspect <feedback-run-id>
+mq-agent feedback recent
+mq-agent feedback report --task-class repo-review --since 30d
+```
+
+* [ ] Implement `feedback status` with storage health, counts, newest record,
+  task-class coverage and degraded-state reasons.
+* [ ] Implement `feedback inspect` for one immutable experiment/comparison chain.
+* [ ] Implement bounded `feedback recent` with stable ordering.
+* [ ] Implement `feedback report` using `mq.feedback-report.v1`.
+* [ ] Report unknown/missing metrics as unavailable, never as zero.
+* [ ] Add human/JSON parity tests: the human view may summarize but may not
+  change the machine verdict.
+* [ ] Keep every F1 command read-only.
+
+**F1 exit gate:** an operator can explain where every feedback verdict came
+from without opening the JSONL files manually.
+
+### Phase F2 — Active-versus-shadow context experiment
+
+Goal: compare context/retrieval strategies without affecting the real task.
+
+First supported experiment type: **context selection for `repo-review`**.
+
+```text
+same task
+same repo/ref/snapshot
+same evidence authorization boundary
+        |
+        +--> ACTIVE context strategy
+        |
+        `--> SHADOW context strategy
+                 |
+                 `--> zero execution effect
+```
+
+* [ ] Add `mq-agent feedback run --task-class repo-review --repo <path> --task
+  <text>` in shadow-only mode.
+* [ ] Record the exact active and candidate strategy identifiers.
+* [ ] Pin both sides to the same repository snapshot/ref and evidence
+  authorization boundary.
+* [ ] Refuse comparison when the snapshot drifts between active and shadow
+  collection unless both sides can be reconstructed against the same snapshot.
+* [ ] Guarantee the shadow path cannot modify prompts, routing, memory, repo
+  files, tools, approvals or the real task result.
+* [ ] Measure retrieval/context latency independently from downstream model
+  latency.
+* [ ] Capture context size as measured lines/bytes and tokens when a tokenizer
+  is available; do not estimate a token count and label it measured.
+* [ ] Record source identities, freshness/provenance coverage and deduplication
+  results without storing source bodies.
+* [ ] Make network/API use explicit per side.
+* [ ] Add a hard budget for candidate retrieval so shadow experiments cannot
+  create unbounded latency or cost.
+* [ ] Add cancellation and timeout handling with terminal evidence.
+
+**F2 exit gate:** active and shadow context can be compared on one real task
+while deleting the entire feedback store would leave production behavior
+unchanged.
+
+### Phase F3 — Comparable evidence and evaluation
+
+Goal: decide whether a candidate is better only when the measurements support
+that statement.
+
+Baseline metrics:
+
+* context lines/bytes and tokens when measured;
+* retrieval latency;
+* source count and deduplicated source count;
+* provenance coverage;
+* stale/contradicted source rate when deterministically knowable;
+* external API/backend use;
+* optional cost/tokens reported by the runtime;
+* task-specific relevance/recall only when explicit labels or a deterministic
+  verifier exist.
+
+* [ ] Implement deterministic delta calculation for comparable metrics.
+* [ ] Add a comparison validity check before any verdict.
+* [ ] Keep per-metric direction visible; do not hide a latency regression
+  behind a retrieval-quality improvement.
+* [ ] Support explicit relevance fixtures for repeatable precision/recall
+  evaluation.
+* [ ] Allow Atlas Core as an optional evidence evaluator for bounded questions,
+  but require its claims to resolve to the experiment's observed evidence.
+* [ ] Treat model-only preference as advisory metadata, never as the verdict.
+* [ ] Add negative-query fixtures where the correct retrieval result is no
+  answer/material.
+* [ ] Add stale-memory and contradictory-memory fixtures.
+* [ ] Add regression tests where a candidate retrieves more plausible but
+  irrelevant material; this must not be classified as better.
+
+**F3 exit gate:** `CANDIDATE_BETTER` is reproducible from stored measurements
+and evidence, not from prose or evaluator preference.
+
+### Phase F4 — Improvement candidates
+
+Goal: convert measured differences into a reviewable proposal without changing
+the active system.
+
+Candidate examples:
+
+```text
+context strategy candidate
+retrieval ordering candidate
+task-class-specific source weighting candidate
+memory candidate for existing review/promotion flow
+routing experiment candidate (proposal only; no activation)
+```
+
+* [ ] Implement `mq-agent feedback candidates` and
+  `mq-agent feedback candidate <id>`.
+* [ ] Require candidate scope: task class, current strategy, proposed strategy
+  and exact evidence window.
+* [ ] Require candidate rationale, measured gains/regressions, limitations and
+  safe rollback target.
+* [ ] Link each candidate to immutable comparison IDs.
+* [ ] Deduplicate materially identical candidates without deleting history.
+* [ ] Mark superseded/rejected/deferred candidates explicitly.
+* [ ] For durable knowledge, map an approved learning candidate into the
+  existing mqobsidian review/promotion path rather than writing durable memory
+  directly.
+* [ ] Do not let frequency, similarity or a high metric automatically promote
+  memory or policy.
+
+**F4 exit gate:** a human can review a candidate and reconstruct every metric
+and source reference that caused it to exist.
+
+### Phase F5 — Ecosystem access
+
+Goal: expose the engine once through stable contracts, not through separate
+Codex-, Claude-, Bridget- and mqlaunch-specific implementations.
+
+#### mq-mcp / Codex / Claude
+
+Planned MCP consumer surface after the corresponding mq-agent commands are
+stable:
+
+```text
+mq_feedback_status
+mq_feedback_inspect
+mq_feedback_compare
+mq_feedback_report
+mq_feedback_candidates
+mq_feedback_run
+```
+
+* [ ] Keep `mq-mcp` as a delegate/adapter; comparison policy remains in
+  `mq-agent`.
+* [ ] Expose read-only feedback tools as Class A.
+* [ ] Classify `mq_feedback_run` separately because it consumes bounded
+  compute/API resources even though it has zero production mutation effect.
+* [ ] Do not expose activation/policy mutation tools to Codex or Claude in
+  v1.30.
+* [ ] Add MCP contract/discovery tests so Codex and Claude see the same
+  feedback surface.
+* [ ] Add one thin `feedback-review` skill/instruction surface for clients;
+  the skill may describe workflow but must contain no policy implementation.
+
+#### mq-hal
+
+* [ ] Add a read-only `mq-hal feedback` consumer after
+  `mq.feedback-report.v1` is stable.
+* [ ] HAL must render mq-agent's verdict, evidence counts, deltas and next
+  review action without recomputing them.
+* [ ] Unknown future states/reason codes must render neutrally, not be mapped
+  to an invented local verdict.
+
+#### mqlaunch / macos-scripts
+
+* [ ] Add a thin `mqlaunch feedback` entrypoint/menu after the mq-agent CLI is
+  stable.
+* [ ] Delegate status, run, inspect, compare and candidate views; keep no
+  feedback state or comparison logic in shell.
+* [ ] Preserve delegated exit codes.
+
+#### scripts / CI / other MQ tools
+
+* [ ] Treat `mq-agent feedback ... --json` as the direct machine interface.
+* [ ] Document that other tools may consume reports but may not write
+  `~/.mq/feedback` directly.
+
+**F5 exit gate:** Codex, Claude, HAL, mqlaunch and scripts consume the same
+authoritative mq-agent result without duplicated decision logic.
+
+### Phase F6 — Release hardening
+
+* [ ] Add end-to-end fixture: one active strategy, one shadow strategy,
+  comparison, candidate and report.
+* [ ] Add mutation tests for missing provenance, mixed snapshots, duplicated
+  run IDs, stale evidence, malformed records and unavailable metrics.
+* [ ] Verify wheel-installed schemas and CLI behavior, not checkout-only paths.
+* [ ] Add release-check coverage for the feedback contracts and packaged data.
+* [ ] Add public-safe documentation with no private paths or captured task data.
+* [ ] Add README command examples and architecture diagram.
+* [ ] Add a migration/readability test proving historical v1 records remain
+  readable after a schema extension.
+* [ ] Run a real `repo-review` shadow experiment against at least two MQ repos
+  before release and record limitations as well as gains.
+* [ ] Require main CI, release-check, contract-check and stack protection check
+  to pass before tagging v1.30.0.
+
+### v1.30.0 non-goals
+
+The following are explicitly **not** part of this release:
+
+* [ ] **No automatic activation.** A candidate may be proposed but cannot
+  replace the active retrieval/context/routing policy.
+* [ ] **No autonomous routing.** Existing routing behavior remains authoritative.
+* [ ] **No direct durable-memory writes from feedback.** mqobsidian review and
+  promotion boundaries remain intact.
+* [ ] **No new generic memory engine.** Reuse current keyword/vector/CodeGraph
+  and memory surfaces.
+* [ ] **No graph database requirement.** A provenance graph/projection may be
+  consumed later, but v1.30 must not require Neo4j/Kuzu/another service.
+* [ ] **No client-specific engines.** Codex, Claude, Bridget and VS Code do not
+  get separate feedback implementations.
+* [ ] **No raw conversation capture.** Session continuity work must use typed,
+  sanitized facts only and is not required for v1.30.
+* [ ] **No opaque global score.** Per-metric evidence stays visible.
+* [ ] **No claim that one task class generalizes to all MQ workflows.**
+* [ ] **No replacement of existing execution telemetry.** Feedback correlates
+  to `mq.execution-outcome.v1`; it does not duplicate it.
+
+These are boundary checkboxes, not implementation work; they are complete only
+when release tests prove the forbidden behavior is absent.
+
+### Post-v1.30 gate — controlled activation and rollback
+
+This follow-up is intentionally **not committed to a version** until v1.30 has
+produced enough real evidence. It begins only when the experiment corpus can
+justify an activation design.
+
+* [ ] Define per-task-class promotion criteria from observed outcomes rather
+  than adopting a provisional threshold as policy.
+* [ ] Require human approval bound to the exact candidate, evidence window,
+  active policy and proposed policy.
+* [ ] Make approval expire when the evidence/snapshot/policy changes.
+* [ ] Activate one task class independently; never switch all workloads at once.
+* [ ] Record activation as an append-only event.
+* [ ] Provide deterministic rollback/supersede to the prior policy.
+* [ ] Compare post-activation outcomes against the same baseline and surface
+  regressions.
+* [ ] Keep a kill switch that restores pre-feedback behavior without deleting
+  historical evidence.
+* [ ] Only after this gate is proven may evidence-based routing activation be
+  reconsidered.
+
+### Definition of done — v1.30.0
+
+* [ ] `mq-agent feedback status|inspect|recent|report` are stable and tested.
+* [ ] A `repo-review` active-vs-shadow experiment runs against one pinned
+  evidence snapshot with zero effect on the production result.
+* [ ] Comparisons expose per-metric evidence and bounded decision states.
+* [ ] Improvement candidates are reviewable, immutable by reference and never
+  auto-activated.
+* [ ] Runtime feedback data survives Git checkouts because it does not live in
+  a working tree.
+* [ ] Secrets/raw prompts/diffs/source bodies are absent from persisted records.
+* [ ] Tests cannot contaminate the operator evidence store.
+* [ ] Stable JSON is sufficient for mq-mcp, mq-hal, mqlaunch and scripts to
+  integrate without importing mq-agent internals.
+* [ ] At least one Codex/Claude MCP workflow can read/report feedback evidence
+  through mq-mcp without direct filesystem access.
+* [ ] At least one mqlaunch/HAL path can present the same authoritative verdict.
+* [ ] No activation command or MCP policy-mutation tool ships in v1.30.0.
+* [ ] README, command docs, repo contract, changelog and public roadmap agree
+  on the release boundary.
+
+### Recommended implementation order
+
+1. F0 storage, threat model and contracts.
+2. F1 read-only status/inspect/report.
+3. F2 one `repo-review` context shadow experiment.
+4. F3 deterministic comparison and evaluation fixtures.
+5. F4 candidate generation and review lifecycle.
+6. F5 mq-mcp first, then mq-hal and mqlaunch consumers.
+7. F6 end-to-end hardening and real-repo evidence.
+8. Release v1.30.0.
+9. Collect evidence before deciding whether controlled activation deserves a
+   follow-up release.
+
+### Success test
+
+The release is successful when the stack can answer this question with
+traceable evidence:
+
+> For this task class, did the candidate context/retrieval strategy improve the
+> measured result enough to justify human review, without changing production
+> behavior to find out?
+
+If the answer cannot be reproduced from stored evidence, the feedback engine is
+not ready regardless of how plausible the recommendation sounds.
+
 
 ## Released — v1.29.0 NotebookLM Knowledge Pipeline
 
