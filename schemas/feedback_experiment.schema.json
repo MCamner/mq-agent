@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-experiment.v1",
+  "description": "One immutable feedback experiment observation comparing an active strategy with a zero-effect shadow strategy. Contains identifiers, provenance and bounded operational metadata only; no prompt, diff, source body or tool output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "feedback_run_id",
+    "task_class",
+    "repository",
+    "active_strategy",
+    "shadow_strategy",
+    "snapshot",
+    "evidence_sources",
+    "state",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.feedback-experiment.v1"
+    },
+    "feedback_run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "execution_run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "task_class": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?$",
+      "maxLength": 160
+    },
+    "active_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "shadow_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref",
+        "commit"
+      ],
+      "properties": {
+        "kind": {
+          "const": "git"
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        }
+      }
+    },
+    "evidence_sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      }
+    },
+    "network_backends": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      }
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "completed",
+        "blocked",
+        "cancelled",
+        "failed"
+      ]
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
