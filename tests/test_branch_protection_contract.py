@@ -30,6 +30,8 @@ CONTRACT = {
         "enforce_admins": True,
         "allow_force_pushes": False,
         "allow_deletions": False,
+        "required_approving_reviews": None,
+        "required_conversation_resolution": False,
     },
     "repos": {
         "demo": {
@@ -42,13 +44,18 @@ CONTRACT = {
 }
 
 
-def protection(checks, *, strict=True, admins=True, force=False, deletions=False):
-    return {
+def protection(checks, *, strict=True, admins=True, force=False, deletions=False,
+               conv=False, reviews=None):
+    payload = {
         "required_status_checks": {"strict": strict, "checks": checks},
         "enforce_admins": {"enabled": admins},
         "allow_force_pushes": {"enabled": force},
         "allow_deletions": {"enabled": deletions},
+        "required_conversation_resolution": {"enabled": conv},
     }
+    if reviews is not None:
+        payload["required_pull_request_reviews"] = {"required_approving_review_count": reviews}
+    return payload
 
 
 class FakeGh:
@@ -152,6 +159,10 @@ def test_a_missing_and_an_extra_check_are_both_reported():
         ({"admins": False}, "enforce_admins is False, contract says True"),
         ({"force": True}, "allow_force_pushes is True, contract says False"),
         ({"deletions": True}, "allow_deletions is True, contract says False"),
+        ({"conv": True}, "required_conversation_resolution is True, contract says False"),
+        # Present-requiring-zero is a different state from absent, and only the
+        # second is what "no review requirement" means.
+        ({"reviews": 0}, "required approving reviews is 0, contract says None"),
     ],
 )
 def test_each_relaxed_setting_is_drift(kwargs, expected):
@@ -168,7 +179,11 @@ def test_each_relaxed_setting_is_drift(kwargs, expected):
 
 def test_one_run_per_required_context_is_clean():
     declared = declared_for(CONTRACT, "demo")
-    runs = [{"name": "test"}, {"name": "markdownlint"}, {"name": "something-else"}]
+    runs = [
+        {"name": "test", "app": {"id": APP}},
+        {"name": "markdownlint", "app": {"id": APP}},
+        {"name": "something-else", "app": {"id": 4242}},
+    ]
     assert compare_check_surface(declared, runs) == []
 
 
@@ -190,6 +205,55 @@ def test_a_required_context_the_pr_never_reports_is_drift():
     assert compare_check_surface(declared, [{"name": "test"}]) == [
         "required context 'markdownlint' was not reported by the sampled pull request"
     ]
+
+
+def test_an_unclassified_actions_context_is_drift():
+    # A gate nobody decided about: it runs on every PR, it can go red, and it
+    # blocks nothing. That is how a real check quietly becomes decorative.
+    declared = declared_for(CONTRACT, "demo")
+    runs = [
+        {"name": "test", "app": {"id": APP}},
+        {"name": "markdownlint", "app": {"id": APP}},
+        {"name": "parity", "app": {"id": APP}},
+    ]
+    assert compare_check_surface(declared, runs) == [
+        "context 'parity' runs on pull requests but the contract neither "
+        "requires nor excludes it: it can go red without blocking anything"
+    ]
+
+
+def test_an_excluded_context_is_classified_and_therefore_silent():
+    declared = dict(declared_for(CONTRACT, "demo"))
+    declared["excluded_checks"] = [{"name": "parity", "reason": "informational"}]
+    runs = [
+        {"name": "test", "app": {"id": APP}},
+        {"name": "markdownlint", "app": {"id": APP}},
+        {"name": "parity", "app": {"id": APP}},
+    ]
+    assert compare_check_surface(declared, runs) == []
+
+
+def test_a_third_party_check_is_not_ours_to_classify():
+    # An external integration posting a check run is not a gate this contract
+    # governs, and demanding a decision about it would be noise.
+    declared = declared_for(CONTRACT, "demo")
+    runs = [
+        {"name": "test", "app": {"id": APP}},
+        {"name": "markdownlint", "app": {"id": APP}},
+        {"name": "some-saas-scanner", "app": {"id": 99999}},
+    ]
+    assert compare_check_surface(declared, runs) == []
+
+
+def test_every_reported_actions_context_in_the_shipped_contract_is_classified():
+    # The rule the contract states about itself: required or excluded, no
+    # third bucket. This is a structural check on the file, not on GitHub.
+    contract = load_contract()
+    for name, repo in contract["repos"].items():
+        required = {c["name"] for c in repo["required_checks"]}
+        excluded = {c["name"] for c in repo.get("excluded_checks", [])}
+        overlap = required & excluded
+        assert not overlap, f"{name}: {sorted(overlap)} is both required and excluded"
 
 
 def test_a_matrix_context_is_matched_by_its_full_display_name():
