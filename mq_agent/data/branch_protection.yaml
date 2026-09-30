@@ -1,0 +1,153 @@
+# MQ stack branch-protection contract.
+#
+# This is the DECLARED standard. `mq-agent stack protection-check` compares it
+# against three things and reports drift; it never writes. The three layers are:
+#
+#   declared (this file) -> GitHub protection -> the contexts a real PR reports
+#
+# Two defect classes fall out of that:
+#
+#   PROTECTION_DRIFT     GitHub no longer matches this file
+#   CHECK_SURFACE_DRIFT  a required context is not reported by pull_request any
+#                        more, or the same context is reported twice because a
+#                        workflow carries a bare `push:` as well
+#
+# `app_id` is not decoration. The deprecated `contexts[]` PUT form sets it to
+# null, which means *any* app may satisfy that context name. 15368 is GitHub
+# Actions. Always declare it, and always PUT with the `checks` form.
+#
+# Contexts are display names: a job's `name:` overrides its key, and a matrix
+# job reports one context per cell as `job (value)`. Read them from a real
+# pull_request event; the workflow file alone will mislead you.
+
+schema: mq.branch-protection-contract.v1
+owner: MCamner
+branch: main
+
+# Applied to every repo below. A repo may not opt out; it either matches or
+# it is drift.
+defaults:
+  strict: true
+  enforce_admins: true
+  allow_force_pushes: false
+  allow_deletions: false
+
+repos:
+  mqobsidian:
+    required_checks:
+      - name: "validate"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+
+  mq-agent:
+    required_checks:
+      - name: "test"
+        app_id: 15368
+      - name: "smoke"
+        app_id: 15368
+      - name: "Contract and release gates (CI mode)"
+        app_id: 15368
+      - name: "wheel"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+      - name: "macOS runtime and release gate"
+        app_id: 15368
+    # Deliberately NOT required — each of these never reports on a pull
+    # request, so requiring it would block every PR permanently.
+    excluded_checks:
+      - name: "Contract and release gates"
+        reason: "full-stack job; `if: github.event_name != 'pull_request'`, so it is skipped on PRs"
+      - name: "publish"
+        reason: "release.yml triggers on v* tags only"
+
+  mq-mcp:
+    required_checks:
+      - name: "validate"
+        app_id: 15368
+      - name: "parity"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+      - name: "Docs consistency check"
+        app_id: 15368
+
+  mq-hal:
+    required_checks:
+      - name: "smoke"
+        app_id: 15368
+      - name: "parity"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+    # Deliberately NOT required — each of these never reports on a pull
+    # request, so requiring it would block every PR permanently.
+    excluded_checks:
+      - name: "publish"
+        reason: "release.yml triggers on v* tags only"
+
+  repo-signal:
+    required_checks:
+      - name: "Python 3.11"
+        app_id: 15368
+      - name: "Python 3.12"
+        app_id: 15368
+      - name: "Docs consistency"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+      - name: "packaging"
+        app_id: 15368
+      - name: "generated-examples"
+        app_id: 15368
+      - name: "publish-checklist"
+        app_id: 15368
+
+  macos-scripts:
+    required_checks:
+      - name: "Shell syntax check"
+        app_id: 15368
+      - name: "Markdown lint"
+        app_id: 15368
+      - name: "Python tests"
+        app_id: 15368
+
+  mq-ums:
+    required_checks:
+      - name: "test"
+        app_id: 15368
+      - name: "docs-consistency"
+        app_id: 15368
+      - name: "parity"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+    # Deliberately NOT required — each of these never reports on a pull
+    # request, so requiring it would block every PR permanently.
+    excluded_checks:
+      - name: "publish"
+        reason: "release.yml triggers on v* tags only"
+
+  mq-image-analyze:
+    required_checks:
+      - name: "test (3.11)"
+        app_id: 15368
+      - name: "test (3.12)"
+        app_id: 15368
+      - name: "parity"
+        app_id: 15368
+      - name: "markdownlint"
+        app_id: 15368
+    # Deliberately NOT required — each of these never reports on a pull
+    # request, so requiring it would block every PR permanently.
+    excluded_checks:
+      - name: "examples"
+        reason: "examples.yml triggers on push to main only"
+      - name: "release"
+        reason: "release.yml triggers on v* tags only"
+
+  mcamner-journal:
+    required_checks:
+      - name: "static-site-checks"
+        app_id: 15368

@@ -33,7 +33,8 @@
     "mq_hal_operator_contract.v1",
     "inbox_promotion_orchestration.v1",
     "mq.stack-compatibility.v1",
-    "mq.stack-provenance.v1"
+    "mq.stack-provenance.v1",
+    "mq.branch-protection-contract.v1"
   ],
   "compatibility": {
     "consumes": [

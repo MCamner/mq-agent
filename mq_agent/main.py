@@ -6615,6 +6615,68 @@ def stack_contract_check_cmd(
         raise typer.Exit(1)
 
 
+# ── stack protection-check ─────────────────────────────────────────────────
+
+@stack_app.command("protection-check")
+def stack_protection_check_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    repo: Annotated[str, typer.Option("--repo", help="Check a single repo from the contract")] = "",
+):
+    """Compare declared branch protection against GitHub and a real pull request.
+
+    Read-only: every GitHub call is a GET. Applying protection stays a separate,
+    explicit operation, because a PUT replaces the whole protection object and
+    silently drops anything the payload leaves out.
+
+    Three layers are compared — the contract in
+    mq_agent/data/branch_protection.yaml, GitHub's protection, and the contexts
+    the most recent pull request actually reported. Needs `gh` and network.
+    Exits 1 on any drift.
+    """
+    from mq_agent.tools.branch_protection_contract import stack_protection_check as _check
+
+    try:
+        with console.status("[cyan]Reading branch protection...[/cyan]"):
+            raw = _check(only=repo or None)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2) from exc
+
+    data = json.loads(raw)
+
+    if json_out:
+        typer.echo(raw)
+        raise typer.Exit(0 if data["overall"] == "PASS" else 1)
+
+    _STATUS = {
+        "PASS":                "[green]PASS[/green]",
+        "MISSING":             "[bold red]MISSING[/bold red]",
+        "PROTECTION_DRIFT":    "[red]PROTECTION_DRIFT[/red]",
+        "CHECK_SURFACE_DRIFT": "[yellow]CHECK_SURFACE_DRIFT[/yellow]",
+        "BLOCKED":             "[dim]BLOCKED[/dim]",
+    }
+
+    console.print()
+    console.rule(f"[bold]MQ Stack Branch Protection[/bold]  [dim]{data['owner']}/* @ {data['branch']}[/dim]")
+    console.print()
+
+    for e in data["repos"]:
+        status_str = _STATUS.get(e["status"], e["status"])
+        detail = ""
+        if e["status"] == "PASS":
+            detail = f"  [dim]{len(e.get('required_checks', []))} checks enforced and reporting[/dim]"
+        console.print(f"  {e['name']:<20} {status_str}{detail}")
+        for reason in e.get("reasons", []):
+            console.print(f"    [dim]→[/dim] {reason}")
+
+    console.print()
+    if data["overall"] == "PASS":
+        console.print("[bold green]✓ Branch protection: PASS[/bold green]")
+    else:
+        console.print("[bold red]✗ Branch protection: DRIFT[/bold red]")
+        raise typer.Exit(1)
+
+
 # ── stack compatibility ────────────────────────────────────────────────────
 
 @stack_app.command("compatibility")
