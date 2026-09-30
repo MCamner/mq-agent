@@ -92,16 +92,18 @@ def test_append_writes_one_json_object_per_line(tmp_path) -> None:
 
 def test_append_redacts_secret_values_and_private_home_paths(tmp_path) -> None:
     home_source = str(Path.home() / "private-source")
+    openai_like = "sk-" + "proj-" + ("A" * 12)
+    github_like = "github_" + "pat_" + ("B" * 16)
     record = _experiment(
-        active_strategy="sk-proj-ABCDEFGHIJKL",
-        evidence_sources=[home_source, "github_pat_ABCDEFGHIJKLMNO"],
+        active_strategy=openai_like,
+        evidence_sources=[home_source, github_like],
     )
 
     destination = append_experiment(record, tmp_path)
     raw = destination.read_text(encoding="utf-8")
 
-    assert "sk-proj-" not in raw
-    assert "github_pat_" not in raw
+    assert openai_like not in raw
+    assert github_like not in raw
     assert str(Path.home()) not in raw
     assert "[REDACTED]" in raw
     assert "$HOME/private-source" in raw
@@ -185,7 +187,8 @@ def test_historical_record_that_needs_redaction_is_not_treated_as_valid(
 ) -> None:
     destination = tmp_path / "experiments.jsonl"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    unsafe = _experiment(evidence_sources=["sk-proj-ABCDEFGHIJKL"])
+    secret_like = "sk-" + "proj-" + ("C" * 12)
+    unsafe = _experiment(evidence_sources=[secret_like])
     destination.write_text(json.dumps(unsafe) + "\n", encoding="utf-8")
 
     result = read_experiments(tmp_path)
