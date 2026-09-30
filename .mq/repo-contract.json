@@ -34,7 +34,8 @@
     "inbox_promotion_orchestration.v1",
     "mq.stack-compatibility.v1",
     "mq.stack-provenance.v1",
-    "mq.branch-protection-contract.v1"
+    "mq.branch-protection-contract.v1",
+    "mq.feedback-experiment.v1"
   ],
   "compatibility": {
     "consumes": [

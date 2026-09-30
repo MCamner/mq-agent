@@ -18,6 +18,10 @@ full run and failed on its own: it was satisfied by an environment variable
 another test happened to leave behind, not by anything guaranteeing the claim it
 makes. A green check standing for something other than what it says is the
 failure this whole line of work keeps finding.
+
+The feedback engine uses a directory rather than one file, but the invariant is
+the same: pytest must never be able to append experiment evidence under the
+operator's real `~/.mq/feedback` root.
 """
 from __future__ import annotations
 
@@ -33,20 +37,27 @@ _EVIDENCE_STORES = {
     "MQ_AGENT_ROUTE_OUTCOMES": "route-outcomes.jsonl",
     "MQ_AGENT_EXECUTION_OUTCOMES": "execution-outcomes.jsonl",
 }
+_FEEDBACK_ROOT_ENV = "MQ_AGENT_FEEDBACK_DIR"
 
 
 @pytest.fixture(autouse=True, scope="session")
 def _isolate_evidence_stores(tmp_path_factory) -> Iterator[None]:
     directory = tmp_path_factory.mktemp("evidence-stores")
     previous = {name: os.environ.get(name) for name in _EVIDENCE_STORES}
+    previous_feedback_root = os.environ.get(_FEEDBACK_ROOT_ENV)
     for name, filename in _EVIDENCE_STORES.items():
         os.environ[name] = str(directory / filename)
+    os.environ[_FEEDBACK_ROOT_ENV] = str(directory / "feedback")
     yield
     for name, value in previous.items():
         if value is None:
             os.environ.pop(name, None)
         else:
             os.environ[name] = value
+    if previous_feedback_root is None:
+        os.environ.pop(_FEEDBACK_ROOT_ENV, None)
+    else:
+        os.environ[_FEEDBACK_ROOT_ENV] = previous_feedback_root
 
 
 @pytest.fixture(autouse=True)
@@ -56,6 +67,9 @@ def _production_stores_are_unreachable() -> None:
         configured = os.environ.get(name)
         assert configured is not None, f"{name} was not redirected for tests"
         assert Path(configured) != Path.home() / ".mq-agent" / filename
+    feedback_root = os.environ.get(_FEEDBACK_ROOT_ENV)
+    assert feedback_root is not None, f"{_FEEDBACK_ROOT_ENV} was not redirected for tests"
+    assert Path(feedback_root) != Path.home() / ".mq" / "feedback"
 
 
 #: The one call that reads this machine's login Keychain.

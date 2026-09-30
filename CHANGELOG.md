@@ -9,6 +9,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+* Feedback Engine F0 foundation: `mq.feedback-experiment.v1`, a bounded
+  append-only runtime evidence store under `~/.mq/feedback`, schema validation,
+  secret/private-path redaction, serialized writes, retention/rotation, corrupt
+  record reporting, purge primitives, and pytest isolation from operator state.
+
 ## [v1.29.0] — 2026-09-29
 
 Theme: NotebookLM Knowledge Pipeline. NotebookLM archive material is promoted

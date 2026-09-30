@@ -151,19 +151,19 @@ Target runtime layout:
 
 Rules:
 
-* [ ] Keep runtime records outside Git repos and outside `mqobsidian` canonical
+* [x] Keep runtime records outside Git repos and outside `mqobsidian` canonical
   durable memory.
-* [ ] Make event records append-only; never rewrite historical experiment or
+* [x] Make event records append-only; never rewrite historical experiment or
   comparison records in place.
-* [ ] Use atomic writes/locking so concurrent runs cannot interleave or truncate
+* [x] Use atomic writes/locking so concurrent runs cannot interleave or truncate
   JSONL records.
-* [ ] Give every record a stable `feedback_run_id` and correlate it to the
+* [x] Give every record a stable `feedback_run_id` and correlate it to the
   existing execution `run_id` when one exists.
-* [ ] Support an overrideable state root for tests and ephemeral environments.
-* [ ] Isolate all tests from the operator's real `~/.mq/feedback` store.
-* [ ] Bound retention/rotation; storage growth must not be unlimited.
+* [x] Support an overrideable state root for tests and ephemeral environments.
+* [x] Isolate all tests from the operator's real `~/.mq/feedback` store.
+* [x] Bound retention/rotation; storage growth must not be unlimited.
 * [ ] Provide an explicit purge command for runtime feedback state.
-* [ ] Never store raw prompts, full diffs, source-file bodies, credentials,
+* [x] Never store raw prompts, full diffs, source-file bodies, credentials,
   private paths, or unrestricted tool stdout in feedback records.
 
 ### Contract strategy
@@ -173,7 +173,7 @@ derived comparison and proposal state.
 
 Planned mq-agent-owned runtime contracts:
 
-* [ ] `mq.feedback-experiment.v1` — identifies task class, active strategy,
+* [x] `mq.feedback-experiment.v1` — identifies task class, active strategy,
   shadow strategy, common snapshot/provenance, execution correlation and
   experiment terminal state.
 * [ ] `mq.feedback-comparison.v1` — measured deltas and evidence references;
@@ -182,7 +182,7 @@ Planned mq-agent-owned runtime contracts:
   what might change, why, scope, evidence, limitations and rollback target.
 * [ ] `mq.feedback-report.v1` — stable aggregate surface for MCP, HAL, scripts
   and CI consumers.
-* [ ] Register shipped contracts in `.mq/repo-contract.json`, package schemas
+* [x] Register shipped contracts in `.mq/repo-contract.json`, package schemas
   in the wheel, and add positive/negative schema tests.
 * [ ] Preserve backwards readability if a later contract version is introduced;
   never rewrite old evidence into the newest shape.
@@ -214,26 +214,33 @@ BLOCKED
 
 ### Phase F0 — Baseline, threat model and storage
 
+**Status:** Complete in the v1.30 F0 implementation slice. Full pytest, Ruff,
+mypy, docs/gate parity, wheel install and the macOS release gate passed before
+this roadmap sync.
+
 Goal: create a safe place to record feedback experiments before any shadow
 comparison changes execution behavior.
 
-* [ ] Document the trust boundary for local files, OpenAI-hosted/vector
+* [x] Document the trust boundary for local files, OpenAI-hosted/vector
   retrieval, NotebookLM/Drive material, CodeGraph and model-based evaluators.
-* [ ] Inventory the currently available execution/context metrics and mark
+* [x] Inventory the currently available execution/context metrics and mark
   which are measured, inferred, optional or unavailable.
-* [ ] Define representative task classes for the first evaluation set;
+* [x] Define representative task classes for the first evaluation set;
   start with `repo-review` and do not claim generality from one task class.
-* [ ] Implement the `~/.mq/feedback` state root with append-only event writers.
-* [ ] Add redaction and bounded-field validation before persistence.
-* [ ] Add corruption handling: a malformed historical line is reported and
+* [x] Implement the `~/.mq/feedback` state root with append-only event writers.
+* [x] Add redaction and bounded-field validation before persistence.
+* [x] Add corruption handling: a malformed historical line is reported and
   skipped or quarantined; it must not silently change a verdict.
-* [ ] Add retention/rotation and purge behavior.
-* [ ] Add concurrency and crash-interruption tests.
-* [ ] Add test fixtures proving secrets, prompts, diffs and source bodies are
+* [x] Add retention/rotation and purge behavior.
+* [x] Add concurrency and crash-interruption tests.
+* [x] Add test fixtures proving secrets, prompts, diffs and source bodies are
   not persisted.
 
-**F0 exit gate:** an experiment record can be written, read, validated, rotated
-and correlated without touching a Git working tree or durable memory.
+**F0 exit gate:** met. An experiment record can be written, read, validated,
+rotated and correlated without touching a Git working tree or durable memory.
+The store also reports an interrupted/truncated final record instead of treating
+it as valid history. The operator-facing purge **command** remains F1 work; F0
+ships only the bounded purge primitive.
 
 ### Phase F1 — Read-only operator surface
 
