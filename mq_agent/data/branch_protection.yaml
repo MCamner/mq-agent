@@ -9,8 +9,10 @@
 #
 #   PROTECTION_DRIFT     GitHub no longer matches this file
 #   CHECK_SURFACE_DRIFT  a required context is not reported by pull_request any
-#                        more, or the same context is reported twice because a
-#                        workflow carries a bare `push:` as well
+#                        more; or the same context is reported twice because a
+#                        workflow carries a bare `push:` as well; or a context
+#                        runs on pull requests that this file neither requires
+#                        nor excludes
 #
 # `app_id` is not decoration. The deprecated `contexts[]` PUT form sets it to
 # null, which means *any* app may satisfy that context name. 15368 is GitHub
@@ -19,6 +21,19 @@
 # Contexts are display names: a job's `name:` overrides its key, and a matrix
 # job reports one context per cell as `job (value)`. Read them from a real
 # pull_request event; the workflow file alone will mislead you.
+#
+# Every GitHub Actions context a pull request reports must appear here, in
+# required_checks or in excluded_checks. There is no third bucket, because an
+# unclassified check is one nobody decided about: it runs on every PR, it can
+# go red, and it blocks nothing.
+#
+# excluded_checks covers two different situations and the reason says which:
+#
+#   cannot report      the job never runs on a pull request — a tag-only
+#                      trigger, push-to-main only, or a job-level `if:`.
+#                      Requiring it would block every PR forever.
+#   informational      the job does run on pull requests, and we have decided
+#                      on purpose that it should not block a merge.
 
 schema: mq.branch-protection-contract.v1
 owner: MCamner
@@ -31,6 +46,11 @@ defaults:
   enforce_admins: true
   allow_force_pushes: false
   allow_deletions: false
+  # No review requirement on single-maintainer repos: an approval nobody can
+  # give blocks every PR. The status checks are the gate. `null` means the
+  # whole required_pull_request_reviews object is absent.
+  required_approving_reviews: null
+  required_conversation_resolution: false
 
 repos:
   mqobsidian:
@@ -88,6 +108,13 @@ repos:
         reason: "release.yml triggers on v* tags only"
 
   repo-signal:
+    # repo-signal was protected by github_branch_protection.py before that
+    # tool's payload was corrected, so it still carries the older shape. These
+    # two are recorded rather than flattened: a PUT replaces the whole object,
+    # and dropping a setting nobody asked to drop is how protection quietly
+    # weakens. Aligning it with the rest of the stack is a separate decision.
+    required_approving_reviews: 0
+    required_conversation_resolution: true
     required_checks:
       - name: "Python 3.11"
         app_id: 15368
@@ -102,6 +129,19 @@ repos:
       - name: "generated-examples"
         app_id: 15368
       - name: "publish-checklist"
+        app_id: 15368
+      # Guards the relationship between release-check.sh and CI itself: a
+      # workflow added without a declaration, a CI step that disappeared, a
+      # local gate that no longer matches CI. Left non-blocking, the definition
+      # of "green release gate" can drift while every other check still passes.
+      - name: "parity"
+        app_id: 15368
+      # Regression test for an observed defect, not an extra test run: the
+      # suite once read the checkout directory's name as implicit input and
+      # passed only in a directory called `repo-signal`. This runs it from
+      # `zeta-checkout`. Red here means the normal checkout passes and a
+      # worktree or renamed checkout does not.
+      - name: "Suite from a renamed checkout"
         app_id: 15368
 
   macos-scripts:

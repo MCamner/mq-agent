@@ -16,11 +16,18 @@ because the fix is different:
 
   CHECK_SURFACE_DRIFT
       Protection matches the contract, but the workflows moved underneath it.
-      A required context is no longer reported by `pull_request` — which
-      leaves every PR waiting forever with no visible cause — or the same
-      context is reported twice because a workflow carries a bare `push:`
-      as well as `pull_request:`, in which case which run satisfies the
-      requirement is undefined.
+      Three shapes, one layer:
+
+        - a required context is no longer reported by `pull_request`, which
+          leaves every PR waiting forever with no visible cause;
+        - the same context is reported twice, because a workflow carries a
+          bare `push:` as well as `pull_request:`, in which case which run
+          satisfies the requirement is undefined;
+        - a context is reported that the contract neither requires nor
+          excludes. That one is a gate that can go red without blocking
+          anything, which is how a real check quietly becomes decorative.
+          Every reported context must be classified, either as required or
+          as excluded with a stated reason.
 
 Both were found by hand in one session. This exists so they are found by a
 command instead.
@@ -119,6 +126,23 @@ def compare_protection(declared: dict[str, Any], actual: dict[str, Any]) -> list
         if got != declared[field]:
             problems.append(f"{field} is {got!r}, contract says {declared[field]!r}")
 
+    conv = (actual.get("required_conversation_resolution") or {}).get("enabled")
+    if conv != declared["required_conversation_resolution"]:
+        problems.append(
+            f"required_conversation_resolution is {conv!r}, contract says "
+            f"{declared['required_conversation_resolution']!r}"
+        )
+
+    # None means the whole required_pull_request_reviews object is absent, which
+    # is a different state from "present, requiring zero approvals".
+    reviews = actual.get("required_pull_request_reviews")
+    approvals = reviews.get("required_approving_review_count") if reviews else None
+    if approvals != declared["required_approving_reviews"]:
+        problems.append(
+            f"required approving reviews is {approvals!r}, contract says "
+            f"{declared['required_approving_reviews']!r}"
+        )
+
     want = {c["name"]: c["app_id"] for c in declared["required_checks"]}
     have = {c["context"]: c.get("app_id") for c in rsc.get("checks", [])}
 
@@ -140,18 +164,32 @@ def compare_check_surface(declared: dict[str, Any], check_runs: list[dict[str, A
 
     `check_runs` is the raw list from
     `repos/{owner}/{repo}/commits/{sha}/check-runs` for the head of a pull
-    request. Counting matters: a name appearing twice means the workflow fires
-    on both `push` and `pull_request` for the same SHA, and GitHub matches
-    required checks on the name while ignoring the event.
+    request.
+
+    Counting matters: a name appearing twice means the workflow fires on both
+    `push` and `pull_request` for the same SHA, and GitHub matches required
+    checks on the name while ignoring the event.
+
+    So does the reverse direction. Every GitHub Actions context the pull
+    request reports must be classified — required, or excluded with a reason.
+    An unclassified one is a gate nobody decided about: it runs on every PR,
+    can go red, and blocks nothing. Checks from other apps are left alone,
+    because a third-party integration posting a check run is not a gate this
+    contract governs.
     """
     problems: list[str] = []
     counts: dict[str, int] = {}
+    ours: set[str] = set()
     for run in check_runs:
         name = run.get("name", "")
         counts[name] = counts.get(name, 0) + 1
+        if (run.get("app") or {}).get("id") == GITHUB_ACTIONS_APP_ID:
+            ours.add(name)
 
-    for check in declared["required_checks"]:
-        name = check["name"]
+    required = {check["name"] for check in declared["required_checks"]}
+    excluded = {item["name"] for item in declared.get("excluded_checks", [])}
+
+    for name in sorted(required):
         seen = counts.get(name, 0)
         if seen == 0:
             problems.append(
@@ -162,6 +200,12 @@ def compare_check_surface(declared: dict[str, Any], check_runs: list[dict[str, A
                 f"context {name!r} was reported {seen} times on one commit "
                 "(a workflow fires on both push and pull_request)"
             )
+
+    for name in sorted(ours - required - excluded):
+        problems.append(
+            f"context {name!r} runs on pull requests but the contract neither "
+            "requires nor excludes it: it can go red without blocking anything"
+        )
 
     return problems
 
