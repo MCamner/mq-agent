@@ -41,6 +41,7 @@ def build_feedback_experiment(
     state: str = "planned",
     execution_run_id: str | None = None,
     network_backends: list[str] | None = None,
+    evidence_boundary_sha256: str | None = None,
     feedback_run_id: str | None = None,
 ) -> dict[str, Any]:
     """Build one bounded feedback experiment record without persisting it."""
@@ -64,5 +65,7 @@ def build_feedback_experiment(
         record["execution_run_id"] = execution_run_id
     if network_backends is not None:
         record["network_backends"] = network_backends
+    if evidence_boundary_sha256 is not None:
+        record["evidence_boundary_sha256"] = evidence_boundary_sha256
     validate_experiment(record)
     return record

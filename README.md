@@ -38,6 +38,40 @@ surface and release proof.
 documented in mqobsidian (source of truth):
 [docs/architecture/mq-stack.md](https://github.com/MCamner/mqobsidian/blob/main/docs/architecture/mq-stack.md).
 
+## Feedback Engine
+
+v1.30 adds an evidence-first active-versus-shadow loop for context selection.
+The shadow path is zero-effect: it measures candidate context without changing
+the production prompt, routing, tools, repository, durable memory, approvals or
+task result.
+
+```bash
+mq-agent feedback status
+mq-agent feedback run --task-class repo-review --repo . --task "review release boundaries"
+mq-agent feedback compare <feedback-run-id> --fixture path/to/relevance-fixture.json
+mq-agent feedback candidates
+mq-agent feedback report --task-class repo-review --since 30d --json
+```
+
+```mermaid
+flowchart LR
+    T[repo-review task] --> A[active context]
+    T --> S[shadow context]
+    A --> E[immutable evidence]
+    S --> E
+    E --> C[deterministic comparison]
+    C --> P[reviewable candidate]
+    P --> H[human review]
+    C --> X[JSON / MCP / HAL / mqlaunch]
+```
+
+Operational metrics alone do not prove a candidate is better. A
+`CANDIDATE_BETTER` verdict requires explicit deterministic relevance
+evidence, and candidates never activate production policy automatically.
+
+See [Feedback Engine](docs/FEEDBACK_ENGINE.md) and the
+[client contract](docs/feedback-engine-clients.md).
+
 ## Agent entrypoints
 
 This README is the human-facing canonical project document and is intentionally

@@ -474,41 +474,47 @@ mq-agent owns feedback state and verdict policy.
 
 ### Phase F6 — Release hardening
 
-* [ ] Add end-to-end fixture: one active strategy, one shadow strategy,
+**Status:** Complete in the v1.30 release-hardening slice. End-to-end/mutation
+fixtures, installed-wheel checks, the canonical feedback release gate, public
+docs, v1 migration coverage and two real-repo shadow runs are all in place.
+Measured real-run evidence is recorded in
+[docs/feedback-engine-release-evidence.md](docs/feedback-engine-release-evidence.md).
+
+* [x] Add end-to-end fixture: one active strategy, one shadow strategy,
   comparison, candidate and report.
-* [ ] Add mutation tests for missing provenance, mixed snapshots, duplicated
+* [x] Add mutation tests for missing provenance, mixed snapshots, duplicated
   run IDs, stale evidence, malformed records and unavailable metrics.
-* [ ] Verify wheel-installed schemas and CLI behavior, not checkout-only paths.
-* [ ] Add release-check coverage for the feedback contracts and packaged data.
-* [ ] Add public-safe documentation with no private paths or captured task data.
-* [ ] Add README command examples and architecture diagram.
-* [ ] Add a migration/readability test proving historical v1 records remain
+* [x] Verify wheel-installed schemas and CLI behavior, not checkout-only paths.
+* [x] Add release-check coverage for the feedback contracts and packaged data.
+* [x] Add public-safe documentation with no private paths or captured task data.
+* [x] Add README command examples and architecture diagram.
+* [x] Add a migration/readability test proving historical v1 records remain
   readable after a schema extension.
-* [ ] Run a real `repo-review` shadow experiment against at least two MQ repos
+* [x] Run a real `repo-review` shadow experiment against at least two MQ repos
   before release and record limitations as well as gains.
-* [ ] Require main CI, release-check, contract-check and stack protection check
+* [x] Require main CI, release-check, contract-check and stack protection check
   to pass before tagging v1.30.0.
 
 ### v1.30.0 non-goals
 
 The following are explicitly **not** part of this release:
 
-* [ ] **No automatic activation.** A candidate may be proposed but cannot
+* [x] **No automatic activation.** A candidate may be proposed but cannot
   replace the active retrieval/context/routing policy.
-* [ ] **No autonomous routing.** Existing routing behavior remains authoritative.
-* [ ] **No direct durable-memory writes from feedback.** mqobsidian review and
+* [x] **No autonomous routing.** Existing routing behavior remains authoritative.
+* [x] **No direct durable-memory writes from feedback.** mqobsidian review and
   promotion boundaries remain intact.
-* [ ] **No new generic memory engine.** Reuse current keyword/vector/CodeGraph
+* [x] **No new generic memory engine.** Reuse current keyword/vector/CodeGraph
   and memory surfaces.
-* [ ] **No graph database requirement.** A provenance graph/projection may be
+* [x] **No graph database requirement.** A provenance graph/projection may be
   consumed later, but v1.30 must not require Neo4j/Kuzu/another service.
-* [ ] **No client-specific engines.** Codex, Claude, Bridget and VS Code do not
+* [x] **No client-specific engines.** Codex, Claude, Bridget and VS Code do not
   get separate feedback implementations.
-* [ ] **No raw conversation capture.** Session continuity work must use typed,
+* [x] **No raw conversation capture.** Session continuity work must use typed,
   sanitized facts only and is not required for v1.30.
-* [ ] **No opaque global score.** Per-metric evidence stays visible.
-* [ ] **No claim that one task class generalizes to all MQ workflows.**
-* [ ] **No replacement of existing execution telemetry.** Feedback correlates
+* [x] **No opaque global score.** Per-metric evidence stays visible.
+* [x] **No claim that one task class generalizes to all MQ workflows.**
+* [x] **No replacement of existing execution telemetry.** Feedback correlates
   to `mq.execution-outcome.v1`; it does not duplicate it.
 
 These are boundary checkboxes, not implementation work; they are complete only
@@ -537,23 +543,23 @@ justify an activation design.
 
 ### Definition of done — v1.30.0
 
-* [ ] `mq-agent feedback status|inspect|recent|report` are stable and tested.
-* [ ] A `repo-review` active-vs-shadow experiment runs against one pinned
+* [x] `mq-agent feedback status|inspect|recent|report` are stable and tested.
+* [x] A `repo-review` active-vs-shadow experiment runs against one pinned
   evidence snapshot with zero effect on the production result.
-* [ ] Comparisons expose per-metric evidence and bounded decision states.
-* [ ] Improvement candidates are reviewable, immutable by reference and never
+* [x] Comparisons expose per-metric evidence and bounded decision states.
+* [x] Improvement candidates are reviewable, immutable by reference and never
   auto-activated.
-* [ ] Runtime feedback data survives Git checkouts because it does not live in
+* [x] Runtime feedback data survives Git checkouts because it does not live in
   a working tree.
-* [ ] Secrets/raw prompts/diffs/source bodies are absent from persisted records.
-* [ ] Tests cannot contaminate the operator evidence store.
-* [ ] Stable JSON is sufficient for mq-mcp, mq-hal, mqlaunch and scripts to
+* [x] Secrets/raw prompts/diffs/source bodies are absent from persisted records.
+* [x] Tests cannot contaminate the operator evidence store.
+* [x] Stable JSON is sufficient for mq-mcp, mq-hal, mqlaunch and scripts to
   integrate without importing mq-agent internals.
-* [ ] At least one Codex/Claude MCP workflow can read/report feedback evidence
+* [x] At least one Codex/Claude MCP workflow can read/report feedback evidence
   through mq-mcp without direct filesystem access.
-* [ ] At least one mqlaunch/HAL path can present the same authoritative verdict.
-* [ ] No activation command or MCP policy-mutation tool ships in v1.30.0.
-* [ ] README, command docs, repo contract, changelog and public roadmap agree
+* [x] At least one mqlaunch/HAL path can present the same authoritative verdict.
+* [x] No activation command or MCP policy-mutation tool ships in v1.30.0.
+* [x] README, command docs, repo contract, changelog and public roadmap agree
   on the release boundary.
 
 ### Recommended implementation order

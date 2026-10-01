@@ -29,6 +29,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   advisory Atlas evidence binding; and append-only
   \`mq.feedback-candidate.v1\` review proposals with no activation path.
 
+* Feedback Engine F5 ecosystem access: one authoritative mq-agent result is
+  consumed through mq-mcp by Codex/Claude, rendered read-only by mq-hal,
+  delegated by mqlaunch, and exposed directly to scripts through stable JSON;
+  no client duplicates comparison or activation policy.
+
+* Feedback Engine F6 release hardening: end-to-end and mutation fixtures,
+  installed-wheel feedback schema/CLI verification, a canonical feedback
+  release gate, public-safe documentation, historical v1 readability, and
+  real zero-effect shadow-run CI evidence across mq-agent and mq-mcp.
+
 ## [v1.29.0] — 2026-09-29
 
 Theme: NotebookLM Knowledge Pipeline. NotebookLM archive material is promoted

@@ -232,6 +232,7 @@ def run_context_experiment(
             evidence_sources=evidence_boundary,
             state=state,
             network_backends=[],
+            evidence_boundary_sha256=(fingerprint if fingerprint != "none" else None),
             feedback_run_id=feedback_run_id,
         )
         append_experiment(experiment, state_root)
@@ -303,6 +304,7 @@ def run_context_experiment(
         evidence_sources=evidence_boundary,
         state="completed",
         network_backends=[],
+        evidence_boundary_sha256=(fingerprint if fingerprint != "none" else None),
         feedback_run_id=feedback_run_id,
     )
     comparison = build_operational_comparison(

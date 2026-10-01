@@ -13,6 +13,11 @@ Use this before tagging a release.
 - [ ] Push branch: `git push -u origin chore/release-vX.Y.Z`
 - [ ] Open PR: `gh pr create --base main --head chore/release-vX.Y.Z`
 - [ ] GitHub Actions CI is green on the PR
+- [ ] Merge the release-prep PR and verify **main CI** is green on the merged commit
+- [ ] Run `./release-check.sh` from the merged main checkout
+- [ ] `mq-agent stack contract-check --json` reports `"overall": "READY"`
+- [ ] `mq-agent stack protection-check --json` reports `"overall": "PASS"`
+- [ ] Do not create or push the release tag until all four checks above pass
 
 ## Documentation
 
