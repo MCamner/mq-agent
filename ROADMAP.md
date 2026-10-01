@@ -402,6 +402,19 @@ review state never activates production policy.
 
 ### Phase F5 — Ecosystem access
 
+**Status:** Complete. mq-mcp, Codex/Claude profiles, mq-hal, mqlaunch and direct
+JSON consumers all delegate to the same mq-agent Feedback Engine. Client rules
+are documented in [docs/feedback-engine-clients.md](docs/feedback-engine-clients.md).
+
+Implementation evidence:
+
+* mq-mcp PR #95 — thin MCP bridge, safety classes, discovery parity and
+  `feedback-review` skill;
+* mq-hal PR #49 — read-only operator consumer with neutral future-state
+  rendering;
+* macos-scripts PR #246 — thin `mqlaunch feedback` delegation with preserved
+  arguments, JSON and exit status.
+
 Goal: expose the engine once through stable contracts, not through separate
 Codex-, Claude-, Bridget- and mqlaunch-specific implementations.
 
@@ -419,43 +432,45 @@ mq_feedback_candidates
 mq_feedback_run
 ```
 
-* [ ] Keep `mq-mcp` as a delegate/adapter; comparison policy remains in
+* [x] Keep `mq-mcp` as a delegate/adapter; comparison policy remains in
   `mq-agent`.
-* [ ] Expose read-only feedback tools as Class A.
-* [ ] Classify `mq_feedback_run` separately because it consumes bounded
+* [x] Expose read-only feedback tools as Class A.
+* [x] Classify `mq_feedback_run` separately because it consumes bounded
   compute/API resources even though it has zero production mutation effect.
-* [ ] Do not expose activation/policy mutation tools to Codex or Claude in
+* [x] Do not expose activation/policy mutation tools to Codex or Claude in
   v1.30.
-* [ ] Add MCP contract/discovery tests so Codex and Claude see the same
+* [x] Add MCP contract/discovery tests so Codex and Claude see the same
   feedback surface.
-* [ ] Add one thin `feedback-review` skill/instruction surface for clients;
+* [x] Add one thin `feedback-review` skill/instruction surface for clients;
   the skill may describe workflow but must contain no policy implementation.
 
 #### mq-hal
 
-* [ ] Add a read-only `mq-hal feedback` consumer after
+* [x] Add a read-only `mq-hal feedback` consumer after
   `mq.feedback-report.v1` is stable.
-* [ ] HAL must render mq-agent's verdict, evidence counts, deltas and next
+* [x] HAL must render mq-agent's verdict, evidence counts, deltas and next
   review action without recomputing them.
-* [ ] Unknown future states/reason codes must render neutrally, not be mapped
+* [x] Unknown future states/reason codes must render neutrally, not be mapped
   to an invented local verdict.
 
 #### mqlaunch / macos-scripts
 
-* [ ] Add a thin `mqlaunch feedback` entrypoint/menu after the mq-agent CLI is
+* [x] Add a thin `mqlaunch feedback` entrypoint/menu after the mq-agent CLI is
   stable.
-* [ ] Delegate status, run, inspect, compare and candidate views; keep no
+* [x] Delegate status, run, inspect, compare and candidate views; keep no
   feedback state or comparison logic in shell.
-* [ ] Preserve delegated exit codes.
+* [x] Preserve delegated exit codes.
 
 #### scripts / CI / other MQ tools
 
-* [ ] Treat `mq-agent feedback ... --json` as the direct machine interface.
-* [ ] Document that other tools may consume reports but may not write
+* [x] Treat `mq-agent feedback ... --json` as the direct machine interface.
+* [x] Document that other tools may consume reports but may not write
   `~/.mq/feedback` directly.
 
-**F5 exit gate:** Codex, Claude, HAL, mqlaunch and scripts consume the same
-authoritative mq-agent result without duplicated decision logic.
+**F5 exit gate:** met. Codex, Claude, HAL, mqlaunch and scripts consume the
+same authoritative mq-agent result without duplicated decision logic. MCP and
+HAL render/delegate; mqlaunch forwards; direct clients consume `--json`; only
+mq-agent owns feedback state and verdict policy.
 
 ### Phase F6 — Release hardening
 
