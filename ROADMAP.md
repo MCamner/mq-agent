@@ -162,7 +162,7 @@ Rules:
 * [x] Support an overrideable state root for tests and ephemeral environments.
 * [x] Isolate all tests from the operator's real `~/.mq/feedback` store.
 * [x] Bound retention/rotation; storage growth must not be unlimited.
-* [ ] Provide an explicit purge command for runtime feedback state.
+* [x] Provide an explicit purge command for runtime feedback state.
 * [x] Never store raw prompts, full diffs, source-file bodies, credentials,
   private paths, or unrestricted tool stdout in feedback records.
 
@@ -176,9 +176,9 @@ Planned mq-agent-owned runtime contracts:
 * [x] `mq.feedback-experiment.v1` — identifies task class, active strategy,
   shadow strategy, common snapshot/provenance, execution correlation and
   experiment terminal state.
-* [ ] `mq.feedback-comparison.v1` — measured deltas and evidence references;
+* [x] `mq.feedback-comparison.v1` — measured deltas and evidence references;
   absent metrics remain absent rather than being invented as zero.
-* [ ] `mq.feedback-candidate.v1` — a reviewable proposal describing exactly
+* [x] `mq.feedback-candidate.v1` — a reviewable proposal describing exactly
   what might change, why, scope, evidence, limitations and rollback target.
 * [x] `mq.feedback-report.v1` — stable aggregate surface for MCP, HAL, scripts
   and CI consumers.
@@ -206,11 +206,11 @@ CONFLICTING_EVIDENCE
 BLOCKED
 ```
 
-* [ ] Define deterministic precedence for the decision states.
-* [ ] Require evidence references for every conclusion except `NO_DATA`.
-* [ ] Never emit `CANDIDATE_BETTER` from a model's self-assessment alone.
-* [ ] Keep uncertainty explicit when metrics are missing or incomparable.
-* [ ] Do not collapse conflicting metrics into one opaque score in v1.30.
+* [x] Define deterministic precedence for the decision states.
+* [x] Require evidence references for every conclusion except `NO_DATA`.
+* [x] Never emit `CANDIDATE_BETTER` from a model's self-assessment alone.
+* [x] Keep uncertainty explicit when metrics are missing or incomparable.
+* [x] Do not collapse conflicting metrics into one opaque score in v1.30.
 
 ### Phase F0 — Baseline, threat model and storage
 
@@ -278,6 +278,10 @@ unavailable until F3/F4; F1 does not invent them.
 
 ### Phase F2 — Active-versus-shadow context experiment
 
+**Status:** Complete. The zero-effect repo-review experiment surface, pinned
+snapshot/provenance checks, bounded collection budgets and terminal evidence
+passed the full repository gate before this roadmap sync.
+
 Goal: compare context/retrieval strategies without affecting the real task.
 
 First supported experiment type: **context selection for `repo-review`**.
@@ -294,31 +298,35 @@ same evidence authorization boundary
                  `--> zero execution effect
 ```
 
-* [ ] Add `mq-agent feedback run --task-class repo-review --repo <path> --task
+* [x] Add `mq-agent feedback run --task-class repo-review --repo <path> --task
   <text>` in shadow-only mode.
-* [ ] Record the exact active and candidate strategy identifiers.
-* [ ] Pin both sides to the same repository snapshot/ref and evidence
+* [x] Record the exact active and candidate strategy identifiers.
+* [x] Pin both sides to the same repository snapshot/ref and evidence
   authorization boundary.
-* [ ] Refuse comparison when the snapshot drifts between active and shadow
+* [x] Refuse comparison when the snapshot drifts between active and shadow
   collection unless both sides can be reconstructed against the same snapshot.
-* [ ] Guarantee the shadow path cannot modify prompts, routing, memory, repo
+* [x] Guarantee the shadow path cannot modify prompts, routing, memory, repo
   files, tools, approvals or the real task result.
-* [ ] Measure retrieval/context latency independently from downstream model
+* [x] Measure retrieval/context latency independently from downstream model
   latency.
-* [ ] Capture context size as measured lines/bytes and tokens when a tokenizer
+* [x] Capture context size as measured lines/bytes and tokens when a tokenizer
   is available; do not estimate a token count and label it measured.
-* [ ] Record source identities, freshness/provenance coverage and deduplication
+* [x] Record source identities, freshness/provenance coverage and deduplication
   results without storing source bodies.
-* [ ] Make network/API use explicit per side.
-* [ ] Add a hard budget for candidate retrieval so shadow experiments cannot
+* [x] Make network/API use explicit per side.
+* [x] Add a hard budget for candidate retrieval so shadow experiments cannot
   create unbounded latency or cost.
-* [ ] Add cancellation and timeout handling with terminal evidence.
+* [x] Add cancellation and timeout handling with terminal evidence.
 
-**F2 exit gate:** active and shadow context can be compared on one real task
-while deleting the entire feedback store would leave production behavior
-unchanged.
+**F2 exit gate:** met. Active and shadow context are collected from the same
+clean Git snapshot and evidence authorization boundary, and feedback state is
+operational evidence only; deleting it leaves production behavior unchanged.
 
 ### Phase F3 — Comparable evidence and evaluation
+
+**Status:** Complete. Deterministic metric deltas, explicit relevance fixtures,
+advisory-only Atlas evidence and bounded verdict precedence are implemented and
+verified by regression fixtures.
 
 Goal: decide whether a candidate is better only when the measurements support
 that statement.
@@ -335,25 +343,30 @@ Baseline metrics:
 * task-specific relevance/recall only when explicit labels or a deterministic
   verifier exist.
 
-* [ ] Implement deterministic delta calculation for comparable metrics.
-* [ ] Add a comparison validity check before any verdict.
-* [ ] Keep per-metric direction visible; do not hide a latency regression
+* [x] Implement deterministic delta calculation for comparable metrics.
+* [x] Add a comparison validity check before any verdict.
+* [x] Keep per-metric direction visible; do not hide a latency regression
   behind a retrieval-quality improvement.
-* [ ] Support explicit relevance fixtures for repeatable precision/recall
+* [x] Support explicit relevance fixtures for repeatable precision/recall
   evaluation.
-* [ ] Allow Atlas Core as an optional evidence evaluator for bounded questions,
+* [x] Allow Atlas Core as an optional evidence evaluator for bounded questions,
   but require its claims to resolve to the experiment's observed evidence.
-* [ ] Treat model-only preference as advisory metadata, never as the verdict.
-* [ ] Add negative-query fixtures where the correct retrieval result is no
+* [x] Treat model-only preference as advisory metadata, never as the verdict.
+* [x] Add negative-query fixtures where the correct retrieval result is no
   answer/material.
-* [ ] Add stale-memory and contradictory-memory fixtures.
-* [ ] Add regression tests where a candidate retrieves more plausible but
+* [x] Add stale-memory and contradictory-memory fixtures.
+* [x] Add regression tests where a candidate retrieves more plausible but
   irrelevant material; this must not be classified as better.
 
-**F3 exit gate:** `CANDIDATE_BETTER` is reproducible from stored measurements
-and evidence, not from prose or evaluator preference.
+**F3 exit gate:** met. `CANDIDATE_BETTER` is derived from stored measurements,
+explicit fixtures and evidence references; evaluator prose cannot produce the
+verdict.
 
 ### Phase F4 — Improvement candidates
+
+**Status:** Complete. Candidates are append-only review proposals linked to
+immutable comparisons; review states and mqobsidian handoff are explicit and no
+activation state exists.
 
 Goal: convert measured differences into a reviewable proposal without changing
 the active system.
@@ -368,23 +381,24 @@ memory candidate for existing review/promotion flow
 routing experiment candidate (proposal only; no activation)
 ```
 
-* [ ] Implement `mq-agent feedback candidates` and
+* [x] Implement `mq-agent feedback candidates` and
   `mq-agent feedback candidate <id>`.
-* [ ] Require candidate scope: task class, current strategy, proposed strategy
+* [x] Require candidate scope: task class, current strategy, proposed strategy
   and exact evidence window.
-* [ ] Require candidate rationale, measured gains/regressions, limitations and
+* [x] Require candidate rationale, measured gains/regressions, limitations and
   safe rollback target.
-* [ ] Link each candidate to immutable comparison IDs.
-* [ ] Deduplicate materially identical candidates without deleting history.
-* [ ] Mark superseded/rejected/deferred candidates explicitly.
-* [ ] For durable knowledge, map an approved learning candidate into the
+* [x] Link each candidate to immutable comparison IDs.
+* [x] Deduplicate materially identical candidates without deleting history.
+* [x] Mark superseded/rejected/deferred candidates explicitly.
+* [x] For durable knowledge, map an approved learning candidate into the
   existing mqobsidian review/promotion path rather than writing durable memory
   directly.
-* [ ] Do not let frequency, similarity or a high metric automatically promote
+* [x] Do not let frequency, similarity or a high metric automatically promote
   memory or policy.
 
-**F4 exit gate:** a human can review a candidate and reconstruct every metric
-and source reference that caused it to exist.
+**F4 exit gate:** met. Candidate detail exposes its comparison history,
+per-metric gains/regressions, limitations, rollback target and source evidence;
+review state never activates production policy.
 
 ### Phase F5 — Ecosystem access
 
