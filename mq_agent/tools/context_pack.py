@@ -433,6 +433,7 @@ summary: {pack_summary}
         "repo": repo_line,
         "relevant_repos": repos,
         "cards": cards,
+        "relevant_files": files,
         "card_metadata": card_metadata,
         "exclusions": pack_exclusions,
         "codegraph_applied": bool(codegraph_queries),
