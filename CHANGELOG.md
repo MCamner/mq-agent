@@ -9,6 +9,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.30.0] — 2026-10-01
+
+Theme: Evidence-Grounded Feedback Engine. mq-agent now measures candidate
+context strategies in a zero-effect shadow path, derives deterministic
+evidence-bounded comparisons, and creates reviewable improvement candidates
+without allowing the feedback loop to activate production policy.
+
 ### Added
 
 * Feedback Engine F0 foundation: `mq.feedback-experiment.v1`, a bounded
