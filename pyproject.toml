@@ -49,6 +49,7 @@ packages = ["mq_agent"]
 "schemas/mq_release_cockpit.schema.json" = "mq_agent/schemas/mq_release_cockpit.schema.json"
 "schemas/execution_outcome.schema.json" = "mq_agent/schemas/execution_outcome.schema.json"
 "schemas/feedback_experiment.schema.json" = "mq_agent/schemas/feedback_experiment.schema.json"
+"schemas/feedback_report.schema.json" = "mq_agent/schemas/feedback_report.schema.json"
 "schemas/runtime_identity.schema.json" = "mq_agent/schemas/runtime_identity.schema.json"
 "schemas/stack_provenance.schema.json" = "mq_agent/schemas/stack_provenance.schema.json"
 "schemas/notebook_corpus_index.schema.json" = "mq_agent/schemas/notebook_corpus_index.schema.json"

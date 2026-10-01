@@ -22,6 +22,7 @@ This page is a projection of it.
 | [`mq-agent docs-audit`](#mq-agent-docs-audit) | command | Audit repository documentation: README, CHANGELOG, docstrings, /docs. |
 | [`mq-agent doctor`](#mq-agent-doctor) | command | Check mq-agent environment and dependencies. |
 | [`mq-agent execution`](#mq-agent-execution) | group | Inspect observed execution outcomes. |
+| [`mq-agent feedback`](#mq-agent-feedback) | group | Inspect feedback experiment evidence (read-only). |
 | [`mq-agent fix-ci`](#mq-agent-fix-ci) | command | Diagnose CI failures and suggest fixes. |
 | [`mq-agent learn`](#mq-agent-learn) | group | Learn commands — extraction, storage and promotion of review patterns. |
 | [`mq-agent mcp`](#mq-agent-mcp) | group | Inspect and manage the local mq-mcp tool server. |
@@ -452,6 +453,68 @@ Report execution metrics without mixing in shadow outcomes.
 | `--source` | No | — | JSON or JSONL execution outcome source |
 | `--since` | No | — | Time window: 7d, 30d, or 90d |
 | `--task-class` | No | — | Limit report to one task class |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback`
+
+Inspect feedback experiment evidence (read-only).
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent feedback inspect`](#mq-agent-feedback-inspect) | Explain one immutable feedback experiment chain. |
+| [`mq-agent feedback recent`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
+| [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without deriving a winner. |
+| [`mq-agent feedback status`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
+
+## `mq-agent feedback inspect`
+
+Explain one immutable feedback experiment chain.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `FEEDBACK_RUN_ID` | Yes | — | Feedback run identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback recent`
+
+List retained feedback experiments newest first.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--limit` | No | `20` | Newest records to return (1-200) |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback report`
+
+Aggregate feedback evidence without deriving a winner.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--task-class` | No | — | Limit report to one task class |
+| `--since` | No | — | Positive day window, e.g. 30d |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback status`
+
+Show feedback storage health and experiment coverage.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
 | `--json` | No | `false` | — |
 
 ## `mq-agent fix-ci`

@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-report.v1",
+  "description": "Read-only aggregate feedback evidence. Counts are measured from retained experiment records; metrics not produced by the current phase are explicit unavailable values rather than invented zeroes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "generated_at",
+    "source_root",
+    "health",
+    "filter",
+    "total_records",
+    "matched_records",
+    "invalid_records",
+    "newest_recorded_at",
+    "by_task_class",
+    "by_state",
+    "repositories",
+    "active_strategies",
+    "shadow_strategies",
+    "network_backends",
+    "metrics",
+    "comparison",
+    "degraded_reasons"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.feedback-report.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "health": {
+      "enum": [
+        "EMPTY",
+        "HEALTHY",
+        "DEGRADED"
+      ]
+    },
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_class",
+        "since"
+      ],
+      "properties": {
+        "task_class": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "since": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "total_records": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "matched_records": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "invalid_records": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "newest_recorded_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "by_task_class": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "by_state": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "repositories": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "active_strategies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "shadow_strategies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "network_backends": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context_lines",
+        "context_bytes",
+        "context_tokens",
+        "retrieval_latency_ms",
+        "source_count",
+        "deduplicated_source_count",
+        "provenance_coverage",
+        "stale_source_rate",
+        "external_api_calls",
+        "cost"
+      ],
+      "properties": {
+        "context_lines": { "$ref": "#/$defs/metric" },
+        "context_bytes": { "$ref": "#/$defs/metric" },
+        "context_tokens": { "$ref": "#/$defs/metric" },
+        "retrieval_latency_ms": { "$ref": "#/$defs/metric" },
+        "source_count": { "$ref": "#/$defs/metric" },
+        "deduplicated_source_count": { "$ref": "#/$defs/metric" },
+        "provenance_coverage": { "$ref": "#/$defs/metric" },
+        "stale_source_rate": { "$ref": "#/$defs/metric" },
+        "external_api_calls": { "$ref": "#/$defs/metric" },
+        "cost": { "$ref": "#/$defs/metric" }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "records",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "unavailable",
+            "available"
+          ]
+        },
+        "records": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "degraded_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "unavailable",
+            "measured"
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unavailable"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

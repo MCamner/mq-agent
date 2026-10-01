@@ -61,11 +61,25 @@ _HOME_PATTERNS = (
 class FeedbackStoreIssue:
     line: int
     reason: str
+    source: str = EXPERIMENTS_FILE
 
 
 @dataclass(frozen=True)
 class FeedbackReadResult:
     records: list[dict[str, Any]]
+    issues: list[FeedbackStoreIssue]
+
+
+@dataclass(frozen=True)
+class StoredFeedbackRecord:
+    record: dict[str, Any]
+    source: str
+    line: int
+
+
+@dataclass(frozen=True)
+class FeedbackHistoryResult:
+    records: list[StoredFeedbackRecord]
     issues: list[FeedbackStoreIssue]
 
 
@@ -132,12 +146,38 @@ def _ensure_root(root: Path) -> None:
 
 @contextmanager
 def _exclusive_lock(root: Path) -> Iterator[None]:
+    """Writer lock; creating the local runtime surface is allowed here."""
     _ensure_root(root)
     lock_path = root / LOCK_FILE
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     with os.fdopen(fd, "a+b", closefd=True) as handle:
         os.chmod(lock_path, 0o600)
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _shared_lock(root: Path) -> Iterator[None]:
+    """Read lock without creating the feedback root or lock file.
+
+    F1 commands are observational. If the store does not exist, reading it must
+    leave the filesystem exactly as it was. Writers always create and hold the
+    store lock before rotating/appending, so existing stores coordinate readers
+    through a shared lock. A legacy/store-less root with no lock is simply read
+    without creating one.
+    """
+    lock_path = root / LOCK_FILE
+    try:
+        fd = os.open(lock_path, os.O_RDONLY)
+    except FileNotFoundError:
+        yield
+        return
+
+    with os.fdopen(fd, "rb", closefd=True) as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_SH)
         try:
             yield
         finally:
@@ -207,18 +247,9 @@ def append_experiment(record: dict[str, Any], root: Path | None = None) -> Path:
     return path
 
 
-def read_experiments(root: Path | None = None) -> FeedbackReadResult:
-    """Read valid current-generation records and report malformed history."""
-    state_root = feedback_root(root)
-    path = state_root / EXPERIMENTS_FILE
-    if not path.exists():
-        return FeedbackReadResult(records=[], issues=[])
-
-    records: list[dict[str, Any]] = []
+def _parse_lines(raw_lines: list[bytes], source: str) -> FeedbackHistoryResult:
+    records: list[StoredFeedbackRecord] = []
     issues: list[FeedbackStoreIssue] = []
-    with _exclusive_lock(state_root):
-        raw_lines = path.read_bytes().splitlines()
-
     for line_number, raw in enumerate(raw_lines, start=1):
         try:
             text = raw.decode("utf-8")
@@ -230,10 +261,69 @@ def read_experiments(root: Path | None = None) -> FeedbackReadResult:
                 raise ValueError("record contains data that requires redaction")
             validate_experiment(parsed)
         except (UnicodeDecodeError, json.JSONDecodeError, ValidationError, ValueError) as exc:
-            issues.append(FeedbackStoreIssue(line=line_number, reason=str(exc)))
+            issues.append(
+                FeedbackStoreIssue(
+                    line=line_number,
+                    reason=str(exc),
+                    source=source,
+                )
+            )
             continue
-        records.append(parsed)
-    return FeedbackReadResult(records=records, issues=issues)
+        records.append(
+            StoredFeedbackRecord(
+                record=parsed,
+                source=source,
+                line=line_number,
+            )
+        )
+    return FeedbackHistoryResult(records=records, issues=issues)
+
+
+def _history_paths(root: Path) -> list[Path]:
+    current = root / EXPERIMENTS_FILE
+    # Rotation moves current -> .1 -> .2 -> .3. Reading the oldest surviving
+    # generation first reconstructs append order without relying on mtimes.
+    return [
+        *(Path(f"{current}.{index}") for index in range(MAX_ROTATED_FILES, 0, -1)),
+        current,
+    ]
+
+
+def read_experiment_history(root: Path | None = None) -> FeedbackHistoryResult:
+    """Read every retained experiment generation in stable append order."""
+    state_root = feedback_root(root)
+    if not state_root.exists():
+        return FeedbackHistoryResult(records=[], issues=[])
+
+    snapshots: list[tuple[str, list[bytes]]] = []
+    with _shared_lock(state_root):
+        for path in _history_paths(state_root):
+            if path.is_file():
+                snapshots.append((path.name, path.read_bytes().splitlines()))
+
+    records: list[StoredFeedbackRecord] = []
+    issues: list[FeedbackStoreIssue] = []
+    for source, raw_lines in snapshots:
+        parsed = _parse_lines(raw_lines, source)
+        records.extend(parsed.records)
+        issues.extend(parsed.issues)
+    return FeedbackHistoryResult(records=records, issues=issues)
+
+
+def read_experiments(root: Path | None = None) -> FeedbackReadResult:
+    """Read valid current-generation records and report malformed history."""
+    state_root = feedback_root(root)
+    path = state_root / EXPERIMENTS_FILE
+    if not path.exists():
+        return FeedbackReadResult(records=[], issues=[])
+
+    with _shared_lock(state_root):
+        raw_lines = path.read_bytes().splitlines()
+    parsed = _parse_lines(raw_lines, path.name)
+    return FeedbackReadResult(
+        records=[item.record for item in parsed.records],
+        issues=parsed.issues,
+    )
 
 
 def purge_feedback_state(root: Path | None = None) -> int:
