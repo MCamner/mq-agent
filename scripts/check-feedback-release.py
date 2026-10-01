@@ -22,6 +22,7 @@ SCHEMAS = {
 PUBLIC_DOCS = (
     ROOT / "docs" / "FEEDBACK_ENGINE.md",
     ROOT / "docs" / "feedback-engine-clients.md",
+    ROOT / "docs" / "feedback-engine-release-evidence.md",
 )
 REQUIRED_FEEDBACK_COMMANDS = {
     "status",
