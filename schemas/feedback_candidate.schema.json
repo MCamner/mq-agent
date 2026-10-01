@@ -103,7 +103,7 @@
       "maxLength": 120
     },
     "state": {
-      "enum": ["proposed", "deferred", "rejected", "superseded"]
+      "enum": ["proposed", "deferred", "rejected", "superseded", "approved-for-handoff"]
     },
     "state_reason": {
       "type": ["string", "null"],
