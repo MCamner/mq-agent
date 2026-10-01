@@ -16,6 +16,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   secret/private-path redaction, serialized writes, retention/rotation, corrupt
   record reporting, purge primitives, and pytest isolation from operator state.
 
+
+* Feedback Engine F1 read-only operator surface: `feedback status`, `inspect`,
+  `recent`, and `report`; retained-rotation history reads; immutable store
+  references; explicit degraded-state reporting; and the packaged
+  `mq.feedback-report.v1` aggregate contract with unavailable metrics kept
+  distinct from measured zeroes.
+
 ## [v1.29.0] — 2026-09-29
 
 Theme: NotebookLM Knowledge Pipeline. NotebookLM archive material is promoted
