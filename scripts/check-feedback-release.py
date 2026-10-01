@@ -44,7 +44,7 @@ FORBIDDEN_FEEDBACK_COMMANDS = {
 }
 PRIVATE_PATH = re.compile(r"(?:/Users/[^/\s]+|/home/[^/\s]+|[A-Za-z]:\\\\Users\\\\[^\\\\\s]+)")
 SECRET_LIKE = re.compile(
-    r"(?:github_pat_[A-Za-z0-9_]{12,}|ghp_[A-Za-z0-9]{12,}|sk-[A-Za-z0-9_-]{12,})"
+    r"(?:github_pat_[A-Za-z0-9_]{12,}|ghp_[A-Za-z0-9]{12,}|sk-(?:proj|svcacct)-[A-Za-z0-9_-]{8,}|sk-[A-Za-z0-9]{20,})"
 )
 
 
