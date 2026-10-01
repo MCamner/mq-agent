@@ -530,6 +530,7 @@ when release tests prove the forbidden behavior is absent.
 * [ ] Tag and publish `v1.30.0` from the merged release-prep commit.
 * [ ] Verify the installed release artifact and begin collecting real
   task-class-scoped feedback experiments.
+
 ### Post-v1.30 gate — controlled activation and rollback
 
 This follow-up is intentionally **not committed to a version** until v1.30 has
