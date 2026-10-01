@@ -99,6 +99,40 @@ jobs:
           print("resolved", resolved)
           PY
 
+      - name: Feedback Engine schemas and CLI work from the wheel
+        run: |
+          tmp="$(mktemp -d)"
+          export MQ_AGENT_FEEDBACK_DIR="$tmp/feedback"
+          .venv-wheel/bin/python - <<'PY'
+          from pathlib import Path
+          import mq_agent
+          from mq_agent.feedback import contracts, models, views
+
+          package = Path(mq_agent.__file__).resolve().parent
+          paths = [
+              models._schema_path(),
+              contracts._schema_path("feedback_comparison.schema.json"),
+              contracts._schema_path("feedback_candidate.schema.json"),
+              views._report_schema_path(),
+          ]
+          for path in paths:
+              assert path.is_file(), path
+              assert package in path.parents, (package, path)
+          print("feedback schemas resolve from installed wheel")
+          PY
+          .venv-wheel/bin/mq-agent feedback status --json > "$tmp/status.json"
+          .venv-wheel/bin/mq-agent feedback report --json > "$tmp/report.json"
+          .venv-wheel/bin/python - "$tmp/status.json" "$tmp/report.json" <<'PY'
+          import json, pathlib, sys
+
+          status = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          report = json.loads(pathlib.Path(sys.argv[2]).read_text())
+          assert status["health"] == "EMPTY", status
+          assert report["schema"] == "mq.feedback-report.v1", report
+          assert report["matched_records"] == 0, report
+          PY
+          test ! -e "$MQ_AGENT_FEEDBACK_DIR"
+
       # A wheel is the case a checkout can never exercise: no working tree, no
       # commit metadata, so a partial identity and comparisons that are None
       # rather than false. The suite reproduces this shape from injected
@@ -124,3 +158,101 @@ jobs:
           assert comparison is None, comparison
           print("wheel identity:", identity["identity_quality"], identity["install_type"])
           PY
+
+  # F6 release evidence: production feedback code, two real MQ repositories,
+  # no monkeypatching and no relevance labels. These runs must stay
+  # INSUFFICIENT_EVIDENCE: operational deltas are measurements, not a quality
+  # verdict.
+  feedback-real-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: mq-agent
+
+      - uses: actions/checkout@v4
+        with:
+          repository: MCamner/mq-mcp
+          path: mq-mcp
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mq-agent
+        working-directory: mq-agent
+        run: uv sync --extra signal
+
+      - name: Build public-safe release evidence vault
+        run: |
+          vault="$RUNNER_TEMP/feedback-vault"
+          mkdir -p "$vault/.mq" "$vault/memory/context-cards"
+          cat > "$vault/.mq/context-selection-vocabulary.json" <<'JSON'
+          {
+            "source_heavy_hints": ["review"],
+            "source_heavy_suppress": [],
+            "max_codegraph_queries": 4
+          }
+          JSON
+          for repo in mq-agent mq-mcp; do
+            cat > "$vault/memory/context-cards/$repo-card.md" <<EOF
+          ---
+          freshness: fresh
+          scope: public
+          publishability: public-safe
+          ---
+          # $repo
+
+          ## Owns
+
+          * Repository-local implementation and contracts.
+
+          ## Does not own
+
+          * Feedback activation policy.
+          EOF
+          done
+
+      - name: Run real repo-review shadow experiments
+        working-directory: mq-agent
+        env:
+          MQ_AGENT_FEEDBACK_DIR: ${{ runner.temp }}/feedback-state
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/f6-feedback"
+          for repo in mq-agent mq-mcp; do
+            uv run mq-agent feedback run \
+              --task-class repo-review \
+              --repo "$GITHUB_WORKSPACE/$repo" \
+              --vault "$RUNNER_TEMP/feedback-vault" \
+              --task "review architecture and release boundaries" \
+              --json > "$RUNNER_TEMP/f6-feedback/$repo.json"
+          done
+
+          uv run python - "$RUNNER_TEMP/f6-feedback/mq-agent.json" "$RUNNER_TEMP/f6-feedback/mq-mcp.json" <<'PY'
+          import json, pathlib, sys
+
+          for filename in sys.argv[1:]:
+              data = json.loads(pathlib.Path(filename).read_text())
+              experiment = data["experiment"]
+              comparison = data["comparison"]
+              assert data["status"] == "PASS", data
+              assert experiment["state"] == "completed", experiment
+              assert comparison["verdict"] == "INSUFFICIENT_EVIDENCE", comparison
+              token = comparison["metrics"]["context_tokens"]
+              assert token["status"] == "unavailable", token
+              print(
+                  "F6_REAL_RUN"
+                  f" repo={experiment['repository']}"
+                  f" commit={experiment['snapshot']['commit']}"
+                  f" verdict={comparison['verdict']}"
+                  f" context_bytes_delta={comparison['metrics']['context_bytes']['delta']}"
+                  f" latency_delta_ms={comparison['metrics']['retrieval_latency_ms']['delta']}"
+                  f" source_count_delta={comparison['metrics']['source_count']['delta']}"
+                  " quality_gain=not_claimed"
+                  " limitation=no_explicit_relevance_fixture"
+                  " token_metric=unavailable"
+              )
+          PY
+
