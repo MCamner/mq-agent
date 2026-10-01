@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
 from typer.testing import CliRunner
 
 from mq_agent.feedback import append_experiment, build_feedback_experiment, feedback_root
