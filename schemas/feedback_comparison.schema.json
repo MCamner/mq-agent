@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-comparison.v1",
+  "description": "Immutable measured comparison between one active and one shadow feedback strategy. Verdicts are deterministic and evidence-referenced; model preference is advisory only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "comparison_id",
+    "feedback_run_id",
+    "task_class",
+    "repository",
+    "active_strategy",
+    "shadow_strategy",
+    "snapshot",
+    "valid",
+    "blocked_reasons",
+    "verdict",
+    "metrics",
+    "sources",
+    "evidence_refs",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema": { "const": "mq.feedback-comparison.v1" },
+    "comparison_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "feedback_run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "task_class": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?$",
+      "maxLength": 160
+    },
+    "active_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "shadow_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref", "commit"],
+      "properties": {
+        "kind": { "const": "git" },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+      }
+    },
+    "valid": { "type": "boolean" },
+    "blocked_reasons": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 160 }
+    },
+    "verdict": {
+      "enum": [
+        "NO_DATA",
+        "INSUFFICIENT_EVIDENCE",
+        "NO_MATERIAL_DIFFERENCE",
+        "CANDIDATE_BETTER",
+        "CANDIDATE_WORSE",
+        "CONFLICTING_EVIDENCE",
+        "BLOCKED"
+      ]
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/metric" }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active", "shadow"],
+      "properties": {
+        "active": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 128,
+          "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+        },
+        "shadow": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 128,
+          "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+        }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 256,
+      "items": { "type": "string", "minLength": 1, "maxLength": 260 }
+    },
+    "relevance_fixture": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["id", "sha256", "negative", "expected_sources"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "negative": { "type": "boolean" },
+        "expected_sources": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "advisory_evaluator": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["source", "assessment", "evidence_refs"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "assessment": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 128,
+          "items": { "type": "string", "minLength": 1, "maxLength": 260 }
+        }
+      }
+    },
+    "recorded_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "direction",
+        "unit",
+        "active",
+        "shadow",
+        "delta",
+        "material"
+      ],
+      "properties": {
+        "status": { "enum": ["comparable", "unavailable"] },
+        "direction": {
+          "enum": ["higher_is_better", "lower_is_better", "neutral"]
+        },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "active": { "type": ["number", "null"] },
+        "shadow": { "type": ["number", "null"] },
+        "delta": { "type": ["number", "null"] },
+        "material": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "unavailable" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "active": { "type": "null" },
+              "shadow": { "type": "null" },
+              "delta": { "type": "null" },
+              "material": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
