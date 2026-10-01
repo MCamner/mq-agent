@@ -50,7 +50,7 @@ def _pack(*, codegraph: str, content: str | None = None) -> dict:
     body = content or ("active context\n" if codegraph == "off" else "shadow context\n")
     return {
         "content": body,
-        "relevant_files": ["mq-agent/.mq/context/repo-card.md"],
+        "relevant_repos": ["mq-agent"],
         "cards": ["vault/memory/context-cards/mq-agent-card.md"],
         "card_metadata": {
             "mq-agent": {
