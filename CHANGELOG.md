@@ -22,7 +22,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `mq.feedback-report.v1` aggregate contract with unavailable metrics kept
   distinct from measured zeroes.
 
-
 * Feedback Engine F2-F4: zero-effect active-versus-shadow context experiments
   on a clean pinned Git snapshot; bounded context/source/time budgets; immutable
   \`mq.feedback-comparison.v1\` evidence with deterministic per-metric verdicts;
