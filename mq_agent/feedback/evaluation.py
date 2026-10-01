@@ -359,13 +359,23 @@ def compare_feedback_run(
     base = _operational_comparison_for_run(feedback_run_id, state_root)
     fixture, fixture_hash = load_relevance_fixture(fixture_path)
 
-    valid = (
-        experiment["state"] == "completed"
-        and experiment["snapshot"] == base["snapshot"]
-        and experiment["active_strategy"] == base["active_strategy"]
-        and experiment["shadow_strategy"] == base["shadow_strategy"]
-    )
-    blocked_reasons = [] if valid else ["experiment-comparison-provenance-mismatch"]
+    blocked_reasons: list[str] = []
+    if experiment["state"] != "completed":
+        blocked_reasons.append("experiment-not-completed")
+    if experiment["snapshot"] != base["snapshot"]:
+        blocked_reasons.append("snapshot-mismatch")
+    if experiment["task_class"] != base["task_class"]:
+        blocked_reasons.append("task-class-mismatch")
+    if experiment["repository"] != base["repository"]:
+        blocked_reasons.append("repository-mismatch")
+    if experiment["active_strategy"] != base["active_strategy"]:
+        blocked_reasons.append("active-strategy-mismatch")
+    if experiment["shadow_strategy"] != base["shadow_strategy"]:
+        blocked_reasons.append("shadow-strategy-mismatch")
+    expected_experiment_ref = f"experiment:{feedback_run_id}"
+    if expected_experiment_ref not in set(base["evidence_refs"]):
+        blocked_reasons.append("missing-experiment-provenance")
+    valid = not blocked_reasons
 
     active_values = _relevance_values(base["sources"]["active"], fixture)
     shadow_values = _relevance_values(base["sources"]["shadow"], fixture)
