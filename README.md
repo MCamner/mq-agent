@@ -347,6 +347,7 @@ mq-mcp, mq-hal, mqlaunch, Codex, Claude and stable JSON.
 - [x] wheel/install verification and public-safe release hardening
 - [x] real shadow-run evidence against `mq-agent` and `mq-mcp`
 - [x] no automatic activation, autonomous routing or direct durable-memory write
+
 ## v1.29.0 status
 
 NotebookLM Knowledge Pipeline. The NotebookLM archive is now a governed MQ
