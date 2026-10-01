@@ -22,7 +22,7 @@ This page is a projection of it.
 | [`mq-agent docs-audit`](#mq-agent-docs-audit) | command | Audit repository documentation: README, CHANGELOG, docstrings, /docs. |
 | [`mq-agent doctor`](#mq-agent-doctor) | command | Check mq-agent environment and dependencies. |
 | [`mq-agent execution`](#mq-agent-execution) | group | Inspect observed execution outcomes. |
-| [`mq-agent feedback`](#mq-agent-feedback) | group | Inspect feedback experiment evidence (read-only). |
+| [`mq-agent feedback`](#mq-agent-feedback) | group | Run and inspect evidence-grounded feedback experiments. |
 | [`mq-agent fix-ci`](#mq-agent-fix-ci) | command | Diagnose CI failures and suggest fixes. |
 | [`mq-agent learn`](#mq-agent-learn) | group | Learn commands — extraction, storage and promotion of review patterns. |
 | [`mq-agent mcp`](#mq-agent-mcp) | group | Inspect and manage the local mq-mcp tool server. |
@@ -457,20 +457,88 @@ Report execution metrics without mixing in shadow outcomes.
 
 ## `mq-agent feedback`
 
-Inspect feedback experiment evidence (read-only).
+Run and inspect evidence-grounded feedback experiments.
 
 ### Subcommands
 
 | Subcommand | Description |
 |---|---|
-| [`mq-agent feedback inspect`](#mq-agent-feedback-inspect) | Explain one immutable feedback experiment chain. |
+| [`mq-agent feedback candidate`](#mq-agent-feedback-candidate) | Show one candidate with its immutable comparison evidence. |
+| [`mq-agent feedback candidate-handoff`](#mq-agent-feedback-candidate-handoff) | Submit an approved memory candidate to mqobsidian's review inbox. |
+| [`mq-agent feedback candidate-state`](#mq-agent-feedback-candidate-state) | Append a human review state; never activates a policy. |
+| [`mq-agent feedback candidates`](#mq-agent-feedback-candidates) | List effective reviewable improvement candidates. |
+| [`mq-agent feedback compare`](#mq-agent-feedback-compare) | Read the latest comparison or derive one from explicit relevance evidence. |
+| [`mq-agent feedback inspect`](#mq-agent-feedback-inspect) | Explain one immutable experiment, comparison and candidate chain. |
+| [`mq-agent feedback purge`](#mq-agent-feedback-purge) | Delete local runtime feedback evidence; production behavior is unchanged. |
 | [`mq-agent feedback recent`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
-| [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without deriving a winner. |
+| [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without recomputing a verdict. |
+| [`mq-agent feedback run`](#mq-agent-feedback-run) | Run one zero-effect active-versus-shadow repo-review experiment. |
 | [`mq-agent feedback status`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
 
-## `mq-agent feedback inspect`
+## `mq-agent feedback candidate`
 
-Explain one immutable feedback experiment chain.
+Show one candidate with its immutable comparison evidence.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback candidate-handoff`
+
+Submit an approved memory candidate to mqobsidian's review inbox.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Approved memory candidate |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--confidence` | Yes | — | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback candidate-state`
+
+Append a human review state; never activates a policy.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state` | Yes | — | deferred, rejected, or approved-for-handoff |
+| `--reason` | Yes | — | Human review reason |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback candidates`
+
+List effective reviewable improvement candidates.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback compare`
+
+Read the latest comparison or derive one from explicit relevance evidence.
 
 ### Arguments
 
@@ -482,6 +550,35 @@ Explain one immutable feedback experiment chain.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
+| `--fixture` | No | — | Explicit deterministic relevance fixture JSON |
+| `--atlas-evaluation` | No | — | Optional Atlas Core advisory evaluation bound to observed evidence refs |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback inspect`
+
+Explain one immutable experiment, comparison and candidate chain.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `FEEDBACK_RUN_ID` | Yes | — | Feedback run identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback purge`
+
+Delete local runtime feedback evidence; production behavior is unchanged.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--approve` | No | `false` | Required: delete local runtime feedback evidence |
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback recent`
@@ -497,7 +594,7 @@ List retained feedback experiments newest first.
 
 ## `mq-agent feedback report`
 
-Aggregate feedback evidence without deriving a winner.
+Aggregate feedback evidence without recomputing a verdict.
 
 ### Options
 
@@ -505,6 +602,23 @@ Aggregate feedback evidence without deriving a winner.
 |---|---:|---|---|
 | `--task-class` | No | — | Limit report to one task class |
 | `--since` | No | — | Positive day window, e.g. 30d |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback run`
+
+Run one zero-effect active-versus-shadow repo-review experiment.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--task` | Yes | — | Task used only in-memory for context selection |
+| `--repo` | No | `.` | Clean Git repository to evaluate |
+| `--task-class` | No | `repo-review` | Feedback task class |
+| `--vault` | No | — | mqobsidian vault override |
+| `--timeout-ms` | No | `2000` | Hard per-strategy collection deadline |
+| `--max-context-bytes` | No | `65536` | — |
+| `--max-sources` | No | `64` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback status`

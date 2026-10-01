@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-candidate.v1",
+  "description": "Append-only review proposal derived from immutable feedback comparisons. It never authorizes activation or direct durable-memory writes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "candidate_id",
+    "fingerprint",
+    "kind",
+    "task_class",
+    "current_strategy",
+    "proposed_strategy",
+    "comparison_ids",
+    "evidence_window",
+    "rationale",
+    "gains",
+    "regressions",
+    "limitations",
+    "rollback_target",
+    "state",
+    "supersedes",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema": { "const": "mq.feedback-candidate.v1" },
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "kind": {
+      "enum": [
+        "context-strategy",
+        "retrieval-ordering",
+        "source-weighting",
+        "memory",
+        "routing-experiment"
+      ]
+    },
+    "task_class": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "current_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "proposed_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "comparison_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+      }
+    },
+    "evidence_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "format": "date-time" },
+        "to": { "type": "string", "format": "date-time" }
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "gains": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "regressions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 320 }
+    },
+    "rollback_target": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "state": {
+      "enum": ["proposed", "deferred", "rejected", "superseded", "approved-for-handoff"]
+    },
+    "state_reason": {
+      "type": ["string", "null"],
+      "maxLength": 320
+    },
+    "supersedes": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+      }
+    },
+    "recorded_at": { "type": "string", "format": "date-time" }
+  }
+}

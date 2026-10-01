@@ -14,6 +14,8 @@ from .store import (
     FeedbackHistoryResult,
     StoredFeedbackRecord,
     feedback_root,
+    read_candidate_history,
+    read_comparison_history,
     read_experiment_history,
 )
 
@@ -135,6 +137,8 @@ def _analysis(history: FeedbackHistoryResult) -> dict[str, Any]:
 def feedback_status(root: Path | None = None) -> dict[str, Any]:
     """Summarize retained feedback storage without writing to it."""
     history = read_experiment_history(root)
+    comparisons = read_comparison_history(root)
+    candidates = read_candidate_history(root)
     analysis = _analysis(history)
     records = analysis["usable"]
     task_classes = Counter(str(item.record["task_class"]) for item in records)
@@ -151,15 +155,33 @@ def feedback_status(root: Path | None = None) -> dict[str, Any]:
     return {
         "view": "feedback-status.v1",
         "source_root": str(feedback_root(root)),
-        "health": analysis["health"],
+        "health": (
+            "DEGRADED"
+            if comparisons.issues or candidates.issues
+            else analysis["health"]
+        ),
         "valid_records": len(records),
-        "invalid_records": analysis["invalid_records"],
+        "invalid_records": (
+            analysis["invalid_records"] + len(comparisons.issues) + len(candidates.issues)
+        ),
+        "comparison_records": len(comparisons.records),
+        "candidate_events": len(candidates.records),
         "newest_recorded_at": newest,
         "task_classes": dict(sorted(task_classes.items())),
         "states": dict(sorted(states.items())),
         "generations": sources,
         "duplicate_feedback_run_ids": analysis["duplicate_ids"],
-        "degraded_reasons": analysis["degraded_reasons"],
+        "degraded_reasons": [
+            *analysis["degraded_reasons"],
+            *(
+                [f"{len(comparisons.issues)} invalid comparison record(s)"]
+                if comparisons.issues else []
+            ),
+            *(
+                [f"{len(candidates.issues)} invalid candidate record(s)"]
+                if candidates.issues else []
+            ),
+        ],
     }
 
 
@@ -192,7 +214,7 @@ def feedback_inspect(
     feedback_run_id: str,
     root: Path | None = None,
 ) -> dict[str, Any]:
-    """Explain one experiment record and the later-phase chain around it."""
+    """Explain one experiment plus its immutable comparison/candidate chain."""
     if not feedback_run_id.strip():
         raise ValueError("feedback_run_id must not be empty")
 
@@ -211,24 +233,71 @@ def feedback_inspect(
     if duplicate and not any("duplicate feedback_run_id" in reason for reason in reasons):
         reasons.append("feedback_run_id occurs more than once")
 
+    comparison_history = read_comparison_history(root)
+    comparisons = [
+        _entry(item)
+        for item in comparison_history.records
+        if item.record["feedback_run_id"] == feedback_run_id
+    ]
+    comparison_ids = {
+        item["record"]["comparison_id"]
+        for item in comparisons
+    }
+
+    candidate_history = read_candidate_history(root)
+    effective: dict[str, dict[str, Any]] = {}
+    for item in candidate_history.records:
+        if comparison_ids.intersection(item.record["comparison_ids"]):
+            effective[item.record["candidate_id"]] = _entry(item)
+    candidate_entries = list(effective.values())
+    candidate_entries.sort(
+        key=lambda item: str(item["record"]["recorded_at"]),
+        reverse=True,
+    )
+
     return {
         "view": "feedback-inspect.v1",
         "source_root": str(feedback_root(root)),
         "feedback_run_id": feedback_run_id,
-        "health": "DEGRADED" if duplicate or analysis["health"] == "DEGRADED" else "HEALTHY",
+        "health": (
+            "DEGRADED"
+            if duplicate
+            or analysis["health"] == "DEGRADED"
+            or comparison_history.issues
+            or candidate_history.issues
+            else "HEALTHY"
+        ),
         "experiment": _entry(matches[0]) if len(matches) == 1 else None,
         "duplicate_records": [_entry(item) for item in matches] if duplicate else [],
-        "comparison": {
-            "status": "unavailable",
-            "reason": "mq.feedback-comparison.v1 is not produced before F3",
-        },
-        "candidate": {
-            "status": "unavailable",
-            "reason": "mq.feedback-candidate.v1 is not produced before F4",
-        },
-        "degraded_reasons": reasons,
+        "comparison": (
+            comparisons[-1]
+            if comparisons
+            else {
+                "status": "unavailable",
+                "reason": "no comparison is recorded for this experiment",
+            }
+        ),
+        "comparison_history": comparisons,
+        "candidate": (
+            candidate_entries[0]
+            if candidate_entries
+            else {
+                "status": "unavailable",
+                "reason": "no improvement candidate is linked to this experiment",
+            }
+        ),
+        "degraded_reasons": [
+            *reasons,
+            *(
+                [f"{len(comparison_history.issues)} invalid comparison record(s)"]
+                if comparison_history.issues else []
+            ),
+            *(
+                [f"{len(candidate_history.issues)} invalid candidate record(s)"]
+                if candidate_history.issues else []
+            ),
+        ],
     }
-
 
 def _unavailable_metrics() -> dict[str, dict[str, object]]:
     return {
@@ -249,6 +318,7 @@ def feedback_report(
     history = read_experiment_history(root)
     analysis = _analysis(history)
     all_records: list[StoredFeedbackRecord] = analysis["usable"]
+    comparison_history = read_comparison_history(root)
 
     matched: list[StoredFeedbackRecord] = []
     for item in all_records:
@@ -271,6 +341,26 @@ def feedback_report(
         }
     )
 
+    matched_run_ids = {
+        str(item.record["feedback_run_id"])
+        for item in matched
+    }
+    matched_comparisons = [
+        item.record
+        for item in comparison_history.records
+        if item.record["feedback_run_id"] in matched_run_ids
+    ]
+    latest_comparison = matched_comparisons[-1] if matched_comparisons else None
+    metric_surface = _unavailable_metrics()
+    if latest_comparison is not None:
+        for name in _METRIC_NAMES:
+            metric = latest_comparison["metrics"].get(name)
+            if isinstance(metric, dict) and metric.get("status") == "comparable":
+                metric_surface[name] = {
+                    "status": "measured",
+                    "value": metric.get("delta"),
+                }
+
     report: dict[str, Any] = {
         "schema": REPORT_SCHEMA_ID,
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -282,7 +372,7 @@ def feedback_report(
         },
         "total_records": len(all_records),
         "matched_records": len(matched),
-        "invalid_records": analysis["invalid_records"],
+        "invalid_records": analysis["invalid_records"] + len(comparison_history.issues),
         "newest_recorded_at": (
             str(matched[-1].record["recorded_at"]) if matched else None
         ),
@@ -292,13 +382,23 @@ def feedback_report(
         "active_strategies": active,
         "shadow_strategies": shadow,
         "network_backends": backends,
-        "metrics": _unavailable_metrics(),
+        "metrics": metric_surface,
         "comparison": {
-            "status": "unavailable",
-            "records": None,
-            "reason": "comparison evidence is not produced before F3",
+            "status": "available" if latest_comparison is not None else "unavailable",
+            "records": len(matched_comparisons) if latest_comparison is not None else None,
+            "reason": (
+                str(latest_comparison["verdict"])
+                if latest_comparison is not None
+                else "no comparison evidence matches the report filter"
+            ),
         },
-        "degraded_reasons": analysis["degraded_reasons"],
+        "degraded_reasons": [
+            *analysis["degraded_reasons"],
+            *(
+                [f"{len(comparison_history.issues)} invalid comparison record(s)"]
+                if comparison_history.issues else []
+            ),
+        ],
     }
     validate_report(report)
     return report

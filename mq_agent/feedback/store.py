@@ -1,4 +1,4 @@
-"""Append-only local storage for feedback experiment evidence.
+"""Append-only local storage for feedback engine runtime evidence.
 
 The store is runtime evidence, not durable MQ memory. It lives outside Git,
 contains bounded identifiers/provenance only, and is safe to delete without
@@ -12,11 +12,12 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 import fcntl
 from jsonschema.exceptions import ValidationError
 
+from .contracts import validate_candidate, validate_comparison
 from .models import validate_experiment
 
 STATE_ENV = "MQ_AGENT_FEEDBACK_DIR"
@@ -24,6 +25,8 @@ MAX_BYTES_ENV = "MQ_AGENT_FEEDBACK_MAX_BYTES"
 DEFAULT_MAX_BYTES = 5 * 1024 * 1024
 MAX_ROTATED_FILES = 3
 EXPERIMENTS_FILE = "experiments.jsonl"
+COMPARISONS_FILE = "comparisons.jsonl"
+CANDIDATES_FILE = "candidates.jsonl"
 LOCK_FILE = ".store.lock"
 
 _PROHIBITED_KEYS = frozenset(
@@ -83,6 +86,9 @@ class FeedbackHistoryResult:
     issues: list[FeedbackStoreIssue]
 
 
+Validator = Callable[[dict[str, Any]], None]
+
+
 def feedback_root(root: Path | None = None) -> Path:
     if root is not None:
         return root.expanduser()
@@ -94,6 +100,14 @@ def feedback_root(root: Path | None = None) -> Path:
 
 def experiments_path(root: Path | None = None) -> Path:
     return feedback_root(root) / EXPERIMENTS_FILE
+
+
+def comparisons_path(root: Path | None = None) -> Path:
+    return feedback_root(root) / COMPARISONS_FILE
+
+
+def candidates_path(root: Path | None = None) -> Path:
+    return feedback_root(root) / CANDIDATES_FILE
 
 
 def _normalized_key(key: str) -> str:
@@ -161,14 +175,7 @@ def _exclusive_lock(root: Path) -> Iterator[None]:
 
 @contextmanager
 def _shared_lock(root: Path) -> Iterator[None]:
-    """Read lock without creating the feedback root or lock file.
-
-    F1 commands are observational. If the store does not exist, reading it must
-    leave the filesystem exactly as it was. Writers always create and hold the
-    store lock before rotating/appending, so existing stores coordinate readers
-    through a shared lock. A legacy/store-less root with no lock is simply read
-    without creating one.
-    """
+    """Read lock without creating the feedback root or lock file."""
     lock_path = root / LOCK_FILE
     try:
         fd = os.open(lock_path, os.O_RDONLY)
@@ -228,15 +235,20 @@ def _append_bytes(path: Path, payload: bytes) -> None:
     os.chmod(path, 0o600)
 
 
-def append_experiment(record: dict[str, Any], root: Path | None = None) -> Path:
-    """Validate, sanitize and append one immutable experiment record."""
+def _append_record(
+    record: dict[str, Any],
+    *,
+    filename: str,
+    validator: Validator,
+    root: Path | None = None,
+) -> Path:
     sanitized = sanitize_feedback_record(record)
-    validate_experiment(sanitized)
+    validator(sanitized)
     encoded = (json.dumps(sanitized, ensure_ascii=False, sort_keys=True) + "\n").encode(
         "utf-8"
     )
     state_root = feedback_root(root)
-    path = state_root / EXPERIMENTS_FILE
+    path = state_root / filename
     with _exclusive_lock(state_root):
         _rotate_if_needed(
             path,
@@ -247,7 +259,38 @@ def append_experiment(record: dict[str, Any], root: Path | None = None) -> Path:
     return path
 
 
-def _parse_lines(raw_lines: list[bytes], source: str) -> FeedbackHistoryResult:
+def append_experiment(record: dict[str, Any], root: Path | None = None) -> Path:
+    return _append_record(
+        record,
+        filename=EXPERIMENTS_FILE,
+        validator=validate_experiment,
+        root=root,
+    )
+
+
+def append_comparison(record: dict[str, Any], root: Path | None = None) -> Path:
+    return _append_record(
+        record,
+        filename=COMPARISONS_FILE,
+        validator=validate_comparison,
+        root=root,
+    )
+
+
+def append_candidate(record: dict[str, Any], root: Path | None = None) -> Path:
+    return _append_record(
+        record,
+        filename=CANDIDATES_FILE,
+        validator=validate_candidate,
+        root=root,
+    )
+
+
+def _parse_lines(
+    raw_lines: list[bytes],
+    source: str,
+    validator: Validator,
+) -> FeedbackHistoryResult:
     records: list[StoredFeedbackRecord] = []
     issues: list[FeedbackStoreIssue] = []
     for line_number, raw in enumerate(raw_lines, start=1):
@@ -259,7 +302,7 @@ def _parse_lines(raw_lines: list[bytes], source: str) -> FeedbackHistoryResult:
             sanitized = sanitize_feedback_record(parsed)
             if sanitized != parsed:
                 raise ValueError("record contains data that requires redaction")
-            validate_experiment(parsed)
+            validator(parsed)
         except (UnicodeDecodeError, json.JSONDecodeError, ValidationError, ValueError) as exc:
             issues.append(
                 FeedbackStoreIssue(
@@ -279,39 +322,65 @@ def _parse_lines(raw_lines: list[bytes], source: str) -> FeedbackHistoryResult:
     return FeedbackHistoryResult(records=records, issues=issues)
 
 
-def _history_paths(root: Path) -> list[Path]:
-    current = root / EXPERIMENTS_FILE
-    # Rotation moves current -> .1 -> .2 -> .3. Reading the oldest surviving
-    # generation first reconstructs append order without relying on mtimes.
+def _history_paths(root: Path, filename: str) -> list[Path]:
+    current = root / filename
     return [
         *(Path(f"{current}.{index}") for index in range(MAX_ROTATED_FILES, 0, -1)),
         current,
     ]
 
 
-def read_experiment_history(root: Path | None = None) -> FeedbackHistoryResult:
-    """Read every retained experiment generation in stable append order."""
+def _read_history(
+    *,
+    filename: str,
+    validator: Validator,
+    root: Path | None = None,
+) -> FeedbackHistoryResult:
     state_root = feedback_root(root)
     if not state_root.exists():
         return FeedbackHistoryResult(records=[], issues=[])
 
     snapshots: list[tuple[str, list[bytes]]] = []
     with _shared_lock(state_root):
-        for path in _history_paths(state_root):
+        for path in _history_paths(state_root, filename):
             if path.is_file():
                 snapshots.append((path.name, path.read_bytes().splitlines()))
 
     records: list[StoredFeedbackRecord] = []
     issues: list[FeedbackStoreIssue] = []
     for source, raw_lines in snapshots:
-        parsed = _parse_lines(raw_lines, source)
+        parsed = _parse_lines(raw_lines, source, validator)
         records.extend(parsed.records)
         issues.extend(parsed.issues)
     return FeedbackHistoryResult(records=records, issues=issues)
 
 
+def read_experiment_history(root: Path | None = None) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=EXPERIMENTS_FILE,
+        validator=validate_experiment,
+        root=root,
+    )
+
+
+def read_comparison_history(root: Path | None = None) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=COMPARISONS_FILE,
+        validator=validate_comparison,
+        root=root,
+    )
+
+
+def read_candidate_history(root: Path | None = None) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=CANDIDATES_FILE,
+        validator=validate_candidate,
+        root=root,
+    )
+
+
 def read_experiments(root: Path | None = None) -> FeedbackReadResult:
-    """Read valid current-generation records and report malformed history."""
+    """Read valid current-generation experiment records."""
     state_root = feedback_root(root)
     path = state_root / EXPERIMENTS_FILE
     if not path.exists():
@@ -319,7 +388,7 @@ def read_experiments(root: Path | None = None) -> FeedbackReadResult:
 
     with _shared_lock(state_root):
         raw_lines = path.read_bytes().splitlines()
-    parsed = _parse_lines(raw_lines, path.name)
+    parsed = _parse_lines(raw_lines, path.name, validate_experiment)
     return FeedbackReadResult(
         records=[item.record for item in parsed.records],
         issues=parsed.issues,
@@ -335,9 +404,9 @@ def purge_feedback_state(root: Path | None = None) -> int:
     deleted = 0
     with _exclusive_lock(state_root):
         for name in (
-            "experiments.jsonl",
-            "comparisons.jsonl",
-            "candidates.jsonl",
+            EXPERIMENTS_FILE,
+            COMPARISONS_FILE,
+            CANDIDATES_FILE,
             "activations.jsonl",
         ):
             base = state_root / name
