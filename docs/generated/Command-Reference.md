@@ -455,7 +455,7 @@ Report execution metrics without mixing in shadow outcomes.
 | `--task-class` | No | — | Limit report to one task class |
 | `--json` | No | `false` | — |
 
-## \`mq-agent feedback\`
+## `mq-agent feedback`
 
 Inspect feedback experiment evidence (read-only).
 
@@ -463,12 +463,12 @@ Inspect feedback experiment evidence (read-only).
 
 | Subcommand | Description |
 |---|---|
-| [\`mq-agent feedback inspect\`](#mq-agent-feedback-inspect) | Explain one immutable feedback experiment chain. |
-| [\`mq-agent feedback recent\`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
-| [\`mq-agent feedback report\`](#mq-agent-feedback-report) | Aggregate feedback evidence without deriving a winner. |
-| [\`mq-agent feedback status\`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
+| [`mq-agent feedback inspect`](#mq-agent-feedback-inspect) | Explain one immutable feedback experiment chain. |
+| [`mq-agent feedback recent`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
+| [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without deriving a winner. |
+| [`mq-agent feedback status`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
 
-## \`mq-agent feedback inspect\`
+## `mq-agent feedback inspect`
 
 Explain one immutable feedback experiment chain.
 
@@ -476,15 +476,15 @@ Explain one immutable feedback experiment chain.
 
 | Argument | Required | Default | Description |
 |---|---:|---|---|
-| \`FEEDBACK_RUN_ID\` | Yes | — | Feedback run identifier |
+| `FEEDBACK_RUN_ID` | Yes | — | Feedback run identifier |
 
 ### Options
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| \`--json\` | No | \`false\` | — |
+| `--json` | No | `false` | — |
 
-## \`mq-agent feedback recent\`
+## `mq-agent feedback recent`
 
 List retained feedback experiments newest first.
 
@@ -492,10 +492,10 @@ List retained feedback experiments newest first.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| \`--limit\` | No | \`20\` | Newest records to return (1-200) |
-| \`--json\` | No | \`false\` | — |
+| `--limit` | No | `20` | Newest records to return (1-200) |
+| `--json` | No | `false` | — |
 
-## \`mq-agent feedback report\`
+## `mq-agent feedback report`
 
 Aggregate feedback evidence without deriving a winner.
 
@@ -503,11 +503,11 @@ Aggregate feedback evidence without deriving a winner.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| \`--task-class\` | No | — | Limit report to one task class |
-| \`--since\` | No | — | Positive day window, e.g. 30d |
-| \`--json\` | No | \`false\` | — |
+| `--task-class` | No | — | Limit report to one task class |
+| `--since` | No | — | Positive day window, e.g. 30d |
+| `--json` | No | `false` | — |
 
-## \`mq-agent feedback status\`
+## `mq-agent feedback status`
 
 Show feedback storage health and experiment coverage.
 
@@ -515,7 +515,7 @@ Show feedback storage health and experiment coverage.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| \`--json\` | No | \`false\` | — |
+| `--json` | No | `false` | — |
 
 ## `mq-agent fix-ci`
 
