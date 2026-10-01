@@ -106,18 +106,12 @@ def _deadline(timeout_ms: int) -> Iterator[None]:
 
 def _logical_sources(pack: dict[str, Any]) -> list[str]:
     refs: list[str] = []
-    for path in pack.get("relevant_files", []):
-        name = str(path)
-        if "/.mq/context/" in name:
-            refs.append("repo-context:" + name.split("/.mq/context/", 1)[1])
-        elif "memory/context-cards/" in name:
-            refs.append("context-card:" + Path(name).name)
-        else:
-            refs.append("file-ref:" + Path(name).name)
+    repos = pack.get("relevant_repos", [])
+    if isinstance(repos, list) and repos:
+        refs.append("repo-context:repo-card.md")
     for card in pack.get("cards", []):
         refs.append("context-card:" + Path(str(card)).name)
     return list(dict.fromkeys(refs))
-
 
 def _measurement(
     pack: dict[str, Any],
