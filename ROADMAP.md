@@ -520,6 +520,16 @@ The following are explicitly **not** part of this release:
 These are boundary checkboxes, not implementation work; they are complete only
 when release tests prove the forbidden behavior is absent.
 
+### v1.30.0 release checkpoint
+
+* [x] F0-F6 Feedback Engine implementation is complete on `main`.
+* [x] Post-merge `main` CI, install smoke, macOS release-check and full-stack
+  contract/release/compatibility gates passed for the F6 merge commit.
+* [ ] Branch-protection enforcement matches the six declared mq-agent required
+  PR checks; do not tag while protection is weaker than the contract.
+* [ ] Tag and publish `v1.30.0` from the merged release-prep commit.
+* [ ] Verify the installed release artifact and begin collecting real
+  task-class-scoped feedback experiments.
 ### Post-v1.30 gate — controlled activation and rollback
 
 This follow-up is intentionally **not committed to a version** until v1.30 has
