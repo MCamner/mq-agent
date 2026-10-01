@@ -306,9 +306,17 @@ def test_f6_unavailable_metric_is_not_coerced_to_zero(tmp_path) -> None:
 def test_f6_historical_v1_records_remain_readable_after_optional_extensions(
     tmp_path,
 ) -> None:
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "schemas"
+            / "feedback_experiment.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert "evidence_boundary_sha256" in schema["properties"]
+
     legacy = _experiment("fb-legacy-v1")
-    legacy.pop("network_backends", None)
-    legacy.pop("execution_run_id", None)
+    assert "evidence_boundary_sha256" not in legacy
     path = tmp_path / "experiments.jsonl"
     path.write_text(json.dumps(legacy) + "\n", encoding="utf-8")
 
