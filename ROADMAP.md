@@ -180,7 +180,7 @@ Planned mq-agent-owned runtime contracts:
   absent metrics remain absent rather than being invented as zero.
 * [ ] `mq.feedback-candidate.v1` — a reviewable proposal describing exactly
   what might change, why, scope, evidence, limitations and rollback target.
-* [ ] `mq.feedback-report.v1` — stable aggregate surface for MCP, HAL, scripts
+* [x] `mq.feedback-report.v1` — stable aggregate surface for MCP, HAL, scripts
   and CI consumers.
 * [x] Register shipped contracts in `.mq/repo-contract.json`, package schemas
   in the wheel, and add positive/negative schema tests.
@@ -244,6 +244,10 @@ ships only the bounded purge primitive.
 
 ### Phase F1 — Read-only operator surface
 
+**Status:** Complete in the v1.30 F1 implementation slice. The full pytest,
+Ruff, mypy, docs/gate parity, generated command-reference check, wheel/install
+smoke, stack gates and macOS release gate passed before this roadmap sync.
+
 Goal: make the new state inspectable before adding experiment execution.
 
 Initial CLI:
@@ -256,18 +260,21 @@ mq-agent feedback recent
 mq-agent feedback report --task-class repo-review --since 30d
 ```
 
-* [ ] Implement `feedback status` with storage health, counts, newest record,
+* [x] Implement `feedback status` with storage health, counts, newest record,
   task-class coverage and degraded-state reasons.
-* [ ] Implement `feedback inspect` for one immutable experiment/comparison chain.
-* [ ] Implement bounded `feedback recent` with stable ordering.
-* [ ] Implement `feedback report` using `mq.feedback-report.v1`.
-* [ ] Report unknown/missing metrics as unavailable, never as zero.
-* [ ] Add human/JSON parity tests: the human view may summarize but may not
+* [x] Implement `feedback inspect` for one immutable experiment/comparison chain.
+* [x] Implement bounded `feedback recent` with stable ordering.
+* [x] Implement `feedback report` using `mq.feedback-report.v1`.
+* [x] Report unknown/missing metrics as unavailable, never as zero.
+* [x] Add human/JSON parity tests: the human view may summarize but may not
   change the machine verdict.
-* [ ] Keep every F1 command read-only.
+* [x] Keep every F1 command read-only.
 
-**F1 exit gate:** an operator can explain where every feedback verdict came
-from without opening the JSONL files manually.
+**F1 exit gate:** met for the evidence available through F1. An operator can
+inspect storage health, list retained experiments, trace one experiment to its
+exact store file/line, and produce a schema-valid aggregate report without
+opening JSONL files manually. Comparison/candidate verdicts remain explicitly
+unavailable until F3/F4; F1 does not invent them.
 
 ### Phase F2 — Active-versus-shadow context experiment
 
