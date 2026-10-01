@@ -14,7 +14,6 @@ from mq_agent.feedback import (
     feedback_report,
     feedback_status,
     maybe_create_candidate,
-    read_comparison_history,
     read_experiment_history,
     run_context_experiment,
 )
