@@ -14,30 +14,6 @@ from .store import (
     read_experiments,
     sanitize_feedback_record,
 )
-
-__all__ = [
-    "SCHEMA_ID",
-    "FeedbackHistoryResult",
-    "FeedbackReadResult",
-    "FeedbackStoreIssue",
-    "StoredFeedbackRecord",
-    "append_experiment",
-    "build_feedback_experiment",
-    "experiments_path",
-    "feedback_root",
-    "purge_feedback_state",
-    "read_experiment_history",
-    "read_experiments",
-    "sanitize_feedback_record",
-    "validate_experiment",
-    "REPORT_SCHEMA_ID",
-    "feedback_inspect",
-    "feedback_recent",
-    "feedback_report",
-    "feedback_status",
-    "validate_report",
-]
-
 from .views import (
     REPORT_SCHEMA_ID,
     feedback_inspect,
@@ -46,3 +22,26 @@ from .views import (
     feedback_status,
     validate_report,
 )
+
+__all__ = [
+    "SCHEMA_ID",
+    "REPORT_SCHEMA_ID",
+    "FeedbackHistoryResult",
+    "FeedbackReadResult",
+    "FeedbackStoreIssue",
+    "StoredFeedbackRecord",
+    "append_experiment",
+    "build_feedback_experiment",
+    "experiments_path",
+    "feedback_inspect",
+    "feedback_recent",
+    "feedback_report",
+    "feedback_root",
+    "feedback_status",
+    "purge_feedback_state",
+    "read_experiment_history",
+    "read_experiments",
+    "sanitize_feedback_record",
+    "validate_experiment",
+    "validate_report",
+]
