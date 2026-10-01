@@ -16,7 +16,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   secret/private-path redaction, serialized writes, retention/rotation, corrupt
   record reporting, purge primitives, and pytest isolation from operator state.
 
-
 * Feedback Engine F1 read-only operator surface: `feedback status`, `inspect`,
   `recent`, and `report`; retained-rotation history reads; immutable store
   references; explicit degraded-state reporting; and the packaged
