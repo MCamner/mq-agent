@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.29.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.30.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -330,6 +330,23 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.30.0 status
+
+Evidence-Grounded Feedback Engine. mq-agent can run zero-effect active-versus-
+shadow context experiments, compare explicit evidence deterministically, create
+reviewable improvement candidates, and expose one authoritative result through
+mq-mcp, mq-hal, mqlaunch, Codex, Claude and stable JSON.
+
+- [x] bounded append-only feedback evidence store
+- [x] read-only status, inspect, recent and report surfaces
+- [x] zero-effect `repo-review` active-versus-shadow experiments
+- [x] deterministic per-metric comparison with explicit relevance fixtures
+- [x] reviewable candidates with no production activation path
+- [x] shared MCP/HAL/mqlaunch/script consumption without duplicated policy
+- [x] wheel/install verification and public-safe release hardening
+- [x] real shadow-run evidence against `mq-agent` and `mq-mcp`
+- [x] no automatic activation, autonomous routing or direct durable-memory write
 
 ## v1.29.0 status
 
@@ -790,10 +807,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.24.0 — PR-mediated release flow — is released. Current work focuses on
-post-release stabilization: making single-repo plans release-mode aware,
-including every configured stack repo in contract-check, and keeping release
-documentation aligned with the same safety model used by execution.
+v1.30.0 packages the Evidence-Grounded Feedback Engine. After release, the
+stack collects real feedback experiments before any controlled activation work
+begins. The next architecture gate is a read-only, task-class-scoped readiness
+assessment; activation remains post-v1.30 and evidence-gated.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
 mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
