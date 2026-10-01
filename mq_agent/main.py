@@ -25,6 +25,7 @@ from mq_agent.cli.render import (
     print_tool_spec,
 )
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
+from mq_agent.feedback.cli import app as feedback_app
 from mq_agent.skills.cli import app as skills_app
 from mq_agent.tools.applied_routing import DEFAULT_ROUTE
 from mq_agent.tools.model_routing import LOCAL_ROUTE_TIMEOUT_SECONDS
@@ -94,6 +95,8 @@ app.add_typer(route_app, name="route")
 
 execution_app = typer.Typer(help="Inspect observed execution outcomes.")
 app.add_typer(execution_app, name="execution")
+
+app.add_typer(feedback_app, name="feedback")
 
 ship_app = typer.Typer(help="Inspect release state, proof, and audit evidence (read-only).")
 app.add_typer(ship_app, name="ship")
