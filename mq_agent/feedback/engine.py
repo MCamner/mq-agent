@@ -12,6 +12,7 @@ import hashlib
 import re
 import signal
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,7 @@ from typing import Any, Iterator
 
 from git import Repo
 
+from mq_agent.tools.context_export import default_vault
 from mq_agent.tools.context_pack import build_task_pack
 
 from .evaluation import build_operational_comparison
@@ -218,10 +220,10 @@ def run_context_experiment(
     vault_root = (
         vault.expanduser().resolve()
         if vault is not None
-        else Path.home().joinpath("mqobsidian").resolve()
+        else default_vault()
     )
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
-    feedback_run_id = f"fb-{hashlib.sha256((repository + snapshot['commit'] + generated_at).encode()).hexdigest()[:24]}"
+    feedback_run_id = f"fb-{uuid.uuid4()}"
     evidence_boundary = ["repo-context", "mqobsidian-context", "codegraph-local-guidance"]
     fingerprint = _evidence_fingerprint(vault_root, repo_name)
 
