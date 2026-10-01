@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json
+
 import pytest
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 from mq_agent.feedback import append_candidate, append_comparison
 from mq_agent.feedback.candidates import (
@@ -171,3 +175,47 @@ def test_f4_memory_handoff_uses_existing_mqobsidian_review_path(
     assert captured["schema"] == "memory-observation.v1"
     assert captured["evidence"][0]["source"] == "mq.feedback-comparison.v1"
     assert "durable" not in result
+
+
+def test_f4_candidate_schema_is_packaged_registered_and_rejects_activation_state() -> None:
+    root = Path(__file__).resolve().parents[1]
+    schema = json.loads(
+        (root / "schemas" / "feedback_candidate.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator.check_schema(schema)
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    contract = json.loads(
+        (root / ".mq" / "repo-contract.json").read_text(encoding="utf-8")
+    )
+
+    assert (
+        '"schemas/feedback_candidate.schema.json" = '
+        '"mq_agent/schemas/feedback_candidate.schema.json"'
+    ) in pyproject
+    assert "mq.feedback-candidate.v1" in contract["contracts"]
+
+    candidate = {
+        "schema": "mq.feedback-candidate.v1",
+        "candidate_id": "cand-no-activation",
+        "fingerprint": "d" * 64,
+        "kind": "context-strategy",
+        "task_class": "repo-review",
+        "current_strategy": "context-pack-v1",
+        "proposed_strategy": "context-pack-v2",
+        "comparison_ids": ["cmp-1"],
+        "evidence_window": {
+            "from": "2026-10-01T08:00:00Z",
+            "to": "2026-10-01T08:01:00Z",
+        },
+        "rationale": "proposal only",
+        "gains": [],
+        "regressions": [],
+        "limitations": ["human review required"],
+        "rollback_target": "context-pack-v1",
+        "state": "activated",
+        "state_reason": None,
+        "supersedes": [],
+        "recorded_at": "2026-10-01T08:02:00Z",
+    }
+    with pytest.raises(ValidationError):
+        Draft202012Validator(schema).validate(candidate)
