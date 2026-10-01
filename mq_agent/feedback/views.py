@@ -155,7 +155,11 @@ def feedback_status(root: Path | None = None) -> dict[str, Any]:
     return {
         "view": "feedback-status.v1",
         "source_root": str(feedback_root(root)),
-        "health": analysis["health"],
+        "health": (
+            "DEGRADED"
+            if comparisons.issues or candidates.issues
+            else analysis["health"]
+        ),
         "valid_records": len(records),
         "invalid_records": (
             analysis["invalid_records"] + len(comparisons.issues) + len(candidates.issues)
@@ -368,7 +372,7 @@ def feedback_report(
         },
         "total_records": len(all_records),
         "matched_records": len(matched),
-        "invalid_records": analysis["invalid_records"],
+        "invalid_records": analysis["invalid_records"] + len(comparison_history.issues),
         "newest_recorded_at": (
             str(matched[-1].record["recorded_at"]) if matched else None
         ),
