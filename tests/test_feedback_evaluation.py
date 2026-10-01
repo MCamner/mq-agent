@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 from mq_agent.feedback import append_comparison, append_experiment, build_feedback_experiment
 from mq_agent.feedback.evaluation import (
@@ -252,4 +254,26 @@ def test_f3_atlas_is_advisory_and_must_resolve_to_observed_evidence(tmp_path) ->
             fixture_path=fixture,
             atlas_evaluation=atlas,
             state_root=tmp_path,
+        )
+
+
+def test_f3_comparison_schema_is_packaged_registered_and_rejects_incomplete_records() -> None:
+    root = Path(__file__).resolve().parents[1]
+    schema = json.loads(
+        (root / "schemas" / "feedback_comparison.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator.check_schema(schema)
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    contract = json.loads(
+        (root / ".mq" / "repo-contract.json").read_text(encoding="utf-8")
+    )
+
+    assert (
+        '"schemas/feedback_comparison.schema.json" = '
+        '"mq_agent/schemas/feedback_comparison.schema.json"'
+    ) in pyproject
+    assert "mq.feedback-comparison.v1" in contract["contracts"]
+    with pytest.raises(ValidationError):
+        Draft202012Validator(schema).validate(
+            {"schema": "mq.feedback-comparison.v1", "verdict": "CANDIDATE_BETTER"}
         )
