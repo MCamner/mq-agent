@@ -18,6 +18,9 @@ def _repo(tmp_path: Path) -> Path:
     root = tmp_path / "mq-agent"
     root.mkdir()
     repo = Repo.init(root)
+    with repo.config_writer() as config:
+        config.set_value("user", "name", "Feedback Test")
+        config.set_value("user", "email", "feedback-test@example.invalid")
     (root / "README.md").write_text("# test\n", encoding="utf-8")
     repo.index.add(["README.md"])
     repo.index.commit("baseline")
