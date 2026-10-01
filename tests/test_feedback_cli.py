@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mq_agent.feedback import append_experiment, build_feedback_experiment, feedback_root
+from mq_agent.feedback import append_experiment, build_feedback_experiment
 from mq_agent.main import app
 
 runner = CliRunner()
