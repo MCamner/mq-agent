@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
 from typer.testing import CliRunner
 
 from mq_agent.feedback import append_experiment, build_feedback_experiment, feedback_root
 from mq_agent.main import app
 
 runner = CliRunner()
+
+
+@pytest.fixture()
+def isolated_feedback_root(tmp_path, monkeypatch) -> Path:
+    root = tmp_path / "feedback"
+    monkeypatch.setenv("MQ_AGENT_FEEDBACK_DIR", str(root))
+    return root
 
 
 def _experiment(run_id: str, *, recorded_at: str) -> dict:
@@ -25,10 +36,16 @@ def _experiment(run_id: str, *, recorded_at: str) -> dict:
     return record
 
 
-def test_feedback_status_human_and_json_share_the_same_facts() -> None:
+def _now() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def test_feedback_status_human_and_json_share_the_same_facts(
+    isolated_feedback_root,
+) -> None:
     append_experiment(
-        _experiment("fb-cli", recorded_at="2026-10-01T00:00:00Z"),
-        feedback_root(),
+        _experiment("fb-cli", recorded_at=_now()),
+        isolated_feedback_root,
     )
 
     json_result = runner.invoke(app, ["feedback", "status", "--json"])
@@ -44,10 +61,12 @@ def test_feedback_status_human_and_json_share_the_same_facts() -> None:
     assert "repo-review=1" in human_result.output
 
 
-def test_feedback_inspect_human_and_json_show_the_same_experiment() -> None:
+def test_feedback_inspect_human_and_json_show_the_same_experiment(
+    isolated_feedback_root,
+) -> None:
     append_experiment(
-        _experiment("fb-inspect", recorded_at="2026-10-01T00:01:00Z"),
-        feedback_root(),
+        _experiment("fb-inspect", recorded_at=_now()),
+        isolated_feedback_root,
     )
 
     json_result = runner.invoke(
@@ -64,14 +83,16 @@ def test_feedback_inspect_human_and_json_show_the_same_experiment() -> None:
     assert "hybrid-context-v1" in human_result.output
 
 
-def test_feedback_recent_is_bounded_and_newest_first() -> None:
+def test_feedback_recent_is_bounded_and_newest_first(
+    isolated_feedback_root,
+) -> None:
     append_experiment(
         _experiment("fb-old", recorded_at="2026-10-01T00:00:00Z"),
-        feedback_root(),
+        isolated_feedback_root,
     )
     append_experiment(
         _experiment("fb-new", recorded_at="2026-10-01T00:02:00Z"),
-        feedback_root(),
+        isolated_feedback_root,
     )
 
     result = runner.invoke(
@@ -85,10 +106,12 @@ def test_feedback_recent_is_bounded_and_newest_first() -> None:
     assert payload["entries"][0]["record"]["feedback_run_id"] == "fb-new"
 
 
-def test_feedback_report_json_and_human_preserve_unavailable_metrics() -> None:
+def test_feedback_report_json_and_human_preserve_unavailable_metrics(
+    isolated_feedback_root,
+) -> None:
     append_experiment(
-        _experiment("fb-report", recorded_at="2026-10-01T00:03:00Z"),
-        feedback_root(),
+        _experiment("fb-report", recorded_at=_now()),
+        isolated_feedback_root,
     )
 
     json_result = runner.invoke(
