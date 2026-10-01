@@ -227,6 +227,9 @@ jobs:
               --repo "$GITHUB_WORKSPACE/$repo" \
               --vault "$RUNNER_TEMP/feedback-vault" \
               --task "review architecture and release boundaries" \
+              --timeout-ms 10000 \
+              --max-context-bytes 131072 \
+              --max-sources 64 \
               --json > "$RUNNER_TEMP/f6-feedback/$repo.json"
           done
 
