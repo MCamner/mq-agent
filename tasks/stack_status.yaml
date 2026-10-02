@@ -3,7 +3,7 @@ version: "0.2"
 description: |
   mq-stack status loop — collect exact local HEAD identity and GitHub required-
   check evidence for every mq-stack repo, then export the wider stack truth to
-  Obsidian (05_RELEASE_STATUS.md).
+  a dated mqobsidian memory/stack-truth snapshot.
 
   Usage:
     mq-agent task run tasks/stack_status.yaml
@@ -17,7 +17,7 @@ steps:
     args: {}
 
   - name: export
-    description: Write markdown status table to mqobsidian/mq-stack/05_RELEASE_STATUS.md
+    description: Write the dated mqobsidian stack-truth snapshot
     tool: stack_export
     args: {}
 
@@ -31,5 +31,5 @@ verify:
   - collect step returns mq.stack-status.v2 with all mq-stack repos
   - VERIFIED is only emitted for a clean worktree with successful required checks on exact HEAD
   - missing or unavailable evidence is UNVERIFIED, never inferred from another commit
-  - export step writes 05_RELEASE_STATUS.md
+  - export step writes the dated mqobsidian stack-truth snapshot
   - no repos are mutated (all status operations are read-only)
