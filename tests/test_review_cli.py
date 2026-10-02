@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -345,7 +345,7 @@ def test_mcp_bridge_external_risk_review_fails_closed_instead_of_sending_bad_arg
             return True
 
     bridge = MultiMCPBridge()
-    bridge.bridges = {"mq-mcp": RiskToolBridge()}
+    bridge.bridges = {"mq-mcp": cast(Any, RiskToolBridge())}
     result = bridge.review_file(
         "a.py",
         {"security": False, "architecture": False, "risk": True},
