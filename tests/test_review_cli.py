@@ -216,16 +216,144 @@ def test_mcp_bridge_review_helpers_call_expected_tools():
 
     assert call.call_args_list[0].args == (
         "review_file",
-        {"relative_path": "README.md", "security": False, "architecture": False, "risk": False},
+        {"relative_path": "README.md", "mode": "comment"},
     )
     assert call.call_args_list[1].args == (
         "review_diff",
-        {"security": True, "architecture": False, "risk": False},
+        {"mode": "security"},
     )
     assert call.call_args_list[2].args == (
         "review_repo",
-        {"security": False, "architecture": True, "risk": False},
+        {"mode": "architecture"},
     )
+
+
+def _receipt(status: str = "ISSUED") -> dict[str, Any]:
+    return {
+        "receipt_id": "sha256:" + "a" * 64,
+        "schema": "mq.review-receipt.v1",
+        "status": status,
+        "reason": (
+            "exact-subject-snapshot-stable"
+            if status == "ISSUED"
+            else "subject-changed-during-review"
+        ),
+        "started_at": "2026-10-03T00:00:00+00:00",
+        "completed_at": "2026-10-03T00:00:01+00:00",
+        "subject": {
+            "repo": "mq-agent",
+            "commit": "b" * 40,
+            "branch": "main",
+            "worktree_clean": False,
+            "scope": {"type": "file", "path": "README.md", "file_count": 1, "files": []},
+            "snapshot_sha256": "sha256:" + "c" * 64,
+        },
+        "stability": {
+            "before": "sha256:" + "c" * 64,
+            "after": "sha256:" + ("c" * 64 if status == "ISSUED" else "d" * 64),
+            "unchanged": status == "ISSUED",
+        },
+        "producer": {"component": "mq-mcp"},
+        "review": {
+            "kind": "file",
+            "mode": "comment",
+            "result_sha256": "sha256:" + "e" * 64,
+            "result": {
+                "ok": True,
+                "findings": [
+                    {"severity": "RISK", "file": "README.md", "line": 7, "message": "bound finding"}
+                ],
+            },
+        },
+    }
+
+
+def test_review_file_receipt_json_is_forwarded_and_returned():
+    class ReceiptBridge(FakeReviewBridge):
+        def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None):
+            self.calls.append(("review_file", path, flags))
+            return _receipt()
+
+    bridge = ReceiptBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "file", "README.md", "--receipt", "--json"])
+
+    assert result.exit_code == 0
+    assert bridge.calls[0][2]["receipt"] is True
+    data = json.loads(result.output)
+    assert data["schema"] == "mq.review-receipt.v1"
+    assert data["status"] == "ISSUED"
+    assert data["subject"]["commit"] == "b" * 40
+
+
+def test_refused_review_receipt_exits_nonzero_without_hiding_result():
+    class ReceiptBridge(FakeReviewBridge):
+        def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None):
+            self.calls.append(("review_file", path, flags))
+            return _receipt("REFUSED")
+
+    bridge = ReceiptBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "file", "README.md", "--receipt", "--json"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "REFUSED"
+    assert data["review"]["result"]["findings"][0]["message"] == "bound finding"
+
+
+def test_human_receipt_renders_review_and_binding_summary():
+    class ReceiptBridge(FakeReviewBridge):
+        def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None):
+            return _receipt()
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=ReceiptBridge()):
+        result = runner.invoke(app, ["review", "file", "README.md", "--receipt"])
+
+    assert result.exit_code == 0
+    assert "bound finding" in result.output
+    assert "Exact-code review receipt" in result.output
+    assert "bbbbbbbb" in result.output
+
+
+def test_mcp_bridge_receipt_maps_agent_flags_to_current_mq_mcp_contract():
+    bridge = MultiMCPBridge()
+    with patch.object(bridge, "_call_required_tool", return_value={"ok": True}) as call:
+        bridge.review_file(
+            "README.md",
+            {
+                "security": True,
+                "architecture": False,
+                "risk": False,
+                "fast": False,
+                "receipt": True,
+            },
+        )
+
+    assert call.call_args.args == (
+        "review_file",
+        {"relative_path": "README.md", "mode": "security", "receipt": True},
+    )
+
+
+def test_mcp_bridge_external_risk_review_fails_closed_instead_of_sending_bad_args(tmp_path):
+    class RiskToolBridge:
+        def list_tools(self):
+            return ["risk_review_file"]
+
+        def is_available(self):
+            return True
+
+    bridge = MultiMCPBridge()
+    bridge.bridges = {"mq-mcp": RiskToolBridge()}
+    result = bridge.review_file(
+        "a.py",
+        {"security": False, "architecture": False, "risk": True},
+        repo_path=str(tmp_path),
+    )
+
+    assert result["ok"] is False
+    assert "--risk with --repo" in result["error"]
 
 
 def test_review_file_dry_run_prints_plan_and_does_not_call_bridge():
