@@ -5835,37 +5835,61 @@ def _print_alerts(alerts: list[dict], ts_prev: str, ts_curr: str) -> None:
 def stack_status_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """Show version, branch, last activity, drift risk and readiness for all mq-stack repos."""
-    from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _repo_entry
+    """Show exact-head verification state and evidence age for all mq-stack repos."""
+    from mq_agent.tools.stack_status import format_evidence_age, stack_status_v2
 
-    with console.status("[cyan]Scanning mq-stack repos...[/cyan]"):
-        entries = [_repo_entry(r) for r in MQ_STACK_REPOS]
+    with console.status("[cyan]Verifying mq-stack HEAD commits...[/cyan]"):
+        raw = stack_status_v2()
+    data = json.loads(raw)
 
     if json_out:
-        typer.echo(json.dumps(entries, indent=2))
+        typer.echo(raw)
         return
 
-    table = Table(title="mq-stack Status", show_header=True)
+    table = Table(title="mq-stack Status v2", show_header=True)
     table.add_column("Repo", style="cyan", width=18)
     table.add_column("Version", width=9)
-    table.add_column("Branch", width=28)
-    table.add_column("Last activity", width=14)
-    table.add_column("Drift", width=8)
-    table.add_column("Ready", width=7)
-    table.add_column("Next", style="dim")
+    table.add_column("Branch", width=18)
+    table.add_column("Commit", width=9)
+    table.add_column("Tree", width=7)
+    table.add_column("Verification", width=11)
+    table.add_column("Scopes", width=7)
+    table.add_column("Age", width=6)
+    table.add_column("Reason", style="dim")
 
-    for e in entries:
-        drift_style = {"Low": "green", "Medium": "yellow", "High": "red"}.get(e["drift_risk"], "")
+    status_style = {
+        "VERIFIED": "green",
+        "STALE": "yellow",
+        "UNVERIFIED": "yellow",
+        "FAIL": "red",
+    }
+    for e in data["repos"]:
+        verification = e["verification"]
+        status = verification["status"]
+        style = status_style.get(status, "")
+        rendered_status = f"[{style}]{status}[/{style}]" if style else status
+        dirty = e.get("dirty")
+        tree = "—" if dirty is None else ("dirty" if dirty else "clean")
         table.add_row(
             e["name"],
-            e["version"],
-            e["branch"],
-            e["last_activity"],
-            f"[{drift_style}]{e['drift_risk']}[/{drift_style}]" if drift_style else e["drift_risk"],
-            e["readiness"],
-            (e["next_action"] or "—")[:50],
+            e.get("version") or "—",
+            e.get("branch") or "—",
+            (e.get("commit") or "—")[:8],
+            tree,
+            rendered_status,
+            f"{verification['verified_count']}/{verification['required_count']}",
+            format_evidence_age(verification.get("age_seconds")),
+            verification["reason"][:52],
         )
     console.print(table)
+
+    overall = data["overall"]
+    style = status_style.get(overall, "")
+    rendered = f"[{style}]{overall}[/{style}]" if style else overall
+    console.print(
+        f"\n  Overall: [bold]{rendered}[/bold]   "
+        f"[dim]freshness ≤ {data['max_age_seconds']}s; evidence = exact HEAD GitHub checks[/dim]"
+    )
 
 
 @stack_app.command("report")

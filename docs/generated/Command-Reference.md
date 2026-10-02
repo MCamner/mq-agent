@@ -2281,7 +2281,7 @@ mq-stack repo inventory, status, and Obsidian export.
 | [`mq-agent stack report`](#mq-agent-stack-report) | Consolidated stack health view: score, trend, alert and readiness per repo. Reads sweep history for scores and trend; no API key required. |
 | [`mq-agent stack run`](#mq-agent-stack-run) | Run the v1.16 stack runtime gate. Checks repo-signal, mq-mcp, Ollama, brain export rendering and release readiness in one operator-facing pass. Read-only by default; `--brain` writes the truth export only when `--approve` is also supplied. |
 | [`mq-agent stack skills-check`](#mq-agent-stack-skills-check) | Validate skill consistency across every mq-stack repo. Runs each repo's scripts/check-skills.sh (frontmatter, skill cross-references, referenced paths, SKILLS.md sync). No API key required. Exits 1 if any repo is DRIFT (skills inconsistent) or BLOCKED. With --ci, repos missing from the workspace are SKIPPED. |
-| [`mq-agent stack status`](#mq-agent-stack-status) | Show version, branch, last activity, drift risk and readiness for all mq-stack repos. |
+| [`mq-agent stack status`](#mq-agent-stack-status) | Show exact-head verification state and evidence age for all mq-stack repos. |
 | [`mq-agent stack sweep`](#mq-agent-stack-sweep) | Run repo-signal over every mq-stack repo and optionally write brain notes + an ADR snapshot. For each reachable repo: runs mq-agent signal --brain (read + optional write). With --decide: writes a brain ADR via mq-agent decide capturing overall health. With --alert: exits 1 if any repo dropped >= threshold points or is below 80. |
 | [`mq-agent stack truth-export`](#mq-agent-stack-truth-export) | Write the mq-stack truth snapshot (contract + release gates) to mqobsidian. Primary name: `stack truth-export`. `stack export` is kept as a backwards-compatible alias — both run the same export. Pass ``--rebuild-views`` to refresh agent views at the end of the workflow (opt-in — see docs/AGENT_VIEW_CONTRACT.md phase C). |
 
@@ -2481,7 +2481,7 @@ Validate skill consistency across every mq-stack repo. Runs each repo's scripts/
 
 ## `mq-agent stack status`
 
-Show version, branch, last activity, drift risk and readiness for all mq-stack repos.
+Show exact-head verification state and evidence age for all mq-stack repos.
 
 ### Options
 

@@ -95,7 +95,7 @@ mq-agent stack sweep --brain --json | jq '.[] | select(.skipped == false) | {nam
 ## Companion commands
 
 ```bash
-mq-agent stack status          # version, branch, drift per repo (no signal)
+mq-agent stack status          # exact HEAD verification, required scopes and evidence age
 mq-agent stack export          # write status table to mqobsidian
 mq-agent swarm release-check   # cross-repo release gate via swarm
 ```
