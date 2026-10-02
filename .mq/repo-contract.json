@@ -46,7 +46,8 @@
       "inbox-manifest.v1",
       "memory-score-manifest.v1",
       "memory-evidence-manifest.v1",
-      "promotion-policy.v1"
+      "promotion-policy.v1",
+      "mq.review-receipt.v1"
     ]
   },
   "next_focus": "",

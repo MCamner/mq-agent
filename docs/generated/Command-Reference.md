@@ -1900,6 +1900,7 @@ Review the current diff through mq-mcp. Findings are passed through.
 | `--risk` | No | `false` | Use mq-mcp risk review when installed |
 | `--fast` | No | `false` | Prefer fast Class A tools over deep AI review |
 | `--brain` | No | `false` | Record review result to mqobsidian second brain |
+| `--receipt` | No | `false` | Request and save an exact-code review receipt from mq-mcp |
 | `--json` | No | `false` | — |
 | `--dry-run` | No | `false` | Show what would be called, no execution |
 
@@ -1923,6 +1924,7 @@ Review one file through mq-mcp. mq-agent does not implement review logic.
 | `--risk` | No | `false` | Use mq-mcp risk review when installed |
 | `--fast` | No | `false` | Prefer fast Class A tools over deep AI review |
 | `--brain` | No | `false` | Record review result to mqobsidian second brain |
+| `--receipt` | No | `false` | Request and save an exact-code review receipt from mq-mcp |
 | `--repo` | No | — | External repo path the file lives in (within mq-mcp allowlist) |
 | `--json` | No | `false` | — |
 | `--dry-run` | No | `false` | Show what would be called, no execution |
@@ -1947,6 +1949,7 @@ Review a repo through mq-mcp. mq-agent renders mq-mcp output only.
 | `--risk` | No | `false` | Use mq-mcp risk review when installed |
 | `--fast` | No | `false` | Prefer fast Class A tools over deep AI review |
 | `--brain` | No | `false` | Record review result to mqobsidian second brain |
+| `--receipt` | No | `false` | Request and save an exact-code review receipt from mq-mcp |
 | `--json` | No | `false` | — |
 | `--dry-run` | No | `false` | Show what would be called, no execution |
 

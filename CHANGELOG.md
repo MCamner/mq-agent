@@ -11,6 +11,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* Review receipt client: `review file`, `review diff`, and `review repo`
+  accept `--receipt`, request mq-mcp's `mq.review-receipt.v1`, verify its
+  content address, and atomically persist only `ISSUED` receipts under
+  `~/.mq-agent/review-receipts/`. A refused or malformed receipt fails closed
+  and is never stored; `--brain` continues to receive only the underlying
+  review result.
+
 * Stack status v2 replaces heuristic readiness in mq-agent stack status with
   exact-HEAD verification evidence. Required GitHub Actions scopes come from
   the branch-protection contract; clean, fresh, fully successful evidence is
