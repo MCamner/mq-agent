@@ -139,12 +139,15 @@ def _repo_entry(entry: dict[str, str]) -> dict[str, Any]:
 
 
 def stack_status() -> str:
-    """Collect version, branch, last activity, drift risk and readiness for all mq-stack repos.
+    """Return the exact-head mq.stack-status.v2 verification document.
 
-    Returns JSON array.
+    Kept at this import path because the tool registry exposes stack_status
+    from this module. The implementation lives in the dedicated stack_status
+    module so CLI and tool consumers share one contract.
     """
-    results = [_repo_entry(r) for r in MQ_STACK_REPOS]
-    return json.dumps(results, indent=2)
+    from mq_agent.tools.stack_status import stack_status_v2
+
+    return stack_status_v2()
 
 
 def _changelog_has_version(repo_path: Path, version: str) -> bool:
