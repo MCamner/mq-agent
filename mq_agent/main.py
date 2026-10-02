@@ -996,7 +996,10 @@ def _run_review(
         if bridge is not None:
             _render_arch_context(bridge)
 
-        subject = receipt.get("subject") if isinstance(receipt.get("subject"), dict) else {}
+        raw_subject = receipt.get("subject")
+        subject: dict[str, Any] = {}
+        if isinstance(raw_subject, dict):
+            subject = {str(key): value for key, value in raw_subject.items()}
         snapshot = str(subject.get("snapshot_sha256") or "—")
         commit = str(subject.get("commit") or "—")
         if receipt.get("status") == "ISSUED":
