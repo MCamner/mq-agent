@@ -229,7 +229,7 @@ def repo_verification_entry(
             "api",
             f"repos/{owner}/{repo_name}/commits/{sha}/check-runs?per_page=100",
         )
-    except RuntimeError as exc:
+    except (RuntimeError, OSError, json.JSONDecodeError) as exc:
         return _unverified(
             base,
             f"github-unavailable: {exc}",
