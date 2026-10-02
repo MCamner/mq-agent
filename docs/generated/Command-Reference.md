@@ -2481,7 +2481,7 @@ Validate skill consistency across every mq-stack repo. Runs each repo's scripts/
 
 ## `mq-agent stack status`
 
-Show version, branch, last activity, drift risk and readiness for all mq-stack repos.
+Show exact-head verification state and evidence age for all mq-stack repos.
 
 ### Options
 
