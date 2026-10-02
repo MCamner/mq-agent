@@ -820,8 +820,10 @@ def _receipt_refused(result: Any) -> bool:
 
 
 def _render_review_receipt(receipt: dict[str, Any]) -> None:
-    subject = receipt.get("subject") if isinstance(receipt.get("subject"), dict) else {}
-    scope = subject.get("scope") if isinstance(subject.get("scope"), dict) else {}
+    subject_value = receipt.get("subject")
+    subject: dict[str, Any] = subject_value if isinstance(subject_value, dict) else {}
+    scope_value = subject.get("scope")
+    scope: dict[str, Any] = scope_value if isinstance(scope_value, dict) else {}
     status = str(receipt.get("status") or "UNKNOWN")
     style = "green" if status == "ISSUED" else "red"
     lines = [
