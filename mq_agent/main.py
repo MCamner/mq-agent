@@ -729,6 +729,7 @@ def _review_flags(
     risk: bool,
     fast: bool = False,
     visual_architecture_observation: Any = None,
+    receipt: bool = False,
 ) -> dict[str, Any]:
     flags: dict[str, Any] = {
         "security": security,
@@ -738,6 +739,10 @@ def _review_flags(
     }
     if visual_architecture_observation is not None:
         flags["visual_architecture_observation"] = visual_architecture_observation
+    if receipt:
+        # Preserve the old mq-mcp argument contract byte-for-byte unless the
+        # operator explicitly asks for the new receipt capability.
+        flags["receipt"] = True
     return flags
 
 
@@ -778,6 +783,7 @@ def _review_flags_with_visual_context(
     risk: bool,
     fast: bool,
     architecture_image: str | None,
+    receipt: bool = False,
 ) -> dict[str, Any]:
     observation = _visual_architecture_observation(bridge, architecture_image)
     if _is_error_result(observation):
@@ -789,6 +795,7 @@ def _review_flags_with_visual_context(
             risk,
             fast,
             visual_architecture_observation=observation,
+            receipt=receipt,
         )
     }
 
@@ -887,15 +894,143 @@ def _render_arch_context(bridge: Any) -> None:
     console.print(Panel(lines, title="[dim]Architecture context (mq-mcp)[/dim]", border_style="dim"))
 
 
-def _run_review(command: str, result: Any, json_out: bool, bridge: Any = None) -> None:
-    if json_out:
-        typer.echo(json.dumps(result, indent=2, default=str))
-        if _is_error_result(result):
+def _run_review(
+    command: str,
+    result: Any,
+    json_out: bool,
+    bridge: Any = None,
+    *,
+    receipt_requested: bool = False,
+) -> Any:
+    """Render a review and, when requested, persist mq-mcp's issued receipt.
+
+    mq-mcp owns the proof. This function only unwraps its transport result,
+    verifies the receipt content address, stores an ISSUED receipt, and hands
+    the underlying review payload back to callers such as --brain.
+    """
+    if _is_error_result(result):
+        if json_out:
+            typer.echo(json.dumps(result, indent=2, default=str))
             raise typer.Exit(1)
-        return
-    _render_review_result(command, result)
-    if bridge is not None:
-        _render_arch_context(bridge)
+        _render_review_result(command, result)
+        return result  # pragma: no cover - renderer raises for error results
+
+    if not receipt_requested:
+        if json_out:
+            typer.echo(json.dumps(result, indent=2, default=str))
+            return result
+        _render_review_result(command, result)
+        if bridge is not None:
+            _render_arch_context(bridge)
+        return result
+
+    from mq_agent.core.review_receipts import (
+        review_result as _receipt_review_result,
+        save_issued_receipt,
+        unwrap_receipt,
+        verify_receipt_id,
+    )
+
+    receipt = unwrap_receipt(result)
+    if receipt is None:
+        error = {
+            "ok": False,
+            "error": (
+                "mq-mcp did not return mq.review-receipt.v1. "
+                "Upgrade mq-mcp to the receipt-capable version and retry."
+            ),
+        }
+        if json_out:
+            typer.echo(json.dumps(error, indent=2))
+        else:
+            _render_review_result(command, error)
+        raise typer.Exit(1)
+
+    if not verify_receipt_id(receipt):
+        error = {
+            "ok": False,
+            "error": "mq.review-receipt.v1 content address is invalid; receipt was not stored.",
+        }
+        if json_out:
+            typer.echo(json.dumps(error, indent=2))
+        else:
+            _render_review_result(command, error)
+        raise typer.Exit(1)
+
+    review = _receipt_review_result(receipt)
+    if review is None:
+        error = {
+            "ok": False,
+            "error": "mq.review-receipt.v1 is missing review.result; receipt was not stored.",
+        }
+        if json_out:
+            typer.echo(json.dumps(error, indent=2))
+        else:
+            _render_review_result(command, error)
+        raise typer.Exit(1)
+
+    receipt_path: Path | None = None
+    if receipt.get("status") == "ISSUED":
+        try:
+            receipt_path = save_issued_receipt(receipt)
+        except (OSError, ValueError) as exc:
+            error = {
+                "ok": False,
+                "error": f"review receipt could not be stored: {exc}",
+            }
+            if json_out:
+                typer.echo(json.dumps(error, indent=2))
+            else:
+                _render_review_result(command, error)
+            raise typer.Exit(1) from exc
+
+    envelope = {
+        "review": review,
+        "receipt": receipt,
+        "receipt_path": str(receipt_path) if receipt_path else None,
+    }
+    if json_out:
+        typer.echo(json.dumps(envelope, indent=2, default=str))
+    else:
+        _render_review_result(command, review)
+        if bridge is not None:
+            _render_arch_context(bridge)
+
+        subject = receipt.get("subject") if isinstance(receipt.get("subject"), dict) else {}
+        snapshot = str(subject.get("snapshot_sha256") or "—")
+        commit = str(subject.get("commit") or "—")
+        if receipt.get("status") == "ISSUED":
+            console.print(
+                Panel(
+                    "\n".join([
+                        f"ID: {receipt.get('receipt_id', '—')}",
+                        f"Repo: {subject.get('repo', '—')}",
+                        f"Commit: {commit}",
+                        f"Snapshot: {snapshot}",
+                        f"Stored: {receipt_path}",
+                    ]),
+                    title="[bold green]Review receipt · ISSUED[/bold green]",
+                    border_style="green",
+                )
+            )
+        else:
+            console.print(
+                Panel(
+                    "\n".join([
+                        f"Reason: {receipt.get('reason', 'unknown')}",
+                        f"Commit: {commit}",
+                        f"Snapshot before: {(receipt.get('stability') or {}).get('before', '—')}",
+                        f"Snapshot after: {(receipt.get('stability') or {}).get('after', '—')}",
+                        "Stored: no",
+                    ]),
+                    title="[bold red]Review receipt · REFUSED[/bold red]",
+                    border_style="red",
+                )
+            )
+
+    if receipt.get("status") != "ISSUED":
+        raise typer.Exit(1)
+    return review
 
 
 @review_app.command("file")
@@ -907,13 +1042,14 @@ def review_file_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Request and save an exact-code review receipt from mq-mcp")] = False,
     repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review one file through mq-mcp. mq-agent does not implement review logic."""
     if dry_run:
-        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         repo_str = f" repo_path={repo}" if repo else ""
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{repo_str}{' ' + flag_str if flag_str else ''}[/bold]")
@@ -923,14 +1059,16 @@ def review_file_cmd(
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
     if _is_error_result(flags):
         _run_review("review file", flags, json_out)
         return
     result = bridge.review_file(path, flags, repo_path=repo)
-    _run_review("review file", result, json_out, bridge=bridge)
-    if brain and not _is_error_result(result):
-        _brain_record_review(bridge, path, result)
+    review_result = _run_review(
+        "review file", result, json_out, bridge=bridge, receipt_requested=receipt
+    )
+    if brain and not _is_error_result(review_result):
+        _brain_record_review(bridge, path, review_result)
 
 
 @review_app.command("diff")
@@ -941,12 +1079,13 @@ def review_diff_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Request and save an exact-code review receipt from mq-mcp")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review the current diff through mq-mcp. Findings are passed through."""
     if dry_run:
-        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
@@ -955,14 +1094,16 @@ def review_diff_cmd(
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
     if _is_error_result(flags):
         _run_review("review diff", flags, json_out)
         return
     result = bridge.review_diff(flags)
-    _run_review("review diff", result, json_out, bridge=bridge)
-    if brain and not _is_error_result(result):
-        _brain_record_review(bridge, "diff", result)
+    review_result = _run_review(
+        "review diff", result, json_out, bridge=bridge, receipt_requested=receipt
+    )
+    if brain and not _is_error_result(review_result):
+        _brain_record_review(bridge, "diff", review_result)
 
 
 @review_app.command("repo")
@@ -974,12 +1115,13 @@ def review_repo_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Request and save an exact-code review receipt from mq-mcp")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
     if dry_run:
-        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
@@ -988,14 +1130,16 @@ def review_repo_cmd(
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
     if _is_error_result(flags):
         _run_review("review repo", flags, json_out)
         return
     result = bridge.review_repo(path, flags)
-    _run_review("review repo", result, json_out, bridge=bridge)
-    if brain and not _is_error_result(result):
-        _brain_record_review(bridge, path, result)
+    review_result = _run_review(
+        "review repo", result, json_out, bridge=bridge, receipt_requested=receipt
+    )
+    if brain and not _is_error_result(review_result):
+        _brain_record_review(bridge, path, review_result)
 
 
 def _contract_status_text(value: Any) -> str:
