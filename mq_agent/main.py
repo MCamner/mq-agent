@@ -729,6 +729,7 @@ def _review_flags(
     risk: bool,
     fast: bool = False,
     visual_architecture_observation: Any = None,
+    receipt: bool = False,
 ) -> dict[str, Any]:
     flags: dict[str, Any] = {
         "security": security,
@@ -738,6 +739,8 @@ def _review_flags(
     }
     if visual_architecture_observation is not None:
         flags["visual_architecture_observation"] = visual_architecture_observation
+    if receipt:
+        flags["receipt"] = True
     return flags
 
 
@@ -778,6 +781,7 @@ def _review_flags_with_visual_context(
     risk: bool,
     fast: bool,
     architecture_image: str | None,
+    receipt: bool = False,
 ) -> dict[str, Any]:
     observation = _visual_architecture_observation(bridge, architecture_image)
     if _is_error_result(observation):
@@ -789,8 +793,53 @@ def _review_flags_with_visual_context(
             risk,
             fast,
             visual_architecture_observation=observation,
+            receipt=receipt,
         )
     }
+
+
+def _review_receipt(result: Any) -> dict[str, Any] | None:
+    """Return an mq.review-receipt.v1 wrapper when present."""
+    if isinstance(result, dict) and result.get("schema") == "mq.review-receipt.v1":
+        return result
+    return None
+
+
+def _review_payload(result: Any) -> Any:
+    """Return the review result inside a receipt, otherwise the input."""
+    receipt = _review_receipt(result)
+    if receipt is None:
+        return result
+    review = receipt.get("review")
+    return review.get("result") if isinstance(review, dict) else result
+
+
+def _receipt_refused(result: Any) -> bool:
+    receipt = _review_receipt(result)
+    return receipt is not None and receipt.get("status") != "ISSUED"
+
+
+def _render_review_receipt(receipt: dict[str, Any]) -> None:
+    subject = receipt.get("subject") if isinstance(receipt.get("subject"), dict) else {}
+    scope = subject.get("scope") if isinstance(subject.get("scope"), dict) else {}
+    status = str(receipt.get("status") or "UNKNOWN")
+    style = "green" if status == "ISSUED" else "red"
+    lines = [
+        f"status: {status}",
+        f"reason: {receipt.get('reason') or '—'}",
+        f"repo: {subject.get('repo') or '—'}",
+        f"commit: {subject.get('commit') or '—'}",
+        f"snapshot: {subject.get('snapshot_sha256') or '—'}",
+        f"scope: {scope.get('type') or '—'} ({scope.get('file_count', 0)} files)",
+        f"receipt: {receipt.get('receipt_id') or '—'}",
+    ]
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title="[bold]Exact-code review receipt[/bold]",
+            border_style=style,
+        )
+    )
 
 
 def _is_error_result(result: Any) -> bool:
@@ -810,6 +859,9 @@ def _is_error_result(result: Any) -> bool:
 
 def _iter_review_findings(value: Any) -> list[dict[str, Any]]:
     """Extract findings for display without changing their labels or meaning."""
+    receipt = _review_receipt(value)
+    if receipt is not None:
+        return _iter_review_findings(_review_payload(receipt))
     if isinstance(value, dict):
         findings = value.get("findings")
         if isinstance(findings, list):
