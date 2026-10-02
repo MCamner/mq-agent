@@ -160,6 +160,13 @@ def test_github_failure_degrades_to_unverified_without_fabrication(tmp_path):
     assert verification["reason"] == "github-unavailable: offline"
 
 
+def test_missing_gh_binary_is_unverified_not_a_crash(tmp_path):
+    data = _status(tmp_path, gh=FakeGh(error=FileNotFoundError("gh not found")))
+    verification = data["repos"][0]["verification"]
+    assert verification["status"] == "UNVERIFIED"
+    assert verification["reason"] == "github-unavailable: gh not found"
+
+
 def test_missing_repo_is_unverified_and_does_not_query_github(tmp_path):
     gh = FakeGh()
     entry = {"name": "demo", "path": str(tmp_path / "missing"), "role": "test"}
