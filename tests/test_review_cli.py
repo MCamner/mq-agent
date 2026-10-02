@@ -342,3 +342,166 @@ def test_review_file_brain_skips_on_error():
 
     assert result.exit_code == 1
     MockBridge.return_value.call_tool.assert_not_called()
+
+
+def _receipt_for(review, *, status="ISSUED"):
+    import hashlib
+
+    core = {
+        "schema": "mq.review-receipt.v1",
+        "status": status,
+        "reason": (
+            "exact-subject-snapshot-stable"
+            if status == "ISSUED"
+            else "subject-changed-during-review"
+        ),
+        "started_at": "2026-10-02T12:00:00+00:00",
+        "completed_at": "2026-10-02T12:00:01+00:00",
+        "subject": {
+            "repo": "demo",
+            "commit": "a" * 40,
+            "branch": "main",
+            "worktree_clean": True,
+            "scope": {"type": "file", "path": "README.md", "file_count": 1, "files": []},
+            "snapshot_sha256": "sha256:" + "b" * 64,
+        },
+        "stability": {
+            "before": "sha256:" + "b" * 64,
+            "after": (
+                "sha256:" + ("b" if status == "ISSUED" else "e") * 64
+            ),
+            "unchanged": status == "ISSUED",
+        },
+        "producer": {"component": "mq-mcp", "commit": "c" * 40},
+        "review": {
+            "kind": "file",
+            "mode": "comment",
+            "result_sha256": "sha256:" + "d" * 64,
+            "result": review,
+        },
+    }
+    raw = json.dumps(
+        core, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode()
+    return {
+        "receipt_id": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        **core,
+    }
+
+
+def test_review_file_receipt_requests_capability_and_saves_issued_receipt(
+    tmp_path, monkeypatch
+):
+    review = {
+        "ok": True,
+        "findings": [
+            {"severity": "RISK", "file": "README.md", "line": 7, "message": "bound"},
+        ],
+    }
+    receipt = _receipt_for(review)
+
+    class ReceiptBridge(FakeReviewBridge):
+        def review_file(self, path, flags, repo_path=None):
+            self.calls.append(("review_file", path, flags))
+            return receipt
+
+    bridge = ReceiptBridge()
+    monkeypatch.setenv("MQ_AGENT_REVIEW_RECEIPTS_DIR", str(tmp_path))
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(
+            app, ["review", "file", "README.md", "--receipt", "--json"]
+        )
+
+    assert result.exit_code == 0
+    assert bridge.calls[0][2]["receipt"] is True
+    data = json.loads(result.output)
+    assert data["review"] == review
+    assert data["receipt"]["receipt_id"] == receipt["receipt_id"]
+    saved = Path(data["receipt_path"])
+    assert saved.parent == tmp_path
+    assert json.loads(saved.read_text()) == receipt
+
+
+def test_review_receipt_flag_is_not_sent_unless_requested():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", ".", "--json"])
+
+    assert result.exit_code == 0
+    assert "receipt" not in bridge.calls[0][2]
+
+
+def test_refused_review_receipt_exits_nonzero_and_is_not_saved(tmp_path, monkeypatch):
+    receipt = _receipt_for({"ok": True, "findings": []}, status="REFUSED")
+
+    class RefusedBridge(FakeReviewBridge):
+        def review_file(self, path, flags, repo_path=None):
+            self.calls.append(("review_file", path, flags))
+            return receipt
+
+    bridge = RefusedBridge()
+    monkeypatch.setenv("MQ_AGENT_REVIEW_RECEIPTS_DIR", str(tmp_path))
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(
+            app, ["review", "file", "README.md", "--receipt", "--json"]
+        )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["receipt"]["status"] == "REFUSED"
+    assert data["receipt_path"] is None
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_receipted_brain_write_uses_underlying_review_not_receipt(
+    tmp_path, monkeypatch
+):
+    review = {
+        "ok": True,
+        "findings": [{"severity": "HIGH", "message": "real finding"}],
+    }
+    receipt = _receipt_for(review)
+
+    class ReceiptBridge(FakeReviewBridge):
+        def review_file(self, path, flags, repo_path=None):
+            self.calls.append(("review_file", path, flags))
+            return receipt
+
+    bridge = ReceiptBridge()
+    monkeypatch.setenv("MQ_AGENT_REVIEW_RECEIPTS_DIR", str(tmp_path))
+    with (
+        patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge),
+        patch("mq_agent.main._brain_record_review") as record,
+    ):
+        result = runner.invoke(
+            app, ["review", "file", "README.md", "--receipt", "--brain"]
+        )
+
+    assert result.exit_code == 0
+    assert record.call_args.args[2] == review
+
+
+def test_receipt_request_against_old_mq_mcp_fails_closed(tmp_path, monkeypatch):
+    bridge = FakeReviewBridge()
+    monkeypatch.setenv("MQ_AGENT_REVIEW_RECEIPTS_DIR", str(tmp_path))
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(
+            app, ["review", "file", "README.md", "--receipt", "--json"]
+        )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert "did not return mq.review-receipt.v1" in data["error"]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_receipt_dry_run_is_visible_and_does_not_call_bridge():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(
+            app, ["review", "diff", "--receipt", "--dry-run"]
+        )
+
+    assert result.exit_code == 0
+    assert "--receipt" in result.output
+    assert bridge.calls == []
