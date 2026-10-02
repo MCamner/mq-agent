@@ -11,6 +11,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* Stack status v2 replaces heuristic readiness in mq-agent stack status with
+  exact-HEAD verification evidence. Required GitHub Actions scopes come from
+  the branch-protection contract; clean, fresh, fully successful evidence is
+  VERIFIED, old complete evidence is STALE, missing or inaccessible evidence
+  is UNVERIFIED, and a failed required check is FAIL. JSON now publishes the
+  versioned mq.stack-status.v2 contract for mqlaunch/HAL consumers.
+
 * Feedback Engine F0 foundation: `mq.feedback-experiment.v1`, a bounded
   append-only runtime evidence store under `~/.mq/feedback`, schema validation,
   secret/private-path redaction, serialized writes, retention/rotation, corrupt
