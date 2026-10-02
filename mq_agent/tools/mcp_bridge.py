@@ -32,6 +32,37 @@ def _review_repo_args(path: str | None, flags: dict[str, Any]) -> dict[str, Any]
     return _add_repo_path(dict(flags), path)
 
 
+_AGENT_REVIEW_FLAGS = {"security", "architecture", "risk", "fast", "receipt"}
+
+
+def _review_mode(flags: dict[str, Any], *, risk_tool: bool = False) -> str:
+    """Translate mq-agent's review UX flags to mq-mcp's current mode contract."""
+    if flags.get("architecture"):
+        return "architecture"
+    if flags.get("security"):
+        return "security"
+    return "risk" if risk_tool else "comment"
+
+
+def _mq_mcp_review_args(
+    flags: dict[str, Any], *, risk_tool: bool = False
+) -> dict[str, Any]:
+    """Build arguments accepted by current mq-mcp review tools.
+
+    Agent-only routing flags are not forwarded as unknown MCP parameters.
+    Unknown non-routing context fields are preserved for compatible servers.
+    """
+    args = {
+        key: value
+        for key, value in flags.items()
+        if key not in _AGENT_REVIEW_FLAGS
+    }
+    args["mode"] = _review_mode(flags, risk_tool=risk_tool)
+    if flags.get("receipt"):
+        args["receipt"] = True
+    return args
+
+
 def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
     """Return the default MCP server for known MQ ecosystem tool families."""
     lower = tool_name.lower()
@@ -311,19 +342,37 @@ class MultiMCPBridge:
         selected = self._select_review_tool("review_file", "risk_review_file", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, _add_repo_path({"relative_path": path, **flags}, repo_path))
+        risk_tool = selected == "risk_review_file"
+        if risk_tool and repo_path not in (None, "", ".", "./"):
+            return {
+                "ok": False,
+                "error": "--risk with --repo is not supported by the current mq-mcp risk_review_file contract.",
+                "tool": selected,
+                "hint": "Run the risk review from mq-mcp's own repo or use a non-risk review for an allowed external repo.",
+            }
+        args = {"relative_path": path, **_mq_mcp_review_args(flags, risk_tool=risk_tool)}
+        return self._call_required_tool(
+            selected,
+            _add_repo_path(args, None if risk_tool else repo_path),
+        )
 
     def review_diff(self, flags: dict[str, Any]) -> Any:
         selected = self._select_review_tool("review_diff", "risk_review_diff", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, flags)
+        return self._call_required_tool(
+            selected,
+            _mq_mcp_review_args(flags, risk_tool=selected == "risk_review_diff"),
+        )
 
     def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
         selected = self._select_review_tool("review_repo", "risk_review_repo", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(selected, _review_repo_args(path, flags))
+        return self._call_required_tool(
+            selected,
+            _review_repo_args(path, _mq_mcp_review_args(flags)),
+        )
 
     def search_semantic_memory(self, query: str) -> Any:
         """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""
