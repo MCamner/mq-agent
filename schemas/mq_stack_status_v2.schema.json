@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mq.local/schemas/mq_stack_status_v2.schema.json",
+  "title": "MQ Stack Status v2",
+  "type": "object",
+  "required": ["schema", "checked_at", "max_age_seconds", "overall", "repos"],
+  "properties": {
+    "schema": {"const": "mq.stack-status.v2"},
+    "checked_at": {"type": "string", "format": "date-time"},
+    "max_age_seconds": {"type": "integer", "minimum": 1},
+    "overall": {"enum": ["VERIFIED", "STALE", "UNVERIFIED", "FAIL"]},
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name", "github_repo", "role", "exists", "version", "branch",
+          "commit", "dirty", "last_activity", "verification"
+        ],
+        "properties": {
+          "name": {"type": "string"},
+          "github_repo": {"type": "string"},
+          "role": {"type": "string"},
+          "exists": {"type": "boolean"},
+          "version": {"type": ["string", "null"]},
+          "branch": {"type": ["string", "null"]},
+          "commit": {"type": ["string", "null"]},
+          "dirty": {"type": ["boolean", "null"]},
+          "last_activity": {"type": ["string", "null"]},
+          "verification": {
+            "type": "object",
+            "required": [
+              "status", "evidence_source", "expected_scopes", "verified_scopes",
+              "verified_count", "required_count", "verified_at", "age_seconds",
+              "reason", "scopes"
+            ],
+            "properties": {
+              "status": {"enum": ["VERIFIED", "STALE", "UNVERIFIED", "FAIL"]},
+              "evidence_source": {"type": "string"},
+              "expected_scopes": {"type": "array", "items": {"type": "string"}},
+              "verified_scopes": {"type": "array", "items": {"type": "string"}},
+              "verified_count": {"type": "integer", "minimum": 0},
+              "required_count": {"type": "integer", "minimum": 0},
+              "verified_at": {"type": ["string", "null"]},
+              "age_seconds": {"type": ["integer", "null"], "minimum": 0},
+              "reason": {"type": "string"},
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "status", "conclusion", "completed_at", "details_url"],
+                  "properties": {
+                    "name": {"type": "string"},
+                    "status": {"enum": ["PASS", "FAIL", "PENDING", "MISSING"]},
+                    "conclusion": {"type": ["string", "null"]},
+                    "completed_at": {"type": ["string", "null"]},
+                    "details_url": {"type": ["string", "null"]}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
