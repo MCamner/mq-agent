@@ -1,17 +1,18 @@
 name: stack-status
-version: "0.1"
+version: "0.2"
 description: |
-  mq-stack status loop — collect repo inventory, last activity, version,
-  drift risk, and release readiness for all mq-stack repos, then export
-  to Obsidian (05_RELEASE_STATUS.md).
+  mq-stack status loop — collect exact local HEAD identity and GitHub required-
+  check evidence for every mq-stack repo, then export the wider stack truth to
+  Obsidian (05_RELEASE_STATUS.md).
 
   Usage:
     mq-agent task run tasks/stack_status.yaml
+    mq-agent stack status --json
     mq-agent stack export
 
 steps:
   - name: collect
-    description: Collect version, branch, last activity, drift risk and readiness for all repos
+    description: Collect exact-head verification state, scopes and evidence age for all repos
     tool: stack_status
     args: {}
 
@@ -27,6 +28,8 @@ steps:
       path: "."
 
 verify:
-  - collect step returns JSON array with all mq-stack repos
+  - collect step returns mq.stack-status.v2 with all mq-stack repos
+  - VERIFIED is only emitted for a clean worktree with successful required checks on exact HEAD
+  - missing or unavailable evidence is UNVERIFIED, never inferred from another commit
   - export step writes 05_RELEASE_STATUS.md
-  - no repos are mutated (all operations are read-only)
+  - no repos are mutated (all status operations are read-only)
