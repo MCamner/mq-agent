@@ -463,6 +463,7 @@ Run and inspect evidence-grounded feedback experiments.
 
 | Subcommand | Description |
 |---|---|
+| [`mq-agent feedback activation-readiness`](#mq-agent-feedback-activation-readiness) | Check evidence readiness for human activation approval; never activates. |
 | [`mq-agent feedback candidate`](#mq-agent-feedback-candidate) | Show one candidate with its immutable comparison evidence. |
 | [`mq-agent feedback candidate-handoff`](#mq-agent-feedback-candidate-handoff) | Submit an approved memory candidate to mqobsidian's review inbox. |
 | [`mq-agent feedback candidate-state`](#mq-agent-feedback-candidate-state) | Append a human review state; never activates a policy. |
@@ -474,6 +475,22 @@ Run and inspect evidence-grounded feedback experiments.
 | [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without recomputing a verdict. |
 | [`mq-agent feedback run`](#mq-agent-feedback-run) | Run one zero-effect active-versus-shadow repo-review experiment. |
 | [`mq-agent feedback status`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
+
+## `mq-agent feedback activation-readiness`
+
+Check evidence readiness for human activation approval; never activates.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
 
 ## `mq-agent feedback candidate`
 
