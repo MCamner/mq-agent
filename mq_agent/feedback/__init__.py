@@ -8,12 +8,15 @@ from .candidates import (
     set_candidate_state,
 )
 from .contracts import (
+    ACTIVATION_READINESS_SCHEMA_ID,
     CANDIDATE_SCHEMA_ID,
     COMPARISON_SCHEMA_ID,
+    validate_activation_readiness,
     validate_candidate,
     validate_comparison,
 )
 from .engine import run_context_experiment
+from .readiness import activation_readiness
 from .evaluation import compare_feedback_run, latest_comparison, metric_pair
 from .models import SCHEMA_ID, build_feedback_experiment, validate_experiment
 from .store import (
@@ -49,10 +52,12 @@ __all__ = [
     "REPORT_SCHEMA_ID",
     "COMPARISON_SCHEMA_ID",
     "CANDIDATE_SCHEMA_ID",
+    "ACTIVATION_READINESS_SCHEMA_ID",
     "FeedbackHistoryResult",
     "FeedbackReadResult",
     "FeedbackStoreIssue",
     "StoredFeedbackRecord",
+    "activation_readiness",
     "append_candidate",
     "append_comparison",
     "append_experiment",
@@ -80,6 +85,7 @@ __all__ = [
     "run_context_experiment",
     "sanitize_feedback_record",
     "set_candidate_state",
+    "validate_activation_readiness",
     "validate_candidate",
     "validate_comparison",
     "validate_experiment",
