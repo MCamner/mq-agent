@@ -24,6 +24,7 @@ from .engine import (
     run_context_experiment,
 )
 from .evaluation import compare_feedback_run, latest_comparison
+from .readiness import activation_readiness
 from .store import purge_feedback_state
 from .views import (
     feedback_inspect,
@@ -449,6 +450,51 @@ def feedback_candidate_state_cmd(
         _emit_json(payload)
     else:
         console.print(f"{candidate_id}: {payload['state']} — {payload['state_reason']}")
+
+
+@app.command("activation-readiness")
+def feedback_activation_readiness_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Check evidence readiness for human activation approval; never activates."""
+    try:
+        payload = activation_readiness(candidate_id)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        _emit_json(payload)
+    else:
+        table = Table(title=f"Activation Readiness — {payload['status']}")
+        table.add_column("Requirement")
+        table.add_column("Status")
+        table.add_column("Detail")
+        for item in payload["requirements"]:
+            table.add_row(
+                str(item["id"]),
+                str(item["status"]),
+                str(item["detail"]),
+            )
+        console.print(
+            Panel(
+                f"Candidate: {payload['candidate_id']}\n"
+                f"Task class: {payload['task_class']}\n"
+                f"Strategy: {payload['current_strategy']} -> {payload['proposed_strategy']}\n"
+                f"Rollback: {payload['rollback_target']}\n"
+                f"Human approval required: yes\n"
+                f"Canary required: yes\n"
+                f"Activation available: no",
+                title="Feedback Activation Readiness",
+            )
+        )
+        console.print(table)
+        console.print(f"Next: {payload['next_action']}")
+
+    if payload["status"] == "INSUFFICIENT_EVIDENCE":
+        raise typer.Exit(1)
+    if payload["status"] == "BLOCKED":
+        raise typer.Exit(2)
 
 
 @app.command("candidate-handoff")
