@@ -52,6 +52,7 @@ packages = ["mq_agent"]
 "schemas/feedback_report.schema.json" = "mq_agent/schemas/feedback_report.schema.json"
 "schemas/feedback_comparison.schema.json" = "mq_agent/schemas/feedback_comparison.schema.json"
 "schemas/feedback_candidate.schema.json" = "mq_agent/schemas/feedback_candidate.schema.json"
+"schemas/feedback_activation_readiness.schema.json" = "mq_agent/schemas/feedback_activation_readiness.schema.json"
 "schemas/runtime_identity.schema.json" = "mq_agent/schemas/runtime_identity.schema.json"
 "schemas/stack_provenance.schema.json" = "mq_agent/schemas/stack_provenance.schema.json"
 "schemas/mq_stack_status_v2.schema.json" = "mq_agent/schemas/mq_stack_status_v2.schema.json"
