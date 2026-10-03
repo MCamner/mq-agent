@@ -35,6 +35,7 @@ mq-agent feedback inspect <feedback-run-id>
 mq-agent feedback report --task-class repo-review --since 30d
 mq-agent feedback candidates
 mq-agent feedback candidate <candidate-id>
+mq-agent feedback activation-readiness <candidate-id>
 ```
 
 Stable machine output:
@@ -82,6 +83,29 @@ limitations and rollback target.
 Candidates cannot activate production policy. Memory candidates use the
 existing mqobsidian review/promotion boundary rather than writing durable
 memory directly.
+
+### Activation readiness
+
+`mq-agent feedback activation-readiness <candidate-id>` is the first
+post-v1.30 activation surface, but it is deliberately **read-only**. It answers
+only whether a context-strategy candidate has enough deterministic evidence to
+be presented for human approval.
+
+`READY_FOR_HUMAN_APPROVAL` requires:
+
+- an effective `proposed` context-strategy candidate;
+- complete, valid comparison links for the exact task class and strategy pair;
+- at least two `CANDIDATE_BETTER` comparisons;
+- evidence from at least two distinct Git snapshots;
+- no material regression in any linked comparison; and
+- `rollback_target == current_strategy`.
+
+The result always says `human_approval_required: true`,
+`canary_required: true`, and `activation_available: false`. Readiness is not
+approval, approval is not activation, and this command writes no policy state.
+
+Exit status is machine-usable: 0 is ready for human approval, 1 means more
+evidence is required, and 2 means a blocker must be resolved.
 
 ## Runtime storage
 
