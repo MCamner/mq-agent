@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-activation-readiness.v1",
+  "description": "Read-only gate stating whether one task-class-isolated feedback candidate has enough validated evidence to be presented for human activation approval. It never grants approval or exposes activation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "candidate_id", "status", "task_class", "candidate_state", "kind",
+    "current_strategy", "proposed_strategy", "rollback_target", "scope", "evidence",
+    "requirements", "human_approval_required", "canary_required",
+    "activation_available", "next_action"
+  ],
+  "properties": {
+    "schema": {"const": "mq.feedback-activation-readiness.v1"},
+    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "status": {"enum": ["READY_FOR_HUMAN_APPROVAL", "INSUFFICIENT_EVIDENCE", "BLOCKED"]},
+    "task_class": {"type": "string", "minLength": 1, "maxLength": 80},
+    "candidate_state": {"type": "string", "minLength": 1, "maxLength": 80},
+    "kind": {"type": "string", "minLength": 1, "maxLength": 80},
+    "current_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
+    "proposed_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
+    "rollback_target": {"type": "string", "minLength": 1, "maxLength": 120},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_class", "cross_task_activation"],
+      "properties": {
+        "task_class": {"type": "string", "minLength": 1, "maxLength": 80},
+        "cross_task_activation": {"const": false}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comparison_count", "distinct_snapshot_count", "comparison_ids", "snapshots", "material_regressions"],
+      "properties": {
+        "comparison_count": {"type": "integer", "minimum": 0},
+        "distinct_snapshot_count": {"type": "integer", "minimum": 0},
+        "comparison_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "snapshots": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "material_regressions": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "detail", "class"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "status": {"enum": ["PASS", "FAIL"]},
+          "detail": {"type": "string"},
+          "class": {"enum": ["blocker", "evidence"]}
+        }
+      }
+    },
+    "human_approval_required": {"const": true},
+    "canary_required": {"const": true},
+    "activation_available": {"const": false},
+    "next_action": {"enum": ["request-human-approval", "collect-more-evidence", "resolve-blockers"]}
+  }
+}

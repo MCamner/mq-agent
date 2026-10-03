@@ -16,6 +16,7 @@ mq-agent feedback compare <feedback-run-id> --json
 mq-agent feedback report --task-class repo-review --since 30d --json
 mq-agent feedback candidates --json
 mq-agent feedback candidate <candidate-id> --json
+mq-agent feedback activation-readiness <candidate-id> --json
 ```
 
 A bounded experiment is an explicit evidence-producing operation:
@@ -54,12 +55,12 @@ mq_feedback_candidates
 mq_feedback_run
 ```
 
-The first five are read-only Class A tools. `mq_feedback_run` is classified
+The first five are read-only Class A tools. `activation-readiness` is currently a direct mq-agent/mqlaunch read-only surface and is not yet exposed as an MCP tool. `mq_feedback_run` is classified
 separately because it consumes bounded compute and writes feedback evidence,
 while still having zero production-policy effect.
 
 There is no feedback activation, purge, candidate-state or direct memory
-promotion tool exposed to Codex or Claude in v1.30.
+promotion tool exposed to Codex or Claude. Activation readiness does not change that boundary: it reports evidence sufficiency but cannot approve or activate a policy.
 
 The `feedback-review` skill only selects/explains these tools. It contains no
 comparison or promotion policy.
@@ -92,6 +93,7 @@ mqlaunch feedback report --task-class repo-review --since 30d
 mqlaunch feedback inspect <feedback-run-id>
 mqlaunch feedback compare <feedback-run-id>
 mqlaunch feedback candidates
+mqlaunch feedback activation-readiness <candidate-id>
 mqlaunch feedback run --task-class repo-review --repo . --task "review this repository"
 ```
 

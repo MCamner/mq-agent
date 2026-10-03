@@ -18,6 +18,7 @@ SCHEMAS = {
     "mq.feedback-report.v1": "feedback_report.schema.json",
     "mq.feedback-comparison.v1": "feedback_comparison.schema.json",
     "mq.feedback-candidate.v1": "feedback_candidate.schema.json",
+    "mq.feedback-activation-readiness.v1": "feedback_activation_readiness.schema.json",
 }
 PUBLIC_DOCS = (
     ROOT / "docs" / "FEEDBACK_ENGINE.md",
@@ -35,6 +36,7 @@ REQUIRED_FEEDBACK_COMMANDS = {
     "candidate",
     "candidate-state",
     "candidate-handoff",
+    "activation-readiness",
     "purge",
 }
 FORBIDDEN_FEEDBACK_COMMANDS = {

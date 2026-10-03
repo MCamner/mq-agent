@@ -38,7 +38,8 @@
     "mq.feedback-experiment.v1",
     "mq.feedback-report.v1",
     "mq.feedback-comparison.v1",
-    "mq.feedback-candidate.v1"
+    "mq.feedback-candidate.v1",
+    "mq.feedback-activation-readiness.v1"
   ],
   "compatibility": {
     "consumes": [
