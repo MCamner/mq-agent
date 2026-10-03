@@ -383,7 +383,7 @@ def test_manager_start_success(tmp_path):
         with patch.object(manager, "install_openai_api_key"):
             with patch.object(manager, "mq_mcp_dir", return_value=fake_dir):
                 with patch("mq_agent.mcp.manager.subprocess.Popen", return_value=mock_proc):
-                    with patch("mq_agent.mcp.manager.time.sleep"):
+                    with patch("mq_agent.mcp.manager.time.sleep"), patch.object(manager, "_port_is_open", return_value=False):
                         already, pid, msg = manager.start()
 
     assert already is False
@@ -566,3 +566,16 @@ def test_get_server_statuses_enriches_when_tools_available():
 
     assert statuses["mq-mcp"]["contract"] == {"ok": True}
     assert statuses["mq-mcp"]["semantic_memory_count"] == 2
+
+
+def test_mcp_status_external_process_is_not_reported_as_not_started():
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+    from mq_agent.mcp import manager
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+    statuses = {"mq-mcp": {"available": True, "endpoint": "http://localhost:8765", "tools": 0, "specs": []}}
+    with patch.object(manager, "read_pid", return_value=None), patch.object(manager, "is_running", return_value=False), patch.object(MultiMCPBridge, "get_server_statuses", return_value=statuses):
+        result = CliRunner().invoke(app, ["mcp", "status"])
+    assert result.exit_code == 0
+    assert "running externally" in result.output
+    assert "not started" not in result.output
