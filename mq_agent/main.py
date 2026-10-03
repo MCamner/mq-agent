@@ -729,6 +729,7 @@ def _review_flags(
     risk: bool,
     fast: bool = False,
     visual_architecture_observation: Any = None,
+    receipt: bool = False,
 ) -> dict[str, Any]:
     flags: dict[str, Any] = {
         "security": security,
@@ -738,6 +739,8 @@ def _review_flags(
     }
     if visual_architecture_observation is not None:
         flags["visual_architecture_observation"] = visual_architecture_observation
+    if receipt:
+        flags["receipt"] = True
     return flags
 
 
@@ -778,6 +781,7 @@ def _review_flags_with_visual_context(
     risk: bool,
     fast: bool,
     architecture_image: str | None,
+    receipt: bool = False,
 ) -> dict[str, Any]:
     observation = _visual_architecture_observation(bridge, architecture_image)
     if _is_error_result(observation):
@@ -789,8 +793,55 @@ def _review_flags_with_visual_context(
             risk,
             fast,
             visual_architecture_observation=observation,
+            receipt=receipt,
         )
     }
+
+
+def _review_receipt(result: Any) -> dict[str, Any] | None:
+    """Return an mq.review-receipt.v1 wrapper when present."""
+    if isinstance(result, dict) and result.get("schema") == "mq.review-receipt.v1":
+        return result
+    return None
+
+
+def _review_payload(result: Any) -> Any:
+    """Return the review result inside a receipt, otherwise the input."""
+    receipt = _review_receipt(result)
+    if receipt is None:
+        return result
+    review = receipt.get("review")
+    return review.get("result") if isinstance(review, dict) else result
+
+
+def _receipt_refused(result: Any) -> bool:
+    receipt = _review_receipt(result)
+    return receipt is not None and receipt.get("status") != "ISSUED"
+
+
+def _render_review_receipt(receipt: dict[str, Any]) -> None:
+    subject_value = receipt.get("subject")
+    subject: dict[str, Any] = subject_value if isinstance(subject_value, dict) else {}
+    scope_value = subject.get("scope")
+    scope: dict[str, Any] = scope_value if isinstance(scope_value, dict) else {}
+    status = str(receipt.get("status") or "UNKNOWN")
+    style = "green" if status == "ISSUED" else "red"
+    lines = [
+        f"status: {status}",
+        f"reason: {receipt.get('reason') or '—'}",
+        f"repo: {subject.get('repo') or '—'}",
+        f"commit: {subject.get('commit') or '—'}",
+        f"snapshot: {subject.get('snapshot_sha256') or '—'}",
+        f"scope: {scope.get('type') or '—'} ({scope.get('file_count', 0)} files)",
+        f"receipt: {receipt.get('receipt_id') or '—'}",
+    ]
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title="[bold]Exact-code review receipt[/bold]",
+            border_style=style,
+        )
+    )
 
 
 def _is_error_result(result: Any) -> bool:
@@ -810,6 +861,9 @@ def _is_error_result(result: Any) -> bool:
 
 def _iter_review_findings(value: Any) -> list[dict[str, Any]]:
     """Extract findings for display without changing their labels or meaning."""
+    receipt = _review_receipt(value)
+    if receipt is not None:
+        return _iter_review_findings(_review_payload(receipt))
     if isinstance(value, dict):
         findings = value.get("findings")
         if isinstance(findings, list):
@@ -829,6 +883,14 @@ def _severity_value(item: dict[str, Any]) -> str:
 
 
 def _render_review_result(command: str, result: Any) -> None:
+    receipt = _review_receipt(result)
+    if receipt is not None:
+        payload = _review_payload(receipt)
+        if payload is not receipt:
+            _render_review_result(command, payload)
+        _render_review_receipt(receipt)
+        return
+
     if _is_error_result(result):
         message = str(result.get("error") if isinstance(result, dict) else result)
         # A down server and a missing tool need different operator fixes, so the
@@ -890,10 +952,12 @@ def _render_arch_context(bridge: Any) -> None:
 def _run_review(command: str, result: Any, json_out: bool, bridge: Any = None) -> None:
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
-        if _is_error_result(result):
+        if _is_error_result(result) or _receipt_refused(result):
             raise typer.Exit(1)
         return
     _render_review_result(command, result)
+    if _receipt_refused(result):
+        raise typer.Exit(1)
     if bridge is not None:
         _render_arch_context(bridge)
 
@@ -907,13 +971,14 @@ def review_file_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
     repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review one file through mq-mcp. mq-agent does not implement review logic."""
     if dry_run:
-        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         repo_str = f" repo_path={repo}" if repo else ""
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{repo_str}{' ' + flag_str if flag_str else ''}[/bold]")
@@ -923,14 +988,14 @@ def review_file_cmd(
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
     if _is_error_result(flags):
         _run_review("review file", flags, json_out)
         return
     result = bridge.review_file(path, flags, repo_path=repo)
     _run_review("review file", result, json_out, bridge=bridge)
     if brain and not _is_error_result(result):
-        _brain_record_review(bridge, path, result)
+        _brain_record_review(bridge, path, _review_payload(result))
 
 
 @review_app.command("diff")
@@ -941,12 +1006,13 @@ def review_diff_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review the current diff through mq-mcp. Findings are passed through."""
     if dry_run:
-        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
@@ -955,14 +1021,14 @@ def review_diff_cmd(
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
     if _is_error_result(flags):
         _run_review("review diff", flags, json_out)
         return
     result = bridge.review_diff(flags)
     _run_review("review diff", result, json_out, bridge=bridge)
     if brain and not _is_error_result(result):
-        _brain_record_review(bridge, "diff", result)
+        _brain_record_review(bridge, "diff", _review_payload(result))
 
 
 @review_app.command("repo")
@@ -974,12 +1040,13 @@ def review_repo_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
     """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
     if dry_run:
-        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast).items() if v]
+        enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
@@ -988,7 +1055,7 @@ def review_repo_cmd(
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image)
+    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
     if _is_error_result(flags):
         _run_review("review repo", flags, json_out)
         return

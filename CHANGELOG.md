@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* `review file`, `review diff`, and `review repo` gain `--receipt`.
+  mq-agent delegates receipt creation to mq-mcp and returns the
+  `mq.review-receipt.v1` evidence unchanged; a refused binding exits non-zero.
+  The MCP bridge also translates the agent's review UX flags to mq-mcp's
+  current `mode` contract instead of forwarding obsolete boolean parameters.
+
 * Stack status v2 replaces heuristic readiness in mq-agent stack status with
   exact-HEAD verification evidence. Required GitHub Actions scopes come from
   the branch-protection contract; clean, fresh, fully successful evidence is
