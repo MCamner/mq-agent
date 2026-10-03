@@ -2196,7 +2196,12 @@ def mcp_status(
         )
 
         if name == "mq-mcp":
-            pid_line = f"process:  PID {mq_mcp_pid}" if mq_mcp_pid else "process:  not started"
+            if mq_mcp_running and mq_mcp_pid:
+                pid_line = f"process:  PID {mq_mcp_pid}"
+            elif available:
+                pid_line = "process:  running externally (no managed PID)"
+            else:
+                pid_line = "process:  not running"
             lines += f"{pid_line}\n"
 
         if available:
