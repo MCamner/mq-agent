@@ -11,6 +11,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+* Feedback activation readiness v1: `feedback activation-readiness`
+  evaluates one context-strategy candidate without changing policy. The
+  versioned `mq.feedback-activation-readiness.v1` contract requires repeated
+  evidence across distinct Git snapshots, exact task-class/strategy identity,
+  no material regressions, and an exact rollback target before reporting
+  `READY_FOR_HUMAN_APPROVAL`. Every result still requires human approval and
+  canary execution and explicitly reports `activation_available=false`.
+
 * `review file`, `review diff`, and `review repo` gain `--receipt`.
   mq-agent delegates receipt creation to mq-mcp and returns the
   `mq.review-receipt.v1` evidence unchanged; a refused binding exits non-zero.
