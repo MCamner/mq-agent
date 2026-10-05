@@ -4436,7 +4436,7 @@ def memory_search_cmd(
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Search mq-mcp semantic memory. Read-only. Requires mq-mcp v1.4.0+."""
-    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge, tool_failure
 
     result = MultiMCPBridge().search_semantic_memory(query)
 
@@ -4456,6 +4456,17 @@ def memory_search_cmd(
         if hint:
             console.print(f"[dim]{hint}[/dim]")
         raise typer.Exit(1)
+
+    # mq-mcp answers with a markdown string, wrapped by the HTTP bridge; the
+    # item shapes below are kept for servers that return structured results.
+    failure = tool_failure("search_semantic_memory", result)
+    if failure:
+        console.print(Panel(Text(failure), title="[bold red]semantic memory search failed[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+    text = _extract_mcp_text_result(result)
+    if text is not None:
+        console.print(Panel(Text(text), title=f"Semantic memory: {query}", border_style="dim"))
+        return
 
     items: list[Any] = []
     if isinstance(result, list):
