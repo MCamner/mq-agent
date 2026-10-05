@@ -21,6 +21,16 @@
       "contract": "mq.semantic-refresh.v1",
       "canonical": "schemas/mq.semantic-refresh.v1.json",
       "vendored": "schemas/semantic_refresh.schema.json"
+    },
+    {
+      "contract": "memory-observation.v1",
+      "canonical": "schemas/memory-observation.v1.json",
+      "vendored": "schemas/memory_observation.schema.json"
+    },
+    {
+      "contract": "context-pack.v1",
+      "canonical": "schemas/context-pack.v1.json",
+      "vendored": "schemas/context_pack.schema.json"
     }
   ]
 }

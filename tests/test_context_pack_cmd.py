@@ -365,3 +365,23 @@ def test_cli_pack_writes_file(tmp_path):
     text = out.read_text(encoding="utf-8")
     assert "schema: context-pack.v1" in text
     assert "CodeGraph" not in text  # doc task stays clean
+
+
+def test_pack_frontmatter_conforms_to_the_vendored_schema(tmp_path):
+    """mq-agent generates context-pack.v1; mqobsidian owns the contract.
+
+    The frontmatter is flat `key: value`, read the same way mqobsidian's
+    validate-export.py reads it. The vendored schema is proven byte-identical
+    to canonical by scripts/check-vendored-contracts.py in CI.
+    """
+    from jsonschema import Draft202012Validator
+
+    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "context_pack.schema.json"
+    validator = Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8")))
+    content = build_task_pack(
+        "fix mq-mcp brain writer paths", repo="mq-mcp", vault=_vault(tmp_path), repos_root=tmp_path
+    )["content"]
+    block = content.split("---\n", 2)[1]
+    frontmatter = dict(line.split(": ", 1) for line in block.splitlines() if line.strip())
+    errors = sorted(validator.iter_errors(frontmatter), key=lambda e: list(e.path))
+    assert not errors, "\n".join(f"{list(e.path)}: {e.message}" for e in errors)
