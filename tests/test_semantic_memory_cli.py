@@ -48,6 +48,46 @@ def test_memory_search_empty_results():
     assert "No results" in result.output
 
 
+# mq-mcp's search_semantic_memory returns a markdown string, which the HTTP
+# bridge delivers as [content blocks, {"result": text}] — not a list of items.
+def _mcp_text(text):
+    return [[{"type": "text", "text": text}], {"result": text}]
+
+
+def test_memory_search_renders_mcp_text_result():
+    text = (
+        "search_semantic_memory: 1 result(s) for 'ollama'\n\n"
+        "### ollama-keep-alive  [ollama]\nkeep_alive is seconds or a duration\n"
+    )
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.search_semantic_memory.return_value = _mcp_text(text)
+        result = runner.invoke(app, ["memory", "search", "ollama"])
+
+    assert result.exit_code == 0, result.output
+    assert "ollama-keep-alive" in result.output
+    assert "keep_alive is seconds" in result.output
+
+
+def test_memory_search_mcp_text_no_results():
+    text = "search_semantic_memory: no results for 'zzz' (12 items in store)"
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.search_semantic_memory.return_value = _mcp_text(text)
+        result = runner.invoke(app, ["memory", "search", "zzz"])
+
+    assert result.exit_code == 0, result.output
+    assert "no results for 'zzz'" in result.output
+
+
+def test_memory_search_mcp_text_failure_exits_nonzero():
+    text = "search_semantic_memory failed: store is corrupt"
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
+        MockBridge.return_value.search_semantic_memory.return_value = _mcp_text(text)
+        result = runner.invoke(app, ["memory", "search", "q"])
+
+    assert result.exit_code == 1
+    assert "store is corrupt" in result.output
+
+
 def test_memory_search_json_output():
     fake_result = {"items": [{"key": "k1", "value": "v1"}]}
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:

@@ -66,6 +66,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   release gate, public-safe documentation, historical v1 readability, and
   real zero-effect shadow-run CI evidence across mq-agent and mq-mcp.
 
+### Fixed
+
+- `mq-agent memory search` (and `mqlaunch srm search`) no longer crashes with
+  `AttributeError: 'list' object has no attribute 'get'`. mq-mcp returns the
+  search as text wrapped by the HTTP bridge; the command now prints that text
+  and exits 1 when the tool reports `search_semantic_memory failed:`.
+
 ## [v1.29.0] — 2026-09-29
 
 Theme: NotebookLM Knowledge Pipeline. NotebookLM archive material is promoted
