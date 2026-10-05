@@ -45,6 +45,8 @@ def test_the_manifest_lists_all_contracts_this_repo_vendors() -> None:
     contracts = {entry["contract"] for entry in _manifest()["contracts"]}
 
     assert contracts == {
+        "context-pack.v1",
+        "memory-observation.v1",
         "mq.execution-outcome.v1",
         "mq.model-route-outcome.v1",
         "mq.semantic-refresh.v1",

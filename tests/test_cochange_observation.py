@@ -360,3 +360,21 @@ def test_emit_cochange_passes_the_repo_root_through(tmp_path):
 
     line = observations_inbox(vault).read_text(encoding="utf-8").splitlines()[0]
     assert json.loads(line)["repository"] == "mq-mcp"
+
+
+def test_build_observation_conforms_to_the_vendored_schema():
+    """Validated against mqobsidian's schema itself, not the key lists above.
+
+    Those lists are hand copies of the schema and drift the moment it changes.
+    The vendored copy is proven byte-identical to canonical by
+    scripts/check-vendored-contracts.py in CI.
+    """
+    from pathlib import Path
+
+    from jsonschema import Draft202012Validator
+
+    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "memory_observation.schema.json"
+    validator = Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8")))
+    rec = build_observation(_cochange_json(), "mq-mcp/bridge.py")
+    errors = sorted(validator.iter_errors(rec), key=lambda e: list(e.path))
+    assert not errors, "\n".join(f"{list(e.path)}: {e.message}" for e in errors)
