@@ -36,7 +36,7 @@ jobs:
     assert any("git-auto-commit-action" in item for item in failures)
 
 
-def test_pr_branch_writer_is_allowed(tmp_path: Path) -> None:
+def test_create_pull_request_is_allowed(tmp_path: Path) -> None:
     write_workflow(
         tmp_path,
         """name: examples
@@ -54,7 +54,25 @@ jobs:
     assert MODULE.violations(tmp_path) == []
 
 
-def test_explicit_git_push_main_is_rejected(tmp_path: Path) -> None:
+def test_read_only_generation_check_is_allowed(tmp_path: Path) -> None:
+    write_workflow(
+        tmp_path,
+        """name: examples
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  examples:
+    steps:
+      - run: git diff --exit-code -- examples/generated/*.json
+""",
+    )
+    assert MODULE.violations(tmp_path) == []
+
+
+def test_shell_git_push_is_rejected(tmp_path: Path) -> None:
     write_workflow(
         tmp_path,
         """name: bad
@@ -64,7 +82,10 @@ on:
 jobs:
   write:
     steps:
-      - run: git push origin HEAD:main
+      - run: |
+          git add generated/
+          git commit -m update
+          git push
 """,
     )
     assert MODULE.violations(tmp_path)
