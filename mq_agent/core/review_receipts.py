@@ -1,8 +1,8 @@
-"""Persistence helpers for mq.review-receipt.v1.
+"""Persistence and transport handling for mq.review-receipt.v1.
 
-mq-mcp owns receipt creation and source binding. mq-agent only verifies the
-receipt's own content address and, when the operator explicitly requested
---receipt, persists an ISSUED receipt by content address.
+mq-mcp owns receipt creation. mq-agent is only a consumer: it unwraps the MCP
+transport, verifies the receipt's content address, and persists an ISSUED
+receipt when the operator explicitly requested --receipt.
 """
 from __future__ import annotations
 
@@ -39,11 +39,7 @@ def unwrap_receipt(value: Any) -> dict[str, Any] | None:
         return unwrap_receipt(decoded)
 
     if isinstance(value, list):
-        found = [
-            receipt
-            for item in value
-            if (receipt := unwrap_receipt(item)) is not None
-        ]
+        found = [receipt for item in value if (receipt := unwrap_receipt(item)) is not None]
         return found[0] if len(found) == 1 else None
 
     if not isinstance(value, dict):
@@ -62,7 +58,7 @@ def unwrap_receipt(value: Any) -> dict[str, Any] | None:
 
 
 def verify_receipt_id(receipt: dict[str, Any]) -> bool:
-    """Verify mq-mcp's content address without re-reading the reviewed subject."""
+    """Verify mq-mcp's content address before this process stores the receipt."""
     receipt_id = receipt.get("receipt_id")
     if not isinstance(receipt_id, str) or _RECEIPT_ID.fullmatch(receipt_id) is None:
         return False
@@ -70,8 +66,15 @@ def verify_receipt_id(receipt: dict[str, Any]) -> bool:
     return receipt_id == _canonical_digest(core)
 
 
+def review_result(receipt: dict[str, Any]) -> Any:
+    """The underlying review result, kept separate from receipt metadata."""
+    review = receipt.get("review")
+    if not isinstance(review, dict) or "result" not in review:
+        return None
+    return review["result"]
+
+
 def receipt_directory() -> Path:
-    """Return the operator-local durable directory for review receipts."""
     override = os.environ.get("MQ_AGENT_REVIEW_RECEIPTS_DIR")
     if override:
         return Path(override).expanduser()
@@ -83,7 +86,11 @@ def save_issued_receipt(
     *,
     directory: Path | None = None,
 ) -> Path:
-    """Atomically persist one valid ISSUED receipt by content address."""
+    """Atomically persist one valid ISSUED receipt.
+
+    REFUSED receipts are evidence failures, not reusable proof, and are never
+    stored by this function.
+    """
     if receipt.get("schema") != SCHEMA:
         raise ValueError(f"unexpected receipt schema: {receipt.get('schema')!r}")
     if receipt.get("status") != "ISSUED":
