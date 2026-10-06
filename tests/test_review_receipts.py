@@ -1,12 +1,12 @@
-"""Tests for mq-agent's review-receipt persistence boundary."""
+"""Tests for mq-agent's review-receipt consumer."""
 from __future__ import annotations
 
 import hashlib
 import json
-
 import pytest
 
 from mq_agent.core.review_receipts import (
+    review_result,
     save_issued_receipt,
     unwrap_receipt,
     verify_receipt_id,
@@ -17,11 +17,7 @@ def _receipt(status: str = "ISSUED"):
     core = {
         "schema": "mq.review-receipt.v1",
         "status": status,
-        "reason": (
-            "exact-subject-snapshot-stable"
-            if status == "ISSUED"
-            else "subject-changed-during-review"
-        ),
+        "reason": "exact-subject-snapshot-stable" if status == "ISSUED" else "subject-changed-during-review",
         "started_at": "2026-10-02T12:00:00+00:00",
         "completed_at": "2026-10-02T12:00:01+00:00",
         "subject": {
@@ -29,12 +25,7 @@ def _receipt(status: str = "ISSUED"):
             "commit": "a" * 40,
             "branch": "main",
             "worktree_clean": True,
-            "scope": {
-                "type": "file",
-                "path": "a.py",
-                "file_count": 1,
-                "files": [],
-            },
+            "scope": {"type": "file", "path": "a.py", "file_count": 1, "files": []},
             "snapshot_sha256": "sha256:" + "b" * 64,
         },
         "stability": {
@@ -50,16 +41,8 @@ def _receipt(status: str = "ISSUED"):
             "result": {"ok": True, "findings": []},
         },
     }
-    raw = json.dumps(
-        core,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode()
-    return {
-        "receipt_id": "sha256:" + hashlib.sha256(raw).hexdigest(),
-        **core,
-    }
+    raw = json.dumps(core, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    return {"receipt_id": "sha256:" + hashlib.sha256(raw).hexdigest(), **core}
 
 
 @pytest.mark.parametrize(
@@ -89,13 +72,23 @@ def test_verify_receipt_id_detects_tampering():
     assert verify_receipt_id(receipt) is False
 
 
-def test_save_issued_receipt_is_content_addressed_and_idempotent(tmp_path):
+def test_review_result_returns_only_review_payload():
+    receipt = _receipt()
+    assert review_result(receipt) == {"ok": True, "findings": []}
+
+
+def test_save_issued_receipt_is_content_addressed(tmp_path):
+    receipt = _receipt()
+    path = save_issued_receipt(receipt, directory=tmp_path)
+    assert path.name == receipt["receipt_id"].split(":", 1)[1] + ".json"
+    assert json.loads(path.read_text()) == receipt
+
+
+def test_save_is_idempotent_for_same_receipt(tmp_path):
     receipt = _receipt()
     first = save_issued_receipt(receipt, directory=tmp_path)
     second = save_issued_receipt(receipt, directory=tmp_path)
     assert first == second
-    assert first.name == receipt["receipt_id"].split(":", 1)[1] + ".json"
-    assert json.loads(first.read_text()) == receipt
     assert len(list(tmp_path.glob("*.json"))) == 1
 
 
