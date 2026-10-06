@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Stack protection governance now inspects workflow source in addition to the
+  declared protection and observed check surface. A push-to-main workflow that
+  contains a direct commit/push mechanism is reported as
+  `WORKFLOW_MUTATION_RISK`, preventing automation from quietly depending on
+  writes that protected `main` will reject.
+
 - `memory-observation.v1` and `context-pack.v1` join the vendored contracts
   (`schemas/vendored-contracts.json`): mq-agent produces both, mqobsidian owns
   them. The co-change observation and a generated context pack's frontmatter
@@ -26,10 +32,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   canary execution and explicitly reports `activation_available=false`.
 
 - `review file`, `review diff`, and `review repo` gain `--receipt`.
-  mq-agent delegates receipt creation to mq-mcp and returns the
-  `mq.review-receipt.v1` evidence unchanged; a refused binding exits non-zero.
-  The MCP bridge also translates the agent's review UX flags to mq-mcp's
-  current `mode` contract instead of forwarding obsolete boolean parameters.
+  mq-agent delegates receipt creation to mq-mcp, verifies the returned
+  `mq.review-receipt.v1` content address, and atomically persists only
+  `ISSUED` receipts by content address under the operator-local receipt store.
+  Refused, malformed, tampered or missing receipts fail closed and are not
+  stored. The MCP bridge also translates the agent's review UX flags to
+  mq-mcp's current `mode` contract instead of forwarding obsolete boolean
+  parameters.
 
 - Stack status v2 replaces heuristic readiness in mq-agent stack status with
   exact-HEAD verification evidence. Required GitHub Actions scopes come from
@@ -67,6 +76,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   real zero-effect shadow-run CI evidence across mq-agent and mq-mcp.
 
 ### Fixed
+
+- The shell tool's hard-coded denylist now matches
+  `docs/SAFETY_CONTRACT.md`: `rm -rf`, `sudo`, `chmod 777`,
+  `curl | bash`, `wget | sh`, raw-device overwrite, `mkfs`, `dd if=`
+  and the fork bomb are blocked regardless of approval mode.
 
 - `mq-agent memory search` (and `mqlaunch srm search`) no longer crashes with
   `AttributeError: 'list' object has no attribute 'get'`. mq-mcp returns the
