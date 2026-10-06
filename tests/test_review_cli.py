@@ -288,13 +288,14 @@ def _receipt(status: str = "ISSUED") -> dict[str, Any]:
     }
 
 
-def test_review_file_receipt_json_is_forwarded_and_returned():
+def test_review_file_receipt_json_is_forwarded_and_returned(tmp_path, monkeypatch):
     class ReceiptBridge(FakeReviewBridge):
         def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None):
             self.calls.append(("review_file", path, flags))
             return _receipt()
 
     bridge = ReceiptBridge()
+    monkeypatch.setenv("MQ_AGENT_REVIEW_RECEIPTS_DIR", str(tmp_path))
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
         result = runner.invoke(app, ["review", "file", "README.md", "--receipt", "--json"])
 
@@ -389,11 +390,12 @@ def test_refused_receipt_is_not_persisted(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_human_receipt_renders_review_and_binding_summary():
+def test_human_receipt_renders_review_and_binding_summary(tmp_path, monkeypatch):
     class ReceiptBridge(FakeReviewBridge):
         def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None):
             return _receipt()
 
+    monkeypatch.setenv("MQ_AGENT_REVIEW_RECEIPTS_DIR", str(tmp_path))
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=ReceiptBridge()):
         result = runner.invoke(app, ["review", "file", "README.md", "--receipt"])
 
