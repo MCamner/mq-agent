@@ -3,7 +3,8 @@
 # This is the DECLARED standard. `mq-agent stack protection-check` compares it
 # against three things and reports drift; it never writes. The three layers are:
 #
-#   declared (this file) -> GitHub protection -> the contexts a real PR reports
+#   declared (this file) -> GitHub protection -> workflow source -> the contexts
+#   a real PR reports
 #
 # Two defect classes fall out of that:
 #
@@ -13,6 +14,10 @@
 #                        workflow carries a bare `push:` as well; or a context
 #                        runs on pull requests that this file neither requires
 #                        nor excludes
+#   WORKFLOW_MUTATION_RISK
+#                        a workflow triggered by a push to protected main
+#                        contains a direct commit/push mechanism instead of
+#                        writing through a branch and pull request
 #
 # `app_id` is not decoration. The deprecated `contexts[]` PUT form sets it to
 # null, which means *any* app may satisfy that context name. 15368 is GitHub
