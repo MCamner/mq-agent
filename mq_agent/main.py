@@ -1035,7 +1035,7 @@ def review_file_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
-    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
@@ -1072,7 +1072,7 @@ def review_diff_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
-    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -1108,7 +1108,7 @@ def review_repo_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
-    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
