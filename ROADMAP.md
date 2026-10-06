@@ -520,6 +520,21 @@ The following are explicitly **not** part of this release:
 These are boundary checkboxes, not implementation work; they are complete only
 when release tests prove the forbidden behavior is absent.
 
+### v1.30.0 release checkpoint
+
+* [x] F0-F6 Feedback Engine implementation is complete on `main`.
+* [x] Read-only activation readiness is implemented without any activation path.
+* [x] Exact-code review receipts are verified and persisted by content address.
+* [x] The shell hard-block list matches `docs/SAFETY_CONTRACT.md`.
+* [x] Stack protection governance reports `WORKFLOW_MUTATION_RISK` for
+  push-to-main workflows that attempt direct commit/push.
+* [x] PR #333 passed tests, lint, type checks, docs consistency, install smoke,
+  macOS release-check and stack contract/release gates before merge.
+* [x] GitHub's live `main` branch summary reports the six declared required
+  mq-agent status contexts, each pinned to GitHub Actions app id 15368.
+* [ ] Tag and publish `v1.30.0` from the merged release-prep commit.
+* [ ] Verify the published release artifact and installed runtime identity.
+
 ### Post-v1.30 gate — controlled activation and rollback
 
 This follow-up is intentionally **not committed to a version** until v1.30 has

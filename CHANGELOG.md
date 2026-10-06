@@ -9,6 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.30.0] — 2026-10-06
+
+Theme: Evidence-Grounded Feedback and Governance Hardening. mq-agent now ships
+the zero-effect Feedback Engine through F0-F6, read-only activation readiness,
+content-bound review receipts with verified local persistence, stricter shell
+safety enforcement, and stack governance that detects workflows attempting to
+write protected `main` directly.
+
 ### Added
 
 - Stack protection governance now inspects workflow source in addition to the
