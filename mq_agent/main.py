@@ -949,13 +949,77 @@ def _render_arch_context(bridge: Any) -> None:
     console.print(Panel(lines, title="[dim]Architecture context (mq-mcp)[/dim]", border_style="dim"))
 
 
-def _run_review(command: str, result: Any, json_out: bool, bridge: Any = None) -> None:
+def _run_review(
+    command: str,
+    result: Any,
+    json_out: bool,
+    bridge: Any = None,
+    *,
+    persist_receipt: bool = False,
+) -> None:
+    receipt_path: Path | None = None
+
+    if persist_receipt and not _is_error_result(result):
+        from mq_agent.core.review_receipts import (
+            save_issued_receipt,
+            unwrap_receipt,
+            verify_receipt_id,
+        )
+
+        receipt = unwrap_receipt(result)
+        if receipt is None:
+            error = {
+                "ok": False,
+                "error": (
+                    "mq-mcp did not return mq.review-receipt.v1; "
+                    "receipt was not stored"
+                ),
+            }
+            if json_out:
+                typer.echo(json.dumps(error, indent=2))
+            else:
+                _render_review_result(command, error)
+            raise typer.Exit(1)
+
+        if not verify_receipt_id(receipt):
+            error = {
+                "ok": False,
+                "error": (
+                    "mq.review-receipt.v1 content address is invalid; "
+                    "receipt was not stored"
+                ),
+            }
+            if json_out:
+                typer.echo(json.dumps(error, indent=2))
+            else:
+                _render_review_result(command, error)
+            raise typer.Exit(1)
+
+        if receipt.get("status") == "ISSUED":
+            try:
+                receipt_path = save_issued_receipt(receipt)
+            except (OSError, ValueError) as exc:
+                error = {
+                    "ok": False,
+                    "error": f"review receipt could not be stored: {exc}",
+                }
+                if json_out:
+                    typer.echo(json.dumps(error, indent=2))
+                else:
+                    _render_review_result(command, error)
+                raise typer.Exit(1) from exc
+
     if json_out:
+        # Keep mq-mcp's receipt JSON unchanged for consumers. Persistence is a
+        # local side effect keyed by receipt_id, not a mutation of the contract.
         typer.echo(json.dumps(result, indent=2, default=str))
         if _is_error_result(result) or _receipt_refused(result):
             raise typer.Exit(1)
         return
+
     _render_review_result(command, result)
+    if receipt_path is not None:
+        console.print(f"[dim]Stored receipt: {receipt_path}[/dim]")
     if _receipt_refused(result):
         raise typer.Exit(1)
     if bridge is not None:
@@ -971,7 +1035,7 @@ def review_file_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
-    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
@@ -993,7 +1057,9 @@ def review_file_cmd(
         _run_review("review file", flags, json_out)
         return
     result = bridge.review_file(path, flags, repo_path=repo)
-    _run_review("review file", result, json_out, bridge=bridge)
+    _run_review(
+        "review file", result, json_out, bridge=bridge, persist_receipt=receipt
+    )
     if brain and not _is_error_result(result):
         _brain_record_review(bridge, path, _review_payload(result))
 
@@ -1006,7 +1072,7 @@ def review_diff_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
-    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -1026,7 +1092,9 @@ def review_diff_cmd(
         _run_review("review diff", flags, json_out)
         return
     result = bridge.review_diff(flags)
-    _run_review("review diff", result, json_out, bridge=bridge)
+    _run_review(
+        "review diff", result, json_out, bridge=bridge, persist_receipt=receipt
+    )
     if brain and not _is_error_result(result):
         _brain_record_review(bridge, "diff", _review_payload(result))
 
@@ -1040,7 +1108,7 @@ def review_repo_cmd(
     risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk review when installed")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
-    receipt: Annotated[bool, typer.Option("--receipt", help="Require mq-mcp exact-code review receipt")] = False,
+    receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
@@ -1060,9 +1128,11 @@ def review_repo_cmd(
         _run_review("review repo", flags, json_out)
         return
     result = bridge.review_repo(path, flags)
-    _run_review("review repo", result, json_out, bridge=bridge)
+    _run_review(
+        "review repo", result, json_out, bridge=bridge, persist_receipt=receipt
+    )
     if brain and not _is_error_result(result):
-        _brain_record_review(bridge, path, result)
+        _brain_record_review(bridge, path, _review_payload(result))
 
 
 def _contract_status_text(value: Any) -> str:

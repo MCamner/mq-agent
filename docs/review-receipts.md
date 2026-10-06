@@ -23,12 +23,24 @@ what ran without confusing it with code-version-bound evidence.
 Human output renders the review result first and then a compact receipt summary.
 `--json` returns the mq-mcp receipt unchanged.
 
+When `--receipt` is requested, mq-agent verifies the receipt's own content
+address and persists only `ISSUED` receipts under:
+
+```text
+~/.mq-agent/review-receipts/<sha256>.json
+```
+
+Set `MQ_AGENT_REVIEW_RECEIPTS_DIR` to use another operator-local directory.
+Writes are atomic and content-addressed, so retrying the same receipt is
+idempotent. `REFUSED`, malformed or tampered receipts are never stored.
+
 ## Safety boundary
 
-Receipt generation is read-only. Persistence remains a separate decision.
-When `--brain` is also used, mq-agent sends the underlying review result to
-the existing brain write path rather than treating the receipt envelope as a
-review finding set.
+Receipt generation remains read-only in mq-mcp. mq-agent's persistence is an
+explicit local side effect of `--receipt`; it does not modify the reviewed
+repository. When `--brain` is also used, mq-agent sends only the underlying
+review result to the existing brain write path rather than treating receipt
+metadata as findings.
 
 This surface requires an mq-mcp runtime that supports the optional
 `receipt=true` argument on its review tools.

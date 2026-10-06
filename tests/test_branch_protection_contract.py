@@ -4,6 +4,7 @@ Every GitHub interaction is faked. The point of these tests is the comparison
 logic, which is where both defect classes live.
 """
 
+import base64
 import json
 
 import pytest
@@ -17,6 +18,7 @@ from mq_agent.tools.branch_protection_contract import (
     load_contract,
     protection_entry,
     stack_protection_check,
+    workflow_direct_branch_mutations,
 )
 
 APP = GITHUB_ACTIONS_APP_ID
@@ -267,6 +269,73 @@ def test_a_matrix_context_is_matched_by_its_full_display_name():
     ]
 
 
+# ── WORKFLOW_MUTATION_RISK ────────────────────────────────────────────────
+
+
+def test_push_to_main_auto_commit_action_is_a_mutation_risk():
+    workflow = """
+on:
+  push:
+    branches: [main]
+jobs:
+  examples:
+    steps:
+      - uses: stefanzweifel/git-auto-commit-action@v5
+"""
+    problems = workflow_direct_branch_mutations(workflow, branch="main")
+    assert problems == [
+        "job 'examples' step 1 uses direct commit action "
+        "'stefanzweifel/git-auto-commit-action@v5'"
+    ]
+
+
+def test_push_to_main_shell_git_push_is_a_mutation_risk():
+    workflow = """
+on:
+  push:
+    branches: [main]
+jobs:
+  update:
+    steps:
+      - run: |
+          git add generated/
+          git commit -m update
+          git push
+"""
+    problems = workflow_direct_branch_mutations(workflow, branch="main")
+    assert problems == [
+        "job 'update' step 1 runs git push from a push-to-main workflow"
+    ]
+
+
+def test_create_pull_request_action_is_not_a_direct_main_mutation():
+    workflow = """
+on:
+  push:
+    branches: [main]
+jobs:
+  examples:
+    steps:
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/generated-examples
+"""
+    assert workflow_direct_branch_mutations(workflow, branch="main") == []
+
+
+def test_direct_commit_action_on_non_main_push_is_outside_main_guard():
+    workflow = """
+on:
+  push:
+    branches: [generated]
+jobs:
+  update:
+    steps:
+      - uses: stefanzweifel/git-auto-commit-action@v5
+"""
+    assert workflow_direct_branch_mutations(workflow, branch="main") == []
+
+
 # ── the whole entry, across all three layers ───────────────────────────────
 
 
@@ -277,6 +346,7 @@ def runs_response(names):
 def gh_for(protection_value, pulls=None, runs=None):
     responses = {
         ("api", "repos/MCamner/demo/branches/main/protection"): protection_value,
+        ("api", "repos/MCamner/demo/contents/.github/workflows?ref=main"): [],
         ("pr", "list", "-R", "MCamner/demo", "--state", "all", "--limit", "1",
          "--json", "headRefOid"): pulls if pulls is not None else [{"headRefOid": "deadbeef"}],
     }
@@ -311,6 +381,41 @@ def test_protection_drift_short_circuits_before_sampling_a_pr():
     entry = protection_entry(gh, CONTRACT, "demo")
     assert entry["status"] == "PROTECTION_DRIFT"
     assert ("api", "repos/MCamner/demo/commits/deadbeef/check-runs?per_page=100") not in gh.calls
+
+
+def test_direct_main_mutation_short_circuits_before_sampling_pr():
+    actual = protection([
+        {"context": "test", "app_id": APP},
+        {"context": "markdownlint", "app_id": APP},
+    ])
+    workflow = """
+on:
+  push:
+    branches: [main]
+jobs:
+  mutate:
+    steps:
+      - uses: stefanzweifel/git-auto-commit-action@v5
+"""
+    encoded = base64.b64encode(workflow.encode()).decode()
+    gh = FakeGh({
+        ("api", "repos/MCamner/demo/branches/main/protection"): actual,
+        ("api", "repos/MCamner/demo/contents/.github/workflows?ref=main"): [
+            {
+                "type": "file",
+                "path": ".github/workflows/examples.yml",
+            }
+        ],
+        (
+            "api",
+            "repos/MCamner/demo/contents/.github/workflows/examples.yml?ref=main",
+        ): {"content": encoded},
+    })
+
+    entry = protection_entry(gh, CONTRACT, "demo")
+    assert entry["status"] == "WORKFLOW_MUTATION_RISK"
+    assert "git-auto-commit-action" in entry["reasons"][0]
+    assert not any(call and call[0] == "pr" for call in gh.calls)
 
 
 def test_matching_protection_with_a_moved_check_surface_is_surface_drift():
