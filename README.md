@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.29.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.30.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -330,6 +330,25 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.30.0 status
+
+Evidence-Grounded Feedback and Governance Hardening. mq-agent can measure
+zero-effect active-versus-shadow context experiments, derive bounded
+improvement candidates, evaluate activation readiness without changing policy,
+persist exact-code review receipts, and verify that protected-main workflows do
+not depend on direct branch writes.
+
+- [x] bounded append-only feedback evidence store and read-only operator surface
+- [x] zero-effect active-versus-shadow repo-review experiments
+- [x] deterministic comparison, relevance fixtures and reviewable candidates
+- [x] ecosystem consumption through mq-mcp, mq-hal, mqlaunch and stable JSON
+- [x] release hardening and real shadow-run evidence
+- [x] read-only, task-class-scoped activation readiness; no activation command
+- [x] exact-code review receipts verified and persisted by content address
+- [x] documented shell hard blocks enforced at the tool boundary
+- [x] protected-main workflow mutation risk detected by stack protection checks
+- [x] no automatic activation, autonomous routing or direct feedback memory write
 
 ## v1.29.0 status
 
@@ -790,10 +809,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.24.0 — PR-mediated release flow — is released. Current work focuses on
-post-release stabilization: making single-repo plans release-mode aware,
-including every configured stack repo in contract-check, and keeping release
-documentation aligned with the same safety model used by execution.
+v1.30.0 packages the Evidence-Grounded Feedback Engine plus governance
+hardening. The next gate is controlled, task-class-scoped activation and
+rollback based on real post-release evidence. Activation remains deliberately
+absent from v1.30.0; readiness is advisory and human approval remains required.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
 mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
