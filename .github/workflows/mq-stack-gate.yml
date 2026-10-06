@@ -131,6 +131,10 @@ jobs:
         working-directory: mq-agent
         run: mq-agent stack release-check --json
 
+      - name: Check workflow governance
+        working-directory: mq-agent
+        run: python scripts/check-workflow-governance.py
+
       # Static: reads declared and locked versions only. `--all` inventories
       # every repo checked out above rather than the MCP slice, so a FAIL here
       # is a real cross-repo incompatibility. WARN stays green while repos are

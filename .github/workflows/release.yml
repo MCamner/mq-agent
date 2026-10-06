@@ -8,6 +8,8 @@ name: Release
 # So the tag is the release. Pushing v* publishes it.
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
@@ -15,7 +17,45 @@ permissions:
   contents: write
 
 jobs:
+  publish-prepared-version:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish prepared VERSION when its tag is missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v$version"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "$tag already exists — release preparation is already published."
+            exit 0
+          fi
+
+          # Refuse to create a tag unless the changelog can provide notes for
+          # exactly the version declared by VERSION.
+          bash scripts/release-notes.sh "$tag" > "$RUNNER_TEMP/notes.md"
+
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$tag" \
+            -f sha="$GITHUB_SHA"
+
+          # Creating the ref through the API is enough for release identity. Do
+          # not depend on a second workflow event being emitted; publish here
+          # and let the tag-triggered path below no-op if it also fires.
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --verify-tag \
+              --title "$tag" \
+              --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+
   publish:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
 
     steps:
