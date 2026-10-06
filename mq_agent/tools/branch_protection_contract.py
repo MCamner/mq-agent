@@ -29,8 +29,14 @@ because the fix is different:
           Every reported context must be classified, either as required or
           as excluded with a stated reason.
 
-Both were found by hand in one session. This exists so they are found by a
-command instead.
+  WORKFLOW_MUTATION_RISK
+      A workflow triggered by a push to the protected branch contains a direct
+      commit/push mechanism. Protected main must be changed through a branch and
+      pull request, not by an automation identity trying to write main after the
+      merge.
+
+These defect classes were found by hand first. This exists so the stack command
+finds them before an operator or post-merge workflow does.
 
 Deliberately read-only: every GitHub call is a GET. Applying protection is a
 separate, explicit operation (`github_branch_protection.py --apply --approve`),
@@ -40,7 +46,10 @@ anything the payload omits.
 
 from __future__ import annotations
 
+import base64
+import fnmatch
 import json
+import re
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -210,6 +219,140 @@ def compare_check_surface(declared: dict[str, Any], check_runs: list[dict[str, A
     return problems
 
 
+_DIRECT_COMMIT_ACTIONS = (
+    "stefanzweifel/git-auto-commit-action",
+    "endbug/add-and-commit",
+    "github-actions-x/commit",
+    "devops-infra/action-commit-push",
+)
+
+
+def _as_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return [str(value)]
+
+
+def _workflow_pushes_to_branch(data: dict[str, Any], branch: str) -> bool:
+    """Return whether a workflow runs on pushes that can include the branch."""
+    trigger = data.get("on")
+    if isinstance(trigger, str):
+        return trigger == "push"
+    if isinstance(trigger, list):
+        return "push" in trigger
+    if not isinstance(trigger, dict) or "push" not in trigger:
+        return False
+
+    push = trigger.get("push")
+    if not isinstance(push, dict):
+        return True
+
+    branches = _as_list(push.get("branches"))
+    ignored = _as_list(push.get("branches-ignore"))
+
+    if ignored and any(fnmatch.fnmatch(branch, pattern) for pattern in ignored):
+        return False
+    if not branches:
+        return True
+    return any(fnmatch.fnmatch(branch, pattern) for pattern in branches)
+
+
+def workflow_direct_branch_mutations(
+    workflow_text: str,
+    *,
+    branch: str,
+) -> list[str]:
+    """Find direct remote-write mechanisms in a push-to-branch workflow.
+
+    The check is intentionally narrow: it does not ban workflows from creating
+    a branch and opening a pull request. It catches actions that commit/push the
+    checked-out branch and shell-level git push, which on a push-to-main
+    workflow can attempt to write protected main directly.
+    """
+    try:
+        data = yaml.load(workflow_text, Loader=yaml.BaseLoader) or {}
+    except yaml.YAMLError as exc:
+        return [f"workflow YAML could not be parsed: {exc}"]
+    if not isinstance(data, dict) or not _workflow_pushes_to_branch(data, branch):
+        return []
+
+    problems: list[str] = []
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return problems
+
+    for job_name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for index, step in enumerate(steps, start=1):
+            if not isinstance(step, dict):
+                continue
+            uses = str(step.get("uses") or "").lower()
+            for action in _DIRECT_COMMIT_ACTIONS:
+                if action in uses:
+                    problems.append(
+                        f"job {job_name!r} step {index} uses direct commit action {uses!r}"
+                    )
+                    break
+
+            run = str(step.get("run") or "")
+            if re.search(r"(?m)^\s*git\s+push(?:\s|$)", run):
+                problems.append(
+                    f"job {job_name!r} step {index} runs git push from a "
+                    f"push-to-{branch} workflow"
+                )
+
+    return problems
+
+
+def workflow_mutation_risks(
+    gh: GhJsonClient,
+    owner: str,
+    repo: str,
+    branch: str,
+) -> list[str]:
+    """Read workflow files and report attempts to mutate the protected branch."""
+    try:
+        listing = gh.json(
+            "api",
+            f"repos/{owner}/{repo}/contents/.github/workflows?ref={branch}",
+        )
+    except RuntimeError as exc:
+        if "404" in str(exc) or "Not Found" in str(exc):
+            return []
+        raise
+
+    if not isinstance(listing, list):
+        return []
+
+    problems: list[str] = []
+    for item in listing:
+        if not isinstance(item, dict) or item.get("type") != "file":
+            continue
+        path = str(item.get("path") or "")
+        if not path.endswith((".yml", ".yaml")):
+            continue
+        payload = gh.json("api", f"repos/{owner}/{repo}/contents/{path}?ref={branch}")
+        if not isinstance(payload, dict):
+            continue
+        encoded = str(payload.get("content") or "").replace("\n", "")
+        if not encoded:
+            continue
+        try:
+            workflow_text = base64.b64decode(encoded).decode("utf-8")
+        except (ValueError, UnicodeDecodeError) as exc:
+            problems.append(f"{path}: workflow content could not be decoded: {exc}")
+            continue
+        for problem in workflow_direct_branch_mutations(workflow_text, branch=branch):
+            problems.append(f"{path}: {problem}")
+    return problems
+
+
 def latest_pr_head(gh: GhJsonClient, owner: str, repo: str) -> str | None:
     """Head SHA of the most recent pull request, merged or not."""
     pulls = gh.json(
@@ -229,6 +372,9 @@ def protection_entry(gh: GhJsonClient, contract: dict[str, Any], repo: str) -> d
       MISSING              the branch has no protection at all
       PROTECTION_DRIFT     GitHub does not match the contract
       CHECK_SURFACE_DRIFT  GitHub matches, but the workflows moved under it
+      WORKFLOW_MUTATION_RISK
+                           a push-to-main workflow tries to write the protected
+                           branch directly instead of using a pull request
       BLOCKED              the check could not run (no gh, no network, no PRs)
     """
     owner = contract["owner"]
@@ -252,6 +398,21 @@ def protection_entry(gh: GhJsonClient, contract: dict[str, Any], repo: str) -> d
     problems = compare_protection(declared, actual)
     if problems:
         return {**entry, "status": "PROTECTION_DRIFT", "reasons": problems}
+
+    try:
+        mutation_risks = workflow_mutation_risks(gh, owner, repo, branch)
+    except RuntimeError as exc:
+        return {
+            **entry,
+            "status": "BLOCKED",
+            "reasons": [f"could not read workflows: {exc}"],
+        }
+    if mutation_risks:
+        return {
+            **entry,
+            "status": "WORKFLOW_MUTATION_RISK",
+            "reasons": mutation_risks,
+        }
 
     try:
         sha = latest_pr_head(gh, owner, repo)
@@ -283,7 +444,12 @@ def protection_entry(gh: GhJsonClient, contract: dict[str, Any], repo: str) -> d
     }
 
 
-FAILING = ("MISSING", "PROTECTION_DRIFT", "CHECK_SURFACE_DRIFT")
+FAILING = (
+    "MISSING",
+    "PROTECTION_DRIFT",
+    "CHECK_SURFACE_DRIFT",
+    "WORKFLOW_MUTATION_RISK",
+)
 
 
 def stack_protection_check(
