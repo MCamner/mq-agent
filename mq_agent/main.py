@@ -49,6 +49,9 @@ app.add_typer(skills_app, name="skills")
 memory_app = typer.Typer(help="Semantic repository memory commands.")
 app.add_typer(memory_app, name="memory")
 
+state_app = typer.Typer(help="Inventory, snapshot, verify and restore allowlisted MQ runtime state.")
+app.add_typer(state_app, name="state")
+
 task_app = typer.Typer(help="Run declarative YAML task workflows.")
 app.add_typer(task_app, name="task")
 
@@ -4628,6 +4631,158 @@ def context_pack_cmd(
         console.print(f"codegraph hint: {'yes' if result['codegraph_applied'] else 'no'}")
     else:
         typer.echo(result["content"])
+
+
+# ── portable runtime state ─────────────────────────────────────────────────
+
+@state_app.command("inventory")
+def state_inventory_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Inventory allowlisted, sanitized local MQ runtime state."""
+    from mq_agent.tools.state_snapshot import inventory
+
+    payload = inventory()
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    table = Table(title="MQ Runtime State")
+    table.add_column("Component")
+    table.add_column("Files", justify="right")
+    table.add_column("Bytes", justify="right")
+    for item in payload["components"]:
+        table.add_row(
+            str(item["name"]),
+            str(item["file_count"]),
+            str(item["size_bytes"]),
+        )
+    console.print(table)
+    console.print(
+        "[dim]Excluded by design: " + ", ".join(payload["excluded"]) + "[/dim]"
+    )
+
+
+@state_app.command("snapshot")
+def state_snapshot_cmd(
+    output: Annotated[Path, typer.Option("--output", help="Empty/new snapshot directory")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Copy allowlisted runtime state into a portable content-hashed snapshot."""
+    from mq_agent.tools.state_snapshot import snapshot
+
+    try:
+        payload = snapshot(output)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    result = {
+        "schema": payload["schema"],
+        "status": "SNAPSHOT_CREATED",
+        "path": str(output.expanduser()),
+        "components": len(payload["components"]),
+        "excluded": payload["excluded"],
+    }
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    console.print(
+        f"[bold green]snapshot created[/bold green] {result['path']} "
+        f"({result['components']} components)"
+    )
+
+
+@state_app.command("verify")
+def state_verify_cmd(
+    snapshot_dir: Annotated[Path, typer.Argument(help="Snapshot directory")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify manifest, hashes, paths and unexpected files without writing state."""
+    from mq_agent.tools.state_snapshot import verify
+
+    try:
+        payload = verify(snapshot_dir)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        style = "green" if payload["status"] == "PASS" else "red"
+        console.print(
+            Panel(
+                f"Files: {payload['files']}\nErrors: {len(payload['errors'])}",
+                title=f"[bold {style}]{payload['status']}[/bold {style}]",
+                border_style=style,
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@state_app.command("restore")
+def state_restore_cmd(
+    snapshot_dir: Annotated[Path, typer.Argument(help="Verified snapshot directory")],
+    approve: Annotated[bool, typer.Option("--approve", help="Required: restore allowlisted runtime state")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Restore manifest-declared files only; never delete unrelated current state."""
+    if not approve:
+        raise typer.BadParameter("state restore requires --approve")
+    from mq_agent.tools.state_snapshot import restore
+
+    try:
+        payload = restore(snapshot_dir)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    console.print(
+        f"[bold green]{payload['status']}[/bold green] "
+        f"{payload['restored_files']} file(s); deleted 0"
+    )
+
+
+@memory_app.command("session-handoff")
+def memory_session_handoff_cmd(
+    session_id: Annotated[str, typer.Option("--session-id")],
+    task_class: Annotated[str, typer.Option("--task-class")],
+    repo: Annotated[str, typer.Option("--repo")],
+    outcome: Annotated[str, typer.Option("--outcome")],
+    decision: Annotated[list[str], typer.Option("--decision", help="Verified decision (repeatable)")] = [],
+    artifact: Annotated[list[str], typer.Option("--artifact", help="Evidence/artifact reference (repeatable)")] = [],
+    correction: Annotated[list[str], typer.Option("--correction", help="Explicit operator correction (repeatable)")] = [],
+    confidence: Annotated[float, typer.Option("--confidence", min=0.0, max=1.0)] = 0.7,
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault override")] = "",
+    approve: Annotated[bool, typer.Option("--approve", help="Required: append a memory observation candidate")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Submit typed session facts as memory-observation.v1 for normal review."""
+    if not approve:
+        raise typer.BadParameter("memory session-handoff requires --approve")
+    from mq_agent.memory.session_handoff import handoff_session
+
+    try:
+        payload = handoff_session(
+            session_id=session_id,
+            task_class=task_class,
+            repository=repo,
+            outcome=outcome,
+            decisions=decision,
+            artifact_refs=artifact,
+            corrections=correction,
+            confidence=confidence,
+            vault=Path(vault).expanduser() if vault else None,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    console.print(
+        f"[bold green]{payload['status']}[/bold green] "
+        f"{payload['observation_id']} — durable memory written: no"
+    )
 
 
 # ── memory search ──────────────────────────────────────────────────────────
