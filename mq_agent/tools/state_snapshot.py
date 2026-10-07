@@ -117,9 +117,9 @@ def _restore_target(component: str, logical_path: str) -> Path:
 
 
 def inventory() -> dict[str, Any]:
-    components = []
+    components: list[dict[str, Any]] = []
     for name, files in component_files().items():
-        rows = []
+        rows: list[dict[str, Any]] = []
         for logical, path in sorted(files.items()):
             _assert_regular(path)
             rows.append(
