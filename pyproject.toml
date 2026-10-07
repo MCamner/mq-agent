@@ -62,6 +62,7 @@ packages = ["mq_agent"]
 "schemas/state_snapshot.schema.json" = "mq_agent/schemas/state_snapshot.schema.json"
 "schemas/hybrid_retrieval_shadow.schema.json" = "mq_agent/schemas/hybrid_retrieval_shadow.schema.json"
 "schemas/perception_review.schema.json" = "mq_agent/schemas/perception_review.schema.json"
+"schemas/perception_review_receipt.schema.json" = "mq_agent/schemas/perception_review_receipt.schema.json"
 "schemas/runtime_identity.schema.json" = "mq_agent/schemas/runtime_identity.schema.json"
 "schemas/stack_provenance.schema.json" = "mq_agent/schemas/stack_provenance.schema.json"
 "schemas/mq_stack_status_v2.schema.json" = "mq_agent/schemas/mq_stack_status_v2.schema.json"
