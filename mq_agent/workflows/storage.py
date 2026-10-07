@@ -17,6 +17,7 @@ performs persistence only — no tool execution.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -85,6 +86,13 @@ class WorkflowStore:
 
     def _latest_path(self) -> Path:
         return self.dir / _LATEST
+
+    def run_fingerprint(self, run_id: str) -> str:
+        """Return the exact SHA-256 fingerprint of one persisted run file."""
+        path = self._run_path(run_id)
+        if path.is_symlink() or not path.is_file():
+            raise WorkflowStateError(f"no such run: {run_id!r} (looked in {path})")
+        return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
     # -- ids ------------------------------------------------------------
 
