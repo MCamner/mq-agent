@@ -1232,6 +1232,9 @@ def review_perception_cmd(
             "model_reinterpretation": False,
         },
     }
+    from mq_agent.tools.contract_validation import validate_contract
+
+    validate_contract("perception_review.schema.json", envelope)
     if json_out:
         typer.echo(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
         return
