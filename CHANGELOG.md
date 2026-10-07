@@ -11,6 +11,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Session Checkpoints add content-addressed `mq.workflow-checkpoint.v1` records
+  over paused/failed workflow runs, binding exact run bytes, workflow template,
+  explicit owner label, expiry, current step, passed steps and resumable steps.
+- `workflow checkpoint create|status|resume` adds bounded continuity without
+  copying workflow args, results, task prose, transcripts, file bodies or repo
+  paths into the checkpoint artifact.
+- `workflow checkpoint resume --dry-run` verifies all resume preconditions
+  without changing run state or executing tools.
 - State Recovery v2 introduces content-addressed `mq.state-snapshot.v2`
   manifests with explicit per-component format/schema identity and per-file
   SHA-256 fingerprints.
@@ -27,6 +35,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Safety
 
+- Checkpoint resume fails closed on owner mismatch, expiry, checkpoint tamper,
+  run-file drift, template drift, repository identity drift, step-state drift or
+  a missing run. Actual resume requires explicit `--approve`.
+- A checkpoint becomes stale before resumed tool execution begins because the
+  authoritative run is persisted first, changing its exact fingerprint and
+  making the checkpoint single-use.
 - Notebook recovery fails closed on schema/version drift, manifest tamper,
   undeclared files, credential-like keys, and semantic-index raw-text payloads.
 - Credentials/environment state, generic memory, Notebook source bodies, and
