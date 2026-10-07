@@ -190,16 +190,21 @@ def activate(
     candidate_id: str,
     *,
     approval_id: str,
-    canary_comparison_id: str,
+    canary_id: str,
     reason: str,
     root: Path | None = None,
 ) -> dict[str, Any]:
-    """Activate exactly one approved task-class strategy."""
+    """Activate exactly one approved task-class strategy after Canary v2 PASS."""
     if not reason.strip():
         raise ValueError("activation requires a reason")
+    from .canary import require_passing_canary
+
     candidate = candidate_detail(candidate_id, root)["candidate"]
-    validate_canary(
-        candidate_id, approval_id, canary_comparison_id, root=root
+    canary = require_passing_canary(
+        canary_id,
+        candidate_id=candidate_id,
+        approval_id=approval_id,
+        root=root,
     )
     current = effective_strategy(candidate["task_class"], root)
     if current != candidate["current_strategy"]:
@@ -215,7 +220,10 @@ def activate(
         "to_strategy": candidate["proposed_strategy"],
         "candidate_id": candidate_id,
         "approval_id": approval_id,
-        "canary_comparison_id": canary_comparison_id,
+        "canary_id": canary_id,
+        "canary_comparison_id": (
+            canary["comparison_ids"][-1] if canary["comparison_ids"] else None
+        ),
         "recorded_at": _iso(_now()),
         "reason": reason.strip()[:320],
     }
