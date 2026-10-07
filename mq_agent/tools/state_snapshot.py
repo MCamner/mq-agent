@@ -216,6 +216,33 @@ def _walk_keys(value: Any) -> list[str]:
     return keys
 
 
+def _walk_strings(value: Any) -> list[str]:
+    strings: list[str] = []
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, str):
+            strings.append(current)
+        elif isinstance(current, dict):
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+    return strings
+
+
+def _private_absolute_path(value: str) -> bool:
+    normalized = value.replace("\\", "/")
+    return (
+        normalized.startswith("/Users/")
+        or normalized.startswith("/home/")
+        or (
+            len(normalized) > 3
+            and normalized[1:3] == ":/"
+            and "/Users/" in normalized
+        )
+    )
+
+
 def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -243,6 +270,8 @@ def _validate_notebook_state(component: str, path: Path) -> None:
         raise ValueError(
             f"{component} contains credential-like keys: {', '.join(leaked)}"
         )
+    if any(_private_absolute_path(value) for value in _walk_strings(payload)):
+        raise ValueError(f"{component} contains a private absolute machine path")
 
     if component == "notebook-corpus-catalog":
         from mq_agent.notebook_corpus import validate_catalog
@@ -311,15 +340,20 @@ def snapshot(destination: Path) -> dict[str, Any]:
     destination = destination.expanduser()
     if destination.exists() and any(destination.iterdir()):
         raise ValueError("snapshot destination must be absent or empty")
+
+    resolved = component_files()
+    for name, files in resolved.items():
+        for source in files.values():
+            _assert_regular(source)
+            _validate_notebook_state(name, source)
+
     destination.mkdir(parents=True, exist_ok=True)
     component_root = destination / "components"
     components: list[dict[str, Any]] = []
 
-    for name, files in component_files().items():
+    for name, files in resolved.items():
         rows: list[dict[str, Any]] = []
         for logical, source in sorted(files.items()):
-            _assert_regular(source)
-            _validate_notebook_state(name, source)
             target = component_root / name / logical
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
