@@ -4832,9 +4832,11 @@ def state_snapshot_cmd(
         raise typer.BadParameter(str(exc)) from exc
     result = {
         "schema": payload["schema"],
+        "snapshot_id": payload.get("snapshot_id"),
         "status": "SNAPSHOT_CREATED",
         "path": str(output.expanduser()),
         "components": len(payload["components"]),
+        "files": sum(len(item["files"]) for item in payload["components"]),
         "excluded": payload["excluded"],
     }
     if json_out:
@@ -4878,24 +4880,27 @@ def state_verify_cmd(
 @state_app.command("restore")
 def state_restore_cmd(
     snapshot_dir: Annotated[Path, typer.Argument(help="Verified snapshot directory")],
-    approve: Annotated[bool, typer.Option("--approve", help="Required: restore allowlisted runtime state")] = False,
+    approve: Annotated[bool, typer.Option("--approve", help="Required for an actual restore write")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Verify and resolve restore targets without writing")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
     """Restore manifest-declared files only; never delete unrelated current state."""
-    if not approve:
-        raise typer.BadParameter("state restore requires --approve")
+    if not dry_run and not approve:
+        raise typer.BadParameter("state restore requires --approve unless --dry-run is used")
     from mq_agent.tools.state_snapshot import restore
 
     try:
-        payload = restore(snapshot_dir)
+        payload = restore(snapshot_dir, dry_run=dry_run)
     except (OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     if json_out:
         typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
         return
+    style = "yellow" if dry_run else "green"
     console.print(
-        f"[bold green]{payload['status']}[/bold green] "
-        f"{payload['restored_files']} file(s); deleted 0"
+        f"[bold {style}]{payload['status']}[/bold {style}] "
+        f"{payload['planned_files']} file(s) planned; "
+        f"{payload['restored_files']} written; deleted 0"
     )
 
 

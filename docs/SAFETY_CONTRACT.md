@@ -26,6 +26,22 @@ These operations require either `--approve` or `execute` mode:
 - Calling mq-mcp **Class D** tools (subprocess/open apps — e.g. `run_tests`,
   `open_in_app`, `validate_project`) — must also show command intent to user
 
+## State recovery boundary
+
+`mq-agent state inventory`, `state snapshot`, and `state verify` do not
+mutate active MQ runtime state. `state restore --dry-run` performs the same
+verification and target resolution as restore but writes nothing.
+
+An actual `state restore` is a write operation and requires explicit
+`--approve`. Restore is limited to manifest-declared allowlisted targets,
+does not delete unrelated current files, and refuses a snapshot that fails
+schema, path, manifest-fingerprint, file-hash, or Notebook state-version
+validation.
+
+State Recovery v2 intentionally excludes generic free-form memory, HAL session
+notes, environment-sensitive state, Notebook source bodies, and remote vector
+store state/contents.
+
 ## What is always blocked
 
 These patterns are blocked regardless of mode:

@@ -586,9 +586,27 @@ justify an activation design.
 * [x] Receipt payloads contain no raw image bytes, OCR body, detected regions or
   local image path.
 
-Next roadmap item: **State Recovery v2** — expand only portable deterministic
-state, beginning with Notebook corpus checkpoints and local semantic-index
-manifests; credentials and remote vector state remain excluded.
+### State Recovery v2 checkpoint
+
+* [x] Define and package content-addressed `mq.state-snapshot.v2` while keeping
+  historical `mq.state-snapshot.v1` readable and restorable.
+* [x] Record logical path, state format/schema version, byte size and SHA-256
+  fingerprint for every v2 snapshot file.
+* [x] Add only versioned local Notebook state: Drive inventory, corpus catalog,
+  corpus build checkpoint, incremental sync state and disposable semantic index.
+* [x] Validate Notebook schema identity before snapshot and again during verify;
+  unknown versions fail closed.
+* [x] Refuse sensitive-key fields and raw source-text fields in newly allowlisted
+  Notebook state.
+* [x] Make v2 manifest metadata itself content-addressed and reject tampering.
+* [x] Add full restore dry-run with zero writes; actual restore remains
+  explicitly approval-gated.
+* [x] Preserve unrelated current files during restore and never delete state.
+* [x] Keep generic memory, HAL free-form notes, environment-sensitive state,
+  Notebook source bodies and remote vector-store state/contents excluded.
+
+Next roadmap item: **Session Checkpoints** — bounded resumable task/workflow
+state with explicit ownership, expiry and no raw transcript capture.
 
 ### v1.32.0 Canary v2 checkpoint
 

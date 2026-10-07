@@ -11,6 +11,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- State Recovery v2 introduces content-addressed `mq.state-snapshot.v2`
+  manifests with explicit per-component format/schema identity and per-file
+  SHA-256 fingerprints.
+- Portable recovery now includes allowlisted Notebook Drive inventory,
+  corpus catalog/checkpoint, incremental sync state, and the local disposable
+  semantic index. Historical `mq.state-snapshot.v1` snapshots remain readable.
+- `state restore --dry-run` performs full verification and target resolution
+  without writing runtime state.
 - Perception Review v2 completes the visual review chain: `review perception`
   obtains content-addressed `perception.v1` from mq-image-analyze, delegates
   risk/architecture review to mq-mcp, validates `mq.perception-review.v1`, and
@@ -19,6 +27,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Safety
 
+- Notebook recovery fails closed on schema/version drift, manifest tamper,
+  undeclared files, credential-like keys, and semantic-index raw-text payloads.
+- Credentials/environment state, generic memory, Notebook source bodies, and
+  remote vector-store state/contents remain explicitly excluded. Restore
+  writes only manifest-declared allowlisted targets and never deletes unrelated
+  current state.
 - mq-agent no longer synthesizes perception review findings or verdicts. It
   preserves mq-mcp output and fails closed on malformed evidence, contract
   drift, mismatched content addresses, missing review output or a refused
