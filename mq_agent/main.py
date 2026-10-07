@@ -4845,6 +4845,57 @@ def memory_search_cmd(
     console.print(table)
 
 
+@memory_app.command("hybrid-shadow")
+def memory_hybrid_shadow_cmd(
+    query: Annotated[str, typer.Argument(help="Retrieval query")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Optional notebook-corpus-index.v1 JSON")] = "",
+    semantic_index: Annotated[str, typer.Option("--semantic-index", help="Optional local notebook semantic index JSON")] = "",
+    semantic_model: Annotated[str, typer.Option("--semantic-model", help="Local Ollama embedding model")] = "nomic-embed-text",
+    top_k: Annotated[int, typer.Option("--top-k", min=1)] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Compare active semantic memory with hybrid retrieval in zero-effect shadow mode."""
+    from mq_agent.memory.hybrid_shadow import hybrid_shadow
+
+    try:
+        payload = hybrid_shadow(
+            query,
+            catalog_path=Path(catalog).expanduser() if catalog else None,
+            semantic_index_path=(
+                Path(semantic_index).expanduser() if semantic_index else None
+            ),
+            semantic_model=semantic_model,
+            top_k=top_k,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Retrieval Shadow — {payload['status']}")
+        table.add_column("Channel")
+        table.add_column("Status")
+        table.add_column("Results", justify="right")
+        table.add_column("Latency", justify="right")
+        for row in payload["channels"]:
+            table.add_row(
+                str(row["name"]),
+                str(row["status"]),
+                str(row["returned"]),
+                f"{row['latency_ms']} ms",
+            )
+        console.print(table)
+        console.print(
+            f"Active: {payload['active']['result_count']} | "
+            f"Shadow: {payload['shadow']['result_count']} | "
+            f"Added: {payload['shadow']['added_count']} | "
+            "active result unchanged"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
 # ── memory store ────────────────────────────────────────────────────────────
 
 @memory_app.command("store")
