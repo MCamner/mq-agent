@@ -538,6 +538,71 @@ def feedback_approve_cmd(
     )
 
 
+@app.command("canary-run")
+def feedback_canary_run_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Approved feedback candidate")],
+    approval_id: Annotated[str, typer.Option("--approval-id")],
+    task: Annotated[str, typer.Option("--task", help="Task used only for zero-effect context selection")],
+    repo: Annotated[Path, typer.Option("--repo", help="Clean Git repository to evaluate")] = Path("."),
+    fixture: Annotated[Path, typer.Option("--fixture", help="Deterministic relevance fixture JSON")],
+    vault: Annotated[Path | None, typer.Option("--vault", help="mqobsidian vault override")] = None,
+    timeout_ms: Annotated[int, typer.Option("--timeout-ms", min=1)] = DEFAULT_TIMEOUT_MS,
+    max_context_bytes: Annotated[int, typer.Option("--max-context-bytes", min=1)] = DEFAULT_MAX_CONTEXT_BYTES,
+    max_sources: Annotated[int, typer.Option("--max-sources", min=1)] = DEFAULT_MAX_SOURCES,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Run a post-approval zero-effect canary and bind its comparison to approval."""
+    try:
+        candidate = candidate_detail(candidate_id)["candidate"]
+        experiment_result = run_context_experiment(
+            task,
+            repo,
+            task_class=candidate["task_class"],
+            vault=vault,
+            timeout_ms=timeout_ms,
+            max_context_bytes=max_context_bytes,
+            max_sources=max_sources,
+        )
+        if experiment_result["status"] != "PASS":
+            raise ValueError(
+                f"canary experiment did not pass: {experiment_result.get('reason') or 'unknown'}"
+            )
+        run_id = experiment_result["experiment"]["feedback_run_id"]
+        comparison = compare_feedback_run(run_id, fixture_path=fixture)
+        validation = validate_canary(
+            candidate_id,
+            approval_id,
+            comparison["comparison_id"],
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    payload = {
+        "kind": "feedback-canary-run",
+        "status": "PASS",
+        "candidate_id": candidate_id,
+        "approval_id": approval_id,
+        "feedback_run_id": run_id,
+        "comparison_id": comparison["comparison_id"],
+        "snapshot": comparison["snapshot"],
+        "validation": validation,
+    }
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Candidate: {candidate_id}\n"
+            f"Approval: {approval_id}\n"
+            f"Feedback run: {run_id}\n"
+            f"Comparison: {comparison['comparison_id']}\n"
+            f"Snapshot: {comparison['snapshot']['commit']}",
+            title="[bold green]Canary PASS[/bold green]",
+            border_style="green",
+        )
+    )
+
+
 @app.command("canary-check")
 def feedback_canary_check_cmd(
     candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
