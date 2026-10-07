@@ -2818,7 +2818,8 @@ Restore manifest-declared files only; never delete unrelated current state.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| `--approve` | No | `false` | Required: restore allowlisted runtime state |
+| `--approve` | No | `false` | Required for an actual restore write |
+| `--dry-run` | No | `false` | Verify and resolve restore targets without writing |
 | `--json` | No | `false` | — |
 
 ## `mq-agent state snapshot`
