@@ -129,6 +129,13 @@ def test_activation_requires_post_approval_canary_and_rolls_back_append_only(
     events = (tmp_path / "policy-events.jsonl").read_text().splitlines()
     assert len(events) == 2
 
+    with pytest.raises(ValueError, match="no active activation"):
+        rollback(
+            "repo-review",
+            reason="must not toggle back to candidate",
+            root=tmp_path,
+        )
+
 
 def test_kill_switch_restores_baseline_without_deleting_activation(
     tmp_path: Path, monkeypatch
