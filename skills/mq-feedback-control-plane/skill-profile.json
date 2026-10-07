@@ -11,17 +11,15 @@
   ],
   "intents": [
     "review",
-    "change",
-    "operate"
+    "implement",
+    "fix"
   ],
   "domains": [
-    "feedback",
-    "activation",
-    "governance",
-    "rollback"
+    "repo",
+    "runtime"
   ],
   "risks": [
-    "policy_mutation"
+    "repo_write"
   ],
   "required_for": [],
   "supersedes": [],
