@@ -23,6 +23,7 @@ SCHEMAS = {
     "mq.feedback-activation-readiness.v1": "feedback_activation_readiness.schema.json",
     "mq.feedback-approval.v1": "feedback_approval.schema.json",
     "mq.feedback-policy-event.v1": "feedback_policy_event.schema.json",
+    "mq.feedback-canary.v1": "feedback_canary.schema.json",
 }
 PUBLIC_DOCS = (
     ROOT / "docs" / "FEEDBACK_ENGINE.md",
@@ -45,7 +46,9 @@ REQUIRED_FEEDBACK_COMMANDS = {
 }
 CONTROLLED_ACTIVATION_COMMANDS = {
     "approve",
+    "canary-plan",
     "canary-run",
+    "canary-status",
     "canary-check",
     "activate",
     "rollback",
@@ -147,6 +150,8 @@ def check_release_surfaces() -> None:
             fail(f"release checklist does not require {required!r}")
     if VERSION >= Version("1.31.0") and "Evidence-Gated Activation" not in changelog:
         fail("CHANGELOG does not describe the v1.31 Evidence-Gated Activation boundary")
+    if VERSION >= Version("1.32.0") and "Canary v2" not in changelog:
+        fail("CHANGELOG does not describe the v1.32 Canary v2 boundary")
     print(f"OK: README, changelog and pre-tag checklist carry the v{VERSION} boundary")
 
 

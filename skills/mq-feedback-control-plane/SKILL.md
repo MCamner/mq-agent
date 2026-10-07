@@ -49,6 +49,9 @@ The control plane is fail-closed.
 - Readiness is evidence, not approval.
 - Approval is explicit, content-bound, and may expire.
 - Canary evidence must be recorded after the exact approval receipt.
+- Canary v2 requires one immutable PLAN and at most one RESULT.
+- PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic; an LLM cannot decide it.
+- Activation must re-verify the Canary v2 evidence references.
 - Activation is scoped to one task class.
 - Activation and rollback are append-only policy events.
 - Rollback must only reverse the currently active activation; it must never act as a toggle.
@@ -86,23 +89,32 @@ mq-agent feedback approve <candidate-id> \
   --json
 ```
 
-Run a new post-approval canary:
+Plan and run a bounded post-approval Canary v2:
 
 ```bash
-mq-agent feedback canary-run <candidate-id> \
+mq-agent feedback canary-plan <candidate-id> \
   --approval-id <approval-id> \
+  --executions 3 \
+  --min-executions 3 \
+  --max-duration-seconds 300 \
+  --max-failure-rate 0 \
+  --json
+
+mq-agent feedback canary-run <canary-id> \
   --task "review release boundaries" \
   --fixture <relevance-fixture.json> \
   --json
+
+mq-agent feedback canary-status <canary-id> --json
 ```
 
-Activate only the approved candidate and exact canary:
+Activate only the approved candidate and exact passing Canary v2:
 
 ```bash
 mq-agent feedback activate <candidate-id> \
   --approval-id <approval-id> \
-  --canary-comparison-id <comparison-id> \
-  --reason "bounded canary passed" \
+  --canary-id <canary-id> \
+  --reason "bounded Canary v2 passed" \
   --approve \
   --json
 ```
@@ -130,7 +142,8 @@ When modifying this control plane:
 
 1. Preserve append-only evidence and policy history.
 2. Add a negative test for every new refusal condition.
-3. Prove stale approval, pre-approval canary, task-class mismatch, and repeated rollback fail closed.
+3. Prove stale approval, stale policy snapshot, duplicate RESULT, missing evidence
+   references, non-PASS canary, task-class mismatch, and repeated rollback fail closed.
 4. Keep activation behind explicit operator approval.
 5. Keep the baseline/default consumer path unchanged unless the change explicitly targets that contract.
 6. Do not add an MCP or client-specific mutation path that bypasses mq-agent.

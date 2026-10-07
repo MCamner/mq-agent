@@ -557,6 +557,24 @@ justify an activation design.
 * [ ] Only after this gate is proven may evidence-based routing activation be
   reconsidered.
 
+### v1.32.0 Canary v2 checkpoint
+
+* [x] Define and package `mq.feedback-canary.v1`.
+* [x] Bind each plan to exact candidate fingerprint, approval, task class,
+  strategy pair and policy snapshot.
+* [x] Bound runs by execution count, minimum evidence, maximum duration and
+  maximum failure rate.
+* [x] Append one immutable RESULT per plan with deterministic
+  PASS/FAIL/INSUFFICIENT_EVIDENCE.
+* [x] Aggregate measured latency, grounding and context deltas; keep fallback
+  delta unavailable until correlated measured evidence exists.
+* [x] Fail closed on approval drift, policy drift, duplicate result or stale
+  evidence references.
+* [x] Require Canary v2 PASS before activation; legacy comparison canary checks
+  remain read-only.
+* [x] Re-verify referenced feedback runs/comparisons before activation.
+* [x] Preserve existing `context pack --codegraph auto` behavior.
+
 ### Post-v1.30 P0-P3 control-plane checkpoint
 
 Implemented after v1.30.0 without changing the released v1.30 boundary:

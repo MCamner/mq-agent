@@ -10,6 +10,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from .canary import (
+    canary_status,
+    create_canary_plan,
+    run_canary,
+)
 from .candidates import (
     candidate_detail,
     list_candidates,
@@ -539,10 +544,50 @@ def feedback_approve_cmd(
     )
 
 
-@app.command("canary-run")
-def feedback_canary_run_cmd(
+@app.command("canary-plan")
+def feedback_canary_plan_cmd(
     candidate_id: Annotated[str, typer.Argument(help="Approved feedback candidate")],
     approval_id: Annotated[str, typer.Option("--approval-id")],
+    execution_budget: Annotated[int, typer.Option("--executions", min=1, max=20)] = 3,
+    min_executions: Annotated[int, typer.Option("--min-executions", min=1, max=20)] = 3,
+    max_duration_seconds: Annotated[int, typer.Option("--max-duration-seconds", min=1, max=3600)] = 300,
+    max_failure_rate: Annotated[float, typer.Option("--max-failure-rate", min=0.0, max=1.0)] = 0.0,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Create one immutable Canary v2 plan; no experiment is executed."""
+    try:
+        payload = create_canary_plan(
+            candidate_id,
+            approval_id=approval_id,
+            execution_budget=execution_budget,
+            min_executions=min_executions,
+            max_duration_seconds=max_duration_seconds,
+            max_failure_rate=max_failure_rate,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Canary: {payload['canary_id']}\n"
+            f"Candidate: {payload['candidate_id']}\n"
+            f"Approval: {payload['approval_id']}\n"
+            f"Task class: {payload['task_class']}\n"
+            f"Strategy: {payload['current_strategy']} -> {payload['proposed_strategy']}\n"
+            f"Executions: {payload['plan']['execution_budget']} "
+            f"(minimum {payload['plan']['min_executions']})\n"
+            f"Max duration: {payload['plan']['max_duration_seconds']}s\n"
+            f"Max failure rate: {payload['plan']['max_failure_rate']}",
+            title="Canary v2 Plan",
+        )
+    )
+
+
+@app.command("canary-run")
+def feedback_canary_run_cmd(
+    canary_id: Annotated[str, typer.Argument(help="Canary v2 identifier")],
     task: Annotated[str, typer.Option("--task", help="Task used only for zero-effect context selection")],
     fixture: Annotated[Path, typer.Option("--fixture", help="Deterministic relevance fixture JSON")],
     repo: Annotated[Path, typer.Option("--repo", help="Clean Git repository to evaluate")] = Path("."),
@@ -552,54 +597,70 @@ def feedback_canary_run_cmd(
     max_sources: Annotated[int, typer.Option("--max-sources", min=1)] = DEFAULT_MAX_SOURCES,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
-    """Run a post-approval zero-effect canary and bind its comparison to approval."""
+    """Execute one bounded Canary v2 plan and append one immutable RESULT."""
     try:
-        candidate = candidate_detail(candidate_id)["candidate"]
-        experiment_result = run_context_experiment(
-            task,
-            repo,
-            task_class=candidate["task_class"],
+        payload = run_canary(
+            canary_id,
+            task=task,
+            fixture_path=fixture,
+            repo=repo,
             vault=vault,
             timeout_ms=timeout_ms,
             max_context_bytes=max_context_bytes,
             max_sources=max_sources,
         )
-        if experiment_result["status"] != "PASS":
-            raise ValueError(
-                f"canary experiment did not pass: {experiment_result.get('reason') or 'unknown'}"
-            )
-        run_id = experiment_result["experiment"]["feedback_run_id"]
-        comparison = compare_feedback_run(run_id, fixture_path=fixture)
-        validation = validate_canary(
-            candidate_id,
-            approval_id,
-            comparison["comparison_id"],
-        )
     except (OSError, RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+    else:
+        style = (
+            "green" if payload["verdict"] == "PASS"
+            else "red" if payload["verdict"] == "FAIL"
+            else "yellow"
+        )
+        console.print(
+            Panel(
+                f"Canary: {payload['canary_id']}\n"
+                f"Verdict: {payload['verdict']}\n"
+                f"Executions: {payload['executions_completed']}/"
+                f"{payload['executions_requested']}\n"
+                f"Successes: {payload['successes']}\n"
+                f"Failures: {payload['failures']}\n"
+                f"Inconclusive: {payload['inconclusive']}\n"
+                f"Failure rate: {payload['failure_rate']}",
+                title=f"[bold {style}]Canary v2 {payload['verdict']}[/bold {style}]",
+                border_style=style,
+            )
+        )
+    if payload["verdict"] == "FAIL":
+        raise typer.Exit(2)
+    if payload["verdict"] == "INSUFFICIENT_EVIDENCE":
+        raise typer.Exit(1)
 
-    payload = {
-        "kind": "feedback-canary-run",
-        "status": "PASS",
-        "candidate_id": candidate_id,
-        "approval_id": approval_id,
-        "feedback_run_id": run_id,
-        "comparison_id": comparison["comparison_id"],
-        "snapshot": comparison["snapshot"],
-        "validation": validation,
-    }
+
+@app.command("canary-status")
+def feedback_canary_status_cmd(
+    canary_id: Annotated[str, typer.Argument(help="Canary v2 identifier")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Show authoritative append-only PLAN/RESULT state for one canary."""
+    try:
+        payload = canary_status(canary_id)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     if json_out:
         _emit_json(payload)
         return
+    result = payload["result"]
+    verdict = result["verdict"] if isinstance(result, dict) else "not-run"
     console.print(
         Panel(
-            f"Candidate: {candidate_id}\n"
-            f"Approval: {approval_id}\n"
-            f"Feedback run: {run_id}\n"
-            f"Comparison: {comparison['comparison_id']}\n"
-            f"Snapshot: {comparison['snapshot']['commit']}",
-            title="[bold green]Canary PASS[/bold green]",
-            border_style="green",
+            f"Canary: {payload['canary_id']}\n"
+            f"State: {payload['state']}\n"
+            f"Verdict: {verdict}\n"
+            f"Plan hash: {payload['plan']['plan_sha256']}",
+            title="Canary v2 Status",
         )
     )
 
@@ -611,7 +672,7 @@ def feedback_canary_check_cmd(
     comparison_id: Annotated[str, typer.Option("--comparison-id", help="Post-approval canary comparison")],
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
-    """Validate post-approval candidate evidence as a canary; read-only."""
+    """Validate one legacy v1.31 comparison; read-only and not activation-authorizing."""
     try:
         payload = validate_canary(candidate_id, approval_id, comparison_id)
     except ValueError as exc:
@@ -629,19 +690,19 @@ def feedback_canary_check_cmd(
 def feedback_activate_cmd(
     candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
     approval_id: Annotated[str, typer.Option("--approval-id")],
-    canary_comparison_id: Annotated[str, typer.Option("--canary-comparison-id")],
+    canary_id: Annotated[str, typer.Option("--canary-id", help="Passing Canary v2 identifier")],
     reason: Annotated[str, typer.Option("--reason")],
     approve: Annotated[bool, typer.Option("--approve", help="Required: change one task-class policy")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
-    """Activate one task-class strategy after approval and passing canary evidence."""
+    """Activate one task-class strategy after approval and a passing Canary v2 result."""
     if not approve:
         raise typer.BadParameter("feedback activate requires --approve")
     try:
         payload = activate_policy(
             candidate_id,
             approval_id=approval_id,
-            canary_comparison_id=canary_comparison_id,
+            canary_id=canary_id,
             reason=reason,
         )
     except ValueError as exc:

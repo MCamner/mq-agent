@@ -9,13 +9,39 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.32.0] — 2026-10-07
+
+Theme: Canary v2. Activation evidence is now a bounded, append-only
+PLAN/RESULT lifecycle rather than one successful comparison.
+
 ### Added
 
+- `mq.feedback-canary.v1` binds one canary to the exact candidate,
+  candidate fingerprint, human approval, task class, strategy pair and current
+  policy snapshot.
+- `feedback canary-plan`, `canary-run` and `canary-status` expose a
+  bounded execution budget, minimum evidence count, maximum duration and
+  maximum failure rate.
+- Canary results aggregate measured execution counts, success/failure/
+  inconclusive counts, latency delta, grounding delta, context-byte delta,
+  regressions and evidence references. Fallback delta remains explicitly
+  unavailable until a correlated feedback measurement exists.
+- Activation now requires a deterministic Canary v2 `PASS` and re-verifies
+  referenced feedback experiments and comparisons before appending a policy
+  event.
 - Three agent-discoverable MQ control skills for both Codex and Claude:
   `mq-feedback-control-plane`, `mq-contract-owner-migration`, and
-  `mq-state-recovery-audit`. Each has canonical instructions under
-  `skills/`, dual discovery symlinks, and a machine-readable
-  `mq.skill-profile.v1` routing profile.
+  `mq-state-recovery-audit`, with canonical instructions, dual discovery
+  symlinks and `mq.skill-profile.v1` routing profiles.
+
+### Safety
+
+- Canary PLAN and RESULT are append-only; a canary can have at most one result.
+- Policy or approval drift makes the canary fail closed.
+- PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic and never model-decided.
+- Legacy `canary-check` remains read-only but cannot authorize v1.32
+  activation.
+- Existing `context pack --codegraph auto` behavior remains unchanged.
 
 ## [v1.31.0] — 2026-10-07
 

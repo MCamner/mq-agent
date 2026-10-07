@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.31.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.32.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -330,6 +330,22 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.32.0 status
+
+Canary v2 replaces one-shot activation evidence with a bounded append-only
+PLAN/RESULT contract.
+
+- [x] `mq.feedback-canary.v1` is packaged and declared by mq-agent
+- [x] `feedback canary-plan` binds candidate, approval and policy snapshot
+- [x] `feedback canary-run` executes a bounded zero-effect experiment budget
+- [x] `feedback canary-status` reads authoritative PLAN/RESULT evidence
+- [x] PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic; no LLM verdict
+- [x] activation requires a PASS result for the exact candidate and approval
+- [x] activation re-verifies experiment/comparison evidence references
+- [x] fallback delta remains unavailable until correlated feedback fallback
+  evidence exists; missing measurement is never reported as zero
+- [x] `--codegraph auto` remains unchanged
 
 ## v1.31.0 status
 

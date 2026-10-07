@@ -1,11 +1,11 @@
-# Feedback Engine v1.31
+# Feedback Engine v1.32
 
 The Feedback Engine is mq-agent's evidence-first loop for comparing one active
 context strategy with one zero-effect shadow strategy.
 
-It measures and records evidence. v1.31 can activate one task-class policy only
-after explicit human approval and new post-approval canary evidence; it never
-auto-activates a policy.
+It measures and records evidence. v1.32 can activate one task-class policy only
+after explicit human approval and a bounded Canary v2 PLAN/RESULT lifecycle; it
+never auto-activates a policy.
 
 ## Architecture
 
@@ -95,21 +95,30 @@ evidence gate. v1.31 adds a separate human-controlled sequence:
 
 ```bash
 mq-agent feedback approve <candidate-id> --reason "reviewed evidence" --approve
-mq-agent feedback canary-run <candidate-id> \
+mq-agent feedback canary-plan <candidate-id> \
   --approval-id <approval-id> \
+  --executions 3 \
+  --min-executions 3 \
+  --max-duration-seconds 300 \
+  --max-failure-rate 0
+mq-agent feedback canary-run <canary-id> \
   --task "review release boundaries" \
   --fixture path/to/relevance-fixture.json
+mq-agent feedback canary-status <canary-id>
 mq-agent feedback activate <candidate-id> \
   --approval-id <approval-id> \
-  --canary-comparison-id <comparison-id> \
-  --reason "bounded canary passed" \
+  --canary-id <canary-id> \
+  --reason "bounded Canary v2 passed" \
   --approve
 mq-agent feedback post-activation-check repo-review --comparison-id <comparison-id>
 mq-agent feedback rollback repo-review --reason "regression observed" --approve
 ```
 
 Approval is content-bound and expires when the candidate readiness/fingerprint
-or active policy changes. Canary evidence must be recorded after approval.
+or active policy changes. Canary v2 binds an immutable plan to that approval
+and policy snapshot, executes at most the declared budget, and appends at most
+one result. Activation accepts only a deterministic PASS for the exact
+candidate/approval and re-verifies the referenced experiments/comparisons.
 Activation and rollback append policy events; they never rewrite evidence
 history.
 
@@ -147,6 +156,19 @@ stdout/stderr and credentials.
 - scripts and CI use `mq-agent feedback ... --json`.
 
 See [Feedback Engine client contract](feedback-engine-clients.md).
+
+## v1.32 Canary v2 boundary
+
+v1.32 replaces one-shot canary authorization with `mq.feedback-canary.v1`.
+A PASS requires the declared minimum count of `CANDIDATE_BETTER` comparisons,
+a failure rate at or below the plan threshold, no material regressions, and no
+approval/policy drift. `FAIL` and `INSUFFICIENT_EVIDENCE` cannot activate.
+
+`fallback_delta` remains null until feedback experiments carry a correlated,
+measured fallback delta; unavailable evidence is never converted to zero.
+
+Legacy `feedback canary-check` remains read-only for v1.31 evidence and is
+not an activation-authorizing surface.
 
 ## v1.31 boundary
 
