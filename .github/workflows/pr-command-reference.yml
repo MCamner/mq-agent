@@ -1,0 +1,43 @@
+name: Generate PR command reference
+
+on:
+  push:
+    branches:
+      - feat/p0-p3-control-plane
+    paths-ignore:
+      - docs/generated/Command-Reference.md
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: "!contains(github.event.head_commit.message, '[generated]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/p0-p3-control-plane
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --extra dev --extra signal
+
+      - name: Generate command reference
+        run: uv run python tools/generate_command_reference.py
+
+      - name: Commit generated reference
+        run: |
+          if git diff --quiet -- docs/generated/Command-Reference.md; then
+            echo "Command reference already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/generated/Command-Reference.md
+          git commit -m "docs: regenerate command reference [generated]"
+          git push origin HEAD:feat/p0-p3-control-plane
