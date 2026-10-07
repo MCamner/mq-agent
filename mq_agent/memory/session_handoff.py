@@ -144,7 +144,7 @@ def handoff_session(
     if path is None:
         raise RuntimeError("mqobsidian observation handoff failed")
     return {
-        "schema": "mq.session-handoff-result.v1",
+        "kind": "mq-session-handoff-result",
         "status": "SUBMITTED_FOR_REVIEW",
         "observation_id": record["id"],
         "session_id": record["session_id"],
