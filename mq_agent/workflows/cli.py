@@ -23,6 +23,11 @@ workflow_app = typer.Typer(
     help="Bounded multi-step workflow templates (list/show/plan). Read-only in v1."
 )
 
+checkpoint_app = typer.Typer(
+    help="Create, inspect, and resume bounded workflow session checkpoints."
+)
+workflow_app.add_typer(checkpoint_app, name="checkpoint")
+
 
 @workflow_app.command("list")
 def list_cmd(
@@ -216,6 +221,139 @@ def resume_cmd(
         raise typer.Exit(1)
     store.save_run(run)
     Runner(store, plan_approver=_make_plan_approver(json_output, yes)).run(run)
+    _print_summary(run, json_output)
+    raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
+
+
+def _print_checkpoint_status(report: dict, json_output: bool) -> None:
+    if json_output:
+        typer.echo(json.dumps(report, indent=2))
+        return
+    typer.echo(
+        f"Checkpoint {report['checkpoint_id']}: {report['status']}  "
+        f"run={report['run_id']}  expires={report['expires_at']}"
+    )
+    typer.echo(
+        "  passed: " + (", ".join(report["passed_steps"]) or "(none)")
+    )
+    typer.echo(
+        "  resumable: " + (", ".join(report["resumable_steps"]) or "(none)")
+    )
+    for error in report.get("errors", []):
+        typer.echo(f"  REFUSE: {error}")
+
+
+@checkpoint_app.command("create")
+def checkpoint_create_cmd(
+    run_id: str = typer.Argument(..., help="Paused or failed workflow run id."),
+    owner: str = typer.Option(..., "--owner", help="Explicit checkpoint owner label."),
+    ttl_hours: int = typer.Option(
+        24,
+        "--ttl-hours",
+        min=1,
+        max=168,
+        help="Checkpoint lifetime in hours (1-168).",
+    ),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Create a bounded content-addressed checkpoint over one workflow run."""
+    from .checkpoint import WorkflowCheckpointError, WorkflowCheckpointStore
+
+    checkpoints = WorkflowCheckpointStore()
+    try:
+        payload = checkpoints.create(
+            run_id,
+            owner=owner,
+            ttl_hours=ttl_hours,
+        )
+    except WorkflowCheckpointError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+    if json_output:
+        typer.echo(json.dumps(payload, indent=2))
+        return
+    typer.echo(
+        f"Checkpoint {payload['checkpoint_id']} created for {run_id}; "
+        f"expires {payload['expires_at']}"
+    )
+
+
+@checkpoint_app.command("status")
+def checkpoint_status_cmd(
+    checkpoint_id: str = typer.Argument(..., help="sha256 checkpoint id."),
+    owner: str = typer.Option(..., "--owner", help="Expected checkpoint owner label."),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Verify checkpoint integrity, expiry, run identity, and template identity."""
+    from .checkpoint import WorkflowCheckpointError, WorkflowCheckpointStore
+
+    checkpoints = WorkflowCheckpointStore()
+    try:
+        report = checkpoints.verify(checkpoint_id, owner=owner)
+    except WorkflowCheckpointError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+    _print_checkpoint_status(report, json_output)
+    if report["status"] != "READY":
+        raise typer.Exit(1)
+
+
+@checkpoint_app.command("resume")
+def checkpoint_resume_cmd(
+    checkpoint_id: str = typer.Argument(..., help="sha256 checkpoint id."),
+    owner: str = typer.Option(..., "--owner", help="Expected checkpoint owner label."),
+    approve: bool = typer.Option(
+        False,
+        "--approve",
+        help="Required to persist resume state and execute remaining workflow steps.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Verify checkpoint and show the resume plan without writing or executing.",
+    ),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Resume exactly one verified checkpoint; fail closed on drift or expiry."""
+    from .checkpoint import WorkflowCheckpointError, WorkflowCheckpointStore
+
+    if not dry_run and not approve:
+        raise typer.BadParameter(
+            "workflow checkpoint resume requires --approve unless --dry-run is used"
+        )
+
+    store = WorkflowStore()
+    checkpoints = WorkflowCheckpointStore(store)
+    try:
+        payload, run = checkpoints.prepare_resume(
+            checkpoint_id,
+            owner=owner,
+        )
+    except WorkflowCheckpointError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+
+    if dry_run:
+        report = checkpoints.verify(checkpoint_id, owner=owner)
+        report["action"] = "WOULD_RESUME"
+        report["would_execute_steps"] = list(payload["run"]["resumable_steps"])
+        _print_checkpoint_status(report, json_output)
+        return
+
+    try:
+        resume_state(run)
+    except WorkflowStateError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1)
+
+    # Persist first. This intentionally changes the run fingerprint and makes
+    # the checkpoint single-use before any tool execution begins.
+    store.save_run(run)
+    Runner(
+        store,
+        plan_approver=lambda summary: True,
+        observer=_default_observer(),
+    ).run(run)
     _print_summary(run, json_output)
     raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
 
