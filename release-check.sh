@@ -88,7 +88,7 @@ say "--- Command reference ---"
 run_check "generate_command_reference.py" uv run --extra dev python tools/generate_command_reference.py --check
 
 say ""
-say "--- Feedback Engine v1.30 ---"
+say "--- Feedback Engine release contract ---"
 run_check "feedback release contract" uv run --extra dev python "$ROOT/scripts/check-feedback-release.py"
 
 say ""
