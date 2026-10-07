@@ -9,18 +9,11 @@
     "repo",
     "stack"
   ],
-  "intents": [
-    "review",
-    "implement",
-    "fix"
-  ],
+  "intents": [],
   "domains": [
-    "repo",
-    "runtime"
+    "feedback"
   ],
-  "risks": [
-    "repo_write"
-  ],
+  "risks": [],
   "required_for": [],
   "supersedes": [],
   "skill": "mq-feedback-control-plane",
