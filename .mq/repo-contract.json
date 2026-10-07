@@ -44,7 +44,6 @@
     "mq.feedback-policy-event.v1",
     "mq.state-snapshot.v1",
     "mq.hybrid-retrieval-shadow.v1",
-    "mq.perception-review.v1",
     "mq.feedback-canary.v1",
     "mq.feedback-policy-snapshot.v1"
   ],
@@ -56,9 +55,11 @@
       "memory-evidence-manifest.v1",
       "promotion-policy.v1",
       "mq.review-receipt.v1",
-      "perception.v1"
+      "perception.v1",
+      "mq.perception-review.v1",
+      "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "complete perception review chain through mq-mcp review receipts",
+  "next_focus": "State Recovery v2: portable Notebook/checkpoint/local semantic state",
   "release_mode": "pull_request"
 }
