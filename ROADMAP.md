@@ -569,6 +569,27 @@ justify an activation design.
 * [x] Surface current policy snapshot through `feedback policy`.
 * [x] Preserve existing `context pack --codegraph auto` behavior.
 
+### Perception Review v2 checkpoint
+
+* [x] mq-image-analyze owns and content-addresses canonical `perception.v1`
+  evidence; mq-agent never re-opens or reinterprets image pixels.
+* [x] mq-mcp vendors the canonical producer schema and validates both schema and
+  evidence fingerprint before review.
+* [x] mq-mcp performs bounded risk/architecture review without reopening the
+  image and emits `mq.perception-review.v1` findings with exact evidence refs.
+* [x] Optional `mq.perception-review-receipt.v1` binds perception id, review id,
+  reviewer runtime identity and an exact repository commit when requested.
+* [x] mq-agent `review perception` orchestrates producer -> review -> receipt,
+  validates both consumer contracts, and fails closed on mismatched references
+  or a refused requested receipt.
+* [x] Codex and Claude discover the same `review_perception` mq-mcp tool surface.
+* [x] Receipt payloads contain no raw image bytes, OCR body, detected regions or
+  local image path.
+
+Next roadmap item: **State Recovery v2** — expand only portable deterministic
+state, beginning with Notebook corpus checkpoints and local semantic-index
+manifests; credentials and remote vector state remain excluded.
+
 ### v1.32.0 Canary v2 checkpoint
 
 * [x] Define and package `mq.feedback-canary.v1`.
