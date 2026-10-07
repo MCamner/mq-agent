@@ -12,6 +12,8 @@ from mq_agent.feedback.canary import (
     run_canary,
 )
 from mq_agent.feedback.candidates import maybe_create_candidate
+from mq_agent.feedback.models import build_feedback_experiment
+from mq_agent.feedback.store import append_experiment
 from mq_agent.feedback.control import activate, approval_receipt, effective_strategy
 from mq_agent.feedback.evaluation import metric_pair
 
@@ -74,20 +76,31 @@ def _ready_candidate(root: Path) -> str:
 def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
     counter = {"value": 0}
 
-    def fake_run(*_args, **_kwargs):
+    def fake_run(*_args, **kwargs):
         counter["value"] += 1
         index = counter["value"]
+        feedback_run_id = f"fb-canary-{index}"
+        snapshot = {
+            "kind": "git",
+            "ref": "main",
+            "commit": "d" * 40,
+        }
+        experiment = build_feedback_experiment(
+            task_class="repo-review",
+            repository="MCamner/mq-agent",
+            active_strategy=BASELINE,
+            shadow_strategy=CANDIDATE,
+            snapshot_ref=snapshot["ref"],
+            snapshot_commit=snapshot["commit"],
+            evidence_sources=["repo-context"],
+            state="completed",
+            feedback_run_id=feedback_run_id,
+        )
+        append_experiment(experiment, kwargs.get("state_root"))
         return {
             "status": "PASS",
             "reason": None,
-            "experiment": {
-                "feedback_run_id": f"fb-canary-{index}",
-                "snapshot": {
-                    "kind": "git",
-                    "ref": "main",
-                    "commit": "d" * 40,
-                },
-            },
+            "experiment": experiment,
             "comparison": None,
         }
 
@@ -99,7 +112,7 @@ def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
         context = metric_pair("context_bytes", 1000.0, 900.0)
         if verdict == "CANDIDATE_WORSE":
             grounding = metric_pair("relevance_precision", 0.8, 0.5)
-        return {
+        comparison = {
             "schema": "mq.feedback-comparison.v1",
             "comparison_id": f"cmp-canary-{index}",
             "feedback_run_id": feedback_run_id,
@@ -127,6 +140,8 @@ def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
             "advisory_evaluator": None,
             "recorded_at": "2099-01-01T00:00:00Z",
         }
+        append_comparison(comparison, _kwargs.get("state_root"))
+        return comparison
 
     monkeypatch.setattr("mq_agent.feedback.canary.run_context_experiment", fake_run)
     monkeypatch.setattr("mq_agent.feedback.canary.compare_feedback_run", fake_compare)
