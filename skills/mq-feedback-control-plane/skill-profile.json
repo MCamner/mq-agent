@@ -1,0 +1,30 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo",
+    "stack"
+  ],
+  "intents": [
+    "review",
+    "change",
+    "operate"
+  ],
+  "domains": [
+    "feedback",
+    "activation",
+    "governance",
+    "rollback"
+  ],
+  "risks": [
+    "policy-mutation"
+  ],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "mq-feedback-control-plane",
+  "description": "Operate and change mq-agent's evidence-gated feedback activation and rollback control plane."
+}
