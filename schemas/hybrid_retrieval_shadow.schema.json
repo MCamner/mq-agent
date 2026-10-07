@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-shadow.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","status","query_sha256","active_authoritative","shadow_effect_on_active_result","top_k","channels","active","shadow","limitations"],
+  "properties": {
+    "schema":{"const":"mq.hybrid-retrieval-shadow.v1"},
+    "status":{"enum":["PASS","INSUFFICIENT_EVIDENCE"]},
+    "query_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "active_authoritative":{"const":true},
+    "shadow_effect_on_active_result":{"const":false},
+    "top_k":{"type":"integer","minimum":1},
+    "channels":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["name","status","latency_ms","returned","reason"],"properties":{"name":{"type":"string","minLength":1},"status":{"enum":["AVAILABLE","UNAVAILABLE"]},"latency_ms":{"type":"number","minimum":0},"returned":{"type":"integer","minimum":0},"reason":{"type":["string","null"]}}}},
+    "active":{"$ref":"#/$defs/resultSet"},
+    "shadow":{
+      "allOf":[{"$ref":"#/$defs/resultSet"}],
+      "type":"object",
+      "required":["added_count","added_refs","overlap_count","provenance_coverage"],
+      "properties":{
+        "added_count":{"type":"integer","minimum":0},
+        "added_refs":{"type":"array","items":{"$ref":"#/$defs/ref"}},
+        "overlap_count":{"type":"integer","minimum":0},
+        "provenance_coverage":{"type":["number","null"],"minimum":0,"maximum":1}
+      }
+    },
+    "limitations":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}}
+  },
+  "$defs":{
+    "ref":{"type":"object","additionalProperties":false,"required":["source","reference"],"properties":{"source":{"type":"string","minLength":1},"reference":{"type":"string","minLength":1}}},
+    "resultSet":{"type":"object","additionalProperties":true,"required":["result_count","refs"],"properties":{"result_count":{"type":"integer","minimum":0},"refs":{"type":"array","items":{"$ref":"#/$defs/ref"}}}}
+  }
+}
