@@ -1,0 +1,20 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo"
+  ],
+  "intents": [],
+  "domains": [
+    "recovery"
+  ],
+  "risks": [],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "mq-state-recovery-audit",
+  "description": "Audit and change allowlisted MQ state snapshot, verification, restore, and disaster-recovery behavior."
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "mq.skill-profile.v1",
+  "status": "active",
+  "supported_targets": [
+    "codex",
+    "claude"
+  ],
+  "scope": [
+    "repo",
+    "stack"
+  ],
+  "intents": [],
+  "domains": [
+    "contracts"
+  ],
+  "risks": [],
+  "required_for": [],
+  "supersedes": [],
+  "skill": "mq-contract-owner-migration",
+  "description": "Perform canonical-owner-first MQ contract migrations and exact consumer vendoring."
+}

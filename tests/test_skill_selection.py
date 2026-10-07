@@ -323,6 +323,28 @@ def test_worktree_uses_declared_repository_name(env):
     assert run(env)["repo"] == "declared-repo"
 
 
+@pytest.mark.parametrize(
+    "task,expected_skill",
+    [
+        ("feedback activation canary rollback", "mq-feedback-control-plane"),
+        ("canonical contract schema drift vendoring", "mq-contract-owner-migration"),
+        ("state snapshot disaster recovery restore", "mq-state-recovery-audit"),
+    ],
+)
+def test_published_control_plane_domains_route_to_both_agents(
+    task: str, expected_skill: str
+) -> None:
+    repo = Path(__file__).resolve().parents[1]
+    vault = repo / "tests/fixtures/skill_selection"
+
+    result = route_skills(task, repo, target="both", vault=vault)
+
+    assert result["selection_state"] == "complete"
+    selected = {entry["skill"]: entry for entry in result["selected"]}
+    assert expected_skill in selected
+    assert selected[expected_skill]["discoverable_targets"] == ["codex", "claude"]
+
+
 def test_published_golden_route_and_explanation_are_one_decision():
     from mq_agent.skills.render import render_route
 
