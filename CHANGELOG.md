@@ -9,6 +9,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Perception Review v2 completes the visual review chain: `review perception`
+  obtains content-addressed `perception.v1` from mq-image-analyze, delegates
+  risk/architecture review to mq-mcp, validates `mq.perception-review.v1`, and
+  can require `mq.perception-review-receipt.v1` bound to the exact perception,
+  review, reviewer runtime and optional repository commit.
+
+### Safety
+
+- mq-agent no longer synthesizes perception review findings or verdicts. It
+  preserves mq-mcp output and fails closed on malformed evidence, contract
+  drift, mismatched content addresses, missing review output or a refused
+  requested receipt. Receipt payloads contain references only, never OCR bodies,
+  image bytes, detected regions or local image paths.
+
 ## [v1.33.0] — 2026-10-07
 
 Theme: Policy Registry v2. Feedback policy changes now carry immutable policy

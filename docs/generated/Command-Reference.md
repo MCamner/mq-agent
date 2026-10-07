@@ -2122,7 +2122,7 @@ Pass-through mq-mcp review orchestration.
 |---|---|
 | [`mq-agent review diff`](#mq-agent-review-diff) | Review the current diff through mq-mcp. Findings are passed through. |
 | [`mq-agent review file`](#mq-agent-review-file) | Review one file through mq-mcp. mq-agent does not implement review logic. |
-| [`mq-agent review perception`](#mq-agent-review-perception) | Produce and inspect perception.v1 through mq-image-analyze. This command is orchestration only: mq-image-analyze owns visual extraction. mq-agent preserves the returned risk signals/limitations and does not invent a second vision or review engine. |
+| [`mq-agent review perception`](#mq-agent-review-perception) | Produce perception.v1, review it through mq-mcp, and optionally bind a receipt. mq-image-analyze owns visual extraction. mq-mcp owns risk/architecture review and the mq.perception-review.v1 contract. mq-agent only orchestrates, validates the returned contracts and renders them. |
 | [`mq-agent review repo`](#mq-agent-review-repo) | Review a repo through mq-mcp. mq-agent renders mq-mcp output only. |
 
 ## `mq-agent review diff`
@@ -2170,7 +2170,7 @@ Review one file through mq-mcp. mq-agent does not implement review logic.
 
 ## `mq-agent review perception`
 
-Produce and inspect perception.v1 through mq-image-analyze. This command is orchestration only: mq-image-analyze owns visual extraction. mq-agent preserves the returned risk signals/limitations and does not invent a second vision or review engine.
+Produce perception.v1, review it through mq-mcp, and optionally bind a receipt. mq-image-analyze owns visual extraction. mq-mcp owns risk/architecture review and the mq.perception-review.v1 contract. mq-agent only orchestrates, validates the returned contracts and renders them.
 
 ### Arguments
 
@@ -2184,6 +2184,9 @@ Produce and inspect perception.v1 through mq-image-analyze. This command is orch
 |---|---:|---|---|
 | `--producer` | No | `ui` | ui, architecture, or ocr |
 | `--source-type` | No | — | screenshot, diagram, ui, terminal, or browser |
+| `--mode` | No | `risk` | mq-mcp review mode: risk or architecture |
+| `--receipt` | No | `false` | Require a content-bound perception review receipt |
+| `--repo` | No | — | Optional repo path whose exact commit is bound into the receipt |
 | `--json` | No | `false` | — |
 | `--dry-run` | No | `false` | — |
 
