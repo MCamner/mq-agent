@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "mq-agent.perception-review.v1",
+  "title": "mq.perception-review.v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema","status","producer","perception","review"],
   "properties": {
-    "schema":{"const":"mq-agent.perception-review.v1"},
+    "schema":{"const":"mq.perception-review.v1"},
     "status":{"enum":["PASS","WARNING"]},
     "producer":{"enum":["ui","architecture","ocr"]},
     "perception":{"type":"object"},
