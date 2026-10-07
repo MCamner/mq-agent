@@ -213,12 +213,34 @@ def test_notebook_schema_mismatch_is_refused_before_snapshot(
         {"schema": "notebook-drive-inventory-checkpoint.v2"},
     )
 
+    target = tmp_path / "snapshot"
     try:
-        snapshot(tmp_path / "snapshot")
+        snapshot(target)
     except ValueError as exc:
         assert "schema mismatch" in str(exc)
     else:
         raise AssertionError("version drift must fail closed")
+    assert not target.exists()
+
+
+def test_notebook_private_absolute_path_is_refused(
+    tmp_path: Path, monkeypatch
+) -> None:
+    paths = _state_env(tmp_path, monkeypatch)
+    _write_json(
+        paths["notebook"] / "inventory.json",
+        {
+            "schema": "notebook-drive-inventory-checkpoint.v1",
+            "local_cache_path": "/Users/example/private-cache",
+        },
+    )
+
+    try:
+        snapshot(tmp_path / "snapshot")
+    except ValueError as exc:
+        assert "private absolute machine path" in str(exc)
+    else:
+        raise AssertionError("private absolute paths must not enter portable state")
 
 
 def test_notebook_credential_like_keys_are_refused(
