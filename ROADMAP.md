@@ -557,6 +557,18 @@ justify an activation design.
 * [ ] Only after this gate is proven may evidence-based routing activation be
   reconsidered.
 
+### v1.33.0 Policy Registry v2 checkpoint
+
+* [x] Define and package `mq.feedback-policy-snapshot.v1`.
+* [x] Record immutable before/after snapshots for every new activation.
+* [x] Content-fingerprint snapshots and re-verify before rollback.
+* [x] Address rollback by exact activation policy event id.
+* [x] Refuse rollback when the activation is historical, already rolled back or
+  predates snapshot binding.
+* [x] Append the rollback result as a new immutable policy snapshot and event.
+* [x] Surface current policy snapshot through `feedback policy`.
+* [x] Preserve existing `context pack --codegraph auto` behavior.
+
 ### v1.32.0 Canary v2 checkpoint
 
 * [x] Define and package `mq.feedback-canary.v1`.
