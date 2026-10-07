@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-policy-event.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","event_id","event_type","task_class","from_strategy","to_strategy","candidate_id","approval_id","recorded_at","reason"],
+  "properties": {
+    "schema":{"const":"mq.feedback-policy-event.v1"},
+    "event_id":{"type":"string","pattern":"^policy-[A-Za-z0-9-]{8,}$"},
+    "event_type":{"enum":["ACTIVATION","ROLLBACK","DISABLE"]},
+    "task_class":{"type":"string","minLength":1,"maxLength":80},
+    "from_strategy":{"type":"string","minLength":1,"maxLength":120},
+    "to_strategy":{"type":"string","minLength":1,"maxLength":120},
+    "candidate_id":{"type":["string","null"]},
+    "approval_id":{"type":["string","null"]},
+    "canary_comparison_id":{"type":["string","null"]},
+    "recorded_at":{"type":"string","format":"date-time"},
+    "reason":{"type":"string","minLength":1,"maxLength":320}
+  }
+}
