@@ -17,7 +17,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `skills/`, dual discovery symlinks, and a machine-readable
   `mq.skill-profile.v1` routing profile.
 
-
 ## [v1.31.0] — 2026-10-07
 
 Theme: Evidence-Gated Activation and Recovery. mq-agent closes the loop from
