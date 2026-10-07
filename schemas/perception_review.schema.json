@@ -1,23 +1,58 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mq.local/schemas/mq.perception-review.v1.schema.json",
   "title": "mq.perception-review.v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema","status","producer","perception","review"],
+  "required": ["schema", "review_id", "status", "producer", "mode", "perception_ref", "perception", "reviewer", "review"],
   "properties": {
-    "schema":{"const":"mq.perception-review.v1"},
-    "status":{"enum":["PASS","WARNING"]},
-    "producer":{"enum":["ui","architecture","ocr"]},
-    "perception":{"type":"object"},
-    "review":{
-      "type":"object",
-      "additionalProperties":false,
-      "required":["risk_signals","limitations","confidence","model_reinterpretation"],
-      "properties":{
-        "risk_signals":{"type":"array"},
-        "limitations":{"type":"array"},
-        "confidence":{"enum":["low","medium","high"]},
-        "model_reinterpretation":{"const":false}
+    "schema": {"const": "mq.perception-review.v1"},
+    "review_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"enum": ["PASS", "WARNING"]},
+    "producer": {"enum": ["ui", "architecture", "ocr"]},
+    "mode": {"enum": ["risk", "architecture"]},
+    "perception_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "evidence_id", "source_type", "confidence"],
+      "properties": {
+        "schema_version": {"const": "perception.v1"},
+        "evidence_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "source_type": {"enum": ["screenshot", "diagram", "ui", "terminal", "browser"]},
+        "confidence": {"enum": ["low", "medium", "high"]}
+      }
+    },
+    "perception": {"type": "object"},
+    "reviewer": {"type": "object"},
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "findings", "risk_signals", "limitations", "confidence", "model_reinterpretation"],
+      "properties": {
+        "summary": {"type": "string"},
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["severity", "category", "message", "evidence_refs", "source"],
+            "properties": {
+              "severity": {"enum": ["CRITICAL", "RISK", "ARCHITECTURE", "WARNING", "MISSING", "SUGGESTION", "NOTE"]},
+              "category": {"type": "string"},
+              "message": {"type": "string"},
+              "evidence_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+              },
+              "source": {"enum": ["producer", "mq-mcp-review"]}
+            }
+          }
+        },
+        "risk_signals": {"type": "array"},
+        "limitations": {"type": "array"},
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "model_reinterpretation": {"const": false}
       }
     }
   }
