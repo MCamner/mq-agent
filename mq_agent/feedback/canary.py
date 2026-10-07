@@ -347,9 +347,20 @@ def run_canary(
             inconclusive += 1
 
     final_policy = _policy_snapshot(plan["task_class"], root)
-    if final_policy != plan["policy_snapshot"]:
-        failures += 1
+    policy_drift = final_policy != plan["policy_snapshot"]
+    if policy_drift:
         blocked_reasons.append("policy-snapshot-drift")
+
+    approval_invalid = False
+    try:
+        _validate_candidate_approval(
+            plan["candidate_id"], plan["approval_id"], root
+        )
+    except ValueError as exc:
+        approval_invalid = True
+        blocked_reasons.append(
+            ("approval-invalid-after-run:" + str(exc))[:200]
+        )
 
     regressions = sorted(
         set(
@@ -362,6 +373,8 @@ def run_canary(
 
     if (
         regressions
+        or policy_drift
+        or approval_invalid
         or (failure_rate is not None and failure_rate > max_failure_rate)
     ):
         verdict = "FAIL"
