@@ -260,4 +260,3 @@ An actual checkpoint resume requires explicit `--approve` and refuses:
 The authoritative run is persisted in resumed state before Runner execution.
 That changes the run fingerprint immediately, so the checkpoint cannot be
 reused to trigger a second transition.
-
