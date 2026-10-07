@@ -112,3 +112,30 @@ def test_invalid_content_address_is_never_persisted(tmp_path):
     with pytest.raises(ValueError, match="content address"):
         save_issued_receipt(receipt, directory=tmp_path)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_perception_review_receipt_uses_same_content_address_boundary(tmp_path):
+    core = {
+        "schema": "mq.perception-review-receipt.v1",
+        "status": "ISSUED",
+        "reason": "perception-and-review-content-addresses-bound",
+        "perception_evidence_id": "sha256:" + "a" * 64,
+        "review_id": "sha256:" + "b" * 64,
+        "reviewer": {"component": "mq-mcp", "commit": "c" * 40},
+        "repository": {"repo": "demo", "commit": "d" * 40, "worktree_clean": True},
+    }
+    raw = json.dumps(
+        core,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+    receipt = {
+        "receipt_id": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        **core,
+    }
+
+    assert unwrap_receipt({"receipt": receipt}) == receipt
+    assert verify_receipt_id(receipt) is True
+    path = save_issued_receipt(receipt, directory=tmp_path)
+    assert json.loads(path.read_text()) == receipt
