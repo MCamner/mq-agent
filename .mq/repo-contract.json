@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.32.0",
+  "version": "1.33.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -45,7 +45,8 @@
     "mq.state-snapshot.v1",
     "mq.hybrid-retrieval-shadow.v1",
     "mq.perception-review.v1",
-    "mq.feedback-canary.v1"
+    "mq.feedback-canary.v1",
+    "mq.feedback-policy-snapshot.v1"
   ],
   "compatibility": {
     "consumes": [
@@ -58,6 +59,6 @@
       "perception.v1"
     ]
   },
-  "next_focus": "collect Canary v2 evidence and derive per-task-class promotion criteria",
+  "next_focus": "complete perception review chain through mq-mcp review receipts",
   "release_mode": "pull_request"
 }
