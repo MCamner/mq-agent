@@ -45,13 +45,13 @@ Use this skill to prove that local MQ runtime state can be inventoried, snapshot
 
 - Snapshot content is allowlisted, never "copy everything under state".
 - Manifest paths are logical/portable, not private absolute machine paths.
-- Every copied file has size and cryptographic hash evidence.
+- Every copied file has size and cryptographic hash evidence; v2 also records format/schema identity and a content fingerprint.
 - Verification fails on tampering, missing declared files, or unexpected undeclared files.
 - Restore writes only manifest-declared allowlisted files.
 - Restore must not delete unrelated current state by default.
 - Credentials, environment variables, secret stores, generic free-form notes, and remote vector-store contents stay excluded unless a separately reviewed contract says otherwise.
 - Snapshot creation and verification are read-safe operations.
-- Restore is an explicit write operation and requires operator approval at the CLI boundary.
+- Restore is an explicit write operation and requires operator approval at the CLI boundary; `--dry-run` performs verification and target resolution only.
 - Recovery evidence must distinguish "not present" from "verified empty".
 
 ## Files To Inspect
@@ -83,7 +83,7 @@ For each component record:
 ### 2. Create a snapshot
 
 ```bash
-mq-agent state snapshot <snapshot-dir> --approve --json
+mq-agent state snapshot --output <snapshot-dir> --json
 ```
 
 Inspect the manifest, not only the exit code.
@@ -95,7 +95,8 @@ Confirm:
 - file counts;
 - byte sizes;
 - SHA-256 values;
-- exclusions.
+- exclusions;
+- for v2, `snapshot_id`, component format/schema identity and file fingerprints.
 
 ### 3. Verify before restore
 
@@ -116,7 +117,7 @@ Verification must fail closed on:
 
 Use an isolated temporary state root.
 
-Seed known current files, restore the snapshot with explicit approval, and prove:
+Seed known current files, run `state restore <snapshot> --dry-run` first, then restore with explicit approval, and prove:
 
 - declared files recover exactly;
 - unrelated files survive;
