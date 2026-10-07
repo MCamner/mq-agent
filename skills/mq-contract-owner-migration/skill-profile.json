@@ -9,18 +9,11 @@
     "repo",
     "stack"
   ],
-  "intents": [
-    "plan",
-    "implement",
-    "fix"
-  ],
+  "intents": [],
   "domains": [
-    "stack",
-    "repo"
+    "contracts"
   ],
-  "risks": [
-    "cross_repo"
-  ],
+  "risks": [],
   "required_for": [],
   "supersedes": [],
   "skill": "mq-contract-owner-migration",
