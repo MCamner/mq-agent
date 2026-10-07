@@ -149,7 +149,7 @@ def validate_canary(
     if not comparison["valid"] or comparison["verdict"] != "CANDIDATE_BETTER":
         raise ValueError("canary comparison must be valid CANDIDATE_BETTER evidence")
     return {
-        "schema": "feedback-canary-validation.v1",
+        "kind": "feedback-canary-validation",
         "status": "PASS",
         "candidate_id": candidate_id,
         "approval_id": approval_id,
@@ -260,7 +260,7 @@ def rollback(
 def policy_status(task_class: str, root: Path | None = None) -> dict[str, Any]:
     events = [x for x in _policy_events(root) if x["task_class"] == task_class]
     return {
-        "schema": "feedback-policy-status.v1",
+        "kind": "feedback-policy-status",
         "task_class": task_class,
         "baseline_strategy": BASELINE_POLICIES.get(task_class, "context-pack-v1"),
         "effective_strategy": effective_strategy(task_class, root),
