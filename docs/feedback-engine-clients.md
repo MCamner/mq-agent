@@ -32,6 +32,27 @@ mq-agent feedback run \
 Consumers must treat the JSON result as authoritative. They may format it, but
 must not recalculate a verdict from the displayed metrics.
 
+## v1.31 controlled write boundary
+
+Approval, canary, activation, rollback and state-changing policy commands remain
+direct mq-agent operator surfaces. They are not exposed as generic mq-mcp tools
+for Codex/Claude. This preserves a single mutation owner and keeps human
+approval explicit.
+
+The controlled sequence is:
+
+```text
+activation-readiness
+  -> approve --approve
+  -> canary-run
+  -> activate --approve
+  -> post-activation-check
+  -> rollback --approve (when required)
+```
+
+Clients may render the resulting receipts/events/status but must not reimplement
+approval expiry, canary validation, effective-policy selection or rollback.
+
 ## Storage boundary
 
 Only `mq-agent` writes Feedback Engine runtime evidence.
