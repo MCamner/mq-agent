@@ -35,7 +35,6 @@ snapshots and rollback addresses one exact activation event.
   activation back on.
 - Existing `context pack --codegraph auto` behavior remains unchanged.
 
-
 ## [v1.32.0] — 2026-10-07
 
 Theme: Canary v2. Activation evidence is now a bounded, append-only
