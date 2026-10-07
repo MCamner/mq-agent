@@ -6,8 +6,7 @@
     "claude"
   ],
   "scope": [
-    "repo",
-    "local-state"
+    "repo"
   ],
   "intents": [
     "audit",
@@ -21,7 +20,7 @@
     "safety"
   ],
   "risks": [
-    "state-write",
+    "state_write",
     "privacy"
   ],
   "required_for": [],
