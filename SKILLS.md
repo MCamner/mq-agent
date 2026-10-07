@@ -17,9 +17,12 @@ The table below is generated from SKILL.md frontmatter by
 | ----- | ----------- |
 | [ci-diagnosis](skills/ci-diagnosis/SKILL.md) | Use when CI is failing. Diagnoses test, lint, and type check failures and generates fix steps. |
 | [github-branch-protection](skills/github-branch-protection/SKILL.md) | Inspect or configure GitHub default-branch protection with pull-request enforcement, repository-specific status checks, and explicit mutation approval. Use when GitHub reports that main or the default branch is unprotected. |
+| [mq-contract-owner-migration](skills/mq-contract-owner-migration/SKILL.md) | Use when an MQ contract must change across repositories. Enforces canonical-owner-first schema changes, tests, merge evidence, exact vendoring into consumers, and drift-gate verification. |
+| [mq-feedback-control-plane](skills/mq-feedback-control-plane/SKILL.md) | Use when operating or changing mq-agent's evidence-gated feedback control plane: readiness, human approval, post-approval canary, task-class activation, regression checks, rollback, kill switch, or policy consumption. |
 | [mq-interactive-command-design](skills/mq-interactive-command-design/SKILL.md) | Designs MQ interactive commands and launcher flows with clear choices, safe defaults, validation loops, and approval gates. Use for mqlaunch, mq-agent command flows, or guided repo operations. |
 | [mq-mcp-review-orchestration](skills/mq-mcp-review-orchestration/SKILL.md) | Use when adding or changing mq-agent workflows that route review, risk, security, architecture, or repo-aware cognition work through mq-mcp. |
 | [mq-secrets-public-safe](skills/mq-secrets-public-safe/SKILL.md) | Scans MQ repos for secrets, private paths, unsafe generated context, and public-boundary leaks before commits, releases, or publishing. Use before public PRs, generated AGENTS/CLAUDE files, CI changes, or repo publication. |
+| [mq-state-recovery-audit](skills/mq-state-recovery-audit/SKILL.md) | Use when reviewing or changing MQ local-state inventory, snapshot, verification, restore, disaster recovery, allowlists, hashes, or secret/privacy boundaries. |
 | [mq-subagent-driven-development](skills/mq-subagent-driven-development/SKILL.md) | Executes MQ implementation plans task-by-task using isolated implementer/reviewer roles, spec-compliance review, code-quality review, and strict approval gates. Use after an MQ plan exists. |
 | [mq-worktree-safe](skills/mq-worktree-safe/SKILL.md) | Creates an isolated Git worktree for MQ repo work with ignored-directory verification, clean-baseline checks, and approval gates. Use before implementation, refactors, dependency updates, risky experiments, or cross-repo MQ changes. |
 | [mq-writing-plans](skills/mq-writing-plans/SKILL.md) | Writes MQ implementation plans with exact files, repo ownership, gates, tests, rollback notes, and small executable tasks. Use before multi-step MQ changes, cross-repo work, roadmap implementation, or agent handoff. |
@@ -42,6 +45,9 @@ The table below is generated from SKILL.md frontmatter by
 | ci-diagnosis | `mq-agent fix-ci` |
 | visual-analysis | `mq-image analyze`, `mq-image analyze-ui`, `mq-image compare` |
 | mq-mcp-review-orchestration | `mq-agent review file/diff/repo` |
+| mq-contract-owner-migration | canonical owner first + `mq-agent stack contract-check` |
+| mq-feedback-control-plane | `mq-agent feedback <activation-readiness|approve|canary-run|activate|post-activation-check|rollback|policy>` |
+| mq-state-recovery-audit | `mq-agent state <inventory|snapshot|verify|restore>` |
 | stack-operations | `mq-agent stack <status\|report\|sweep\|history\|alert\|release-check\|release-notes\|contract-check\|release\|cockpit\|run\|loop\|brain-gate\|truth-export>` |
 
 ## Safety modes
