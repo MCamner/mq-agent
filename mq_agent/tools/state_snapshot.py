@@ -379,8 +379,7 @@ def snapshot(destination: Path) -> dict[str, Any]:
     manifest["snapshot_id"] = _manifest_id(manifest)
     validate_contract("state_snapshot.schema.json", manifest)
     (destination / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "
-",
+        json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     return manifest
