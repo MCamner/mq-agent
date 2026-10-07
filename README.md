@@ -331,6 +331,25 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## State Recovery v2 status
+
+Portable runtime recovery now covers deterministic Notebook metadata/checkpoint
+state without turning `mq-agent state` into a general backup mechanism.
+
+- [x] `mq.state-snapshot.v2` manifests are content-addressed
+- [x] every copied file carries size, SHA-256 and `sha256:` fingerprint evidence
+- [x] Notebook Drive inventory, corpus catalog/checkpoint and sync state are
+  allowlisted recovery components
+- [x] the local Notebook semantic index is recoverable only while it remains
+  versioned, non-canonical, disposable, and free of raw source text
+- [x] schema/version mismatch fails closed before snapshot or restore
+- [x] historical `mq.state-snapshot.v1` snapshots remain readable/restorable
+- [x] `state restore --dry-run` verifies and resolves targets without writes
+- [x] actual restore still requires explicit `--approve`
+- [x] unrelated current state is never deleted
+- [x] credentials, environment state, generic memory, Notebook source bodies,
+  and remote vector-store state remain excluded
+
 ## Perception Review v2 status
 
 The visual review path is now contract-bound end to end rather than stopping at
