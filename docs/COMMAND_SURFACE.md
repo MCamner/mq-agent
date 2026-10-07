@@ -75,6 +75,23 @@ push, finalize, or publish. `stack release` remains the lower-level engine.
 See [RELEASE_COCKPIT.md](RELEASE_COCKPIT.md) for state precedence and evidence
 limitations.
 
+## State Recovery Commands
+
+State recovery is allowlist-driven and portable; it is not a home-directory
+backup.
+
+| Command | Writes active state | Notes |
+|---|---:|---|
+| `mq-agent state inventory [--json]` | no | Lists allowlisted components and fingerprints |
+| `mq-agent state snapshot --output <dir> [--json]` | no | Creates content-addressed `mq.state-snapshot.v2` recovery evidence |
+| `mq-agent state verify <dir> [--json]` | no | Fails closed on manifest/file/schema drift |
+| `mq-agent state restore <dir> --dry-run [--json]` | no | Verifies and resolves exact targets only |
+| `mq-agent state restore <dir> --approve [--json]` | yes | Restores declared files only; never deletes unrelated state |
+
+Notebook recovery is limited to versioned local metadata/checkpoint state and
+the disposable local semantic index. Source bodies and remote vector state are
+outside this surface.
+
 ## Review Commands
 
 Review commands are orchestration-only. mq-agent calls mq-mcp review tools and
