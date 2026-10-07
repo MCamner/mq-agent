@@ -749,12 +749,18 @@ def _review_flags(
 
 
 def _coerce_mcp_json_payload(value: Any) -> Any:
-    """Unwrap common MCP JSON string payloads without interpreting their meaning."""
+    """Unwrap common MCP JSON payload wrappers without interpreting meaning."""
     if isinstance(value, str):
         try:
             return json.loads(value)
         except json.JSONDecodeError:
             return value
+    if isinstance(value, list):
+        for item in value:
+            coerced = _coerce_mcp_json_payload(item)
+            if isinstance(coerced, dict):
+                return coerced
+        return value
     if isinstance(value, dict):
         for key in ("result", "text"):
             nested = value.get(key)
@@ -762,9 +768,9 @@ def _coerce_mcp_json_payload(value: Any) -> Any:
                 coerced = _coerce_mcp_json_payload(nested)
                 if coerced is not nested:
                     return coerced
-        content = value.get("content")
-        if isinstance(content, list) and len(content) == 1:
-            return _coerce_mcp_json_payload(content[0])
+        wrapped = value.get("content")
+        if isinstance(wrapped, list) and len(wrapped) == 1:
+            return _coerce_mcp_json_payload(wrapped[0])
     return value
 
 
@@ -1150,14 +1156,26 @@ def review_perception_cmd(
         str | None,
         typer.Option("--source-type", help="screenshot, diagram, ui, terminal, or browser"),
     ] = None,
+    mode: Annotated[
+        str,
+        typer.Option("--mode", help="mq-mcp review mode: risk or architecture"),
+    ] = "risk",
+    receipt: Annotated[
+        bool,
+        typer.Option("--receipt", help="Require a content-bound perception review receipt"),
+    ] = False,
+    repo_path: Annotated[
+        str | None,
+        typer.Option("--repo", help="Optional repo path whose exact commit is bound into the receipt"),
+    ] = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
 ):
-    """Produce and inspect perception.v1 through mq-image-analyze.
+    """Produce perception.v1, review it through mq-mcp, and optionally bind a receipt.
 
-    This command is orchestration only: mq-image-analyze owns visual extraction.
-    mq-agent preserves the returned risk signals/limitations and does not invent
-    a second vision or review engine.
+    mq-image-analyze owns visual extraction. mq-mcp owns risk/architecture
+    review and the mq.perception-review.v1 contract. mq-agent only orchestrates,
+    validates the returned contracts and renders them.
     """
     if producer not in {"ui", "architecture", "ocr"}:
         raise typer.BadParameter("producer must be ui, architecture, or ocr")
@@ -1165,25 +1183,36 @@ def review_perception_cmd(
         raise typer.BadParameter(
             "source-type must be screenshot, diagram, ui, terminal, or browser"
         )
+    if mode not in {"risk", "architecture"}:
+        raise typer.BadParameter("mode must be risk or architecture")
     if dry_run:
-        suffix = f" source_type={source_type}" if source_type else ""
+        source_arg = f" source_type={source_type}" if source_type else ""
+        receipt_arg = " receipt=true" if receipt else ""
+        repo_arg = f" repo_path={repo_path}" if repo_path else ""
         console.print(
             f"[blue][dry-run][/blue] Would call: [bold]mq-image-analyze "
-            f"image_perception image_path={image_path} producer={producer}{suffix}[/bold]"
+            f"image_perception image_path={image_path} producer={producer}{source_arg}[/bold]"
+        )
+        console.print(
+            f"[blue][dry-run][/blue] Then call: [bold]mq-mcp review_perception "
+            f"perception=<perception.v1> producer={producer} mode={mode}"
+            f"{receipt_arg}{repo_arg}[/bold]"
         )
         return
 
     from mq_agent.tools.mcp_bridge import MultiMCPBridge, tool_failure
 
-    result = MultiMCPBridge().image_perception(
+    bridge = MultiMCPBridge()
+    perception_result = bridge.image_perception(
         image_path,
         producer=producer,
         source_type=source_type,
     )
-    failure = tool_failure("image_perception", result)
+    failure = tool_failure("image_perception", perception_result)
     if failure:
+        error = {"ok": False, "error": failure, "stage": "perception"}
         if json_out:
-            typer.echo(json.dumps({"ok": False, "error": failure}, indent=2))
+            typer.echo(json.dumps(error, indent=2))
         else:
             console.print(
                 Panel(
@@ -1194,15 +1223,18 @@ def review_perception_cmd(
             )
         raise typer.Exit(1)
 
-    payload = _coerce_mcp_json_payload(result)
-    if not isinstance(payload, dict):
+    perception = _coerce_mcp_json_payload(perception_result)
+    if not isinstance(perception, dict):
+        error = "perception payload is not an object"
         if json_out:
-            typer.echo(json.dumps({"ok": False, "error": "perception payload is not an object"}))
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
         else:
-            console.print("[bold red]perception payload is not an object[/bold red]")
+            console.print(f"[bold red]{error}[/bold red]")
         raise typer.Exit(1)
 
     required = {
+        "schema_version",
+        "evidence_id",
         "source_type",
         "source_path",
         "ocr_text",
@@ -1211,7 +1243,7 @@ def review_perception_cmd(
         "confidence",
         "limitations",
     }
-    missing = sorted(required - set(payload))
+    missing = sorted(required - set(perception))
     if missing:
         error = f"perception.v1 missing required fields: {', '.join(missing)}"
         if json_out:
@@ -1219,41 +1251,160 @@ def review_perception_cmd(
         else:
             console.print(f"[bold red]{error}[/bold red]")
         raise typer.Exit(1)
+    if perception.get("schema_version") != "perception.v1":
+        error = "perception payload is not schema_version perception.v1"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+    evidence_id = str(perception.get("evidence_id") or "")
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", evidence_id) is None:
+        error = "perception.v1 evidence_id is missing or malformed"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
 
-    review_payload: dict[str, Any] = {
-        "risk_signals": payload.get("risk_signals") or [],
-        "limitations": payload.get("limitations") or [],
-        "confidence": payload.get("confidence"),
-        "model_reinterpretation": False,
-    }
-    envelope: dict[str, Any] = {
-        "schema": "mq.perception-review.v1",
-        "status": "WARNING" if payload.get("risk_signals") else "PASS",
-        "producer": producer,
-        "perception": payload,
-        "review": review_payload,
-    }
+    review_result = bridge.review_perception(
+        perception,
+        producer=producer,
+        mode=mode,
+        receipt=receipt,
+        repo_path=repo_path,
+    )
+    failure = tool_failure("review_perception", review_result)
+    if failure:
+        error = {"ok": False, "error": failure, "stage": "review"}
+        if json_out:
+            typer.echo(json.dumps(error, indent=2))
+        else:
+            console.print(
+                Panel(
+                    Text(failure),
+                    title="[bold red]perception review unavailable[/bold red]",
+                    border_style="red",
+                )
+            )
+        raise typer.Exit(1)
+
+    envelope = _coerce_mcp_json_payload(review_result)
+    if not isinstance(envelope, dict):
+        error = "mq-mcp perception review payload is not an object"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+
+    review_payload: Any = envelope.get("review") if receipt else envelope
+    receipt_payload: Any = envelope.get("receipt") if receipt else None
+    if not isinstance(review_payload, dict):
+        error = "mq-mcp did not return mq.perception-review.v1"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+    if receipt and not isinstance(receipt_payload, dict):
+        error = "mq-mcp did not return mq.perception-review-receipt.v1"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+
     from mq_agent.tools.contract_validation import validate_contract
 
-    validate_contract("perception_review.schema.json", envelope)
+    try:
+        validate_contract("perception_review.schema.json", review_payload)
+        if isinstance(receipt_payload, dict):
+            validate_contract("perception_review_receipt.schema.json", receipt_payload)
+    except Exception as exc:
+        error = f"perception review contract validation failed: {exc}"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1) from exc
+
+    perception_ref = review_payload.get("perception_ref") or {}
+    if perception_ref.get("evidence_id") != evidence_id:
+        error = "mq-mcp review is not bound to the produced perception evidence"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+
+    if isinstance(receipt_payload, dict):
+        receipt_matches = (
+            receipt_payload.get("perception_evidence_id") == evidence_id
+            and receipt_payload.get("review_id") == review_payload.get("review_id")
+        )
+        if not receipt_matches:
+            error = "perception review receipt does not match review evidence"
+            if json_out:
+                typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+            else:
+                console.print(f"[bold red]{error}[/bold red]")
+            raise typer.Exit(1)
+        if receipt_payload.get("status") != "ISSUED":
+            if json_out:
+                typer.echo(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
+            else:
+                console.print(
+                    Panel(
+                        f"status: {receipt_payload.get('status')}\n"
+                        f"reason: {receipt_payload.get('reason')}",
+                        title="[bold red]Perception review receipt refused[/bold red]",
+                        border_style="red",
+                    )
+                )
+            raise typer.Exit(1)
+
     if json_out:
         typer.echo(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
         return
 
+    review = review_payload.get("review") or {}
+    reviewer = review_payload.get("reviewer") or {}
     console.print(
         Panel(
-            f"Source type: {payload.get('source_type')}\n"
-            f"Confidence: {payload.get('confidence')}\n"
-            f"Summary: {payload.get('visual_summary') or '—'}",
-            title=f"Perception Review — {envelope['status']}",
-            border_style="yellow" if envelope["status"] == "WARNING" else "green",
+            f"Mode: {review_payload.get('mode')}\n"
+            f"Evidence: {evidence_id}\n"
+            f"Confidence: {review.get('confidence')}\n"
+            f"Reviewer: {reviewer.get('component', 'mq-mcp')} "
+            f"{reviewer.get('version', '')}\n"
+            f"Summary: {review.get('summary') or '—'}",
+            title=f"Perception Review — {review_payload.get('status', 'UNKNOWN')}",
+            border_style="yellow" if review_payload.get("status") == "WARNING" else "green",
         )
     )
-    for signal in review_payload["risk_signals"]:
-        console.print(f"[yellow]risk:[/yellow] {signal}")
-    for limitation in review_payload["limitations"]:
+    for finding in review.get("findings") or []:
+        refs = ", ".join(str(ref) for ref in finding.get("evidence_refs") or [])
+        console.print(
+            f"[bold]{finding.get('severity', 'NOTE')}[/bold] "
+            f"{finding.get('category', 'perception')}: {finding.get('message', '')} "
+            f"[dim]({refs})[/dim]"
+        )
+    for limitation in review.get("limitations") or []:
         console.print(f"[dim]limitation:[/dim] {limitation}")
 
+    if isinstance(receipt_payload, dict):
+        repository = receipt_payload.get("repository") or {}
+        console.print(
+            Panel(
+                f"receipt: {receipt_payload.get('receipt_id')}\n"
+                f"perception: {receipt_payload.get('perception_evidence_id')}\n"
+                f"review: {receipt_payload.get('review_id')}\n"
+                f"repo: {repository.get('repo', '—')}\n"
+                f"commit: {repository.get('commit', '—')}",
+                title="[bold]Perception review receipt[/bold]",
+                border_style="green",
+            )
+        )
 
 def _contract_status_text(value: Any) -> str:
     """Flatten MCP content wrappers into text for status rendering."""
