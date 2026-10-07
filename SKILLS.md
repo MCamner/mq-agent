@@ -46,8 +46,8 @@ The table below is generated from SKILL.md frontmatter by
 | visual-analysis | `mq-image analyze`, `mq-image analyze-ui`, `mq-image compare` |
 | mq-mcp-review-orchestration | `mq-agent review file/diff/repo` |
 | mq-contract-owner-migration | canonical owner first + `mq-agent stack contract-check` |
-| mq-feedback-control-plane | `mq-agent feedback <activation-readiness|approve|canary-run|activate|post-activation-check|rollback|policy>` |
-| mq-state-recovery-audit | `mq-agent state <inventory|snapshot|verify|restore>` |
+| mq-feedback-control-plane | `mq-agent feedback <activation-readiness\|approve\|canary-run\|activate\|post-activation-check\|rollback\|policy>` |
+| mq-state-recovery-audit | `mq-agent state <inventory\|snapshot\|verify\|restore>` |
 | stack-operations | `mq-agent stack <status\|report\|sweep\|history\|alert\|release-check\|release-notes\|contract-check\|release\|cockpit\|run\|loop\|brain-gate\|truth-export>` |
 
 ## Safety modes
