@@ -75,6 +75,23 @@ push, finalize, or publish. `stack release` remains the lower-level engine.
 See [RELEASE_COCKPIT.md](RELEASE_COCKPIT.md) for state precedence and evidence
 limitations.
 
+## Workflow Session Checkpoint Commands
+
+Session checkpoints reuse existing workflow run state; they do not create a
+parallel workflow engine.
+
+| Command | Writes/executes | Notes |
+|---|---:|---|
+| `mq-agent workflow checkpoint create <run> --owner <label>` | checkpoint only | Paused/failed runs only; default TTL 24h, maximum 168h |
+| `mq-agent workflow checkpoint status <id> --owner <label>` | no | Verifies fingerprint, owner, expiry, run and template identity |
+| `mq-agent workflow checkpoint resume <id> --owner <label> --dry-run` | no | Shows exact resumable step ids without changing run state |
+| `mq-agent workflow checkpoint resume <id> --owner <label> --approve` | yes | Persists resume first, then executes remaining policy-allowed steps |
+
+The checkpoint artifact contains no task text, tool args/results, transcript
+capture, file bodies, environment state, credentials, or private absolute repo
+path. The owner label prevents accidental cross-operator reuse but is not an
+authentication primitive.
+
 ## State Recovery Commands
 
 State recovery is allowlist-driven and portable; it is not a home-directory
