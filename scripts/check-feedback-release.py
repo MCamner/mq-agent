@@ -24,6 +24,7 @@ SCHEMAS = {
     "mq.feedback-approval.v1": "feedback_approval.schema.json",
     "mq.feedback-policy-event.v1": "feedback_policy_event.schema.json",
     "mq.feedback-canary.v1": "feedback_canary.schema.json",
+    "mq.feedback-policy-snapshot.v1": "feedback_policy_snapshot.schema.json",
 }
 PUBLIC_DOCS = (
     ROOT / "docs" / "FEEDBACK_ENGINE.md",
@@ -152,6 +153,8 @@ def check_release_surfaces() -> None:
         fail("CHANGELOG does not describe the v1.31 Evidence-Gated Activation boundary")
     if VERSION >= Version("1.32.0") and "Canary v2" not in changelog:
         fail("CHANGELOG does not describe the v1.32 Canary v2 boundary")
+    if VERSION >= Version("1.33.0") and "Policy Registry v2" not in changelog:
+        fail("CHANGELOG does not describe the v1.33 Policy Registry v2 boundary")
     print(f"OK: README, changelog and pre-tag checklist carry the v{VERSION} boundary")
 
 
