@@ -9,19 +9,18 @@
     "repo"
   ],
   "intents": [
-    "audit",
-    "change",
-    "recover"
+    "review",
+    "implement",
+    "fix"
   ],
   "domains": [
-    "state",
-    "recovery",
-    "portability",
-    "safety"
+    "repo",
+    "runtime",
+    "security"
   ],
   "risks": [
-    "state_write",
-    "privacy"
+    "repo_write",
+    "secret_exposure"
   ],
   "required_for": [],
   "supersedes": [],
