@@ -268,6 +268,54 @@ def test_rollback_refuses_non_activation_and_legacy_unbound_activation(
         )
 
 
+def test_policy_registry_refuses_unknown_activation_id(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="resolve to exactly one"):
+        rollback(
+            "policy-does-not-exist-12345678",
+            reason="must fail closed",
+            root=tmp_path,
+        )
+
+
+def test_policy_registry_detects_snapshot_tamper(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import json
+
+    monkeypatch.setenv("MQ_FEEDBACK_ACTIVATION", "on")
+    candidate_id = _ready_candidate(tmp_path)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    canary_id = _passing_canary(
+        tmp_path,
+        candidate_id=candidate_id,
+        approval_id=approval["approval_id"],
+    )
+    event = activate(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        canary_id=canary_id,
+        reason="snapshot tamper test",
+        root=tmp_path,
+    )
+
+    path = tmp_path / "policy-snapshots.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    for row in rows:
+        if row["snapshot_id"] == event["before_snapshot_id"]:
+            row["effective_strategy"] = "tampered-strategy"
+    path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="snapshot store contains invalid|fingerprint mismatch"):
+        rollback(
+            event["event_id"],
+            reason="tampered snapshot must fail",
+            root=tmp_path,
+        )
+
+
 def test_kill_switch_restores_baseline_without_deleting_activation(
     tmp_path: Path, monkeypatch
 ) -> None:
