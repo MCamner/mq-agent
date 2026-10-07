@@ -10,7 +10,6 @@ This module is deliberately narrow:
 """
 from __future__ import annotations
 
-import json
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -20,7 +19,13 @@ from typing import Any
 from .candidates import candidate_detail
 from .contracts import validate_approval, validate_policy_event
 from .readiness import activation_readiness
-from .store import feedback_root, read_comparison_history, sanitize_feedback_record
+from .store import (
+    append_approval,
+    append_policy_event,
+    read_approval_history,
+    read_comparison_history,
+    read_policy_event_history,
+)
 
 APPROVALS_FILE = "approvals.jsonl"
 POLICY_EVENTS_FILE = "policy-events.jsonl"
@@ -43,35 +48,6 @@ def _now() -> datetime:
 
 def _iso(value: datetime) -> str:
     return value.isoformat().replace("+00:00", "Z")
-
-
-def _append(filename: str, record: dict[str, Any], root: Path | None = None) -> Path:
-    sanitized = sanitize_feedback_record(record)
-    if sanitized != record:
-        raise ValueError("control record contains data requiring redaction")
-    state_root = feedback_root(root)
-    state_root.mkdir(parents=True, exist_ok=True)
-    path = state_root / filename
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.chmod(path, 0o600)
-    return path
-
-
-def _read(filename: str, root: Path | None = None) -> list[dict[str, Any]]:
-    path = feedback_root(root) / filename
-    if not path.is_file():
-        return []
-    records: list[dict[str, Any]] = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        if not raw.strip():
-            continue
-        value = json.loads(raw)
-        if isinstance(value, dict):
-            records.append(value)
-    return records
 
 
 def approval_receipt(
@@ -113,12 +89,19 @@ def approval_receipt(
         "reason": reason.strip()[:320],
     }
     validate_approval(record)
-    _append(APPROVALS_FILE, record, root)
+    append_approval(record, root)
     return record
 
 
 def _approval(approval_id: str, root: Path | None = None) -> dict[str, Any]:
-    matches = [x for x in _read(APPROVALS_FILE, root) if x.get("approval_id") == approval_id]
+    history = read_approval_history(root)
+    if history.issues:
+        raise ValueError("approval store contains invalid records")
+    matches = [
+        item.record
+        for item in history.records
+        if item.record.get("approval_id") == approval_id
+    ]
     if len(matches) != 1:
         raise ValueError("approval must resolve to exactly one receipt")
     record = matches[0]
@@ -176,10 +159,10 @@ def validate_canary(
 
 
 def _policy_events(root: Path | None = None) -> list[dict[str, Any]]:
-    values = _read(POLICY_EVENTS_FILE, root)
-    for value in values:
-        validate_policy_event(value)
-    return values
+    history = read_policy_event_history(root)
+    if history.issues:
+        raise ValueError("policy event store contains invalid records")
+    return [item.record for item in history.records]
 
 
 def effective_strategy(task_class: str, root: Path | None = None) -> str:
@@ -235,7 +218,7 @@ def activate(
         "reason": reason.strip()[:320],
     }
     validate_policy_event(record)
-    _append(POLICY_EVENTS_FILE, record, root)
+    append_policy_event(record, root)
     return record
 
 
@@ -270,7 +253,7 @@ def rollback(
         "reason": reason.strip()[:320],
     }
     validate_policy_event(record)
-    _append(POLICY_EVENTS_FILE, record, root)
+    append_policy_event(record, root)
     return record
 
 
