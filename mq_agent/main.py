@@ -1220,17 +1220,18 @@ def review_perception_cmd(
             console.print(f"[bold red]{error}[/bold red]")
         raise typer.Exit(1)
 
-    envelope = {
+    review_payload: dict[str, Any] = {
+        "risk_signals": payload.get("risk_signals") or [],
+        "limitations": payload.get("limitations") or [],
+        "confidence": payload.get("confidence"),
+        "model_reinterpretation": False,
+    }
+    envelope: dict[str, Any] = {
         "schema": "mq.perception-review.v1",
         "status": "WARNING" if payload.get("risk_signals") else "PASS",
         "producer": producer,
         "perception": payload,
-        "review": {
-            "risk_signals": payload.get("risk_signals") or [],
-            "limitations": payload.get("limitations") or [],
-            "confidence": payload.get("confidence"),
-            "model_reinterpretation": False,
-        },
+        "review": review_payload,
     }
     from mq_agent.tools.contract_validation import validate_contract
 
@@ -1248,9 +1249,9 @@ def review_perception_cmd(
             border_style="yellow" if envelope["status"] == "WARNING" else "green",
         )
     )
-    for signal in envelope["review"]["risk_signals"]:
+    for signal in review_payload["risk_signals"]:
         console.print(f"[yellow]risk:[/yellow] {signal}")
-    for limitation in envelope["review"]["limitations"]:
+    for limitation in review_payload["limitations"]:
         console.print(f"[dim]limitation:[/dim] {limitation}")
 
 
