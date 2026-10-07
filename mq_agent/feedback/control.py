@@ -30,7 +30,9 @@ BASELINE_POLICIES = {
     "repo-review": "context-pack-v1",
 }
 STRATEGY_CODEGRAPH = {
-    "context-pack-v1": "off",
+    # Baseline preserves mq-agent's existing source-heavy "auto" heuristic.
+    "context-pack-v1": "auto",
+    # Candidate makes CodeGraph guidance explicit for the task class.
     "context-pack-v1+codegraph-guidance": "on",
 }
 
