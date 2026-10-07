@@ -21,7 +21,7 @@
     "interoperability"
   ],
   "risks": [
-    "cross-repo-drift"
+    "cross_repo_drift"
   ],
   "required_for": [],
   "supersedes": [],
