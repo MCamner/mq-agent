@@ -54,7 +54,9 @@ The control plane is fail-closed.
 - Activation must re-verify the Canary v2 evidence references.
 - Activation is scoped to one task class.
 - Activation and rollback are append-only policy events.
-- Rollback must only reverse the currently active activation; it must never act as a toggle.
+- New policy events are bound to immutable content-fingerprinted policy snapshots.
+- Rollback addresses one exact activation event id and must only reverse the
+  currently active activation; it must never act as a toggle.
 - Existing default consumer behavior must not change merely because a policy exists.
 - Feedback policy consumption is explicit through `--codegraph policy`.
 - `MQ_FEEDBACK_ACTIVATION=off` restores baseline behavior without deleting evidence.
@@ -130,7 +132,7 @@ mq-agent feedback post-activation-check <task-class> \
 Rollback on a material regression:
 
 ```bash
-mq-agent feedback rollback <task-class> \
+mq-agent feedback rollback <activation-event-id> \
   --reason "material regression observed" \
   --approve \
   --json
@@ -143,7 +145,8 @@ When modifying this control plane:
 1. Preserve append-only evidence and policy history.
 2. Add a negative test for every new refusal condition.
 3. Prove stale approval, stale policy snapshot, duplicate RESULT, missing evidence
-   references, non-PASS canary, task-class mismatch, and repeated rollback fail closed.
+   references, non-PASS canary, task-class mismatch, stale snapshot binding,
+   historical activation-id, and repeated rollback fail closed.
 4. Keep activation behind explicit operator approval.
 5. Keep the baseline/default consumer path unchanged unless the change explicitly targets that contract.
 6. Do not add an MCP or client-specific mutation path that bypasses mq-agent.
