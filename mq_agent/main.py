@@ -4547,7 +4547,7 @@ def context_pack_cmd(
     target: Annotated[str, typer.Option("--target", help="codex, claude, or both")] = "both",
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
     repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs, used to detect .codegraph/ (default: ~)")] = "",
-    codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto (policy/default), on, or off")] = "auto",
+    codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto, on, off, or policy (feedback-controlled)")] = "auto",
     task_class: Annotated[str, typer.Option("--task-class", help="Task class used for feedback-controlled context policy")] = "repo-review",
     symbol: Annotated[list[str], typer.Option("--symbol", help="Named symbol for a CodeGraph callers/impact query (repeatable)")] = [],
     output: Annotated[str, typer.Option("--output", "--out", help="Write the pack here instead of stdout")] = "",
@@ -4565,8 +4565,8 @@ def context_pack_cmd(
     if target not in {"codex", "claude", "both"}:
         console.print("[bold red]target must be codex, claude, or both[/bold red]")
         raise typer.Exit(2)
-    if codegraph not in {"auto", "on", "off"}:
-        console.print("[bold red]codegraph must be auto, on, or off[/bold red]")
+    if codegraph not in {"auto", "on", "off", "policy"}:
+        console.print("[bold red]codegraph must be auto, on, off, or policy[/bold red]")
         raise typer.Exit(2)
 
     parsed_exclusions: list[dict[str, str]] = []
@@ -4586,7 +4586,7 @@ def context_pack_cmd(
 
     resolved_codegraph = codegraph
     policy_strategy = None
-    if codegraph == "auto":
+    if codegraph == "policy":
         from mq_agent.feedback.control import effective_strategy, strategy_codegraph
         policy_strategy = effective_strategy(task_class)
         resolved_codegraph = strategy_codegraph(policy_strategy)
@@ -4609,7 +4609,7 @@ def context_pack_cmd(
             "task_class": task_class,
             "strategy": policy_strategy,
             "codegraph": resolved_codegraph,
-            "explicit_override": codegraph != "auto",
+            "explicit_policy": codegraph == "policy",
         }
     except ValueError as exc:
         # Chiefly a missing or malformed selection-vocabulary contract. The vault
