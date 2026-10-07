@@ -10,18 +10,16 @@
     "stack"
   ],
   "intents": [
-    "change",
-    "migrate",
-    "repair"
+    "plan",
+    "implement",
+    "fix"
   ],
   "domains": [
-    "contracts",
-    "schemas",
-    "governance",
-    "interoperability"
+    "stack",
+    "repo"
   ],
   "risks": [
-    "cross_repo_drift"
+    "cross_repo"
   ],
   "required_for": [],
   "supersedes": [],
