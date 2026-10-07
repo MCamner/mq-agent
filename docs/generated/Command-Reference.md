@@ -3006,6 +3006,7 @@ Bounded multi-step workflow templates (list/show/plan). Read-only in v1.
 | Subcommand | Description |
 |---|---|
 | [`mq-agent workflow cancel`](#mq-agent-workflow-cancel) | Cancel a run. |
+| [`mq-agent workflow checkpoint`](#mq-agent-workflow-checkpoint) | Create, inspect, and resume bounded workflow session checkpoints. |
 | [`mq-agent workflow list`](#mq-agent-workflow-list) | List the available workflow templates. |
 | [`mq-agent workflow plan`](#mq-agent-workflow-plan) | Build and print a validated plan for REPO. Does not run or persist it. |
 | [`mq-agent workflow resume`](#mq-agent-workflow-resume) | Resume a paused or failed run from where it stopped. |
@@ -3022,6 +3023,72 @@ Cancel a run.
 | Argument | Required | Default | Description |
 |---|---:|---|---|
 | `RUN_ID` | Yes | — | Run id to cancel. |
+
+## `mq-agent workflow checkpoint`
+
+Create, inspect, and resume bounded workflow session checkpoints.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent workflow checkpoint create`](#mq-agent-workflow-checkpoint-create) | Create a bounded content-addressed checkpoint over one workflow run. |
+| [`mq-agent workflow checkpoint resume`](#mq-agent-workflow-checkpoint-resume) | Resume exactly one verified checkpoint; fail closed on drift or expiry. |
+| [`mq-agent workflow checkpoint status`](#mq-agent-workflow-checkpoint-status) | Verify checkpoint integrity, expiry, run identity, and template identity. |
+
+## `mq-agent workflow checkpoint create`
+
+Create a bounded content-addressed checkpoint over one workflow run.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `RUN_ID` | Yes | — | Paused or failed workflow run id. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Explicit checkpoint owner label. |
+| `--ttl-hours` | No | `24` | Checkpoint lifetime in hours (1-168). |
+| `--json` | No | `false` | — |
+
+## `mq-agent workflow checkpoint resume`
+
+Resume exactly one verified checkpoint; fail closed on drift or expiry.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CHECKPOINT_ID` | Yes | — | sha256 checkpoint id. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Expected checkpoint owner label. |
+| `--approve` | No | `false` | Required to persist resume state and execute remaining workflow steps. |
+| `--dry-run` | No | `false` | Verify checkpoint and show the resume plan without writing or executing. |
+| `--json` | No | `false` | — |
+
+## `mq-agent workflow checkpoint status`
+
+Verify checkpoint integrity, expiry, run identity, and template identity.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CHECKPOINT_ID` | Yes | — | sha256 checkpoint id. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Expected checkpoint owner label. |
+| `--json` | No | `false` | — |
 
 ## `mq-agent workflow list`
 
