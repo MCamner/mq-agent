@@ -23,6 +23,8 @@ from .store import (
     append_canary,
     read_approval_history,
     read_canary_history,
+    read_comparison_history,
+    read_experiment_history,
 )
 
 SCHEMA_ID = "mq.feedback-canary.v1"
@@ -452,4 +454,47 @@ def require_passing_canary(
         raise ValueError("canary current strategy does not match candidate")
     if result["proposed_strategy"] != candidate["proposed_strategy"]:
         raise ValueError("canary proposed strategy does not match candidate")
+
+    experiments = read_experiment_history(root)
+    comparisons = read_comparison_history(root)
+    if experiments.issues or comparisons.issues:
+        raise ValueError("canary evidence history contains invalid records")
+
+    experiment_by_id: dict[str, list[dict[str, Any]]] = {}
+    for item in experiments.records:
+        experiment_by_id.setdefault(item.record["feedback_run_id"], []).append(item.record)
+    comparison_by_id: dict[str, list[dict[str, Any]]] = {}
+    for item in comparisons.records:
+        comparison_by_id.setdefault(item.record["comparison_id"], []).append(item.record)
+
+    if result["executions_completed"] != len(result["feedback_run_ids"]):
+        raise ValueError("canary execution count does not match feedback_run_ids")
+    for feedback_run_id in result["feedback_run_ids"]:
+        matches = experiment_by_id.get(feedback_run_id, [])
+        if len(matches) != 1:
+            raise ValueError("canary feedback run must resolve exactly once")
+        experiment = matches[0]
+        if experiment["task_class"] != plan["task_class"]:
+            raise ValueError("canary feedback run task class mismatch")
+        if experiment["active_strategy"] != plan["current_strategy"]:
+            raise ValueError("canary feedback run active strategy mismatch")
+        if experiment["shadow_strategy"] != plan["proposed_strategy"]:
+            raise ValueError("canary feedback run shadow strategy mismatch")
+
+    better = 0
+    for comparison_id in result["comparison_ids"]:
+        matches = comparison_by_id.get(comparison_id, [])
+        if len(matches) != 1:
+            raise ValueError("canary comparison must resolve exactly once")
+        comparison = matches[0]
+        if comparison["task_class"] != plan["task_class"]:
+            raise ValueError("canary comparison task class mismatch")
+        if comparison["active_strategy"] != plan["current_strategy"]:
+            raise ValueError("canary comparison active strategy mismatch")
+        if comparison["shadow_strategy"] != plan["proposed_strategy"]:
+            raise ValueError("canary comparison shadow strategy mismatch")
+        if comparison["verdict"] == "CANDIDATE_BETTER":
+            better += 1
+    if better < result["successes"]:
+        raise ValueError("canary success count exceeds verified better comparisons")
     return result
