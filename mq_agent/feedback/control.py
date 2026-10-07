@@ -235,12 +235,12 @@ def rollback(
         raise ValueError("rollback requires a reason")
     events = [x for x in _policy_events(root) if x["task_class"] == task_class]
     current = effective_strategy(task_class, root)
-    target = BASELINE_POLICIES.get(task_class, "context-pack-v1")
-    if events:
-        latest = events[-1]
-        target = latest["from_strategy"]
-    if current == target:
-        raise ValueError("policy is already at its rollback target")
+    if not events or events[-1]["event_type"] != "ACTIVATION":
+        raise ValueError("no active activation is available to roll back")
+    latest = events[-1]
+    if current != latest["to_strategy"]:
+        raise ValueError("effective policy no longer matches the activation to roll back")
+    target = latest["from_strategy"]
     record = {
         "schema": "mq.feedback-policy-event.v1",
         "event_id": f"policy-{uuid.uuid4()}",
