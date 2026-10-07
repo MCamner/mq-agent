@@ -374,6 +374,22 @@ class MultiMCPBridge:
             _review_repo_args(path, _mq_mcp_review_args(flags)),
         )
 
+    def image_perception(
+        self,
+        image_path: str,
+        *,
+        producer: str,
+        source_type: str | None = None,
+    ) -> Any:
+        """Produce mq-image-analyze perception.v1 without implementing vision here."""
+        args: dict[str, Any] = {
+            "image_path": image_path,
+            "producer": producer,
+        }
+        if source_type:
+            args["source_type"] = source_type
+        return self._call_required_tool("image_perception", args)
+
     def search_semantic_memory(self, query: str) -> Any:
         """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""
         return self._call_required_tool("search_semantic_memory", {"query": query})
