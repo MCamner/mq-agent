@@ -44,14 +44,17 @@ The controlled sequence is:
 ```text
 activation-readiness
   -> approve --approve
+  -> canary-plan
   -> canary-run
-  -> activate --approve
+  -> canary-status
+  -> activate --canary-id ... --approve
   -> post-activation-check
   -> rollback --approve (when required)
 ```
 
 Clients may render the resulting receipts/events/status but must not reimplement
-approval expiry, canary validation, effective-policy selection or rollback.
+approval expiry, Canary v2 planning/verdict logic, evidence-reference
+verification, effective-policy selection or rollback.
 
 ## Storage boundary
 
