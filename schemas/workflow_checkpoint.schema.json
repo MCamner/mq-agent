@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.workflow-checkpoint.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "checkpoint_id",
+    "created_at",
+    "expires_at",
+    "owner",
+    "run"
+  ],
+  "properties": {
+    "schema": { "const": "mq.workflow-checkpoint.v1" },
+    "checkpoint_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@+\\-]{0,127}$"
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "run_fingerprint",
+        "status",
+        "template",
+        "template_fingerprint",
+        "repo_name",
+        "current_step",
+        "passed_steps",
+        "resumable_steps",
+        "replans_used"
+      ],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "run_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "status": { "enum": ["paused", "failed"] },
+        "template": { "type": "string", "minLength": 1 },
+        "template_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "repo_name": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "current_step": { "type": ["string", "null"] },
+        "passed_steps": {
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "resumable_steps": {
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "replans_used": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}
