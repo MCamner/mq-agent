@@ -10,11 +10,15 @@ from jsonschema import Draft202012Validator
 COMPARISON_SCHEMA_ID = "mq.feedback-comparison.v1"
 CANDIDATE_SCHEMA_ID = "mq.feedback-candidate.v1"
 ACTIVATION_READINESS_SCHEMA_ID = "mq.feedback-activation-readiness.v1"
+APPROVAL_SCHEMA_ID = "mq.feedback-approval.v1"
+POLICY_EVENT_SCHEMA_ID = "mq.feedback-policy-event.v1"
 
 _SCHEMA_FILES = {
     COMPARISON_SCHEMA_ID: "feedback_comparison.schema.json",
     CANDIDATE_SCHEMA_ID: "feedback_candidate.schema.json",
     ACTIVATION_READINESS_SCHEMA_ID: "feedback_activation_readiness.schema.json",
+    APPROVAL_SCHEMA_ID: "feedback_approval.schema.json",
+    POLICY_EVENT_SCHEMA_ID: "feedback_policy_event.schema.json",
 }
 
 
@@ -41,3 +45,11 @@ def validate_candidate(record: dict[str, Any]) -> None:
 
 def validate_activation_readiness(record: dict[str, Any]) -> None:
     validator(ACTIVATION_READINESS_SCHEMA_ID).validate(record)
+
+
+def validate_approval(record: dict[str, Any]) -> None:
+    validator(APPROVAL_SCHEMA_ID).validate(record)
+
+
+def validate_policy_event(record: dict[str, Any]) -> None:
+    validator(POLICY_EVENT_SCHEMA_ID).validate(record)

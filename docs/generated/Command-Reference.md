@@ -43,6 +43,7 @@ This page is a projection of it.
 | [`mq-agent signal`](#mq-agent-signal) | command | Run a full repo-signal assessment: scan + README score + publish checklist + AI plan. Requires repo-signal to be installed: uv pip install repo-signal |
 | [`mq-agent skills`](#mq-agent-skills) | group | Inspect and select local skills for a task. |
 | [`mq-agent stack`](#mq-agent-stack) | group | mq-stack repo inventory, status, and Obsidian export. |
+| [`mq-agent state`](#mq-agent-state) | group | Inventory, snapshot, verify and restore allowlisted MQ runtime state. |
 | [`mq-agent swarm`](#mq-agent-swarm) | group | Multi-agent swarm workflows. |
 | [`mq-agent task`](#mq-agent-task) | group | Run declarative YAML task workflows. |
 | [`mq-agent tools`](#mq-agent-tools) | command | List registered tools. Use --describe `<name>` for details, --mcp to include MCP tools. |
@@ -358,7 +359,8 @@ Generate a small task-specific `context-pack.v1` pack from mqobsidian cards. Pha
 | `--target` | No | `both` | codex, claude, or both |
 | `--vault` | No | `""` | mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian) |
 | `--repos-root` | No | `""` | Root holding `<repo>`/ dirs, used to detect .codegraph/ (default: ~) |
-| `--codegraph` | No | `auto` | CodeGraph hint: auto (source-heavy only), on, or off |
+| `--codegraph` | No | `auto` | CodeGraph hint: auto, on, off, or policy (feedback-controlled) |
+| `--task-class` | No | `repo-review` | Task class used for feedback-controlled context policy |
 | `--symbol` | No | — | Named symbol for a CodeGraph callers/impact query (repeatable) |
 | `--output`, `--out` | No | `""` | Write the pack here instead of stdout |
 | `--json` | No | `false` | — |
@@ -463,18 +465,45 @@ Run and inspect evidence-grounded feedback experiments.
 
 | Subcommand | Description |
 |---|---|
+| [`mq-agent feedback activate`](#mq-agent-feedback-activate) | Activate one task-class strategy after approval and passing canary evidence. |
 | [`mq-agent feedback activation-readiness`](#mq-agent-feedback-activation-readiness) | Check evidence readiness for human activation approval; never activates. |
+| [`mq-agent feedback approve`](#mq-agent-feedback-approve) | Issue an expiring approval receipt bound to exact candidate evidence. |
+| [`mq-agent feedback canary-check`](#mq-agent-feedback-canary-check) | Validate post-approval candidate evidence as a canary; read-only. |
+| [`mq-agent feedback canary-run`](#mq-agent-feedback-canary-run) | Run a post-approval zero-effect canary and bind its comparison to approval. |
 | [`mq-agent feedback candidate`](#mq-agent-feedback-candidate) | Show one candidate with its immutable comparison evidence. |
 | [`mq-agent feedback candidate-handoff`](#mq-agent-feedback-candidate-handoff) | Submit an approved memory candidate to mqobsidian's review inbox. |
 | [`mq-agent feedback candidate-state`](#mq-agent-feedback-candidate-state) | Append a human review state; never activates a policy. |
 | [`mq-agent feedback candidates`](#mq-agent-feedback-candidates) | List effective reviewable improvement candidates. |
 | [`mq-agent feedback compare`](#mq-agent-feedback-compare) | Read the latest comparison or derive one from explicit relevance evidence. |
 | [`mq-agent feedback inspect`](#mq-agent-feedback-inspect) | Explain one immutable experiment, comparison and candidate chain. |
+| [`mq-agent feedback policy`](#mq-agent-feedback-policy) | Show the effective feedback-controlled task-class policy. |
+| [`mq-agent feedback post-activation-check`](#mq-agent-feedback-post-activation-check) | Surface material regressions against the measured shadow baseline. |
 | [`mq-agent feedback purge`](#mq-agent-feedback-purge) | Delete local runtime feedback evidence; production behavior is unchanged. |
 | [`mq-agent feedback recent`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
 | [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without recomputing a verdict. |
+| [`mq-agent feedback rollback`](#mq-agent-feedback-rollback) | Roll one task class back to the immediately previous strategy. |
 | [`mq-agent feedback run`](#mq-agent-feedback-run) | Run one zero-effect active-versus-shadow repo-review experiment. |
 | [`mq-agent feedback status`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
+
+## `mq-agent feedback activate`
+
+Activate one task-class strategy after approval and passing canary evidence.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--approval-id` | Yes | — | — |
+| `--canary-comparison-id` | Yes | — | — |
+| `--reason` | Yes | — | — |
+| `--approve` | No | `false` | Required: change one task-class policy |
+| `--json` | No | `false` | — |
 
 ## `mq-agent feedback activation-readiness`
 
@@ -490,6 +519,67 @@ Check evidence readiness for human activation approval; never activates.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback approve`
+
+Issue an expiring approval receipt bound to exact candidate evidence.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--reason` | Yes | — | Human approval reason |
+| `--expires-hours` | No | `24` | — |
+| `--approve` | No | `false` | Required: issue approval receipt |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback canary-check`
+
+Validate post-approval candidate evidence as a canary; read-only.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--approval-id` | Yes | — | — |
+| `--comparison-id` | Yes | — | Post-approval canary comparison |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback canary-run`
+
+Run a post-approval zero-effect canary and bind its comparison to approval.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Approved feedback candidate |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--approval-id` | Yes | — | — |
+| `--task` | Yes | — | Task used only for zero-effect context selection |
+| `--fixture` | Yes | — | Deterministic relevance fixture JSON |
+| `--repo` | No | `.` | Clean Git repository to evaluate |
+| `--vault` | No | — | mqobsidian vault override |
+| `--timeout-ms` | No | `2000` | — |
+| `--max-context-bytes` | No | `65536` | — |
+| `--max-sources` | No | `64` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback candidate`
@@ -587,6 +677,39 @@ Explain one immutable experiment, comparison and candidate chain.
 |---|---:|---|---|
 | `--json` | No | `false` | — |
 
+## `mq-agent feedback policy`
+
+Show the effective feedback-controlled task-class policy.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_CLASS` | No | `repo-review` | Task class |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback post-activation-check`
+
+Surface material regressions against the measured shadow baseline.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_CLASS` | Yes | — | Activated task class |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--comparison-id` | Yes | — | — |
+| `--json` | No | `false` | — |
+
 ## `mq-agent feedback purge`
 
 Delete local runtime feedback evidence; production behavior is unchanged.
@@ -619,6 +742,24 @@ Aggregate feedback evidence without recomputing a verdict.
 |---|---:|---|---|
 | `--task-class` | No | — | Limit report to one task class |
 | `--since` | No | — | Positive day window, e.g. 30d |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback rollback`
+
+Roll one task class back to the immediately previous strategy.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_CLASS` | Yes | — | Task class to roll back |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--reason` | Yes | — | — |
+| `--approve` | No | `false` | Required: append rollback event |
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback run`
@@ -958,6 +1099,7 @@ Semantic repository memory commands.
 | [`mq-agent memory build`](#mq-agent-memory-build) | Preview semantic repo memory upload. Non-dry-run uses refresh safety. |
 | [`mq-agent memory doctor`](#mq-agent-memory-doctor) | Diagnose semantic memory environment. |
 | [`mq-agent memory emit-cochange`](#mq-agent-memory-emit-cochange) | Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is the producer; Bridget/CG-2 is the evidence source. Writes nothing when no co-change cluster clears the gate. mqobsidian scores and promotes. |
+| [`mq-agent memory hybrid-shadow`](#mq-agent-memory-hybrid-shadow) | Compare active semantic memory with hybrid retrieval in zero-effect shadow mode. |
 | [`mq-agent memory inbox-cochange`](#mq-agent-memory-inbox-cochange) | Operator-triggered co-change intake: emit → score → writeback → status. Runs the autonomous learning loop end-to-end for one file, but only when you ask (not auto-after-workflow). mq-agent orchestrates; Bridget/CG-2 is evidence source; mqobsidian owns scoring/writeback/status (invoked via its own local-only CLI). |
 | [`mq-agent memory ingest`](#mq-agent-memory-ingest) | Scan mqobsidian memory notes into a local read-only index. |
 | [`mq-agent memory learn-writeback`](#mq-agent-memory-learn-writeback) | Materialise durable agent-readable memory for PROMOTED memories. Dry-run by default. inbox-cochange runs this as stage 4 of intake; this is the same verb standalone, for promotions that landed another way. mqobsidian decides what counts as promoted — candidate and observed memories are never written. |
@@ -969,6 +1111,7 @@ Semantic repository memory commands.
 | [`mq-agent memory review-status`](#mq-agent-memory-review-status) | Show the mqobsidian scoring review state: tier tally + held review queues (read-only). Delegates to mqobsidian's local-only CLI; mq-agent stays the orchestrator so mqlaunch never reaches mqobsidian directly. |
 | [`mq-agent memory search`](#mq-agent-memory-search) | Search mq-mcp semantic memory. Read-only. Requires mq-mcp v1.4.0+. |
 | [`mq-agent memory search-vault`](#mq-agent-memory-search-vault) | Search mqobsidian memory notes. Alias: search-vault. |
+| [`mq-agent memory session-handoff`](#mq-agent-memory-session-handoff) | Submit typed session facts as memory-observation.v1 for normal review. |
 | [`mq-agent memory status`](#mq-agent-memory-status) | Check semantic repository memory availability. |
 | [`mq-agent memory store`](#mq-agent-memory-store) | Store an item in mq-mcp semantic memory. Class C write tool — requires --approve. |
 | [`mq-agent memory summarize`](#mq-agent-memory-summarize) | Summarize mqobsidian memory by section. |
@@ -1024,6 +1167,26 @@ Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is
 | `--min-confidence` | No | `0.05` | Cluster confidence gate (weak-signal intake; default low) |
 | `--min-support` | No | `2` | Min co-change count |
 | `--vault` | No | — | mqobsidian vault path |
+
+## `mq-agent memory hybrid-shadow`
+
+Compare active semantic memory with hybrid retrieval in zero-effect shadow mode.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Retrieval query |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Optional notebook-corpus-index.v1 JSON |
+| `--semantic-index` | No | `""` | Optional local notebook semantic index JSON |
+| `--semantic-model` | No | `nomic-embed-text` | Local Ollama embedding model |
+| `--top-k` | No | `10` | — |
+| `--json` | No | `false` | — |
 
 ## `mq-agent memory inbox-cochange`
 
@@ -1194,6 +1357,26 @@ Search mqobsidian memory notes. Alias: search-vault.
 |---|---:|---|---|
 | `--vault` | No | — | mqobsidian vault path |
 | `--limit` | No | `10` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory session-handoff`
+
+Submit typed session facts as memory-observation.v1 for normal review.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--session-id` | Yes | — | — |
+| `--task-class` | Yes | — | — |
+| `--repo` | Yes | — | — |
+| `--outcome` | Yes | — | — |
+| `--decision` | No | — | Verified decision (repeatable) |
+| `--artifact` | No | — | Evidence/artifact reference (repeatable) |
+| `--correction` | No | — | Explicit operator correction (repeatable) |
+| `--confidence` | No | `0.7` | — |
+| `--vault` | No | `""` | mqobsidian vault override |
+| `--approve` | No | `false` | Required: append a memory observation candidate |
 | `--json` | No | `false` | — |
 
 ## `mq-agent memory status`
@@ -1901,6 +2084,7 @@ Pass-through mq-mcp review orchestration.
 |---|---|
 | [`mq-agent review diff`](#mq-agent-review-diff) | Review the current diff through mq-mcp. Findings are passed through. |
 | [`mq-agent review file`](#mq-agent-review-file) | Review one file through mq-mcp. mq-agent does not implement review logic. |
+| [`mq-agent review perception`](#mq-agent-review-perception) | Produce and inspect perception.v1 through mq-image-analyze. This command is orchestration only: mq-image-analyze owns visual extraction. mq-agent preserves the returned risk signals/limitations and does not invent a second vision or review engine. |
 | [`mq-agent review repo`](#mq-agent-review-repo) | Review a repo through mq-mcp. mq-agent renders mq-mcp output only. |
 
 ## `mq-agent review diff`
@@ -1945,6 +2129,25 @@ Review one file through mq-mcp. mq-agent does not implement review logic.
 | `--repo` | No | — | External repo path the file lives in (within mq-mcp allowlist) |
 | `--json` | No | `false` | — |
 | `--dry-run` | No | `false` | Show what would be called, no execution |
+
+## `mq-agent review perception`
+
+Produce and inspect perception.v1 through mq-image-analyze. This command is orchestration only: mq-image-analyze owns visual extraction. mq-agent preserves the returned risk signals/limitations and does not invent a second vision or review engine.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `IMAGE_PATH` | Yes | — | Image/screenshot/diagram path |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--producer` | No | `ui` | ui, architecture, or ocr |
+| `--source-type` | No | — | screenshot, diagram, ui, terminal, or browser |
+| `--json` | No | `false` | — |
+| `--dry-run` | No | `false` | — |
 
 ## `mq-agent review repo`
 
@@ -2536,6 +2739,73 @@ Write the mq-stack truth snapshot (contract + release gates) to mqobsidian. Prim
 | `--dry-run` | No | `false` | — |
 | `--json` | No | `false` | — |
 | `--rebuild-views` | No | `false` | Also rebuild agent views after export (opt-in, off by default) |
+
+## `mq-agent state`
+
+Inventory, snapshot, verify and restore allowlisted MQ runtime state.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent state inventory`](#mq-agent-state-inventory) | Inventory allowlisted, sanitized local MQ runtime state. |
+| [`mq-agent state restore`](#mq-agent-state-restore) | Restore manifest-declared files only; never delete unrelated current state. |
+| [`mq-agent state snapshot`](#mq-agent-state-snapshot) | Copy allowlisted runtime state into a portable content-hashed snapshot. |
+| [`mq-agent state verify`](#mq-agent-state-verify) | Verify manifest, hashes, paths and unexpected files without writing state. |
+
+## `mq-agent state inventory`
+
+Inventory allowlisted, sanitized local MQ runtime state.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent state restore`
+
+Restore manifest-declared files only; never delete unrelated current state.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `SNAPSHOT_DIR` | Yes | — | Verified snapshot directory |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--approve` | No | `false` | Required: restore allowlisted runtime state |
+| `--json` | No | `false` | — |
+
+## `mq-agent state snapshot`
+
+Copy allowlisted runtime state into a portable content-hashed snapshot.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--output` | Yes | — | Empty/new snapshot directory |
+| `--json` | No | `false` | — |
+
+## `mq-agent state verify`
+
+Verify manifest, hashes, paths and unexpected files without writing state.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `SNAPSHOT_DIR` | Yes | — | Snapshot directory |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
 
 ## `mq-agent swarm`
 

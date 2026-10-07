@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.state-snapshot.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","created_at","components","excluded"],
+  "properties": {
+    "schema":{"const":"mq.state-snapshot.v1"},
+    "created_at":{"type":"string","format":"date-time"},
+    "components":{
+      "type":"array",
+      "items":{
+        "type":"object",
+        "additionalProperties":false,
+        "required":["name","files"],
+        "properties":{
+          "name":{"enum":["feedback","execution-outcomes","review-receipts","workflow-runs"]},
+          "files":{
+            "type":"array",
+            "items":{
+              "type":"object",
+              "additionalProperties":false,
+              "required":["path","size_bytes","sha256"],
+              "properties":{
+                "path":{"type":"string","minLength":1},
+                "size_bytes":{"type":"integer","minimum":0},
+                "sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "excluded":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}}
+  }
+}

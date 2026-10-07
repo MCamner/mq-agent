@@ -25,6 +25,14 @@ from .engine import (
 )
 from .evaluation import compare_feedback_run, latest_comparison
 from .readiness import activation_readiness
+from .control import (
+    activate as activate_policy,
+    approval_receipt,
+    policy_status,
+    post_activation_check,
+    rollback as rollback_policy,
+    validate_canary,
+)
 from .store import purge_feedback_state
 from .views import (
     feedback_inspect,
@@ -495,6 +503,232 @@ def feedback_activation_readiness_cmd(
         raise typer.Exit(1)
     if payload["status"] == "BLOCKED":
         raise typer.Exit(2)
+
+
+@app.command("approve")
+def feedback_approve_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
+    reason: Annotated[str, typer.Option("--reason", help="Human approval reason")],
+    expires_hours: Annotated[int, typer.Option("--expires-hours", min=1, max=168)] = 24,
+    approve: Annotated[bool, typer.Option("--approve", help="Required: issue approval receipt")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Issue an expiring approval receipt bound to exact candidate evidence."""
+    if not approve:
+        raise typer.BadParameter("feedback approve requires --approve")
+    try:
+        payload = approval_receipt(
+            candidate_id,
+            reason=reason,
+            expires_hours=expires_hours,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Approval: {payload['approval_id']}\n"
+            f"Candidate: {payload['candidate_id']}\n"
+            f"Task class: {payload['task_class']}\n"
+            f"Strategy: {payload['current_strategy']} -> {payload['proposed_strategy']}\n"
+            f"Expires: {payload['expires_at']}",
+            title="Feedback Approval",
+        )
+    )
+
+
+@app.command("canary-run")
+def feedback_canary_run_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Approved feedback candidate")],
+    approval_id: Annotated[str, typer.Option("--approval-id")],
+    task: Annotated[str, typer.Option("--task", help="Task used only for zero-effect context selection")],
+    fixture: Annotated[Path, typer.Option("--fixture", help="Deterministic relevance fixture JSON")],
+    repo: Annotated[Path, typer.Option("--repo", help="Clean Git repository to evaluate")] = Path("."),
+    vault: Annotated[Path | None, typer.Option("--vault", help="mqobsidian vault override")] = None,
+    timeout_ms: Annotated[int, typer.Option("--timeout-ms", min=1)] = DEFAULT_TIMEOUT_MS,
+    max_context_bytes: Annotated[int, typer.Option("--max-context-bytes", min=1)] = DEFAULT_MAX_CONTEXT_BYTES,
+    max_sources: Annotated[int, typer.Option("--max-sources", min=1)] = DEFAULT_MAX_SOURCES,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Run a post-approval zero-effect canary and bind its comparison to approval."""
+    try:
+        candidate = candidate_detail(candidate_id)["candidate"]
+        experiment_result = run_context_experiment(
+            task,
+            repo,
+            task_class=candidate["task_class"],
+            vault=vault,
+            timeout_ms=timeout_ms,
+            max_context_bytes=max_context_bytes,
+            max_sources=max_sources,
+        )
+        if experiment_result["status"] != "PASS":
+            raise ValueError(
+                f"canary experiment did not pass: {experiment_result.get('reason') or 'unknown'}"
+            )
+        run_id = experiment_result["experiment"]["feedback_run_id"]
+        comparison = compare_feedback_run(run_id, fixture_path=fixture)
+        validation = validate_canary(
+            candidate_id,
+            approval_id,
+            comparison["comparison_id"],
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    payload = {
+        "kind": "feedback-canary-run",
+        "status": "PASS",
+        "candidate_id": candidate_id,
+        "approval_id": approval_id,
+        "feedback_run_id": run_id,
+        "comparison_id": comparison["comparison_id"],
+        "snapshot": comparison["snapshot"],
+        "validation": validation,
+    }
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Candidate: {candidate_id}\n"
+            f"Approval: {approval_id}\n"
+            f"Feedback run: {run_id}\n"
+            f"Comparison: {comparison['comparison_id']}\n"
+            f"Snapshot: {comparison['snapshot']['commit']}",
+            title="[bold green]Canary PASS[/bold green]",
+            border_style="green",
+        )
+    )
+
+
+@app.command("canary-check")
+def feedback_canary_check_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
+    approval_id: Annotated[str, typer.Option("--approval-id")],
+    comparison_id: Annotated[str, typer.Option("--comparison-id", help="Post-approval canary comparison")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Validate post-approval candidate evidence as a canary; read-only."""
+    try:
+        payload = validate_canary(candidate_id, approval_id, comparison_id)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        f"[bold green]PASS[/bold green] canary {payload['comparison_id']} "
+        f"for {payload['candidate_id']}"
+    )
+
+
+@app.command("activate")
+def feedback_activate_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
+    approval_id: Annotated[str, typer.Option("--approval-id")],
+    canary_comparison_id: Annotated[str, typer.Option("--canary-comparison-id")],
+    reason: Annotated[str, typer.Option("--reason")],
+    approve: Annotated[bool, typer.Option("--approve", help="Required: change one task-class policy")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Activate one task-class strategy after approval and passing canary evidence."""
+    if not approve:
+        raise typer.BadParameter("feedback activate requires --approve")
+    try:
+        payload = activate_policy(
+            candidate_id,
+            approval_id=approval_id,
+            canary_comparison_id=canary_comparison_id,
+            reason=reason,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        f"[bold green]ACTIVATED[/bold green] {payload['task_class']}: "
+        f"{payload['from_strategy']} -> {payload['to_strategy']}"
+    )
+
+
+@app.command("rollback")
+def feedback_rollback_cmd(
+    task_class: Annotated[str, typer.Argument(help="Task class to roll back")],
+    reason: Annotated[str, typer.Option("--reason")],
+    approve: Annotated[bool, typer.Option("--approve", help="Required: append rollback event")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Roll one task class back to the immediately previous strategy."""
+    if not approve:
+        raise typer.BadParameter("feedback rollback requires --approve")
+    try:
+        payload = rollback_policy(task_class, reason=reason)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        f"[bold yellow]ROLLED BACK[/bold yellow] {payload['task_class']}: "
+        f"{payload['from_strategy']} -> {payload['to_strategy']}"
+    )
+
+
+@app.command("post-activation-check")
+def feedback_post_activation_check_cmd(
+    task_class: Annotated[str, typer.Argument(help="Activated task class")],
+    comparison_id: Annotated[str, typer.Option("--comparison-id")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Surface material regressions against the measured shadow baseline."""
+    try:
+        payload = post_activation_check(task_class, comparison_id)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+    else:
+        style = "red" if payload["status"] == "REGRESSION" else (
+            "green" if payload["status"] == "PASS" else "yellow"
+        )
+        console.print(
+            Panel(
+                f"Task class: {task_class}\n"
+                f"Active: {payload['active_strategy']}\n"
+                f"Comparison: {comparison_id}\n"
+                f"Regressions: {', '.join(payload['regressions']) or 'none'}",
+                title=f"[bold {style}]{payload['status']}[/bold {style}]",
+                border_style=style,
+            )
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@app.command("policy")
+def feedback_policy_cmd(
+    task_class: Annotated[str, typer.Argument(help="Task class")] = "repo-review",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Show the effective feedback-controlled task-class policy."""
+    payload = policy_status(task_class)
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Task class: {payload['task_class']}\n"
+            f"Baseline: {payload['baseline_strategy']}\n"
+            f"Effective: {payload['effective_strategy']}\n"
+            f"Kill switch: {payload['kill_switch']}\n"
+            f"Events: {payload['events']}",
+            title="Feedback Policy",
+        )
+    )
 
 
 @app.command("candidate-handoff")

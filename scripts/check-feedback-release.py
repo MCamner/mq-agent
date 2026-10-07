@@ -11,14 +11,18 @@ from pathlib import Path
 import click
 import typer
 from jsonschema import Draft202012Validator
+from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parent.parent
+VERSION = Version((ROOT / "VERSION").read_text(encoding="utf-8").strip())
 SCHEMAS = {
     "mq.feedback-experiment.v1": "feedback_experiment.schema.json",
     "mq.feedback-report.v1": "feedback_report.schema.json",
     "mq.feedback-comparison.v1": "feedback_comparison.schema.json",
     "mq.feedback-candidate.v1": "feedback_candidate.schema.json",
     "mq.feedback-activation-readiness.v1": "feedback_activation_readiness.schema.json",
+    "mq.feedback-approval.v1": "feedback_approval.schema.json",
+    "mq.feedback-policy-event.v1": "feedback_policy_event.schema.json",
 }
 PUBLIC_DOCS = (
     ROOT / "docs" / "FEEDBACK_ENGINE.md",
@@ -39,8 +43,16 @@ REQUIRED_FEEDBACK_COMMANDS = {
     "activation-readiness",
     "purge",
 }
-FORBIDDEN_FEEDBACK_COMMANDS = {
+CONTROLLED_ACTIVATION_COMMANDS = {
+    "approve",
+    "canary-run",
+    "canary-check",
     "activate",
+    "rollback",
+    "post-activation-check",
+    "policy",
+}
+FORBIDDEN_AUTONOMOUS_COMMANDS = {
     "activation",
     "policy-activate",
     "auto-route",
@@ -85,13 +97,21 @@ def check_command_boundary() -> None:
     if not isinstance(feedback, click.Group):
         fail("mq-agent feedback command group is missing")
     commands = set(feedback.commands)
-    missing = sorted(REQUIRED_FEEDBACK_COMMANDS - commands)
-    forbidden = sorted(FORBIDDEN_FEEDBACK_COMMANDS & commands)
+    required = set(REQUIRED_FEEDBACK_COMMANDS)
+    if VERSION >= Version("1.31.0"):
+        required |= CONTROLLED_ACTIVATION_COMMANDS
+    missing = sorted(required - commands)
+    forbidden = sorted(FORBIDDEN_AUTONOMOUS_COMMANDS & commands)
+    if VERSION < Version("1.31.0"):
+        forbidden.extend(sorted(CONTROLLED_ACTIVATION_COMMANDS & commands))
     if missing:
         fail(f"feedback command surface is missing: {missing}")
     if forbidden:
-        fail(f"v1.30 exposes forbidden activation commands: {forbidden}")
-    print("OK: feedback CLI is stable and contains no activation command")
+        fail(f"feedback command surface violates v{VERSION} boundary: {sorted(set(forbidden))}")
+    if VERSION >= Version("1.31.0"):
+        print("OK: feedback CLI exposes human-gated task-class activation without autonomous activation")
+    else:
+        print("OK: feedback CLI is stable and contains no activation command")
 
 
 def check_public_docs() -> None:
@@ -125,7 +145,9 @@ def check_release_surfaces() -> None:
     ):
         if required not in checklist:
             fail(f"release checklist does not require {required!r}")
-    print("OK: README, changelog and pre-tag checklist carry the v1.30 boundary")
+    if VERSION >= Version("1.31.0") and "Evidence-Gated Activation" not in changelog:
+        fail("CHANGELOG does not describe the v1.31 Evidence-Gated Activation boundary")
+    print(f"OK: README, changelog and pre-tag checklist carry the v{VERSION} boundary")
 
 
 def main() -> int:
@@ -133,7 +155,7 @@ def main() -> int:
     check_command_boundary()
     check_public_docs()
     check_release_surfaces()
-    print("PASS: Feedback Engine v1.30 release contract")
+    print(f"PASS: Feedback Engine v{VERSION} release contract")
     return 0
 
 

@@ -1,7 +1,7 @@
 {
   "repo": "mq-agent",
   "role": "orchestrator",
-  "version": "1.30.0",
+  "version": "1.31.0",
   "status": "active",
   "contracts": [
     "stack_sweep.v1",
@@ -39,7 +39,12 @@
     "mq.feedback-report.v1",
     "mq.feedback-comparison.v1",
     "mq.feedback-candidate.v1",
-    "mq.feedback-activation-readiness.v1"
+    "mq.feedback-activation-readiness.v1",
+    "mq.feedback-approval.v1",
+    "mq.feedback-policy-event.v1",
+    "mq.state-snapshot.v1",
+    "mq.hybrid-retrieval-shadow.v1",
+    "mq.perception-review.v1"
   ],
   "compatibility": {
     "consumes": [
@@ -48,9 +53,10 @@
       "memory-score-manifest.v1",
       "memory-evidence-manifest.v1",
       "promotion-policy.v1",
-      "mq.review-receipt.v1"
+      "mq.review-receipt.v1",
+      "perception.v1"
     ]
   },
-  "next_focus": "",
+  "next_focus": "collect real P0-P3 evidence and derive per-task-class promotion criteria",
   "release_mode": "pull_request"
 }

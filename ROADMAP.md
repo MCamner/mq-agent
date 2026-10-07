@@ -532,8 +532,8 @@ when release tests prove the forbidden behavior is absent.
   macOS release-check and stack contract/release gates before merge.
 * [x] GitHub's live `main` branch summary reports the six declared required
   mq-agent status contexts, each pinned to GitHub Actions app id 15368.
-* [ ] Tag and publish `v1.30.0` from the merged release-prep commit.
-* [ ] Verify the published release artifact and installed runtime identity.
+* [x] Tag and publish `v1.30.0` from the merged release-prep commit.
+* [x] Verify the published release artifact and installed runtime identity.
 
 ### Post-v1.30 gate — controlled activation and rollback
 
@@ -543,18 +543,43 @@ justify an activation design.
 
 * [ ] Define per-task-class promotion criteria from observed outcomes rather
   than adopting a provisional threshold as policy.
-* [ ] Require human approval bound to the exact candidate, evidence window,
+* [x] Require human approval bound to the exact candidate, evidence window,
   active policy and proposed policy.
-* [ ] Make approval expire when the evidence/snapshot/policy changes.
-* [ ] Activate one task class independently; never switch all workloads at once.
-* [ ] Record activation as an append-only event.
-* [ ] Provide deterministic rollback/supersede to the prior policy.
-* [ ] Compare post-activation outcomes against the same baseline and surface
-  regressions.
-* [ ] Keep a kill switch that restores pre-feedback behavior without deleting
+* [x] Make approval expire when the candidate readiness/fingerprint or active
+  policy changes; canary evidence must be recorded after approval.
+* [x] Activate one task class independently; never switch all workloads at once.
+* [x] Record activation as an append-only event.
+* [x] Provide deterministic rollback to the immediately prior policy.
+* [x] Compare post-activation outcomes against the measured shadow baseline and
+  surface material regressions.
+* [x] Keep a kill switch that restores pre-feedback behavior without deleting
   historical evidence.
 * [ ] Only after this gate is proven may evidence-based routing activation be
   reconsidered.
+
+### Post-v1.30 P0-P3 control-plane checkpoint
+
+Implemented after v1.30.0 without changing the released v1.30 boundary:
+
+* [x] Approval receipts are content-bound, expiring and explicit-write gated.
+* [x] `feedback canary-run` creates new post-approval zero-effect evidence.
+* [x] Task-class activation is append-only and consumed only through explicit
+  `context pack --codegraph policy`; the existing `auto` default is unchanged.
+* [x] Rollback is append-only and `MQ_FEEDBACK_ACTIVATION=off` is a non-destructive
+  kill switch.
+* [x] Structured measured runtime fallback evidence records from/to/reason/stage.
+* [x] `review perception` delegates extraction to mq-image-analyze and preserves
+  producer risk signals without a second vision engine.
+* [x] Allowlisted runtime state supports inventory, content-hashed snapshot,
+  verification and explicit restore; free-form notes, credentials and remote
+  vector state are excluded.
+* [x] Typed session facts can enter the existing `memory-observation.v1`
+  review/promotion path without raw transcript capture or automatic promotion.
+* [x] Hybrid retrieval can run in zero-effect shadow mode across existing
+  mq-mcp semantic memory and optional Notebook lexical/semantic channels.
+* [ ] Replace the provisional promotion threshold with per-task-class criteria
+  derived from accumulated real outcomes before considering broader autonomous
+  evidence-based routing.
 
 ### Definition of done — v1.30.0
 

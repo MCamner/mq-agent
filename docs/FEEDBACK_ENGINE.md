@@ -1,9 +1,11 @@
-# Feedback Engine v1.30
+# Feedback Engine v1.31
 
 The Feedback Engine is mq-agent's evidence-first loop for comparing one active
 context strategy with one zero-effect shadow strategy.
 
-It measures and records evidence. It does **not** activate a policy.
+It measures and records evidence. v1.31 can activate one task-class policy only
+after explicit human approval and new post-approval canary evidence; it never
+auto-activates a policy.
 
 ## Architecture
 
@@ -80,16 +82,36 @@ Only a deterministic `CANDIDATE_BETTER` comparison may create a review
 proposal. A candidate contains its comparison references, gains, regressions,
 limitations and rollback target.
 
-Candidates cannot activate production policy. Memory candidates use the
-existing mqobsidian review/promotion boundary rather than writing durable
+Candidates cannot activate production policy by themselves. v1.31 requires a
+separate expiring approval receipt and a new post-approval canary before an
+operator may explicitly activate one task class. Memory candidates still use
+the existing mqobsidian review/promotion boundary rather than writing durable
 memory directly.
 
-### Activation readiness
+### Activation and rollback
 
-`mq-agent feedback activation-readiness <candidate-id>` is the first
-post-v1.30 activation surface, but it is deliberately **read-only**. It answers
-only whether a context-strategy candidate has enough deterministic evidence to
-be presented for human approval.
+`mq-agent feedback activation-readiness <candidate-id>` remains the read-only
+evidence gate. v1.31 adds a separate human-controlled sequence:
+
+```bash
+mq-agent feedback approve <candidate-id> --reason "reviewed evidence" --approve
+mq-agent feedback canary-run <candidate-id> \
+  --approval-id <approval-id> \
+  --task "review release boundaries" \
+  --fixture path/to/relevance-fixture.json
+mq-agent feedback activate <candidate-id> \
+  --approval-id <approval-id> \
+  --canary-comparison-id <comparison-id> \
+  --reason "bounded canary passed" \
+  --approve
+mq-agent feedback post-activation-check repo-review --comparison-id <comparison-id>
+mq-agent feedback rollback repo-review --reason "regression observed" --approve
+```
+
+Approval is content-bound and expires when the candidate readiness/fingerprint
+or active policy changes. Canary evidence must be recorded after approval.
+Activation and rollback append policy events; they never rewrite evidence
+history.
 
 `READY_FOR_HUMAN_APPROVAL` requires:
 
@@ -100,9 +122,10 @@ be presented for human approval.
 - no material regression in any linked comparison; and
 - `rollback_target == current_strategy`.
 
-The result always says `human_approval_required: true`,
-`canary_required: true`, and `activation_available: false`. Readiness is not
-approval, approval is not activation, and this command writes no policy state.
+The readiness result still says `human_approval_required: true`,
+`canary_required: true`, and `activation_available: false`. Readiness itself
+does not mutate policy. The separate v1.31 approval/canary/activation commands
+own the controlled write path.
 
 Exit status is machine-usable: 0 is ready for human approval, 1 means more
 evidence is required, and 2 means a blocker must be resolved.
@@ -124,6 +147,21 @@ stdout/stderr and credentials.
 - scripts and CI use `mq-agent feedback ... --json`.
 
 See [Feedback Engine client contract](feedback-engine-clients.md).
+
+## v1.31 boundary
+
+v1.31 permits controlled activation only when all of these are true:
+
+- one task class is selected;
+- readiness is `READY_FOR_HUMAN_APPROVAL`;
+- an explicit, unexpired approval receipt exists;
+- new post-approval canary evidence is valid and `CANDIDATE_BETTER`;
+- the operator explicitly passes `--approve`.
+
+The existing `context pack --codegraph auto` path is unchanged. Activated
+feedback policy is consumed only through explicit `--codegraph policy`.
+`MQ_FEEDBACK_ACTIVATION=off` disables feedback policy consumption without
+deleting activation/evidence history.
 
 ## v1.30 boundary
 

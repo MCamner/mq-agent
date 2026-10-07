@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.perception-review.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","status","producer","perception","review"],
+  "properties": {
+    "schema":{"const":"mq.perception-review.v1"},
+    "status":{"enum":["PASS","WARNING"]},
+    "producer":{"enum":["ui","architecture","ocr"]},
+    "perception":{"type":"object"},
+    "review":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["risk_signals","limitations","confidence","model_reinterpretation"],
+      "properties":{
+        "risk_signals":{"type":"array"},
+        "limitations":{"type":"array"},
+        "confidence":{"enum":["low","medium","high"]},
+        "model_reinterpretation":{"const":false}
+      }
+    }
+  }
+}

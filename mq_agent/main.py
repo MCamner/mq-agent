@@ -49,6 +49,9 @@ app.add_typer(skills_app, name="skills")
 memory_app = typer.Typer(help="Semantic repository memory commands.")
 app.add_typer(memory_app, name="memory")
 
+state_app = typer.Typer(help="Inventory, snapshot, verify and restore allowlisted MQ runtime state.")
+app.add_typer(state_app, name="state")
+
 task_app = typer.Typer(help="Run declarative YAML task workflows.")
 app.add_typer(task_app, name="task")
 
@@ -183,6 +186,7 @@ def _execution_outcome(
                 exit_status=record["exit_status"],
                 latency_ms=int((time.monotonic() - start) * 1000),
                 model=record.get("model"),
+                fallback=record.get("fallback"),
                 runtime_fingerprint=fingerprint,
             )
 
@@ -1133,6 +1137,122 @@ def review_repo_cmd(
     )
     if brain and not _is_error_result(result):
         _brain_record_review(bridge, path, _review_payload(result))
+
+
+@review_app.command("perception")
+def review_perception_cmd(
+    image_path: Annotated[str, typer.Argument(help="Image/screenshot/diagram path")],
+    producer: Annotated[
+        str,
+        typer.Option("--producer", help="ui, architecture, or ocr"),
+    ] = "ui",
+    source_type: Annotated[
+        str | None,
+        typer.Option("--source-type", help="screenshot, diagram, ui, terminal, or browser"),
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+):
+    """Produce and inspect perception.v1 through mq-image-analyze.
+
+    This command is orchestration only: mq-image-analyze owns visual extraction.
+    mq-agent preserves the returned risk signals/limitations and does not invent
+    a second vision or review engine.
+    """
+    if producer not in {"ui", "architecture", "ocr"}:
+        raise typer.BadParameter("producer must be ui, architecture, or ocr")
+    if source_type not in {None, "screenshot", "diagram", "ui", "terminal", "browser"}:
+        raise typer.BadParameter(
+            "source-type must be screenshot, diagram, ui, terminal, or browser"
+        )
+    if dry_run:
+        suffix = f" source_type={source_type}" if source_type else ""
+        console.print(
+            f"[blue][dry-run][/blue] Would call: [bold]mq-image-analyze "
+            f"image_perception image_path={image_path} producer={producer}{suffix}[/bold]"
+        )
+        return
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge, tool_failure
+
+    result = MultiMCPBridge().image_perception(
+        image_path,
+        producer=producer,
+        source_type=source_type,
+    )
+    failure = tool_failure("image_perception", result)
+    if failure:
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": failure}, indent=2))
+        else:
+            console.print(
+                Panel(
+                    Text(failure),
+                    title="[bold red]perception unavailable[/bold red]",
+                    border_style="red",
+                )
+            )
+        raise typer.Exit(1)
+
+    payload = _coerce_mcp_json_payload(result)
+    if not isinstance(payload, dict):
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": "perception payload is not an object"}))
+        else:
+            console.print("[bold red]perception payload is not an object[/bold red]")
+        raise typer.Exit(1)
+
+    required = {
+        "source_type",
+        "source_path",
+        "ocr_text",
+        "visual_summary",
+        "risk_signals",
+        "confidence",
+        "limitations",
+    }
+    missing = sorted(required - set(payload))
+    if missing:
+        error = f"perception.v1 missing required fields: {', '.join(missing)}"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+
+    review_payload: dict[str, Any] = {
+        "risk_signals": payload.get("risk_signals") or [],
+        "limitations": payload.get("limitations") or [],
+        "confidence": payload.get("confidence"),
+        "model_reinterpretation": False,
+    }
+    envelope: dict[str, Any] = {
+        "schema": "mq.perception-review.v1",
+        "status": "WARNING" if payload.get("risk_signals") else "PASS",
+        "producer": producer,
+        "perception": payload,
+        "review": review_payload,
+    }
+    from mq_agent.tools.contract_validation import validate_contract
+
+    validate_contract("perception_review.schema.json", envelope)
+    if json_out:
+        typer.echo(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
+        return
+
+    console.print(
+        Panel(
+            f"Source type: {payload.get('source_type')}\n"
+            f"Confidence: {payload.get('confidence')}\n"
+            f"Summary: {payload.get('visual_summary') or '—'}",
+            title=f"Perception Review — {envelope['status']}",
+            border_style="yellow" if envelope["status"] == "WARNING" else "green",
+        )
+    )
+    for signal in review_payload["risk_signals"]:
+        console.print(f"[yellow]risk:[/yellow] {signal}")
+    for limitation in review_payload["limitations"]:
+        console.print(f"[dim]limitation:[/dim] {limitation}")
 
 
 def _contract_status_text(value: Any) -> str:
@@ -4428,7 +4548,8 @@ def context_pack_cmd(
     target: Annotated[str, typer.Option("--target", help="codex, claude, or both")] = "both",
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
     repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs, used to detect .codegraph/ (default: ~)")] = "",
-    codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto (source-heavy only), on, or off")] = "auto",
+    codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto, on, off, or policy (feedback-controlled)")] = "auto",
+    task_class: Annotated[str, typer.Option("--task-class", help="Task class used for feedback-controlled context policy")] = "repo-review",
     symbol: Annotated[list[str], typer.Option("--symbol", help="Named symbol for a CodeGraph callers/impact query (repeatable)")] = [],
     output: Annotated[str, typer.Option("--output", "--out", help="Write the pack here instead of stdout")] = "",
     json_out: Annotated[bool, typer.Option("--json")] = False,
@@ -4445,8 +4566,8 @@ def context_pack_cmd(
     if target not in {"codex", "claude", "both"}:
         console.print("[bold red]target must be codex, claude, or both[/bold red]")
         raise typer.Exit(2)
-    if codegraph not in {"auto", "on", "off"}:
-        console.print("[bold red]codegraph must be auto, on, or off[/bold red]")
+    if codegraph not in {"auto", "on", "off", "policy"}:
+        console.print("[bold red]codegraph must be auto, on, off, or policy[/bold red]")
         raise typer.Exit(2)
 
     parsed_exclusions: list[dict[str, str]] = []
@@ -4464,6 +4585,13 @@ def context_pack_cmd(
             {"kind": kind, "item": item.strip(), "reason": reason.strip()}
         )
 
+    resolved_codegraph = codegraph
+    policy_strategy = None
+    if codegraph == "policy":
+        from mq_agent.feedback.control import effective_strategy, strategy_codegraph
+        policy_strategy = effective_strategy(task_class)
+        resolved_codegraph = strategy_codegraph(policy_strategy)
+
     try:
         result = build_task_pack(
             task,
@@ -4475,9 +4603,15 @@ def context_pack_cmd(
             exclusions=parsed_exclusions,
             vault=Path(vault).expanduser() if vault else None,
             repos_root=Path(repos_root).expanduser() if repos_root else None,
-            codegraph=codegraph,
+            codegraph=resolved_codegraph,
             codegraph_symbols=symbol,
         )
+        result["feedback_policy"] = {
+            "task_class": task_class,
+            "strategy": policy_strategy,
+            "codegraph": resolved_codegraph,
+            "explicit_policy": codegraph == "policy",
+        }
     except ValueError as exc:
         # Chiefly a missing or malformed selection-vocabulary contract. The vault
         # is a sibling repo, so pointing at the wrong one is an ordinary mistake
@@ -4501,6 +4635,158 @@ def context_pack_cmd(
         console.print(f"codegraph hint: {'yes' if result['codegraph_applied'] else 'no'}")
     else:
         typer.echo(result["content"])
+
+
+# ── portable runtime state ─────────────────────────────────────────────────
+
+@state_app.command("inventory")
+def state_inventory_cmd(
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Inventory allowlisted, sanitized local MQ runtime state."""
+    from mq_agent.tools.state_snapshot import inventory
+
+    payload = inventory()
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    table = Table(title="MQ Runtime State")
+    table.add_column("Component")
+    table.add_column("Files", justify="right")
+    table.add_column("Bytes", justify="right")
+    for item in payload["components"]:
+        table.add_row(
+            str(item["name"]),
+            str(item["file_count"]),
+            str(item["size_bytes"]),
+        )
+    console.print(table)
+    console.print(
+        "[dim]Excluded by design: " + ", ".join(payload["excluded"]) + "[/dim]"
+    )
+
+
+@state_app.command("snapshot")
+def state_snapshot_cmd(
+    output: Annotated[Path, typer.Option("--output", help="Empty/new snapshot directory")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Copy allowlisted runtime state into a portable content-hashed snapshot."""
+    from mq_agent.tools.state_snapshot import snapshot
+
+    try:
+        payload = snapshot(output)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    result = {
+        "schema": payload["schema"],
+        "status": "SNAPSHOT_CREATED",
+        "path": str(output.expanduser()),
+        "components": len(payload["components"]),
+        "excluded": payload["excluded"],
+    }
+    if json_out:
+        typer.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    console.print(
+        f"[bold green]snapshot created[/bold green] {result['path']} "
+        f"({result['components']} components)"
+    )
+
+
+@state_app.command("verify")
+def state_verify_cmd(
+    snapshot_dir: Annotated[Path, typer.Argument(help="Snapshot directory")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify manifest, hashes, paths and unexpected files without writing state."""
+    from mq_agent.tools.state_snapshot import verify
+
+    try:
+        payload = verify(snapshot_dir)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        style = "green" if payload["status"] == "PASS" else "red"
+        console.print(
+            Panel(
+                f"Files: {payload['files']}\nErrors: {len(payload['errors'])}",
+                title=f"[bold {style}]{payload['status']}[/bold {style}]",
+                border_style=style,
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@state_app.command("restore")
+def state_restore_cmd(
+    snapshot_dir: Annotated[Path, typer.Argument(help="Verified snapshot directory")],
+    approve: Annotated[bool, typer.Option("--approve", help="Required: restore allowlisted runtime state")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Restore manifest-declared files only; never delete unrelated current state."""
+    if not approve:
+        raise typer.BadParameter("state restore requires --approve")
+    from mq_agent.tools.state_snapshot import restore
+
+    try:
+        payload = restore(snapshot_dir)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    console.print(
+        f"[bold green]{payload['status']}[/bold green] "
+        f"{payload['restored_files']} file(s); deleted 0"
+    )
+
+
+@memory_app.command("session-handoff")
+def memory_session_handoff_cmd(
+    session_id: Annotated[str, typer.Option("--session-id")],
+    task_class: Annotated[str, typer.Option("--task-class")],
+    repo: Annotated[str, typer.Option("--repo")],
+    outcome: Annotated[str, typer.Option("--outcome")],
+    decision: Annotated[list[str], typer.Option("--decision", help="Verified decision (repeatable)")] = [],
+    artifact: Annotated[list[str], typer.Option("--artifact", help="Evidence/artifact reference (repeatable)")] = [],
+    correction: Annotated[list[str], typer.Option("--correction", help="Explicit operator correction (repeatable)")] = [],
+    confidence: Annotated[float, typer.Option("--confidence", min=0.0, max=1.0)] = 0.7,
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault override")] = "",
+    approve: Annotated[bool, typer.Option("--approve", help="Required: append a memory observation candidate")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Submit typed session facts as memory-observation.v1 for normal review."""
+    if not approve:
+        raise typer.BadParameter("memory session-handoff requires --approve")
+    from mq_agent.memory.session_handoff import handoff_session
+
+    try:
+        payload = handoff_session(
+            session_id=session_id,
+            task_class=task_class,
+            repository=repo,
+            outcome=outcome,
+            decisions=decision,
+            artifact_refs=artifact,
+            corrections=correction,
+            confidence=confidence,
+            vault=Path(vault).expanduser() if vault else None,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    console.print(
+        f"[bold green]{payload['status']}[/bold green] "
+        f"{payload['observation_id']} — durable memory written: no"
+    )
 
 
 # ── memory search ──────────────────────────────────────────────────────────
@@ -4561,6 +4847,57 @@ def memory_search_cmd(
         excerpt = str(item.get("value") or item.get("content") or item.get("summary") or item)[:120]
         table.add_row(key, excerpt)
     console.print(table)
+
+
+@memory_app.command("hybrid-shadow")
+def memory_hybrid_shadow_cmd(
+    query: Annotated[str, typer.Argument(help="Retrieval query")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Optional notebook-corpus-index.v1 JSON")] = "",
+    semantic_index: Annotated[str, typer.Option("--semantic-index", help="Optional local notebook semantic index JSON")] = "",
+    semantic_model: Annotated[str, typer.Option("--semantic-model", help="Local Ollama embedding model")] = "nomic-embed-text",
+    top_k: Annotated[int, typer.Option("--top-k", min=1)] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Compare active semantic memory with hybrid retrieval in zero-effect shadow mode."""
+    from mq_agent.memory.hybrid_shadow import hybrid_shadow
+
+    try:
+        payload = hybrid_shadow(
+            query,
+            catalog_path=Path(catalog).expanduser() if catalog else None,
+            semantic_index_path=(
+                Path(semantic_index).expanduser() if semantic_index else None
+            ),
+            semantic_model=semantic_model,
+            top_k=top_k,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Retrieval Shadow — {payload['status']}")
+        table.add_column("Channel")
+        table.add_column("Status")
+        table.add_column("Results", justify="right")
+        table.add_column("Latency", justify="right")
+        for row in payload["channels"]:
+            table.add_row(
+                str(row["name"]),
+                str(row["status"]),
+                str(row["returned"]),
+                f"{row['latency_ms']} ms",
+            )
+        console.print(table)
+        console.print(
+            f"Active: {payload['active']['result_count']} | "
+            f"Shadow: {payload['shadow']['result_count']} | "
+            f"Added: {payload['shadow']['added_count']} | "
+            "active result unchanged"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
 
 
 # ── memory store ────────────────────────────────────────────────────────────
