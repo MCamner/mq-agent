@@ -1221,7 +1221,7 @@ def review_perception_cmd(
         raise typer.Exit(1)
 
     envelope = {
-        "schema": "mq-agent.perception-review.v1",
+        "schema": "mq.perception-review.v1",
         "status": "WARNING" if payload.get("risk_signals") else "PASS",
         "producer": producer,
         "perception": payload,
