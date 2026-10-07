@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from mq_agent.tools.contract_validation import validate_contract
+
 ActiveSearch = Callable[[str], Any]
 
 
@@ -192,7 +194,7 @@ def hybrid_shadow(
     ]
     available = sum(1 for row in channels if row["status"] == "AVAILABLE")
 
-    return {
+    payload = {
         "schema": "mq.hybrid-retrieval-shadow.v1",
         "status": "PASS" if available >= 2 else "INSUFFICIENT_EVIDENCE",
         "query_sha256": _digest(query),
@@ -225,3 +227,5 @@ def hybrid_shadow(
             "Quality activation still requires explicit relevance evidence and feedback gates.",
         ],
     }
+    validate_contract("hybrid_retrieval_shadow.schema.json", payload)
+    return payload
