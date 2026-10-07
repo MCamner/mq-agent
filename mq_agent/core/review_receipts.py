@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "mq.review-receipt.v1"
+PERCEPTION_SCHEMA = "mq.perception-review-receipt.v1"
+SUPPORTED_SCHEMAS = frozenset({SCHEMA, PERCEPTION_SCHEMA})
 _RECEIPT_ID = re.compile(r"^sha256:([0-9a-f]{64})$")
 
 
@@ -49,10 +51,10 @@ def unwrap_receipt(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
 
-    if value.get("schema") == SCHEMA:
+    if value.get("schema") in SUPPORTED_SCHEMAS:
         return value
 
-    for key in ("result", "text", "content", "data"):
+    for key in ("result", "text", "content", "data", "receipt"):
         if key not in value:
             continue
         receipt = unwrap_receipt(value[key])
@@ -84,7 +86,7 @@ def save_issued_receipt(
     directory: Path | None = None,
 ) -> Path:
     """Atomically persist one valid ISSUED receipt by content address."""
-    if receipt.get("schema") != SCHEMA:
+    if receipt.get("schema") not in SUPPORTED_SCHEMAS:
         raise ValueError(f"unexpected receipt schema: {receipt.get('schema')!r}")
     if receipt.get("status") != "ISSUED":
         raise ValueError("only ISSUED review receipts may be stored")
