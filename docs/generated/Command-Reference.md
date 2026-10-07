@@ -465,11 +465,13 @@ Run and inspect evidence-grounded feedback experiments.
 
 | Subcommand | Description |
 |---|---|
-| [`mq-agent feedback activate`](#mq-agent-feedback-activate) | Activate one task-class strategy after approval and passing canary evidence. |
+| [`mq-agent feedback activate`](#mq-agent-feedback-activate) | Activate one task-class strategy after approval and a passing Canary v2 result. |
 | [`mq-agent feedback activation-readiness`](#mq-agent-feedback-activation-readiness) | Check evidence readiness for human activation approval; never activates. |
 | [`mq-agent feedback approve`](#mq-agent-feedback-approve) | Issue an expiring approval receipt bound to exact candidate evidence. |
-| [`mq-agent feedback canary-check`](#mq-agent-feedback-canary-check) | Validate post-approval candidate evidence as a canary; read-only. |
-| [`mq-agent feedback canary-run`](#mq-agent-feedback-canary-run) | Run a post-approval zero-effect canary and bind its comparison to approval. |
+| [`mq-agent feedback canary-check`](#mq-agent-feedback-canary-check) | Validate one legacy v1.31 comparison; read-only and not activation-authorizing. |
+| [`mq-agent feedback canary-plan`](#mq-agent-feedback-canary-plan) | Create one immutable Canary v2 plan; no experiment is executed. |
+| [`mq-agent feedback canary-run`](#mq-agent-feedback-canary-run) | Execute one bounded Canary v2 plan and append one immutable RESULT. |
+| [`mq-agent feedback canary-status`](#mq-agent-feedback-canary-status) | Show authoritative append-only PLAN/RESULT state for one canary. |
 | [`mq-agent feedback candidate`](#mq-agent-feedback-candidate) | Show one candidate with its immutable comparison evidence. |
 | [`mq-agent feedback candidate-handoff`](#mq-agent-feedback-candidate-handoff) | Submit an approved memory candidate to mqobsidian's review inbox. |
 | [`mq-agent feedback candidate-state`](#mq-agent-feedback-candidate-state) | Append a human review state; never activates a policy. |
@@ -487,7 +489,7 @@ Run and inspect evidence-grounded feedback experiments.
 
 ## `mq-agent feedback activate`
 
-Activate one task-class strategy after approval and passing canary evidence.
+Activate one task-class strategy after approval and a passing Canary v2 result.
 
 ### Arguments
 
@@ -500,7 +502,7 @@ Activate one task-class strategy after approval and passing canary evidence.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--approval-id` | Yes | — | — |
-| `--canary-comparison-id` | Yes | — | — |
+| `--canary-id` | Yes | — | Passing Canary v2 identifier |
 | `--reason` | Yes | — | — |
 | `--approve` | No | `false` | Required: change one task-class policy |
 | `--json` | No | `false` | — |
@@ -542,7 +544,7 @@ Issue an expiring approval receipt bound to exact candidate evidence.
 
 ## `mq-agent feedback canary-check`
 
-Validate post-approval candidate evidence as a canary; read-only.
+Validate one legacy v1.31 comparison; read-only and not activation-authorizing.
 
 ### Arguments
 
@@ -558,9 +560,9 @@ Validate post-approval candidate evidence as a canary; read-only.
 | `--comparison-id` | Yes | — | Post-approval canary comparison |
 | `--json` | No | `false` | — |
 
-## `mq-agent feedback canary-run`
+## `mq-agent feedback canary-plan`
 
-Run a post-approval zero-effect canary and bind its comparison to approval.
+Create one immutable Canary v2 plan; no experiment is executed.
 
 ### Arguments
 
@@ -573,6 +575,26 @@ Run a post-approval zero-effect canary and bind its comparison to approval.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--approval-id` | Yes | — | — |
+| `--executions` | No | `3` | — |
+| `--min-executions` | No | `3` | — |
+| `--max-duration-seconds` | No | `300` | — |
+| `--max-failure-rate` | No | `0.0` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback canary-run`
+
+Execute one bounded Canary v2 plan and append one immutable RESULT.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANARY_ID` | Yes | — | Canary v2 identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
 | `--task` | Yes | — | Task used only for zero-effect context selection |
 | `--fixture` | Yes | — | Deterministic relevance fixture JSON |
 | `--repo` | No | `.` | Clean Git repository to evaluate |
@@ -580,6 +602,22 @@ Run a post-approval zero-effect canary and bind its comparison to approval.
 | `--timeout-ms` | No | `2000` | — |
 | `--max-context-bytes` | No | `65536` | — |
 | `--max-sources` | No | `64` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback canary-status`
+
+Show authoritative append-only PLAN/RESULT state for one canary.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANARY_ID` | Yes | — | Canary v2 identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback candidate`
