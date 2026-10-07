@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from mq_agent.tools.contract_validation import validate_contract
+
 SCHEMA = "mq.state-snapshot.v1"
 EXCLUDED_DEFAULT = (
     "generic-memory",
@@ -136,7 +138,7 @@ def inventory() -> dict[str, Any]:
             }
         )
     return {
-        "schema": "mq.state-inventory.v1",
+        "kind": "mq-state-inventory",
         "components": components,
         "excluded": list(EXCLUDED_DEFAULT),
         "file_count": sum(item["file_count"] for item in components),
@@ -175,6 +177,7 @@ def snapshot(destination: Path) -> dict[str, Any]:
         "components": components,
         "excluded": list(EXCLUDED_DEFAULT),
     }
+    validate_contract("state_snapshot.schema.json", manifest)
     (destination / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -193,8 +196,10 @@ def _load_manifest(snapshot_dir: Path) -> dict[str, Any]:
         raise ValueError("snapshot manifest is invalid JSON") from exc
     if not isinstance(manifest, dict) or manifest.get("schema") != SCHEMA:
         raise ValueError("snapshot manifest schema is not mq.state-snapshot.v1")
-    if not isinstance(manifest.get("components"), list):
-        raise ValueError("snapshot manifest components must be a list")
+    try:
+        validate_contract("state_snapshot.schema.json", manifest)
+    except Exception as exc:
+        raise ValueError(f"snapshot manifest contract validation failed: {exc}") from exc
     return manifest
 
 
@@ -252,7 +257,7 @@ def verify(snapshot_dir: Path) -> dict[str, Any]:
         errors.append(f"{extra}: unexpected file")
 
     return {
-        "schema": "mq.state-snapshot-verification.v1",
+        "kind": "mq-state-snapshot-verification",
         "status": "PASS" if not errors else "FAIL",
         "files": len(expected),
         "errors": errors,
@@ -298,7 +303,7 @@ def restore(snapshot_dir: Path) -> dict[str, Any]:
             _atomic_copy(source, target)
             restored.append(f"{name}/{logical}")
     return {
-        "schema": "mq.state-restore-result.v1",
+        "kind": "mq-state-restore-result",
         "status": "RESTORED",
         "restored_files": len(restored),
         "files": restored,
