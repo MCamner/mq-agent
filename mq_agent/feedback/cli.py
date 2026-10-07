@@ -718,16 +718,16 @@ def feedback_activate_cmd(
 
 @app.command("rollback")
 def feedback_rollback_cmd(
-    task_class: Annotated[str, typer.Argument(help="Task class to roll back")],
+    activation_id: Annotated[str, typer.Argument(help="Exact activation policy event id")],
     reason: Annotated[str, typer.Option("--reason")],
     approve: Annotated[bool, typer.Option("--approve", help="Required: append rollback event")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
-    """Roll one task class back to the immediately previous strategy."""
+    """Roll back one exact currently-active Policy Registry v2 activation."""
     if not approve:
         raise typer.BadParameter("feedback rollback requires --approve")
     try:
-        payload = rollback_policy(task_class, reason=reason)
+        payload = rollback_policy(activation_id, reason=reason)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     if json_out:
@@ -786,7 +786,10 @@ def feedback_policy_cmd(
             f"Baseline: {payload['baseline_strategy']}\n"
             f"Effective: {payload['effective_strategy']}\n"
             f"Kill switch: {payload['kill_switch']}\n"
-            f"Events: {payload['events']}",
+            f"Events: {payload['events']}\n"
+            f"Snapshots: {payload['snapshots']}\n"
+            f"Current snapshot: "
+            f"{payload['current_snapshot']['snapshot_id'] if payload['current_snapshot'] else 'legacy/none'}",
             title="Feedback Policy",
         )
     )
