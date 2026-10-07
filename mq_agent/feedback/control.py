@@ -27,17 +27,13 @@ from .store import (
     read_policy_event_history,
 )
 
-APPROVALS_FILE = "approvals.jsonl"
-POLICY_EVENTS_FILE = "policy-events.jsonl"
 KILL_SWITCH_ENV = "MQ_FEEDBACK_ACTIVATION"
 
 BASELINE_POLICIES = {
     "repo-review": "context-pack-v1",
 }
 STRATEGY_CODEGRAPH = {
-    # Baseline preserves mq-agent's existing source-heavy "auto" heuristic.
-    "context-pack-v1": "auto",
-    # Candidate makes CodeGraph guidance explicit for the task class.
+    "context-pack-v1": "off",
     "context-pack-v1+codegraph-guidance": "on",
 }
 
