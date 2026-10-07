@@ -330,7 +330,8 @@ def test_cli_restore_write_still_requires_approval(
     result = runner.invoke(app, ["state", "restore", str(target), "--json"])
 
     assert result.exit_code != 0
-    assert "--approve" in result.output
+    assert "approve" in result.output
+    assert "dry" in result.output
 
 
 def test_historical_v1_snapshot_remains_readable_and_restorable(
