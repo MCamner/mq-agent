@@ -19,6 +19,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   semantic index. Historical `mq.state-snapshot.v1` snapshots remain readable.
 - `state restore --dry-run` performs full verification and target resolution
   without writing runtime state.
+- Perception Review v2 completes the visual review chain: `review perception`
+  obtains content-addressed `perception.v1` from mq-image-analyze, delegates
+  risk/architecture review to mq-mcp, validates `mq.perception-review.v1`, and
+  can require `mq.perception-review-receipt.v1` bound to the exact perception,
+  review, reviewer runtime and optional repository commit.
 
 ### Safety
 
@@ -28,17 +33,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   remote vector-store state/contents remain explicitly excluded. Restore
   writes only manifest-declared allowlisted targets and never deletes unrelated
   current state.
-
-### Added
-
-- Perception Review v2 completes the visual review chain: `review perception`
-  obtains content-addressed `perception.v1` from mq-image-analyze, delegates
-  risk/architecture review to mq-mcp, validates `mq.perception-review.v1`, and
-  can require `mq.perception-review-receipt.v1` bound to the exact perception,
-  review, reviewer runtime and optional repository commit.
-
-### Safety
-
 - mq-agent no longer synthesizes perception review findings or verdicts. It
   preserves mq-mcp output and fails closed on malformed evidence, contract
   drift, mismatched content addresses, missing review output or a refused
