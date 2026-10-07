@@ -52,7 +52,6 @@ without introducing autonomous routing or automatic memory promotion.
   switch.
 - Rollback appends a new event and never rewrites evidence history.
 
-
 ## [v1.30.0] — 2026-10-06
 
 Theme: Evidence-Grounded Feedback and Governance Hardening. mq-agent now ships
