@@ -408,6 +408,8 @@ def purge_feedback_state(root: Path | None = None) -> int:
             COMPARISONS_FILE,
             CANDIDATES_FILE,
             "activations.jsonl",
+            "approvals.jsonl",
+            "policy-events.jsonl",
         ):
             base = state_root / name
             candidates = [
