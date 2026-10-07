@@ -183,6 +183,7 @@ def _execution_outcome(
                 exit_status=record["exit_status"],
                 latency_ms=int((time.monotonic() - start) * 1000),
                 model=record.get("model"),
+                fallback=record.get("fallback"),
                 runtime_fingerprint=fingerprint,
             )
 
