@@ -8,20 +8,11 @@
   "scope": [
     "repo"
   ],
-  "intents": [
-    "review",
-    "implement",
-    "fix"
-  ],
+  "intents": [],
   "domains": [
-    "repo",
-    "runtime",
-    "security"
+    "recovery"
   ],
-  "risks": [
-    "repo_write",
-    "secret_exposure"
-  ],
+  "risks": [],
   "required_for": [],
   "supersedes": [],
   "skill": "mq-state-recovery-audit",
