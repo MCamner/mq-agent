@@ -95,6 +95,36 @@ def _default_observer():
             approval_count=meta.get("approval_count", 0),
         )
 
+        # The workflow policy provider has one real runtime fallback today:
+        # mq-mcp tool policy -> static read-only allowlist. Record it as a
+        # structured execution fact, not a guessed zero/non-zero counter.
+        from mq_agent.tools.execution_outcome import emit_execution_outcome
+
+        summary = run.summary or {}
+        policy = summary.get("policy") if isinstance(summary, dict) else {}
+        fallback = None
+        fallbacks = None
+        if isinstance(policy, dict) and policy.get("source") == "fallback":
+            fallback = {
+                "from": "mq-mcp-tool-policy",
+                "to": "static-read-only-allowlist",
+                "reason": "policy-unavailable-or-invalid",
+                "stage": "workflow-policy",
+                "source": "measured",
+            }
+            fallbacks = 1
+
+        duration = meta.get("duration_ms")
+        emit_execution_outcome(
+            runtime="task-runner",
+            task_class="task",
+            result="PASS" if summary.get("ok") else "FAIL",
+            exit_status="ok" if summary.get("ok") else "error",
+            latency_ms=max(0, int(duration or 0)),
+            fallbacks=fallbacks,
+            fallback=fallback,
+        )
+
     return _observe
 
 
