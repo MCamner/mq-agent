@@ -29,6 +29,7 @@ from .control import (
     activate as activate_policy,
     approval_receipt,
     policy_status,
+    post_activation_check,
     rollback as rollback_policy,
     validate_canary,
 )
@@ -675,6 +676,37 @@ def feedback_rollback_cmd(
         f"[bold yellow]ROLLED BACK[/bold yellow] {payload['task_class']}: "
         f"{payload['from_strategy']} -> {payload['to_strategy']}"
     )
+
+
+@app.command("post-activation-check")
+def feedback_post_activation_check_cmd(
+    task_class: Annotated[str, typer.Argument(help="Activated task class")],
+    comparison_id: Annotated[str, typer.Option("--comparison-id")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Surface material regressions against the measured shadow baseline."""
+    try:
+        payload = post_activation_check(task_class, comparison_id)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+    else:
+        style = "red" if payload["status"] == "REGRESSION" else (
+            "green" if payload["status"] == "PASS" else "yellow"
+        )
+        console.print(
+            Panel(
+                f"Task class: {task_class}\n"
+                f"Active: {payload['active_strategy']}\n"
+                f"Comparison: {comparison_id}\n"
+                f"Regressions: {', '.join(payload['regressions']) or 'none'}",
+                title=f"[bold {style}]{payload['status']}[/bold {style}]",
+                border_style=style,
+            )
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
 
 
 @app.command("policy")
