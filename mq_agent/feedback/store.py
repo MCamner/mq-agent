@@ -17,7 +17,12 @@ from typing import Any, Callable, Iterator
 import fcntl
 from jsonschema.exceptions import ValidationError
 
-from .contracts import validate_candidate, validate_comparison
+from .contracts import (
+    validate_approval,
+    validate_candidate,
+    validate_comparison,
+    validate_policy_event,
+)
 from .models import validate_experiment
 
 STATE_ENV = "MQ_AGENT_FEEDBACK_DIR"
@@ -27,6 +32,8 @@ MAX_ROTATED_FILES = 3
 EXPERIMENTS_FILE = "experiments.jsonl"
 COMPARISONS_FILE = "comparisons.jsonl"
 CANDIDATES_FILE = "candidates.jsonl"
+APPROVALS_FILE = "approvals.jsonl"
+POLICY_EVENTS_FILE = "policy-events.jsonl"
 LOCK_FILE = ".store.lock"
 
 _PROHIBITED_KEYS = frozenset(
@@ -108,6 +115,14 @@ def comparisons_path(root: Path | None = None) -> Path:
 
 def candidates_path(root: Path | None = None) -> Path:
     return feedback_root(root) / CANDIDATES_FILE
+
+
+def approvals_path(root: Path | None = None) -> Path:
+    return feedback_root(root) / APPROVALS_FILE
+
+
+def policy_events_path(root: Path | None = None) -> Path:
+    return feedback_root(root) / POLICY_EVENTS_FILE
 
 
 def _normalized_key(key: str) -> str:
@@ -286,6 +301,24 @@ def append_candidate(record: dict[str, Any], root: Path | None = None) -> Path:
     )
 
 
+def append_approval(record: dict[str, Any], root: Path | None = None) -> Path:
+    return _append_record(
+        record,
+        filename=APPROVALS_FILE,
+        validator=validate_approval,
+        root=root,
+    )
+
+
+def append_policy_event(record: dict[str, Any], root: Path | None = None) -> Path:
+    return _append_record(
+        record,
+        filename=POLICY_EVENTS_FILE,
+        validator=validate_policy_event,
+        root=root,
+    )
+
+
 def _parse_lines(
     raw_lines: list[bytes],
     source: str,
@@ -379,6 +412,22 @@ def read_candidate_history(root: Path | None = None) -> FeedbackHistoryResult:
     )
 
 
+def read_approval_history(root: Path | None = None) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=APPROVALS_FILE,
+        validator=validate_approval,
+        root=root,
+    )
+
+
+def read_policy_event_history(root: Path | None = None) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=POLICY_EVENTS_FILE,
+        validator=validate_policy_event,
+        root=root,
+    )
+
+
 def read_experiments(root: Path | None = None) -> FeedbackReadResult:
     """Read valid current-generation experiment records."""
     state_root = feedback_root(root)
@@ -408,8 +457,8 @@ def purge_feedback_state(root: Path | None = None) -> int:
             COMPARISONS_FILE,
             CANDIDATES_FILE,
             "activations.jsonl",
-            "approvals.jsonl",
-            "policy-events.jsonl",
+            APPROVALS_FILE,
+            POLICY_EVENTS_FILE,
         ):
             base = state_root / name
             candidates = [
