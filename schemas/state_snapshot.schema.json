@@ -1,36 +1,70 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "mq.state-snapshot.v1",
+  "title": "mq.state-snapshot.v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema","created_at","components","excluded"],
+  "required": ["schema", "snapshot_id", "created_at", "components", "excluded"],
   "properties": {
-    "schema":{"const":"mq.state-snapshot.v1"},
-    "created_at":{"type":"string","format":"date-time"},
-    "components":{
-      "type":"array",
-      "items":{
-        "type":"object",
-        "additionalProperties":false,
-        "required":["name","files"],
-        "properties":{
-          "name":{"enum":["feedback","execution-outcomes","review-receipts","workflow-runs"]},
-          "files":{
-            "type":"array",
-            "items":{
-              "type":"object",
-              "additionalProperties":false,
-              "required":["path","size_bytes","sha256"],
-              "properties":{
-                "path":{"type":"string","minLength":1},
-                "size_bytes":{"type":"integer","minimum":0},
-                "sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+    "schema": { "const": "mq.state-snapshot.v2" },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "format", "state_schema", "files"],
+        "properties": {
+          "name": {
+            "enum": [
+              "feedback",
+              "execution-outcomes",
+              "review-receipts",
+              "workflow-runs",
+              "notebook-drive-inventory",
+              "notebook-corpus-catalog",
+              "notebook-corpus-checkpoint",
+              "notebook-sync-state",
+              "notebook-semantic-index"
+            ]
+          },
+          "format": {
+            "enum": ["json", "jsonl", "mixed-json-jsonl"]
+          },
+          "state_schema": {
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "size_bytes", "sha256", "fingerprint"],
+              "properties": {
+                "path": { "type": "string", "minLength": 1 },
+                "size_bytes": { "type": "integer", "minimum": 0 },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "fingerprint": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                }
               }
             }
           }
         }
       }
     },
-    "excluded":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}}
+    "excluded": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
   }
 }
