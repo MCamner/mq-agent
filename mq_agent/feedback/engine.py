@@ -27,8 +27,10 @@ from .evaluation import build_operational_comparison
 from .models import build_feedback_experiment
 from .store import append_comparison, append_experiment
 
-ACTIVE_STRATEGY = "context-pack-v1"
-SHADOW_STRATEGY = "context-pack-v1+codegraph-guidance"
+BASELINE_STRATEGY = "context-pack-v1"
+CANDIDATE_STRATEGY = "context-pack-v1+codegraph-guidance"
+ACTIVE_STRATEGY = BASELINE_STRATEGY
+SHADOW_STRATEGY = CANDIDATE_STRATEGY
 DEFAULT_TIMEOUT_MS = 2000
 DEFAULT_MAX_CONTEXT_BYTES = 65536
 DEFAULT_MAX_SOURCES = 64
@@ -218,6 +220,18 @@ def run_context_experiment(
     )
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     feedback_run_id = f"fb-{uuid.uuid4()}"
+    from .control import effective_strategy, strategy_codegraph
+
+    active_strategy = effective_strategy(task_class, state_root)
+    if active_strategy not in {BASELINE_STRATEGY, CANDIDATE_STRATEGY}:
+        raise FeedbackExperimentError(f"unsupported-active-strategy:{active_strategy}")
+    shadow_strategy = (
+        CANDIDATE_STRATEGY
+        if active_strategy == BASELINE_STRATEGY
+        else BASELINE_STRATEGY
+    )
+    active_codegraph = strategy_codegraph(active_strategy)
+    shadow_codegraph = strategy_codegraph(shadow_strategy)
     evidence_boundary = ["repo-context", "mqobsidian-context", "codegraph-local-guidance"]
     fingerprint = _evidence_fingerprint(vault_root, repo_name)
 
@@ -225,8 +239,8 @@ def run_context_experiment(
         experiment = build_feedback_experiment(
             task_class=task_class,
             repository=repository,
-            active_strategy=ACTIVE_STRATEGY,
-            shadow_strategy=SHADOW_STRATEGY,
+            active_strategy=active_strategy,
+            shadow_strategy=shadow_strategy,
             snapshot_ref=snapshot["ref"],
             snapshot_commit=snapshot["commit"],
             evidence_sources=evidence_boundary,
@@ -244,7 +258,7 @@ def run_context_experiment(
             repo_name=repo_name,
             repo_parent=repo_root.parent,
             vault=vault_root,
-            codegraph="off",
+            codegraph=active_codegraph,
             generated_at=generated_at,
             timeout_ms=timeout_ms,
             max_context_bytes=max_context_bytes,
@@ -263,7 +277,7 @@ def run_context_experiment(
             repo_name=repo_name,
             repo_parent=repo_root.parent,
             vault=vault_root,
-            codegraph="on",
+            codegraph=shadow_codegraph,
             generated_at=generated_at,
             timeout_ms=timeout_ms,
             max_context_bytes=max_context_bytes,
@@ -297,8 +311,8 @@ def run_context_experiment(
     experiment = build_feedback_experiment(
         task_class=task_class,
         repository=repository,
-        active_strategy=ACTIVE_STRATEGY,
-        shadow_strategy=SHADOW_STRATEGY,
+        active_strategy=active_strategy,
+        shadow_strategy=shadow_strategy,
         snapshot_ref=snapshot["ref"],
         snapshot_commit=snapshot["commit"],
         evidence_sources=evidence_boundary,
