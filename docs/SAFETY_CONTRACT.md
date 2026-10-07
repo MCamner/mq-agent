@@ -26,6 +26,19 @@ These operations require either `--approve` or `execute` mode:
 - Calling mq-mcp **Class D** tools (subprocess/open apps — e.g. `run_tests`,
   `open_in_app`, `validate_project`) — must also show command intent to user
 
+## Session checkpoint boundary
+
+`workflow checkpoint create` writes only a bounded, content-addressed resume
+reference over an existing paused/failed workflow run. It does not copy task
+prose, tool arguments/results, transcripts, file bodies, environment state,
+credentials, or private absolute repository paths.
+
+`workflow checkpoint status` and `workflow checkpoint resume --dry-run` are
+read-only with respect to workflow execution. An actual checkpoint resume
+requires explicit `--approve` before run state is persisted or any remaining
+tool can execute. Resume fails closed on owner/expiry/integrity/state/template
+drift. The owner label is a coordination guard, not an authentication system.
+
 ## State recovery boundary
 
 `mq-agent state inventory`, `state snapshot`, and `state verify` do not

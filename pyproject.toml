@@ -61,6 +61,7 @@ packages = ["mq_agent"]
 "schemas/feedback_canary.schema.json" = "mq_agent/schemas/feedback_canary.schema.json"
 "schemas/state_snapshot.schema.json" = "mq_agent/schemas/state_snapshot.schema.json"
 "schemas/state_snapshot_v1.schema.json" = "mq_agent/schemas/state_snapshot_v1.schema.json"
+"schemas/workflow_checkpoint.schema.json" = "mq_agent/schemas/workflow_checkpoint.schema.json"
 "schemas/hybrid_retrieval_shadow.schema.json" = "mq_agent/schemas/hybrid_retrieval_shadow.schema.json"
 "schemas/perception_review.schema.json" = "mq_agent/schemas/perception_review.schema.json"
 "schemas/perception_review_receipt.schema.json" = "mq_agent/schemas/perception_review_receipt.schema.json"

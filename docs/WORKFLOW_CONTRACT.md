@@ -216,3 +216,47 @@ cancelled
 Runner, evaluator, conditions engine, state persistence, approval prompts,
 policy gates, mqlaunch routing, Bridget delegation, workflow observations, and
 adaptive planning. See the phase roadmap for where each lands.
+
+---
+
+## Runtime extension — Session Checkpoints
+
+The plan contract remains `mq-workflow-plan.v1`; resumability does not add
+resume fields to the plan. Session Checkpoints are a separate runtime contract,
+`mq.workflow-checkpoint.v1`, owned by mq-agent and layered over the existing
+persisted `WorkflowRun`.
+
+A checkpoint contains only bounded typed references:
+
+- exact workflow run id and SHA-256 fingerprint;
+- paused/failed run status;
+- workflow template name and exact template fingerprint;
+- repository basename, never the private absolute repository path;
+- current step id, passed step ids and resumable step ids;
+- replan count;
+- explicit owner label;
+- created/expiry timestamps.
+
+It deliberately contains no task prose, tool arguments, tool results, raw
+transcript, file body, environment state, credential, or free-form note.
+
+### Resume invariants
+
+`workflow checkpoint status` is read-only. `workflow checkpoint resume
+--dry-run` performs the same checkpoint/run/template verification without
+persisting or executing anything.
+
+An actual checkpoint resume requires explicit `--approve` and refuses:
+
+- checkpoint fingerprint tamper;
+- owner mismatch;
+- expiry;
+- missing or changed workflow run;
+- changed workflow template;
+- repository basename drift;
+- current/passed/resumable step drift;
+- replan-count drift.
+
+The authoritative run is persisted in resumed state before Runner execution.
+That changes the run fingerprint immediately, so the checkpoint cannot be
+reused to trigger a second transition.

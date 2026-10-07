@@ -331,6 +331,22 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## Session Checkpoints status
+
+Workflow continuity now uses bounded resume references over the existing
+workflow run state instead of capturing conversations or cloning runtime state.
+
+- [x] content-addressed `mq.workflow-checkpoint.v1`
+- [x] checkpoints can be created only from paused or failed workflow runs
+- [x] exact run-file and workflow-template fingerprints are bound at creation
+- [x] explicit owner labels and 1-168 hour expiry windows are enforced
+- [x] only run id, repo name, step ids and bounded counters enter the checkpoint
+- [x] task prose, tool args/results, repo paths, transcripts and file bodies are absent
+- [x] status verification fails closed on owner, expiry, tamper or state drift
+- [x] `workflow checkpoint resume --dry-run` performs zero-write verification
+- [x] actual checkpoint resume requires explicit `--approve`
+- [x] first resume persistence invalidates the checkpoint before tool execution
+
 ## State Recovery v2 status
 
 Portable runtime recovery now covers deterministic Notebook metadata/checkpoint

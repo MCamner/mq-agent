@@ -605,8 +605,26 @@ justify an activation design.
 * [x] Keep generic memory, HAL free-form notes, environment-sensitive state,
   Notebook source bodies and remote vector-store state/contents excluded.
 
-Next roadmap item: **Session Checkpoints** — bounded resumable task/workflow
-state with explicit ownership, expiry and no raw transcript capture.
+### Session Checkpoints checkpoint
+
+* [x] Define and package content-addressed `mq.workflow-checkpoint.v1`.
+* [x] Build checkpoints only over existing paused/failed workflow run state;
+  keep `WorkflowRun` authoritative rather than creating a second state machine.
+* [x] Bind exact run bytes and the exact current workflow template fingerprint.
+* [x] Require an explicit owner label and bounded 1-168 hour expiry.
+* [x] Persist only typed resume references: run id/status, repo name, current
+  step, passed/resumable step ids and replan count.
+* [x] Exclude task prose, tool args/results, raw transcripts, file bodies,
+  credentials/environment data and private absolute repository paths.
+* [x] Fail closed on owner mismatch, expiry, checkpoint tamper, run drift,
+  template drift, repository identity drift and step-state drift.
+* [x] Add read-only checkpoint status and zero-write resume dry-run.
+* [x] Require explicit approval before resume persistence or tool execution.
+* [x] Make checkpoints single-use by persisting resumed run state before
+  execution, invalidating the checkpoint's exact run fingerprint.
+
+Next roadmap item: **Per-task-class promotion criteria** — derive promotion
+policy from accumulated real outcomes rather than a provisional threshold.
 
 ### v1.32.0 Canary v2 checkpoint
 

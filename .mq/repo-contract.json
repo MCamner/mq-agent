@@ -46,7 +46,8 @@
     "mq.state-snapshot.v2",
     "mq.hybrid-retrieval-shadow.v1",
     "mq.feedback-canary.v1",
-    "mq.feedback-policy-snapshot.v1"
+    "mq.feedback-policy-snapshot.v1",
+    "mq.workflow-checkpoint.v1"
   ],
   "compatibility": {
     "consumes": [
@@ -61,6 +62,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Session Checkpoints bounded resumable task state",
+  "next_focus": "Per-task-class promotion criteria from accumulated real outcomes",
   "release_mode": "pull_request"
 }
