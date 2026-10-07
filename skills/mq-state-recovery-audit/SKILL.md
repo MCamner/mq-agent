@@ -53,6 +53,7 @@ Use this skill to prove that local MQ runtime state can be inventoried, snapshot
 - Snapshot creation and verification are read-safe operations.
 - Restore is an explicit write operation and requires operator approval at the CLI boundary; `--dry-run` performs verification and target resolution only.
 - Recovery evidence must distinguish "not present" from "verified empty".
+- Workflow Session Checkpoints under the workflow state tree are bounded resume references only; they must never introduce transcript/task/result bodies into State Recovery snapshots.
 
 ## Files To Inspect
 
