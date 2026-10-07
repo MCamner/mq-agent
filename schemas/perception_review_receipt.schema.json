@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mq.local/schemas/mq.perception-review-receipt.v1.schema.json",
+  "title": "mq.perception-review-receipt.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "receipt_id", "status", "reason", "perception_evidence_id", "review_id", "reviewer", "repository"],
+  "properties": {
+    "schema": {"const": "mq.perception-review-receipt.v1"},
+    "receipt_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"enum": ["ISSUED", "REFUSED"]},
+    "reason": {"type": "string"},
+    "perception_evidence_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "review_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "reviewer": {"type": "object"},
+    "repository": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repo", "commit", "worktree_clean"],
+          "properties": {
+            "repo": {"type": "string"},
+            "commit": {"type": ["string", "null"]},
+            "worktree_clean": {"type": ["boolean", "null"]}
+          }
+        }
+      ]
+    }
+  }
+}
