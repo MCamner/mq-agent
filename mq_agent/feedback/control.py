@@ -130,6 +130,12 @@ def validate_canary(
 
     if approval["candidate_id"] != candidate_id:
         raise ValueError("approval is bound to another candidate")
+    current_readiness = activation_readiness(candidate_id, root)
+    if current_readiness["status"] != "READY_FOR_HUMAN_APPROVAL":
+        raise ValueError(
+            "approval expired because candidate readiness/state changed: "
+            + str(current_readiness["status"])
+        )
     if approval["candidate_fingerprint"] != candidate["fingerprint"]:
         raise ValueError("approval expired because candidate fingerprint changed")
     if datetime.fromisoformat(approval["expires_at"].replace("Z", "+00:00")) <= _now():
@@ -251,6 +257,56 @@ def rollback(
     validate_policy_event(record)
     append_policy_event(record, root)
     return record
+
+
+def post_activation_check(
+    task_class: str,
+    comparison_id: str,
+    *,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Interpret one comparison from the current active policy's perspective."""
+    comparison = _comparison(comparison_id, root)
+    current = effective_strategy(task_class, root)
+    if comparison["task_class"] != task_class:
+        raise ValueError("comparison task class does not match policy")
+    if comparison["active_strategy"] != current:
+        raise ValueError("comparison was not measured against the current active strategy")
+    if not comparison["valid"] or comparison.get("relevance_fixture") is None:
+        return {
+            "kind": "feedback-post-activation-check",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "task_class": task_class,
+            "active_strategy": current,
+            "comparison_id": comparison_id,
+            "regressions": [],
+        }
+
+    regressions: list[str] = []
+    for name, metric in comparison["metrics"].items():
+        if not metric.get("material") or metric.get("status") != "comparable":
+            continue
+        delta = metric.get("delta")
+        direction = metric.get("direction")
+        if not isinstance(delta, (int, float)):
+            continue
+        shadow_better = (
+            direction == "higher_is_better" and delta > 0
+        ) or (
+            direction == "lower_is_better" and delta < 0
+        )
+        if shadow_better:
+            regressions.append(name)
+
+    return {
+        "kind": "feedback-post-activation-check",
+        "status": "REGRESSION" if regressions else "PASS",
+        "task_class": task_class,
+        "active_strategy": current,
+        "baseline_shadow_strategy": comparison["shadow_strategy"],
+        "comparison_id": comparison_id,
+        "regressions": sorted(regressions),
+    }
 
 
 def policy_status(task_class: str, root: Path | None = None) -> dict[str, Any]:
