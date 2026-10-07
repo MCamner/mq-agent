@@ -331,6 +331,26 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## v1.31.0 status
+
+Evidence-Gated Activation and Recovery. v1.31 keeps v1.30's evidence-first
+Feedback Engine and adds an explicit human-controlled path from a ready
+candidate to a bounded canary, one task-class activation, post-activation
+regression checking and deterministic rollback.
+
+- [x] content-bound, expiring human approval receipts
+- [x] post-approval zero-effect canary evidence
+- [x] task-class-scoped append-only activation and rollback
+- [x] non-destructive `MQ_FEEDBACK_ACTIVATION=off` kill switch
+- [x] existing `context pack --codegraph auto` behavior remains unchanged;
+  feedback policy is consumed only with `--codegraph policy`
+- [x] structured measured runtime fallback evidence
+- [x] perception review orchestration through mq-image-analyze
+- [x] allowlisted runtime state snapshot/verify/restore
+- [x] typed session-to-memory-observation handoff without auto-promotion
+- [x] hybrid retrieval shadow mode with no effect on the active result
+- [x] no autonomous/global activation or direct durable-memory writes
+
 ## v1.30.0 status
 
 Evidence-Grounded Feedback and Governance Hardening. mq-agent can measure
@@ -809,10 +829,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
 Current direction:
 
-v1.30.0 packages the Evidence-Grounded Feedback Engine plus governance
-hardening. The next gate is controlled, task-class-scoped activation and
-rollback based on real post-release evidence. Activation remains deliberately
-absent from v1.30.0; readiness is advisory and human approval remains required.
+v1.31.0 adds Evidence-Gated Activation and Recovery on top of the v1.30
+Feedback Engine. Activation is explicit, task-class scoped, bound to human
+approval plus post-approval canary evidence, and remains opt-in at the context
+consumer boundary. Autonomous/global activation remains absent.
 
 Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
 mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
