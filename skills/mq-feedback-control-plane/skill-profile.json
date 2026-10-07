@@ -21,7 +21,7 @@
     "rollback"
   ],
   "risks": [
-    "policy-mutation"
+    "policy_mutation"
   ],
   "required_for": [],
   "supersedes": [],
