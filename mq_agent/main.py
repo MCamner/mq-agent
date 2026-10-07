@@ -1136,6 +1136,118 @@ def review_repo_cmd(
         _brain_record_review(bridge, path, _review_payload(result))
 
 
+@review_app.command("perception")
+def review_perception_cmd(
+    image_path: Annotated[str, typer.Argument(help="Image/screenshot/diagram path")],
+    producer: Annotated[
+        str,
+        typer.Option("--producer", help="ui, architecture, or ocr"),
+    ] = "ui",
+    source_type: Annotated[
+        str | None,
+        typer.Option("--source-type", help="screenshot, diagram, ui, terminal, or browser"),
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+):
+    """Produce and inspect perception.v1 through mq-image-analyze.
+
+    This command is orchestration only: mq-image-analyze owns visual extraction.
+    mq-agent preserves the returned risk signals/limitations and does not invent
+    a second vision or review engine.
+    """
+    if producer not in {"ui", "architecture", "ocr"}:
+        raise typer.BadParameter("producer must be ui, architecture, or ocr")
+    if source_type not in {None, "screenshot", "diagram", "ui", "terminal", "browser"}:
+        raise typer.BadParameter(
+            "source-type must be screenshot, diagram, ui, terminal, or browser"
+        )
+    if dry_run:
+        suffix = f" source_type={source_type}" if source_type else ""
+        console.print(
+            f"[blue][dry-run][/blue] Would call: [bold]mq-image-analyze "
+            f"image_perception image_path={image_path} producer={producer}{suffix}[/bold]"
+        )
+        return
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge, tool_failure
+
+    result = MultiMCPBridge().image_perception(
+        image_path,
+        producer=producer,
+        source_type=source_type,
+    )
+    failure = tool_failure("image_perception", result)
+    if failure:
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": failure}, indent=2))
+        else:
+            console.print(
+                Panel(
+                    Text(failure),
+                    title="[bold red]perception unavailable[/bold red]",
+                    border_style="red",
+                )
+            )
+        raise typer.Exit(1)
+
+    payload = _coerce_mcp_json_payload(result)
+    if not isinstance(payload, dict):
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": "perception payload is not an object"}))
+        else:
+            console.print("[bold red]perception payload is not an object[/bold red]")
+        raise typer.Exit(1)
+
+    required = {
+        "source_type",
+        "source_path",
+        "ocr_text",
+        "visual_summary",
+        "risk_signals",
+        "confidence",
+        "limitations",
+    }
+    missing = sorted(required - set(payload))
+    if missing:
+        error = f"perception.v1 missing required fields: {', '.join(missing)}"
+        if json_out:
+            typer.echo(json.dumps({"ok": False, "error": error}, indent=2))
+        else:
+            console.print(f"[bold red]{error}[/bold red]")
+        raise typer.Exit(1)
+
+    envelope = {
+        "schema": "mq-agent.perception-review.v1",
+        "status": "WARNING" if payload.get("risk_signals") else "PASS",
+        "producer": producer,
+        "perception": payload,
+        "review": {
+            "risk_signals": payload.get("risk_signals") or [],
+            "limitations": payload.get("limitations") or [],
+            "confidence": payload.get("confidence"),
+            "model_reinterpretation": False,
+        },
+    }
+    if json_out:
+        typer.echo(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
+        return
+
+    console.print(
+        Panel(
+            f"Source type: {payload.get('source_type')}\n"
+            f"Confidence: {payload.get('confidence')}\n"
+            f"Summary: {payload.get('visual_summary') or '—'}",
+            title=f"Perception Review — {envelope['status']}",
+            border_style="yellow" if envelope["status"] == "WARNING" else "green",
+        )
+    )
+    for signal in envelope["review"]["risk_signals"]:
+        console.print(f"[yellow]risk:[/yellow] {signal}")
+    for limitation in envelope["review"]["limitations"]:
+        console.print(f"[dim]limitation:[/dim] {limitation}")
+
+
 def _contract_status_text(value: Any) -> str:
     """Flatten MCP content wrappers into text for status rendering."""
     if isinstance(value, str):
