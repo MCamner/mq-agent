@@ -34,6 +34,29 @@ Set `MQ_AGENT_REVIEW_RECEIPTS_DIR` to use another operator-local directory.
 Writes are atomic and content-addressed, so retrying the same receipt is
 idempotent. `REFUSED`, malformed or tampered receipts are never stored.
 
+## Perception Review v2 receipts
+
+`mq-agent review perception <image> --receipt` uses a separate compact contract,
+`mq.perception-review-receipt.v1`. mq-image-analyze first produces
+content-addressed `perception.v1`; mq-mcp validates that evidence, reviews only
+the normalized evidence, and produces `mq.perception-review.v1`.
+
+The optional receipt binds the exact perception evidence id, the exact review
+id, and mq-mcp runtime identity. Add `--repo <path>` when the visual review is
+associated with a repository; mq-mcp then records the exact current Git commit
+or refuses the receipt if it cannot establish one.
+
+The receipt intentionally excludes raw image/base64 data, OCR bodies, detected
+regions, and local image paths. mq-agent validates both mq-mcp contracts,
+re-checks the receipt content address and cross-checks both bound ids before it
+persists an `ISSUED` receipt.
+
+```bash
+mq-agent review perception screenshot.png --mode risk --receipt
+mq-agent review perception architecture.png --producer architecture \\
+  --mode architecture --receipt --repo ../my-repo --json
+```
+
 ## Safety boundary
 
 Receipt generation remains read-only in mq-mcp. mq-agent's persistence is an
