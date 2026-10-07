@@ -331,6 +331,23 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## Perception Review v2 status
+
+The visual review path is now contract-bound end to end rather than stopping at
+perception extraction.
+
+- [x] mq-image-analyze emits content-addressed `perception.v1`
+- [x] mq-mcp validates the canonical producer contract without reopening images
+- [x] mq-mcp owns risk/architecture findings in `mq.perception-review.v1`
+- [x] every finding carries the exact perception evidence reference
+- [x] optional `mq.perception-review-receipt.v1` binds perception, review,
+  reviewer runtime and an exact repo commit when requested
+- [x] `mq-agent review perception` orchestrates the chain and fails closed on
+  malformed/mismatched evidence or a refused requested receipt
+- [x] Codex and Claude consume the same mq-mcp `review_perception` tool
+- [x] receipts contain references only — no image bytes, OCR body, regions or
+  local image paths
+
 ## v1.33.0 status
 
 Policy Registry v2 makes task-class policy state explicitly recoverable and
