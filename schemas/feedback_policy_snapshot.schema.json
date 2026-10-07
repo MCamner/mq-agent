@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-policy-snapshot.v1",
+  "description": "Immutable append-only snapshot of one task-class feedback policy state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "snapshot_id",
+    "fingerprint",
+    "task_class",
+    "baseline_strategy",
+    "effective_strategy",
+    "event_count",
+    "last_event_id",
+    "source_event_id",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema": {"const": "mq.feedback-policy-snapshot.v1"},
+    "snapshot_id": {"type":"string","pattern":"^snapshot-[A-Za-z0-9-]{8,}$"},
+    "fingerprint": {"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "task_class": {"type":"string","minLength":1,"maxLength":80},
+    "baseline_strategy": {"type":"string","minLength":1,"maxLength":120},
+    "effective_strategy": {"type":"string","minLength":1,"maxLength":120},
+    "event_count": {"type":"integer","minimum":0},
+    "last_event_id": {"type":["string","null"],"maxLength":160},
+    "source_event_id": {"type":["string","null"],"maxLength":160},
+    "recorded_at": {"type":"string","format":"date-time"}
+  }
+}

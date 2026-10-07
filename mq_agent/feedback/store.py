@@ -23,6 +23,7 @@ from .contracts import (
     validate_canary_record,
     validate_comparison,
     validate_policy_event,
+    validate_policy_snapshot,
 )
 from .models import validate_experiment
 
@@ -36,6 +37,7 @@ CANDIDATES_FILE = "candidates.jsonl"
 APPROVALS_FILE = "approvals.jsonl"
 POLICY_EVENTS_FILE = "policy-events.jsonl"
 CANARIES_FILE = "canaries.jsonl"
+POLICY_SNAPSHOTS_FILE = "policy-snapshots.jsonl"
 LOCK_FILE = ".store.lock"
 
 _PROHIBITED_KEYS = frozenset(
@@ -129,6 +131,10 @@ def policy_events_path(root: Path | None = None) -> Path:
 
 def canaries_path(root: Path | None = None) -> Path:
     return feedback_root(root) / CANARIES_FILE
+
+
+def policy_snapshots_path(root: Path | None = None) -> Path:
+    return feedback_root(root) / POLICY_SNAPSHOTS_FILE
 
 
 def _normalized_key(key: str) -> str:
@@ -334,6 +340,15 @@ def append_canary(record: dict[str, Any], root: Path | None = None) -> Path:
     )
 
 
+def append_policy_snapshot(record: dict[str, Any], root: Path | None = None) -> Path:
+    return _append_record(
+        record,
+        filename=POLICY_SNAPSHOTS_FILE,
+        validator=validate_policy_snapshot,
+        root=root,
+    )
+
+
 def _parse_lines(
     raw_lines: list[bytes],
     source: str,
@@ -451,6 +466,14 @@ def read_canary_history(root: Path | None = None) -> FeedbackHistoryResult:
     )
 
 
+def read_policy_snapshot_history(root: Path | None = None) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=POLICY_SNAPSHOTS_FILE,
+        validator=validate_policy_snapshot,
+        root=root,
+    )
+
+
 def read_experiments(root: Path | None = None) -> FeedbackReadResult:
     """Read valid current-generation experiment records."""
     state_root = feedback_root(root)
@@ -483,6 +506,7 @@ def purge_feedback_state(root: Path | None = None) -> int:
             APPROVALS_FILE,
             POLICY_EVENTS_FILE,
             CANARIES_FILE,
+            POLICY_SNAPSHOTS_FILE,
         ):
             base = state_root / name
             candidates = [

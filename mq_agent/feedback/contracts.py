@@ -13,6 +13,7 @@ ACTIVATION_READINESS_SCHEMA_ID = "mq.feedback-activation-readiness.v1"
 APPROVAL_SCHEMA_ID = "mq.feedback-approval.v1"
 POLICY_EVENT_SCHEMA_ID = "mq.feedback-policy-event.v1"
 CANARY_SCHEMA_ID = "mq.feedback-canary.v1"
+POLICY_SNAPSHOT_SCHEMA_ID = "mq.feedback-policy-snapshot.v1"
 
 _SCHEMA_FILES = {
     COMPARISON_SCHEMA_ID: "feedback_comparison.schema.json",
@@ -21,6 +22,7 @@ _SCHEMA_FILES = {
     APPROVAL_SCHEMA_ID: "feedback_approval.schema.json",
     POLICY_EVENT_SCHEMA_ID: "feedback_policy_event.schema.json",
     CANARY_SCHEMA_ID: "feedback_canary.schema.json",
+    POLICY_SNAPSHOT_SCHEMA_ID: "feedback_policy_snapshot.schema.json",
 }
 
 
@@ -59,3 +61,7 @@ def validate_policy_event(record: dict[str, Any]) -> None:
 
 def validate_canary_record(record: dict[str, Any]) -> None:
     validator(CANARY_SCHEMA_ID).validate(record)
+
+
+def validate_policy_snapshot(record: dict[str, Any]) -> None:
+    validator(POLICY_SNAPSHOT_SCHEMA_ID).validate(record)

@@ -483,7 +483,7 @@ Run and inspect evidence-grounded feedback experiments.
 | [`mq-agent feedback purge`](#mq-agent-feedback-purge) | Delete local runtime feedback evidence; production behavior is unchanged. |
 | [`mq-agent feedback recent`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
 | [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without recomputing a verdict. |
-| [`mq-agent feedback rollback`](#mq-agent-feedback-rollback) | Roll one task class back to the immediately previous strategy. |
+| [`mq-agent feedback rollback`](#mq-agent-feedback-rollback) | Roll back one exact currently-active Policy Registry v2 activation. |
 | [`mq-agent feedback run`](#mq-agent-feedback-run) | Run one zero-effect active-versus-shadow repo-review experiment. |
 | [`mq-agent feedback status`](#mq-agent-feedback-status) | Show feedback storage health and experiment coverage. |
 
@@ -784,13 +784,13 @@ Aggregate feedback evidence without recomputing a verdict.
 
 ## `mq-agent feedback rollback`
 
-Roll one task class back to the immediately previous strategy.
+Roll back one exact currently-active Policy Registry v2 activation.
 
 ### Arguments
 
 | Argument | Required | Default | Description |
 |---|---:|---|---|
-| `TASK_CLASS` | Yes | — | Task class to roll back |
+| `ACTIVATION_ID` | Yes | — | Exact activation policy event id |
 
 ### Options
 

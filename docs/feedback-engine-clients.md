@@ -49,12 +49,13 @@ activation-readiness
   -> canary-status
   -> activate --canary-id ... --approve
   -> post-activation-check
-  -> rollback --approve (when required)
+  -> rollback <activation-event-id> --approve (when required)
 ```
 
 Clients may render the resulting receipts/events/status but must not reimplement
 approval expiry, Canary v2 planning/verdict logic, evidence-reference
-verification, effective-policy selection or rollback.
+verification, policy snapshot fingerprinting, effective-policy selection or
+activation-id rollback.
 
 ## Storage boundary
 

@@ -9,6 +9,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.33.0] — 2026-10-07
+
+Theme: Policy Registry v2. Feedback policy changes now carry immutable policy
+snapshots and rollback addresses one exact activation event.
+
+### Added
+
+- `mq.feedback-policy-snapshot.v1` records one content-fingerprinted,
+  append-only task-class policy state.
+- Every new activation records immutable before/after snapshots and binds the
+  policy event to both snapshot ids.
+- `feedback policy` exposes snapshot count and the current policy snapshot.
+- Rollback now targets an exact activation policy event id and records the
+  rollback source, target snapshot and resulting snapshot.
+
+### Safety
+
+- Rollback refuses non-activation ids, historical/non-current activations and
+  legacy activations that predate snapshot binding.
+- Snapshot fingerprints are re-verified before rollback.
+- Policy events are appended only after their referenced snapshots exist, so a
+  committed event cannot point at a future/missing snapshot.
+- Rollback remains append-only and cannot toggle a previously rolled-back
+  activation back on.
+- Existing `context pack --codegraph auto` behavior remains unchanged.
+
 ## [v1.32.0] — 2026-10-07
 
 Theme: Canary v2. Activation evidence is now a bounded, append-only

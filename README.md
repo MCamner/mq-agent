@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.32.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.33.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -330,6 +330,21 @@ uv run pytest tests/ -v
 - [x] Versioned `mq_release_cockpit.v1` JSON contract
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
+
+## v1.33.0 status
+
+Policy Registry v2 makes task-class policy state explicitly recoverable and
+addressable.
+
+- [x] immutable content-fingerprinted `mq.feedback-policy-snapshot.v1`
+- [x] activation binds before/after policy snapshots
+- [x] rollback targets one exact activation event id
+- [x] rollback verifies the activation's target/current snapshots
+- [x] rollback appends a new resulting snapshot and policy event
+- [x] legacy unbound activation events remain readable but cannot be used as a
+  v1.33 rollback target
+- [x] `feedback policy` surfaces current registry snapshot
+- [x] default `--codegraph auto` semantics remain unchanged
 
 ## v1.32.0 status
 

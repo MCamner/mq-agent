@@ -1,4 +1,4 @@
-# Feedback Engine v1.32
+# Feedback Engine v1.33
 
 The Feedback Engine is mq-agent's evidence-first loop for comparing one active
 context strategy with one zero-effect shadow strategy.
@@ -111,7 +111,9 @@ mq-agent feedback activate <candidate-id> \
   --reason "bounded Canary v2 passed" \
   --approve
 mq-agent feedback post-activation-check repo-review --comparison-id <comparison-id>
-mq-agent feedback rollback repo-review --reason "regression observed" --approve
+mq-agent feedback rollback <activation-event-id> \
+  --reason "regression observed" \
+  --approve
 ```
 
 Approval is content-bound and expires when the candidate readiness/fingerprint
@@ -120,7 +122,7 @@ and policy snapshot, executes at most the declared budget, and appends at most
 one result. Activation accepts only a deterministic PASS for the exact
 candidate/approval and re-verifies the referenced experiments/comparisons.
 Activation and rollback append policy events; they never rewrite evidence
-history.
+history. v1.33 also binds each new policy event to immutable policy snapshots.
 
 `READY_FOR_HUMAN_APPROVAL` requires:
 
@@ -156,6 +158,25 @@ stdout/stderr and credentials.
 - scripts and CI use `mq-agent feedback ... --json`.
 
 See [Feedback Engine client contract](feedback-engine-clients.md).
+
+## v1.33 Policy Registry v2 boundary
+
+Each new activation records immutable before/after
+`mq.feedback-policy-snapshot.v1` records. Snapshot fingerprints are verified
+before rollback, and rollback addresses one exact activation policy event id.
+
+A rollback is allowed only when that activation is still the latest policy
+event for its task class and its after-snapshot still matches the active
+strategy. Legacy activation events without snapshot bindings remain readable
+but cannot be used as v1.33 rollback targets.
+
+```bash
+mq-agent feedback policy repo-review --json
+mq-agent feedback rollback <activation-event-id> \
+  --reason "material regression observed" \
+  --approve \
+  --json
+```
 
 ## v1.32 Canary v2 boundary
 

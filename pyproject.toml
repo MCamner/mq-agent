@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mq-agent"
-version = "1.32.0"
+version = "1.33.0"
 description = "Terminal-native workflow orchestration runtime for the mq ecosystem"
 requires-python = ">=3.11"
 dependencies = [
@@ -57,6 +57,7 @@ packages = ["mq_agent"]
 "schemas/feedback_activation_readiness.schema.json" = "mq_agent/schemas/feedback_activation_readiness.schema.json"
 "schemas/feedback_approval.schema.json" = "mq_agent/schemas/feedback_approval.schema.json"
 "schemas/feedback_policy_event.schema.json" = "mq_agent/schemas/feedback_policy_event.schema.json"
+"schemas/feedback_policy_snapshot.schema.json" = "mq_agent/schemas/feedback_policy_snapshot.schema.json"
 "schemas/feedback_canary.schema.json" = "mq_agent/schemas/feedback_canary.schema.json"
 "schemas/state_snapshot.schema.json" = "mq_agent/schemas/state_snapshot.schema.json"
 "schemas/hybrid_retrieval_shadow.schema.json" = "mq_agent/schemas/hybrid_retrieval_shadow.schema.json"

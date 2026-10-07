@@ -13,6 +13,7 @@ from mq_agent.feedback.control import (
     activate,
     approval_receipt,
     effective_strategy,
+    policy_status,
     rollback,
     validate_canary,
 )
@@ -181,10 +182,13 @@ def test_activation_requires_post_approval_canary_and_rolls_back_append_only(
     assert event["event_type"] == "ACTIVATION"
     assert event["from_strategy"] == BASELINE
     assert event["to_strategy"] == CANDIDATE
+    assert event["before_snapshot_id"].startswith("snapshot-")
+    assert event["after_snapshot_id"].startswith("snapshot-")
+    assert event["rollback_target_snapshot_id"] == event["before_snapshot_id"]
     assert effective_strategy("repo-review", tmp_path) == CANDIDATE
 
     rolled_back = rollback(
-        "repo-review",
+        event["event_id"],
         reason="post-activation regression",
         root=tmp_path,
     )
@@ -192,14 +196,123 @@ def test_activation_requires_post_approval_canary_and_rolls_back_append_only(
     assert rolled_back["event_type"] == "ROLLBACK"
     assert rolled_back["from_strategy"] == CANDIDATE
     assert rolled_back["to_strategy"] == BASELINE
+    assert rolled_back["rollback_of_event_id"] == event["event_id"]
+    assert rolled_back["rollback_target_snapshot_id"] == event["before_snapshot_id"]
+    assert rolled_back["before_snapshot_id"] == event["after_snapshot_id"]
+    assert rolled_back["after_snapshot_id"].startswith("snapshot-")
     assert effective_strategy("repo-review", tmp_path) == BASELINE
     events = (tmp_path / "policy-events.jsonl").read_text().splitlines()
     assert len(events) == 2
 
-    with pytest.raises(ValueError, match="no active activation"):
+    with pytest.raises(ValueError, match="no longer the active latest"):
         rollback(
-            "repo-review",
+            event["event_id"],
             reason="must not toggle back to candidate",
+            root=tmp_path,
+        )
+
+
+def test_policy_registry_snapshot_status_is_content_verified(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MQ_FEEDBACK_ACTIVATION", "on")
+    candidate_id = _ready_candidate(tmp_path)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    canary_id = _passing_canary(
+        tmp_path,
+        candidate_id=candidate_id,
+        approval_id=approval["approval_id"],
+    )
+    event = activate(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        canary_id=canary_id,
+        reason="registry snapshot test",
+        root=tmp_path,
+    )
+
+    status = policy_status("repo-review", tmp_path)
+    assert status["events"] == 1
+    assert status["snapshots"] == 2
+    assert status["current_snapshot"]["snapshot_id"] == event["after_snapshot_id"]
+    assert status["current_snapshot"]["effective_strategy"] == CANDIDATE
+    assert status["current_snapshot"]["last_event_id"] == event["event_id"]
+
+
+def test_rollback_refuses_non_activation_and_legacy_unbound_activation(
+    tmp_path: Path,
+) -> None:
+    from mq_agent.feedback.store import append_policy_event
+
+    legacy_event_id = "policy-legacy-12345678"
+    legacy = {
+        "schema": "mq.feedback-policy-event.v1",
+        "event_id": legacy_event_id,
+        "event_type": "ACTIVATION",
+        "task_class": "repo-review",
+        "from_strategy": BASELINE,
+        "to_strategy": CANDIDATE,
+        "candidate_id": "candidate-legacy",
+        "approval_id": "approval-legacy-12345678",
+        "canary_id": None,
+        "canary_comparison_id": None,
+        "recorded_at": "2026-10-07T00:00:00Z",
+        "reason": "legacy v1.32 event",
+    }
+    append_policy_event(legacy, tmp_path)
+
+    with pytest.raises(ValueError, match="predates Policy Registry v2"):
+        rollback(
+            legacy_event_id,
+            reason="must not invent a target snapshot",
+            root=tmp_path,
+        )
+
+
+def test_policy_registry_refuses_unknown_activation_id(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="resolve to exactly one"):
+        rollback(
+            "policy-does-not-exist-12345678",
+            reason="must fail closed",
+            root=tmp_path,
+        )
+
+
+def test_policy_registry_detects_snapshot_tamper(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import json
+
+    monkeypatch.setenv("MQ_FEEDBACK_ACTIVATION", "on")
+    candidate_id = _ready_candidate(tmp_path)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    canary_id = _passing_canary(
+        tmp_path,
+        candidate_id=candidate_id,
+        approval_id=approval["approval_id"],
+    )
+    event = activate(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        canary_id=canary_id,
+        reason="snapshot tamper test",
+        root=tmp_path,
+    )
+
+    path = tmp_path / "policy-snapshots.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    for row in rows:
+        if row["snapshot_id"] == event["before_snapshot_id"]:
+            row["effective_strategy"] = "tampered-strategy"
+    path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="snapshot store contains invalid|fingerprint mismatch"):
+        rollback(
+            event["event_id"],
+            reason="tampered snapshot must fail",
             root=tmp_path,
         )
 
