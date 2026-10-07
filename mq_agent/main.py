@@ -1177,6 +1177,7 @@ def review_perception_cmd(
     review and the mq.perception-review.v1 contract. mq-agent only orchestrates,
     validates the returned contracts and renders them.
     """
+    error: Any
     if producer not in {"ui", "architecture", "ocr"}:
         raise typer.BadParameter("producer must be ui, architecture, or ocr")
     if source_type not in {None, "screenshot", "diagram", "ui", "terminal", "browser"}:
