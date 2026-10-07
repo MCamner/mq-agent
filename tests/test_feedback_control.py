@@ -244,9 +244,10 @@ def test_rollback_refuses_non_activation_and_legacy_unbound_activation(
 ) -> None:
     from mq_agent.feedback.store import append_policy_event
 
+    legacy_event_id = "policy-legacy-12345678"
     legacy = {
         "schema": "mq.feedback-policy-event.v1",
-        "event_id": "policy-legacy-12345678",
+        "event_id": legacy_event_id,
         "event_type": "ACTIVATION",
         "task_class": "repo-review",
         "from_strategy": BASELINE,
@@ -262,7 +263,7 @@ def test_rollback_refuses_non_activation_and_legacy_unbound_activation(
 
     with pytest.raises(ValueError, match="predates Policy Registry v2"):
         rollback(
-            legacy["event_id"],
+            legacy_event_id,
             reason="must not invent a target snapshot",
             root=tmp_path,
         )
