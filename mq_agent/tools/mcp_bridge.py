@@ -390,6 +390,27 @@ class MultiMCPBridge:
             args["source_type"] = source_type
         return self._call_required_tool("image_perception", args)
 
+
+    def review_perception(
+        self,
+        perception: dict[str, Any],
+        *,
+        producer: str,
+        mode: str = "risk",
+        receipt: bool = False,
+        repo_path: str | None = None,
+    ) -> Any:
+        """Delegate validated perception evidence to mq-mcp's review engine."""
+        args: dict[str, Any] = {
+            "perception": perception,
+            "producer": producer,
+            "mode": mode,
+            "receipt": receipt,
+        }
+        if repo_path not in (None, ""):
+            args["repo_path"] = repo_path
+        return self._call_required_tool("review_perception", args)
+
     def search_semantic_memory(self, query: str) -> Any:
         """Search mq-mcp semantic memory (requires mq-mcp v1.4.0+)."""
         return self._call_required_tool("search_semantic_memory", {"query": query})
