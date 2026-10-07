@@ -15,6 +15,10 @@
     "approval_id":{"type":["string","null"]},
     "canary_id":{"type":["string","null"],"pattern":"^canary-[A-Za-z0-9-]{8,}$"},
     "canary_comparison_id":{"type":["string","null"]},
+    "before_snapshot_id":{"type":["string","null"],"pattern":"^snapshot-[A-Za-z0-9-]{8,}$"},
+    "after_snapshot_id":{"type":["string","null"],"pattern":"^snapshot-[A-Za-z0-9-]{8,}$"},
+    "rollback_of_event_id":{"type":["string","null"],"pattern":"^policy-[A-Za-z0-9-]{8,}$"},
+    "rollback_target_snapshot_id":{"type":["string","null"],"pattern":"^snapshot-[A-Za-z0-9-]{8,}$"},
     "recorded_at":{"type":"string","format":"date-time"},
     "reason":{"type":"string","minLength":1,"maxLength":320}
   }
