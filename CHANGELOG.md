@@ -9,6 +9,50 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.31.0] — 2026-10-07
+
+Theme: Evidence-Gated Activation and Recovery. mq-agent closes the loop from
+measured feedback evidence to explicit, task-class-scoped policy activation
+without introducing autonomous routing or automatic memory promotion.
+
+### Added
+
+- Evidence-Gated Activation: content-bound, expiring
+  `mq.feedback-approval.v1` receipts; post-approval zero-effect canary runs;
+  append-only `mq.feedback-policy-event.v1` activation and rollback; explicit
+  `feedback post-activation-check`; and the non-destructive
+  `MQ_FEEDBACK_ACTIVATION=off` kill switch.
+- Feedback-controlled context policy consumption is opt-in through
+  `context pack --codegraph policy`. Existing `--codegraph auto` behavior is
+  unchanged, so merely installing v1.31 does not alter production context.
+- Structured measured fallback evidence in `mq.execution-outcome.v1`, with
+  `from`, `to`, `reason`, `stage` and `source=measured`; the canonical
+  contract remains owned by mqobsidian.
+- `review perception` delegates `perception.v1` production to
+  mq-image-analyze and preserves producer risk signals and limitations without
+  introducing a second vision/review engine.
+- Portable allowlisted runtime state inventory, content-hashed snapshot,
+  verification and explicit restore through `mq-agent state`. Generic memory,
+  HAL free-form notes, credentials/environment data and remote vector-store
+  contents are excluded by default.
+- Typed `memory session-handoff` submits bounded verified session facts as
+  `memory-observation.v1` candidates for the existing mqobsidian review and
+  promotion path; it never captures raw transcripts or auto-promotes memory.
+- `memory hybrid-shadow` compares authoritative mq-mcp semantic retrieval with
+  optional Notebook lexical/semantic channels in zero-effect shadow mode and
+  records only result identities, provenance coverage, latency and divergence.
+
+### Safety
+
+- Human approval is required for approval issuance, activation, rollback and
+  state restore writes.
+- Canary evidence must be recorded after the exact approval receipt and match
+  the candidate's task class and approved current/proposed strategies.
+- Activation is task-class scoped; there is no global or autonomous routing
+  switch.
+- Rollback appends a new event and never rewrites evidence history.
+
+
 ## [v1.30.0] — 2026-10-06
 
 Theme: Evidence-Grounded Feedback and Governance Hardening. mq-agent now ships
