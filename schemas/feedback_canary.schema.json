@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-canary.v1",
+  "description": "Append-only bounded canary plan/result evidence. A PASS is deterministic and never authorizes activation by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "record_type",
+    "canary_id",
+    "candidate_id",
+    "candidate_fingerprint",
+    "approval_id",
+    "task_class",
+    "current_strategy",
+    "proposed_strategy",
+    "policy_snapshot",
+    "plan",
+    "plan_sha256",
+    "created_at"
+  ],
+  "properties": {
+    "schema": {"const": "mq.feedback-canary.v1"},
+    "record_type": {"enum": ["PLAN", "RESULT"]},
+    "canary_id": {"type": "string", "pattern": "^canary-[A-Za-z0-9-]{8,}$"},
+    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "candidate_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "approval_id": {"type": "string", "pattern": "^approval-[A-Za-z0-9-]{8,}$"},
+    "task_class": {"type": "string", "minLength": 1, "maxLength": 80},
+    "current_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
+    "proposed_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
+    "policy_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effective_strategy", "event_count", "last_event_id"],
+      "properties": {
+        "effective_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
+        "event_count": {"type": "integer", "minimum": 0},
+        "last_event_id": {"type": ["string", "null"], "maxLength": 160}
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_budget",
+        "min_executions",
+        "max_duration_seconds",
+        "max_failure_rate"
+      ],
+      "properties": {
+        "execution_budget": {"type": "integer", "minimum": 1, "maximum": 20},
+        "min_executions": {"type": "integer", "minimum": 1, "maximum": 20},
+        "max_duration_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+        "max_failure_rate": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "duration_ms": {"type": "integer", "minimum": 0},
+    "verdict": {"enum": ["PASS", "FAIL", "INSUFFICIENT_EVIDENCE"]},
+    "executions_requested": {"type": "integer", "minimum": 1, "maximum": 20},
+    "executions_completed": {"type": "integer", "minimum": 0, "maximum": 20},
+    "successes": {"type": "integer", "minimum": 0, "maximum": 20},
+    "failures": {"type": "integer", "minimum": 0, "maximum": 20},
+    "inconclusive": {"type": "integer", "minimum": 0, "maximum": 20},
+    "failure_rate": {"type": "number", "minimum": 0, "maximum": 1},
+    "feedback_run_ids": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 128}
+    },
+    "comparison_ids": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 128}
+    },
+    "snapshots": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref", "commit"],
+        "properties": {
+          "kind": {"const": "git"},
+          "ref": {"type": "string", "minLength": 1, "maxLength": 200},
+          "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"}
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "latency_delta_ms",
+        "grounding_delta",
+        "context_delta_bytes",
+        "fallback_delta"
+      ],
+      "properties": {
+        "latency_delta_ms": {"type": ["number", "null"]},
+        "grounding_delta": {"type": ["number", "null"]},
+        "context_delta_bytes": {"type": ["number", "null"]},
+        "fallback_delta": {
+          "description": "Null until feedback comparisons carry measured fallback deltas.",
+          "type": ["number", "null"]
+        }
+      }
+    },
+    "regressions": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 160}
+    },
+    "blocked_reasons": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 200}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"record_type": {"const": "PLAN"}},
+        "required": ["record_type"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {"required": ["verdict"]},
+            {"required": ["started_at"]},
+            {"required": ["completed_at"]},
+            {"required": ["executions_completed"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"record_type": {"const": "RESULT"}},
+        "required": ["record_type"]
+      },
+      "then": {
+        "required": [
+          "started_at",
+          "completed_at",
+          "duration_ms",
+          "verdict",
+          "executions_requested",
+          "executions_completed",
+          "successes",
+          "failures",
+          "inconclusive",
+          "failure_rate",
+          "feedback_run_ids",
+          "comparison_ids",
+          "snapshots",
+          "metrics",
+          "regressions",
+          "blocked_reasons"
+        ]
+      }
+    }
+  ]
+}
