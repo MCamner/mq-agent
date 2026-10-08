@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","status","query_sha256","active_authoritative","shadow_effect_on_active_result","promotion_eligible","top_k","channels","merge","metrics","quality_evidence","limitations"],
+  "properties": {
+    "schema": {"const": "mq.hybrid-retrieval.v2"},
+    "status": {"enum": ["PASS", "INSUFFICIENT_EVIDENCE"]},
+    "query_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "active_authoritative": {"const": true},
+    "shadow_effect_on_active_result": {"const": false},
+    "promotion_eligible": {"const": false},
+    "top_k": {"type": "integer", "minimum": 1},
+    "channels": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/channel"}},
+    "merge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm","rrf_k","result_count","refs"],
+      "properties": {
+        "algorithm": {"const": "reciprocal-rank-fusion"},
+        "rrf_k": {"const": 60},
+        "result_count": {"type": "integer", "minimum": 0},
+        "refs": {"type": "array", "items": {"$ref": "#/$defs/mergedRef"}}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["precision","recall","contradiction_rate","stale_rate","payload_token_estimate","active_payload_token_estimate","token_delta_vs_active","token_measurement"],
+      "properties": {
+        "precision": {"type": ["number","null"], "minimum": 0, "maximum": 1},
+        "recall": {"type": ["number","null"], "minimum": 0, "maximum": 1},
+        "contradiction_rate": {"type": ["number","null"], "minimum": 0, "maximum": 1},
+        "stale_rate": {"type": ["number","null"], "minimum": 0, "maximum": 1},
+        "payload_token_estimate": {"type": "integer", "minimum": 0},
+        "active_payload_token_estimate": {"type": ["integer","null"], "minimum": 0},
+        "token_delta_vs_active": {"type": ["integer","null"]},
+        "token_measurement": {"const": "approx-json-chars-div-4"}
+      }
+    },
+    "quality_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status","fixture_sha256","expected_count","contradicted_count","stale_count"],
+      "properties": {
+        "status": {"enum": ["MEASURED","UNAVAILABLE"]},
+        "fixture_sha256": {"type": ["string","null"], "pattern": "^[0-9a-f]{64}$"},
+        "expected_count": {"type": ["integer","null"], "minimum": 0},
+        "contradicted_count": {"type": ["integer","null"], "minimum": 0},
+        "stale_count": {"type": ["integer","null"], "minimum": 0}
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace","reference"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "reference": {"type": "string", "minLength": 1}
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name","kind","status","latency_ms","returned","payload_token_estimate","reason","refs"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["vector","keyword","notebook","codegraph"]},
+        "status": {"enum": ["AVAILABLE","UNAVAILABLE","SKIPPED"]},
+        "latency_ms": {"type": "number", "minimum": 0},
+        "returned": {"type": "integer", "minimum": 0},
+        "payload_token_estimate": {"type": ["integer","null"], "minimum": 0},
+        "reason": {"type": ["string","null"], "maxLength": 240},
+        "refs": {"type": "array", "items": {"$ref": "#/$defs/ref"}}
+      }
+    },
+    "mergedRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace","reference","score","channels","ranks"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "reference": {"type": "string", "minLength": 1},
+        "score": {"type": "number", "exclusiveMinimum": 0},
+        "channels": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "ranks": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "integer", "minimum": 1}}
+      }
+    }
+  }
+}
