@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from mq_agent.notebook_corpus import build_from_document
 from mq_agent.notebook_corpus_semantic import (
     FROZEN_D4_QUERIES,
@@ -278,6 +280,21 @@ def test_semantic_index_keeps_provenance_and_is_disposable():
     assert all(row["notebook_id"] for row in index["chunks"])
     assert all(row["source_role"] == "source" for row in index["chunks"])
     assert all(row["claim_eligible"] is True for row in index["chunks"])
+
+
+def test_semantic_search_rejects_empty_index():
+    with pytest.raises(ValueError, match="semantic index has no usable chunks"):
+        semantic_search(
+            {
+                "schema": "notebook-semantic-index-experiment.v1",
+                "canonical": False,
+                "disposable": True,
+                "chunks": [],
+                "trace": {"chunks": 0, "embedding_dimension": 0},
+            },
+            "MCP Python",
+            KeywordEmbedding(),
+        )
 
 
 def test_semantic_search_does_not_change_source_role():
