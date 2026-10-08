@@ -134,6 +134,55 @@ def _project_case(
     }
 
 
+def _ablation_metrics(aggregate: dict[str, Any]) -> dict[str, float | None]:
+    return {
+        "mean_precision": aggregate["mean_precision"],
+        "mean_recall": aggregate["mean_recall"],
+        "mean_contradiction_rate": aggregate["mean_contradiction_rate"],
+        "mean_stale_rate": aggregate["mean_stale_rate"],
+        "mean_token_delta_vs_active": aggregate["mean_token_delta_vs_active"],
+        "mean_total_channel_latency_ms": aggregate["mean_total_channel_latency_ms"],
+    }
+
+
+def _ablation_summary(
+    evidence: dict[str, Any],
+    selection: dict[str, bool],
+    *,
+    variant_id: str | None = None,
+) -> dict[str, Any]:
+    aggregate = evidence["aggregate"]
+    summary: dict[str, Any] = {
+        "evidence_id": evidence["evidence_id"],
+        "status": evidence["status"],
+        "channel_selection": dict(selection),
+        "case_count": aggregate["case_count"],
+        "pass_count": aggregate["pass_count"],
+        "quality_measured_count": aggregate["quality_measured_count"],
+        "metrics": _ablation_metrics(aggregate),
+        "channel_coverage": aggregate["channel_coverage"],
+    }
+    if variant_id is not None:
+        summary["variant_id"] = variant_id
+    return summary
+
+
+def _metric_delta(
+    current: dict[str, float | None],
+    baseline: dict[str, float | None],
+) -> dict[str, float | None]:
+    result: dict[str, float | None] = {}
+    for field in current:
+        left = current[field]
+        right = baseline[field]
+        result[field] = (
+            round(float(left) - float(right), 6)
+            if left is not None and right is not None
+            else None
+        )
+    return result
+
+
 def _aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
     channels: dict[str, dict[str, int]] = {}
     for case in cases:
@@ -213,6 +262,70 @@ class HybridEvidenceStore:
             raise ValueError("hybrid evidence id does not match content")
         self._write(self._path("sets", fingerprint), evidence)
         return fingerprint
+
+    def save_ablation(self, ablation: dict[str, Any]) -> str:
+        validate_contract("hybrid_retrieval_ablation.schema.json", ablation)
+        fingerprint = ablation["ablation_id"]
+        expected = _fingerprint(
+            {k: v for k, v in ablation.items() if k != "ablation_id"}
+        )
+        if fingerprint != expected:
+            raise ValueError("hybrid ablation id does not match content")
+        self._write(self._path("ablations", fingerprint), ablation)
+        return fingerprint
+
+    def verify_ablation(self, ablation_id: str) -> dict[str, Any]:
+        path = self._path("ablations", ablation_id)
+        if not path.exists() or path.is_symlink() or not path.is_file():
+            raise ValueError("hybrid ablation set not found")
+        ablation = json.loads(path.read_text(encoding="utf-8"))
+        validate_contract("hybrid_retrieval_ablation.schema.json", ablation)
+        expected = _fingerprint(
+            {k: v for k, v in ablation.items() if k != "ablation_id"}
+        )
+        errors: list[str] = []
+        if ablation["ablation_id"] != ablation_id:
+            errors.append("ablation id/path mismatch")
+        if expected != ablation_id:
+            errors.append("ablation content fingerprint mismatch")
+
+        entries = [("baseline", ablation["baseline"])] + [
+            (str(item["variant_id"]), item) for item in ablation["variants"]
+        ]
+        for label, entry in entries:
+            verified = self.verify_set(str(entry["evidence_id"]))
+            if verified["status"] != "VERIFIED":
+                errors.append(f"{label}: referenced evidence is not verified")
+                continue
+            evidence = verified["evidence"]
+            if evidence["suite_sha256"] != ablation["suite_sha256"]:
+                errors.append(f"{label}: suite fingerprint mismatch")
+            selection = entry["channel_selection"]
+            if any(
+                case.get("channel_selection") != selection
+                for case in evidence["cases"]
+            ):
+                errors.append(f"{label}: channel selection mismatch")
+            expected_summary = _ablation_summary(
+                evidence,
+                selection,
+                variant_id=None if label == "baseline" else label,
+            )
+            if label != "baseline":
+                baseline_metrics = ablation["baseline"]["metrics"]
+                expected_summary["delta_vs_baseline"] = _metric_delta(
+                    expected_summary["metrics"],
+                    baseline_metrics,
+                )
+            if expected_summary != entry:
+                errors.append(f"{label}: summary does not match referenced evidence")
+
+        return {
+            "ablation_id": ablation_id,
+            "status": "VERIFIED" if not errors else "REFUSED",
+            "errors": errors,
+            "ablation": ablation,
+        }
 
     def verify_set(self, evidence_id: str) -> dict[str, Any]:
         path = self._path("sets", evidence_id)
@@ -366,4 +479,86 @@ def collect_hybrid_evidence(
     validate_contract("hybrid_retrieval_evidence.schema.json", payload)
     if persist:
         store.save_set(payload)
+    return payload
+
+
+def collect_hybrid_ablation(
+    suite_path: Path,
+    *,
+    state_root: Path | None = None,
+    persist: bool = True,
+    active_search: Any = None,
+    codegraph_search: Any = None,
+) -> dict[str, Any]:
+    """Measure the fixed optional-channel ablation matrix over one unchanged suite."""
+    suite_path = suite_path.expanduser().resolve()
+    _suite_value, suite_sha = _suite(suite_path)
+    store = HybridEvidenceStore(state_root)
+
+    baseline_evidence = collect_hybrid_evidence(
+        suite_path,
+        state_root=state_root,
+        persist=persist,
+        active_search=active_search,
+        codegraph_search=codegraph_search,
+        channel_override=ACTIVE_ONLY_SELECTION,
+    )
+    baseline = _ablation_summary(
+        baseline_evidence,
+        ACTIVE_ONLY_SELECTION,
+    )
+    baseline_metrics = baseline["metrics"]
+
+    variants: list[dict[str, Any]] = []
+    for variant_id, selection in ABLATION_MATRIX:
+        evidence = collect_hybrid_evidence(
+            suite_path,
+            state_root=state_root,
+            persist=persist,
+            active_search=active_search,
+            codegraph_search=codegraph_search,
+            channel_override=selection,
+        )
+        summary = _ablation_summary(
+            evidence,
+            selection,
+            variant_id=variant_id,
+        )
+        summary["delta_vs_baseline"] = _metric_delta(
+            summary["metrics"],
+            baseline_metrics,
+        )
+        variants.append(summary)
+
+    case_count = int(baseline["case_count"])
+    complete_baseline = baseline["quality_measured_count"] == case_count
+    complete_variants = all(
+        item["status"] == "PASS"
+        and item["quality_measured_count"] == item["case_count"]
+        for item in variants
+    )
+    payload: dict[str, Any] = {
+        "schema": ABLATION_SCHEMA,
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "suite_sha256": suite_sha,
+        "status": (
+            "PASS"
+            if complete_baseline and complete_variants
+            else "INSUFFICIENT_EVIDENCE"
+        ),
+        "zero_effect": True,
+        "promotion_eligible": False,
+        "baseline": baseline,
+        "variants": variants,
+        "limitations": [
+            "Ablation is zero-effect measurement only; active semantic memory remains authoritative.",
+            "The baseline intentionally disables every optional channel and may be INSUFFICIENT_EVIDENCE as a Hybrid Retrieval run while still providing measured fixture metrics.",
+            "Variant deltas compare aggregate measured metrics with the active-only baseline; they do not authorize RRF tuning or promotion.",
+            "Suite queries and local paths remain input-only and are not persisted in the ablation record.",
+        ],
+    }
+    payload["ablation_id"] = _fingerprint(payload)
+    validate_contract("hybrid_retrieval_ablation.schema.json", payload)
+    if persist:
+        store.save_ablation(payload)
     return payload
