@@ -159,18 +159,11 @@ def _default_active_search(query: str) -> Any:
     return MultiMCPBridge().search_semantic_memory(query)
 
 
-def _default_codegraph_search(query: str) -> Any:
-    """Use the installed CodeGraph MCP surface when the read-only tool exists."""
-    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+def _default_codegraph_search(query: str, root: Path | None = None) -> Any:
+    """Use the connected CodeGraph MCP tool or its local read-only CLI equivalent."""
+    from mq_agent.memory.codegraph_runtime import search_codegraph
 
-    bridge = MultiMCPBridge()
-    names = {spec.name for spec in bridge.list_tool_specs()}
-    if "codegraph_explore" not in names:
-        return {
-            "ok": False,
-            "reason": "CodeGraph MCP tool codegraph_explore is unavailable",
-        }
-    return bridge.call_tool("codegraph_explore", {"query": query})
+    return search_codegraph(query, root)
 
 
 def _run_channel(
@@ -321,6 +314,7 @@ def hybrid_retrieval_v2(
     semantic_index_path: Path | None = None,
     semantic_model: str = "nomic-embed-text",
     fixture_path: Path | None = None,
+    codegraph_root: Path | None = None,
     top_k: int = 10,
     active_search: RetrievalSearch | None = None,
     codegraph_search: RetrievalSearch | None = None,
@@ -334,7 +328,8 @@ def hybrid_retrieval_v2(
 
     fixture, fixture_sha = _load_fixture(fixture_path)
     active_search = active_search or _default_active_search
-    codegraph_search = codegraph_search or _default_codegraph_search
+    if codegraph_search is None:
+        codegraph_search = lambda value: _default_codegraph_search(value, codegraph_root)
 
     channels: list[dict[str, Any]] = []
     ranked: list[tuple[str, list[dict[str, str]]]] = []
