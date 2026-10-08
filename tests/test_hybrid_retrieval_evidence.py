@@ -8,6 +8,7 @@ import pytest
 
 from mq_agent.memory.hybrid_evidence import (
     HybridEvidenceStore,
+    audit_hybrid_policy_plans,
     collect_hybrid_ablation,
     collect_hybrid_evidence,
     evaluate_hybrid_admission,
@@ -484,6 +485,154 @@ def test_policy_plan_fails_closed_for_unknown_task_class(
             "unknown-task-class",
             state_root=root,
         )
+
+
+def test_policy_plan_audit_verifies_exact_active_only_set(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_active_only_optimal_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(ablation["ablation_id"], state_root=root)
+    docs = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "docs",
+        state_root=root,
+    )
+    repo_review = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "repo-review",
+        state_root=root,
+    )
+
+    audit = audit_hybrid_policy_plans(
+        [docs["policy_plan_id"], repo_review["policy_plan_id"]],
+        admission_id=admission["admission_id"],
+        expected_task_classes=["docs", "repo-review"],
+        state_root=root,
+    )
+
+    assert audit["status"] == "VERIFIED"
+    assert audit["errors"] == []
+    assert audit["verified_task_classes"] == ["docs", "repo-review"]
+    assert audit["effective_channel_selection"] == {
+        "notebook_keyword": False,
+        "notebook_vector": False,
+        "codegraph": False,
+    }
+    assert audit["runtime_consumption_available"] is False
+    assert all(row["status"] == "VERIFIED" for row in audit["plans"])
+
+
+def test_policy_plan_audit_refuses_missing_task_class(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_active_only_optimal_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(ablation["ablation_id"], state_root=root)
+    docs = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "docs",
+        state_root=root,
+    )
+
+    audit = audit_hybrid_policy_plans(
+        [docs["policy_plan_id"]],
+        admission_id=admission["admission_id"],
+        expected_task_classes=["docs", "repo-review"],
+        state_root=root,
+    )
+
+    assert audit["status"] == "REFUSED"
+    assert "missing task classes: repo-review" in audit["errors"]
+
+
+def test_policy_plan_audit_refuses_duplicate_task_class(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_active_only_optimal_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(ablation["ablation_id"], state_root=root)
+    docs_one = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "docs",
+        state_root=root,
+    )
+    docs_two = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "docs",
+        state_root=root,
+    )
+
+    audit = audit_hybrid_policy_plans(
+        [docs_one["policy_plan_id"], docs_two["policy_plan_id"]],
+        admission_id=admission["admission_id"],
+        expected_task_classes=["docs", "repo-review"],
+        state_root=root,
+    )
+
+    assert audit["status"] == "REFUSED"
+    assert "duplicate task classes: docs" in audit["errors"]
+    assert "missing task classes: repo-review" in audit["errors"]
 
 
 def test_admission_no_write_does_not_create_admission_record(
