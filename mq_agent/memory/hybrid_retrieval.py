@@ -34,6 +34,16 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _read_json_with_fingerprint(
+    path: Path,
+    binding: dict[str, str | None],
+) -> Any:
+    """Read JSON once and bind the exact consumed bytes by SHA-256."""
+    raw = path.expanduser().read_bytes()
+    binding["sha256"] = "sha256:" + hashlib.sha256(raw).hexdigest()
+    return json.loads(raw.decode("utf-8"))
+
+
 def _payload_tokens(value: Any) -> int:
     """Return a deterministic rough token estimate without retaining payload text."""
     raw = json.dumps(
@@ -328,6 +338,8 @@ def hybrid_retrieval_v2(
 
     channels: list[dict[str, Any]] = []
     ranked: list[tuple[str, list[dict[str, str]]]] = []
+    catalog_binding: dict[str, str | None] = {"sha256": None}
+    semantic_index_binding: dict[str, str | None] = {"sha256": None}
 
     active_channel, active_refs = _run_channel(
         "mq-mcp-semantic",
@@ -340,13 +352,13 @@ def hybrid_retrieval_v2(
         ranked.append((active_channel["name"], active_refs))
 
     if catalog_path is not None:
-        from mq_agent.notebook_corpus_search import load_json, search_catalog
+        from mq_agent.notebook_corpus_search import search_catalog
 
         lexical_channel, lexical_refs = _run_channel(
             "notebook-keyword",
             "keyword",
             lambda: search_catalog(
-                load_json(catalog_path.expanduser()),
+                _read_json_with_fingerprint(catalog_path, catalog_binding),
                 query,
                 top_k=top_k,
             ),
@@ -357,7 +369,6 @@ def hybrid_retrieval_v2(
             ranked.append((lexical_channel["name"], lexical_refs))
 
     if semantic_index_path is not None:
-        from mq_agent.notebook_corpus_search import load_json
         from mq_agent.notebook_corpus_semantic import (
             OllamaEmbeddingProvider,
             semantic_search,
@@ -367,7 +378,10 @@ def hybrid_retrieval_v2(
             "notebook-vector",
             "notebook",
             lambda: semantic_search(
-                load_json(semantic_index_path.expanduser()),
+                _read_json_with_fingerprint(
+                    semantic_index_path,
+                    semantic_index_binding,
+                ),
                 query,
                 OllamaEmbeddingProvider(model=semantic_model),
                 top_k=top_k,
@@ -437,6 +451,10 @@ def hybrid_retrieval_v2(
         "shadow_effect_on_active_result": False,
         "promotion_eligible": False,
         "top_k": top_k,
+        "input_fingerprints": {
+            "notebook_catalog_sha256": catalog_binding["sha256"],
+            "notebook_semantic_index_sha256": semantic_index_binding["sha256"],
+        },
         "channels": channels,
         "merge": {
             "algorithm": "reciprocal-rank-fusion",
@@ -464,6 +482,7 @@ def hybrid_retrieval_v2(
             "Hybrid Retrieval v2 is zero-effect shadow evidence; active semantic memory remains authoritative.",
             "Precision, recall, stale rate and contradiction rate are unavailable without an explicit relevance fixture.",
             "Token counts are deterministic JSON character estimates, not provider tokenizer counts.",
+            "Notebook input fingerprints bind the exact local JSON bytes consumed by measured channels.",
             "A PASS run is measurement success, never approval or activation evidence by itself.",
         ],
     }

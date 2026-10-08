@@ -25,6 +25,15 @@
           "query_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
           "fixture_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
           "run_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "input_fingerprints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["notebook_catalog_sha256","notebook_semantic_index_sha256"],
+            "properties": {
+              "notebook_catalog_sha256": {"type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+              "notebook_semantic_index_sha256": {"type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+            }
+          },
           "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
           "available_channels": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
           "unavailable_channels": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},

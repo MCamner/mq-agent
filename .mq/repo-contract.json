@@ -65,6 +65,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Bind Hybrid Retrieval Notebook fingerprints and connect CodeGraph as a separately measured channel",
+  "next_focus": "Connect CodeGraph as a separately measured Hybrid Retrieval channel",
   "release_mode": "pull_request"
 }

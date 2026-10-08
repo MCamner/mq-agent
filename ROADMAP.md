@@ -703,17 +703,19 @@ justify an activation design.
   token delta versus the active baseline was +2962.67. Balanced sampling fixed
   the experiment bias but produced no measured retrieval-quality benefit, so no
   RRF/promotion change is justified by this evidence.
-* [ ] Bind exact Notebook catalog and semantic-index content fingerprints into
+* [x] Bind exact Notebook catalog and semantic-index content fingerprints into
   each Hybrid Retrieval v2 run/evidence chain so a vector result proves which
-  local D8 state it measured.
+  local D8 state it measured. New writes hash the exact JSON byte stream consumed
+  by each Notebook channel, project those bindings into the evidence case and
+  verify case-to-run equality. Historical v2 runs/evidence without the extension
+  remain readable.
 * [ ] Connect CodeGraph MCP as a separately evidenced follow-up; its absence must
   not be hidden by Notebook channels.
 
-Next roadmap item: **Hybrid Retrieval evidence integrity + CodeGraph** — bind
-the exact Notebook catalog/semantic-index fingerprints to each measured run,
-then make CodeGraph available as an independently measured fourth channel.
-Keep the current RRF and `promotion_eligible=false` until new fixture-backed
-evidence demonstrates a material quality gain.
+Next roadmap item: **CodeGraph Hybrid Retrieval evidence** — make CodeGraph
+available as an independently measured fourth channel and rerun the unchanged
+fixture-backed suite. Keep the current RRF and `promotion_eligible=false`
+until that evidence demonstrates a material quality gain.
 
 ### v1.32.0 Canary v2 checkpoint
 

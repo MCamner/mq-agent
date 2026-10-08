@@ -12,6 +12,15 @@
     "shadow_effect_on_active_result": {"const": false},
     "promotion_eligible": {"const": false},
     "top_k": {"type": "integer", "minimum": 1},
+    "input_fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notebook_catalog_sha256","notebook_semantic_index_sha256"],
+      "properties": {
+        "notebook_catalog_sha256": {"type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+        "notebook_semantic_index_sha256": {"type": ["string","null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
     "channels": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/channel"}},
     "merge": {
       "type": "object",
