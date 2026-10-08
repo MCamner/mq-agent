@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The 2026-10-08 Hybrid Retrieval policy-plan closure audit verified the exact
+  ci, docs and repo-review plans with no errors against admission
+  `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`.
+  All three remain ACTIVE_ONLY, optional effective selections remain false, and
+  runtime consumption is unavailable. The roadmap therefore advances to a
+  discriminating zero-effect challenge suite rather than a runtime consumer.
 - Hybrid Retrieval policy-plan closure auditing adds
   `memory hybrid-evidence policy-plan-audit`. One read-only audit re-verifies
   an exact operator-supplied plan set and refuses missing/duplicate task
