@@ -331,6 +331,22 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## Outcome-derived Promotion Criteria status
+
+Feedback activation readiness no longer treats two comparisons on two snapshots
+as sufficient promotion evidence.
+
+- [x] candidate evidence resolves through feedback experiment to exact
+  `mq.execution-outcome.v1` records
+- [x] missing/ambiguous correlation is insufficient evidence, never inferred
+- [x] task-class calibration derives bounded sample size from observed population
+- [x] temporal coverage derives from observed task-class cadence
+- [x] candidate-linked real outcomes must meet the task-class success baseline
+- [x] readiness fingerprints both calibration population and linked evidence
+- [x] human approvals bind that readiness fingerprint and expire on evidence drift
+- [x] existing blocker rules, human approval, Canary v2 and rollback remain intact
+- [x] model routing's separate 50-outcome/90% evidence review is unchanged
+
 ## Session Checkpoints status
 
 Workflow continuity now uses bounded resume references over the existing

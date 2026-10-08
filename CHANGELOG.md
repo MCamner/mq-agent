@@ -11,6 +11,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Feedback activation readiness now derives task-class promotion criteria from
+  real `mq.execution-outcome.v1` records explicitly correlated through
+  `comparison -> experiment -> execution_run_id`, replacing the provisional
+  global two-comparison/two-snapshot evidence floor.
+- Outcome-derived readiness exposes a content fingerprint, calibrated sample
+  size, temporal coverage and success-rate baseline; `feedback run` accepts
+  `--execution-run-id` to bind shadow evidence to the real task execution.
 - Session Checkpoints add content-addressed `mq.workflow-checkpoint.v1` records
   over paused/failed workflow runs, binding exact run bytes, workflow template,
   explicit owner label, expiry, current step, passed steps and resumable steps.
@@ -35,6 +42,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Safety
 
+- Promotion evidence never maps the feedback task-class vocabulary onto the
+  execution-outcome task-class enum. Missing or ambiguous execution correlation
+  is insufficient evidence, not a guessed mapping.
+- New approvals bind the exact outcome-derived readiness fingerprint. Historical
+  approvals remain schema-readable but cannot authorize a new canary until they
+  are reissued; later task-class evidence drift expires the approval.
 - Checkpoint resume fails closed on owner mismatch, expiry, checkpoint tamper,
   run-file drift, template drift, repository identity drift, step-state drift or
   a missing run. Actual resume requires explicit `--approve`.

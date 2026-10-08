@@ -152,6 +152,48 @@ def test_feedback_report_json_and_human_preserve_unavailable_metrics(
     assert "30d" in human_result.output
 
 
+def test_feedback_run_forwards_exact_execution_run_id(
+    isolated_feedback_root, monkeypatch, tmp_path
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(task, repo, **kwargs):
+        captured["task"] = task
+        captured["repo"] = repo
+        captured.update(kwargs)
+        return {
+            "status": "PASS",
+            "reason": None,
+            "experiment": {
+                "feedback_run_id": "fb-correlated",
+                "state": "completed",
+                "snapshot": {"ref": "main", "commit": "a" * 40},
+            },
+            "comparison": None,
+        }
+
+    monkeypatch.setattr("mq_agent.feedback.cli.run_context_experiment", fake_run)
+
+    result = runner.invoke(
+        app,
+        [
+            "feedback",
+            "run",
+            "--task",
+            "review release boundaries",
+            "--repo",
+            str(tmp_path),
+            "--execution-run-id",
+            "exec-real-123",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["execution_run_id"] == "exec-real-123"
+    assert captured["task_class"] == "repo-review"
+
+
 def test_all_f1_commands_are_read_only_when_store_is_absent(
     tmp_path, monkeypatch
 ) -> None:

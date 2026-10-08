@@ -288,6 +288,13 @@ def feedback_run_cmd(
     task_class: Annotated[
         str, typer.Option("--task-class", help="Feedback task class")
     ] = "repo-review",
+    execution_run_id: Annotated[
+        str | None,
+        typer.Option(
+            "--execution-run-id",
+            help="Exact mq.execution-outcome.v1 run id for the real task this shadow experiment evaluates",
+        ),
+    ] = None,
     vault: Annotated[
         Path | None, typer.Option("--vault", help="mqobsidian vault override")
     ] = None,
@@ -308,6 +315,7 @@ def feedback_run_cmd(
             task,
             repo,
             task_class=task_class,
+            execution_run_id=execution_run_id,
             vault=vault,
             timeout_ms=timeout_ms,
             max_context_bytes=max_context_bytes,

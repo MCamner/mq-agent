@@ -99,6 +99,34 @@ def test_f2_run_persists_measurements_but_not_raw_task(
     assert "SECRET-TASK-BODY" not in persisted
 
 
+def test_f2_execution_correlation_must_resolve_before_shadow_collection(
+    tmp_path, monkeypatch
+) -> None:
+    outcome_path = tmp_path / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(outcome_path))
+    called = False
+
+    def build(*args, **kwargs):
+        nonlocal called
+        called = True
+        return _pack(codegraph="off")
+
+    monkeypatch.setattr("mq_agent.feedback.engine.build_task_pack", build)
+
+    with pytest.raises(
+        ValueError,
+        match="execution_run_id must resolve to exactly one mq.execution-outcome.v1",
+    ):
+        run_context_experiment(
+            "review repo",
+            tmp_path / "not-even-a-repo",
+            execution_run_id="missing-real-run",
+            state_root=tmp_path / "state",
+        )
+
+    assert called is False
+
+
 def test_f2_refuses_dirty_repo_before_collecting_context(tmp_path, monkeypatch) -> None:
     repo = _repo(tmp_path)
     vault = _vault(tmp_path)

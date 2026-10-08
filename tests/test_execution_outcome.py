@@ -56,6 +56,23 @@ def _records(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
+def test_outcome_history_reader_validates_rotations_and_fingerprints(tmp_path) -> None:
+    base = tmp_path / "execution-outcomes.jsonl"
+    old = _outcome(run_id="run-old")
+    current = _outcome(run_id="run-current")
+    Path(f"{base}.1").write_text(json.dumps(old) + "\n", encoding="utf-8")
+    base.write_text(json.dumps(current) + "\n{not-json}\n", encoding="utf-8")
+
+    records, issues = execution_outcome.read_execution_outcomes(base)
+
+    assert [record["run_id"] for record in records] == ["run-old", "run-current"]
+    assert len(issues) == 1
+    assert "execution-outcomes.jsonl:2" in issues[0]
+    fingerprint = execution_outcome.execution_outcome_fingerprint(records[0])
+    assert fingerprint.startswith("sha256:")
+    assert len(fingerprint) == 71
+
+
 # --- Phase 0: the contract -------------------------------------------------
 
 

@@ -541,8 +541,11 @@ This follow-up is intentionally **not committed to a version** until v1.30 has
 produced enough real evidence. It begins only when the experiment corpus can
 justify an activation design.
 
-* [ ] Define per-task-class promotion criteria from observed outcomes rather
-  than adopting a provisional threshold as policy.
+* [x] Define per-task-class promotion criteria from observed outcomes rather
+  than adopting a provisional threshold as policy. Promotion readiness now
+  correlates comparison -> experiment -> exact execution outcome, derives
+  bounded sample/temporal/success criteria from that task-class population,
+  and binds human approval to the exact readiness fingerprint.
 * [x] Require human approval bound to the exact candidate, evidence window,
   active policy and proposed policy.
 * [x] Make approval expire when the candidate readiness/fingerprint or active
@@ -623,8 +626,26 @@ justify an activation design.
 * [x] Make checkpoints single-use by persisting resumed run state before
   execution, invalidating the checkpoint's exact run fingerprint.
 
-Next roadmap item: **Per-task-class promotion criteria** — derive promotion
-policy from accumulated real outcomes rather than a provisional threshold.
+### Outcome-derived Promotion Criteria checkpoint
+
+* [x] Correlate promotion evidence through comparison -> feedback experiment ->
+  exact `mq.execution-outcome.v1` run id.
+* [x] Keep feedback task class authoritative; do not map `repo-review` onto the
+  separate execution-outcome task-class vocabulary.
+* [x] Require a minimum calibration population before deriving criteria.
+* [x] Derive bounded candidate sample size from task-class population size.
+* [x] Derive temporal coverage from observed task-class cadence.
+* [x] Require candidate-linked real outcomes to meet the task-class success-rate
+  baseline.
+* [x] Fingerprint calibration population and exact linked outcome evidence.
+* [x] Bind new human approvals to that readiness fingerprint and fail closed on
+  subsequent evidence drift.
+* [x] Keep human approval, Canary v2 and explicit activation requirements
+  unchanged; no automatic promotion or routing is introduced.
+
+Next roadmap item: **Hybrid Retrieval v2** — broaden measured retrieval across
+keyword/vector/CodeGraph/Notebook channels with deterministic provenance and
+precision/recall/contradiction/token metrics before any promotion.
 
 ### v1.32.0 Canary v2 checkpoint
 
@@ -664,9 +685,10 @@ Implemented after v1.30.0 without changing the released v1.30 boundary:
   review/promotion path without raw transcript capture or automatic promotion.
 * [x] Hybrid retrieval can run in zero-effect shadow mode across existing
   mq-mcp semantic memory and optional Notebook lexical/semantic channels.
-* [ ] Replace the provisional promotion threshold with per-task-class criteria
-  derived from accumulated real outcomes before considering broader autonomous
-  evidence-based routing.
+* [x] Replace the provisional promotion threshold with per-task-class criteria
+  derived from accumulated real outcomes. Missing/ambiguous execution
+  correlation fails closed; no feedback/execution task-class mapping is
+  invented, and approval is bound to the exact calibrated evidence set.
 
 ### Definition of done — v1.30.0
 

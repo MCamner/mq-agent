@@ -22,6 +22,7 @@ from git import Repo
 
 from mq_agent.tools.context_export import default_vault
 from mq_agent.tools.context_pack import build_task_pack
+from mq_agent.tools.execution_outcome import read_execution_outcomes
 
 from .evaluation import build_operational_comparison
 from .models import build_feedback_experiment
@@ -194,6 +195,7 @@ def run_context_experiment(
     repo_path: str | Path,
     *,
     task_class: str = TASK_CLASS,
+    execution_run_id: str | None = None,
     vault: Path | None = None,
     state_root: Path | None = None,
     timeout_ms: int = DEFAULT_TIMEOUT_MS,
@@ -207,6 +209,19 @@ def run_context_experiment(
         raise ValueError("task must not be empty")
     if max_context_bytes <= 0 or max_sources <= 0:
         raise ValueError("feedback budgets must be positive")
+    if execution_run_id is not None:
+        outcomes, issues = read_execution_outcomes()
+        if issues:
+            raise ValueError("execution outcome store contains invalid records")
+        matches = [
+            outcome
+            for outcome in outcomes
+            if outcome.get("run_id") == execution_run_id
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                "execution_run_id must resolve to exactly one mq.execution-outcome.v1"
+            )
 
     repo_root = Path(repo_path).expanduser().resolve()
     repo = Repo(repo_root)
@@ -245,6 +260,7 @@ def run_context_experiment(
             snapshot_commit=snapshot["commit"],
             evidence_sources=evidence_boundary,
             state=state,
+            execution_run_id=execution_run_id,
             network_backends=[],
             evidence_boundary_sha256=(fingerprint if fingerprint != "none" else None),
             feedback_run_id=feedback_run_id,
@@ -317,6 +333,7 @@ def run_context_experiment(
         snapshot_commit=snapshot["commit"],
         evidence_sources=evidence_boundary,
         state="completed",
+        execution_run_id=execution_run_id,
         network_backends=[],
         evidence_boundary_sha256=(fingerprint if fingerprint != "none" else None),
         feedback_run_id=feedback_run_id,

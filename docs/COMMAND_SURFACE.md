@@ -75,6 +75,23 @@ push, finalize, or publish. `stack release` remains the lower-level engine.
 See [RELEASE_COCKPIT.md](RELEASE_COCKPIT.md) for state precedence and evidence
 limitations.
 
+## Feedback Promotion Evidence Commands
+
+Feedback promotion readiness is read-only and remains separate from model
+routing's evidence-review gates.
+
+| Command | Writes | Notes |
+|---|---:|---|
+| `mq-agent feedback run ... --execution-run-id <id>` | feedback evidence only | Correlates the shadow experiment to one exact real `mq.execution-outcome.v1` |
+| `mq-agent feedback activation-readiness <candidate> --json` | no | Derives task-class sample/temporal/success criteria from correlated real outcomes |
+| `mq-agent feedback approve <candidate> --approve` | approval receipt | Binds the exact readiness evidence fingerprint |
+| `mq-agent feedback canary-plan ...` | canary plan | Refuses stale/legacy approvals whose readiness evidence is not current |
+
+The feedback task-class and execution-outcome task-class vocabularies are not
+mapped onto each other. Correlation is by exact `execution_run_id`; missing or
+ambiguous correlation is insufficient evidence. Human approval, Canary v2 and
+explicit activation remain required.
+
 ## Workflow Session Checkpoint Commands
 
 Session checkpoints reuse existing workflow run state; they do not create a

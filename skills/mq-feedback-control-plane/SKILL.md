@@ -47,7 +47,14 @@ Use this skill for the v1.31 evidence-gated path from measured feedback evidence
 The control plane is fail-closed.
 
 - Readiness is evidence, not approval.
-- Approval is explicit, content-bound, and may expire.
+- Promotion-authorizing readiness must resolve each linked comparison through
+  one feedback experiment to one exact `mq.execution-outcome.v1` run.
+- Feedback task-class names and execution-outcome task-class names are separate
+  vocabularies; never invent a mapping between them.
+- Task-class promotion criteria are derived from correlated real outcomes, not
+  a fixed comparison/snapshot count.
+- Approval is explicit, content-bound to the readiness evidence fingerprint,
+  and may expire when the candidate, policy, or task-class evidence changes.
 - Canary evidence must be recorded after the exact approval receipt.
 - Canary v2 requires one immutable PLAN and at most one RESULT.
 - PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic; an LLM cannot decide it.
@@ -68,6 +75,8 @@ The control plane is fail-closed.
 - `mq_agent/feedback/cli.py`
 - `mq_agent/feedback/readiness.py`
 - `mq_agent/feedback/store.py`
+- `mq_agent/tools/execution_outcome.py`
+- `schemas/feedback_activation_readiness.schema.json`
 - `schemas/feedback_approval.schema.json`
 - `schemas/feedback_policy_event.schema.json`
 - `docs/FEEDBACK_ENGINE.md`

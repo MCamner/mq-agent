@@ -101,6 +101,14 @@ def _validate_candidate_approval(
         raise ValueError("approval is bound to another candidate")
     if approval["candidate_fingerprint"] != candidate["fingerprint"]:
         raise ValueError("approval expired because candidate fingerprint changed")
+    if approval.get("readiness_fingerprint") is None:
+        raise ValueError(
+            "approval predates outcome-bound readiness; issue a new approval"
+        )
+    if approval["readiness_fingerprint"] != readiness["evidence_fingerprint"]:
+        raise ValueError(
+            "approval expired because task-class readiness evidence changed"
+        )
     if approval["task_class"] != candidate["task_class"]:
         raise ValueError("approval task class does not match candidate")
     if approval["current_strategy"] != candidate["current_strategy"]:
