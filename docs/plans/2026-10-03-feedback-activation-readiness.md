@@ -1,5 +1,12 @@
 # Feedback activation readiness v1
 
+> Historical design note: the original two-comparison/two-snapshot evidence
+> floor below was deliberately provisional. It was superseded after v1.33 by
+> outcome-derived per-task-class promotion criteria that correlate feedback
+> experiments to exact `mq.execution-outcome.v1` runs. The blocker rules and
+> human-approval/canary boundary remain in force.
+
+
 ## Goal
 
 Add the first read-only gate for future Evidence-Gated Activation & Rollback.
