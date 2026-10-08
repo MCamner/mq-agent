@@ -5096,6 +5096,20 @@ def memory_hybrid_retrieval_cmd(
         str,
         typer.Option("--fixture", help="Optional mq.hybrid-retrieval-fixture.v1 JSON"),
     ] = "",
+    notebook_keyword: Annotated[
+        bool,
+        typer.Option(
+            "--notebook-keyword/--no-notebook-keyword",
+            help="Measure the Notebook keyword channel when configured",
+        ),
+    ] = True,
+    notebook_vector: Annotated[
+        bool,
+        typer.Option(
+            "--notebook-vector/--no-notebook-vector",
+            help="Measure the Notebook vector channel when configured",
+        ),
+    ] = True,
     codegraph_root: Annotated[
         str,
         typer.Option(
@@ -5127,6 +5141,8 @@ def memory_hybrid_retrieval_cmd(
             fixture_path=Path(fixture).expanduser() if fixture else None,
             codegraph_root=Path(codegraph_root).expanduser() if codegraph_root else None,
             top_k=top_k,
+            enable_notebook_keyword=notebook_keyword,
+            enable_notebook_vector=notebook_vector,
             enable_codegraph=codegraph,
         )
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
@@ -5223,6 +5239,93 @@ def memory_hybrid_evidence_collect_cmd(
             )
         )
     if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("ablate")
+def memory_hybrid_evidence_ablate_cmd(
+    suite: Annotated[str, typer.Argument(help="mq.hybrid-retrieval-suite.v1 JSON")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    no_write: Annotated[
+        bool,
+        typer.Option("--no-write", help="Run the ablation matrix without persisting evidence"),
+    ] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run the fixed active-only plus seven-variant Hybrid Retrieval ablation matrix."""
+    from mq_agent.memory.hybrid_evidence import collect_hybrid_ablation
+
+    try:
+        payload = collect_hybrid_ablation(
+            Path(suite),
+            state_root=Path(state_root).expanduser() if state_root else None,
+            persist=not no_write,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Retrieval Ablation — {payload['status']}")
+        table.add_column("Variant")
+        table.add_column("Precision", justify="right")
+        table.add_column("Recall", justify="right")
+        table.add_column("Token Δ", justify="right")
+        table.add_column("Latency", justify="right")
+        for row in payload["variants"]:
+            metrics = row["metrics"]
+            table.add_row(
+                str(row["variant_id"]),
+                str(metrics["mean_precision"]),
+                str(metrics["mean_recall"]),
+                str(metrics["mean_token_delta_vs_active"]),
+                f"{metrics['mean_total_channel_latency_ms']} ms",
+            )
+        console.print(table)
+        console.print(
+            f"Ablation: {payload['ablation_id']} | "
+            "active retrieval unchanged | promotion disabled"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("ablation-status")
+def memory_hybrid_ablation_status_cmd(
+    ablation_id: Annotated[str, typer.Argument(help="sha256 ablation id")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify one persisted Hybrid Retrieval ablation and all evidence refs."""
+    from mq_agent.memory.hybrid_evidence import HybridEvidenceStore
+
+    try:
+        payload = HybridEvidenceStore(
+            Path(state_root).expanduser() if state_root else None
+        ).verify_ablation(ablation_id)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                f"Status: {payload['status']}\n"
+                f"Errors: {len(payload['errors'])}",
+                title=f"Hybrid Ablation {ablation_id}",
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "VERIFIED":
         raise typer.Exit(1)
 
 
