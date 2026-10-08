@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Live Hybrid Retrieval evidence now proves CodeGraph available in all three
+  unchanged fixture-backed task classes. The measured quality stayed flat
+  (precision 0.10, recall 1.0, contradiction/stale 0.0) while mean token delta
+  versus the active baseline rose to +8722.33 from +2962.67 in the balanced-D8
+  run, so the roadmap advances to per-channel ablation rather than RRF tuning or
+  promotion.
 - Hybrid Retrieval v2 now reaches CodeGraph from non-MCP operator runs: it prefers
   an already-connected `codegraph_explore` MCP tool and otherwise falls back to
   the local read-only `codegraph explore` CLI against the selected repository
