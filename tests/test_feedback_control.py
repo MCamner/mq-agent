@@ -270,6 +270,54 @@ def test_activation_requires_post_approval_canary_and_rolls_back_append_only(
         )
 
 
+def test_approval_expires_when_task_class_outcome_evidence_changes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
+    approval = approval_receipt(
+        candidate_id,
+        reason="operator reviewed exact outcome-bound evidence",
+        root=tmp_path,
+    )
+    assert approval["readiness_fingerprint"]
+
+    _seed_real_run(
+        tmp_path,
+        tmp_path / "execution-outcomes.jsonl",
+        feedback_run_id="fb-new-population",
+        execution_run_id="exec-new-population",
+        recorded_at="2026-10-05T10:00:00Z",
+        commit="f" * 40,
+    )
+
+    with pytest.raises(ValueError, match="readiness evidence changed"):
+        create_canary_plan(
+            candidate_id,
+            approval_id=approval["approval_id"],
+            root=tmp_path,
+        )
+
+
+def test_legacy_approval_without_readiness_binding_is_refused(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import json
+
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    path = tmp_path / "approvals.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    rows[0].pop("readiness_fingerprint")
+    path.write_text(json.dumps(rows[0]) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="predates outcome-bound readiness"):
+        create_canary_plan(
+            candidate_id,
+            approval_id=approval["approval_id"],
+            root=tmp_path,
+        )
+
+
 def test_policy_registry_snapshot_status_is_content_verified(
     tmp_path: Path, monkeypatch
 ) -> None:
