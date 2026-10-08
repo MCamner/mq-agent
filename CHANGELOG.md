@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval v2 adds packaged `mq.hybrid-retrieval.v2` zero-effect
+  evidence across mq-mcp semantic vector, Notebook keyword/vector and CodeGraph
+  MCP channels with deterministic reciprocal-rank fusion and exact provenance.
+- `memory hybrid-retrieval` reports per-channel latency and retrieval-payload
+  token estimates; an optional relevance fixture unlocks precision, recall,
+  contradiction and stale-rate metrics while missing measurement remains null.
 - Feedback activation readiness now derives task-class promotion criteria from
   real `mq.execution-outcome.v1` records explicitly correlated through
   `comparison -> experiment -> execution_run_id`, replacing the provisional

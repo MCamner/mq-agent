@@ -331,6 +331,21 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## Hybrid Retrieval v2 status
+
+Hybrid Retrieval v2 broadens the existing zero-effect retrieval shadow into a
+measured multi-channel surface while keeping mq-mcp semantic memory authoritative.
+
+- [x] packaged `mq.hybrid-retrieval.v2` contract; v1 remains readable and callable
+- [x] mq-mcp semantic vector, Notebook keyword/vector and CodeGraph MCP channels
+- [x] deterministic reciprocal-rank fusion with per-reference channel/rank provenance
+- [x] exact fixture-backed precision, recall, contradiction and stale-rate metrics
+- [x] unavailable quality metrics stay null when no relevance fixture is supplied
+- [x] per-channel latency and deterministic retrieval-payload token estimates
+- [x] no raw query or retrieved body is emitted in the v2 evidence contract
+- [x] active retrieval is unchanged and `promotion_eligible=false`
+- [x] existing `context pack --codegraph auto` behavior is unchanged
+
 ## Outcome-derived Promotion Criteria status
 
 Feedback activation readiness no longer treats two comparisons on two snapshots
