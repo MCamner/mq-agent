@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-policy-plan.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema","policy_plan_id","created_at","admission_id","task_class",
+    "status","decision","admission_decision","eligible_channels",
+    "proposed_channel_selection","effective_channel_selection",
+    "zero_effect","apply_available","runtime_consumption_available",
+    "human_approval_required","requirements","next_action","limitations"
+  ],
+  "properties": {
+    "schema": {"const": "mq.hybrid-retrieval-policy-plan.v1"},
+    "policy_plan_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "admission_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "task_class": {"type": "string", "minLength": 1},
+    "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
+    "decision": {"enum": ["ACTIVE_ONLY","REVIEW_REQUIRED","INSUFFICIENT_EVIDENCE"]},
+    "admission_decision": {
+      "enum": ["ACTIVE_ONLY","OPTIONAL_CHANNELS_ELIGIBLE","INSUFFICIENT_EVIDENCE"]
+    },
+    "eligible_channels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["notebook-keyword","notebook-vector","codegraph"]}
+    },
+    "proposed_channel_selection": {"$ref": "#/$defs/selection"},
+    "effective_channel_selection": {"$ref": "#/$defs/selection"},
+    "zero_effect": {"const": true},
+    "apply_available": {"const": false},
+    "runtime_consumption_available": {"const": false},
+    "human_approval_required": {"const": true},
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id","status","detail"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "status": {"const": "PASS"},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "next_action": {
+      "enum": ["use-active-only","human-review","collect-more-evidence"]
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notebook_keyword","notebook_vector","codegraph"],
+      "properties": {
+        "notebook_keyword": {"type": "boolean"},
+        "notebook_vector": {"type": "boolean"},
+        "codegraph": {"type": "boolean"}
+      }
+    }
+  }
+}

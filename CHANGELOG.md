@@ -11,6 +11,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval runtime policy planning adds content-addressed
+  `mq.hybrid-retrieval-policy-plan.v1` plus
+  `memory hybrid-evidence policy-plan|policy-plan-status`. Plans require a
+  verified admission and exact task class, keep proposed and effective channel
+  selections separate, and never make optional eligibility effective: no apply
+  command or runtime consumer exists in this slice.
+- The live admission
+  `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`
+  is now recorded as VERIFIED with no errors. ci, docs and repo-review all
+  remain ACTIVE_ONLY with no eligible optional channels.
 - Evidence-Gated Channel Admission adds content-addressed
   `mq.hybrid-retrieval-admission.v1` plus
   `memory hybrid-evidence admission|admission-status`. The read-only gate

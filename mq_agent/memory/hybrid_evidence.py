@@ -20,6 +20,7 @@ SUITE_SCHEMA = "mq.hybrid-retrieval-suite.v1"
 EVIDENCE_SCHEMA = "mq.hybrid-retrieval-evidence-set.v1"
 ABLATION_SCHEMA = "mq.hybrid-retrieval-ablation.v1"
 ADMISSION_SCHEMA = "mq.hybrid-retrieval-admission.v1"
+POLICY_PLAN_SCHEMA = "mq.hybrid-retrieval-policy-plan.v1"
 
 ABLATION_MATRIX: tuple[tuple[str, dict[str, bool]], ...] = (
     ("keyword", {"notebook_keyword": True, "notebook_vector": False, "codegraph": False}),
@@ -392,6 +393,51 @@ class HybridEvidenceStore:
             raise ValueError("hybrid admission id does not match content")
         self._write(self._path("admissions", fingerprint), admission)
         return fingerprint
+
+    def save_policy_plan(self, plan: dict[str, Any]) -> str:
+        validate_contract("hybrid_retrieval_policy_plan.schema.json", plan)
+        fingerprint = plan["policy_plan_id"]
+        expected = _fingerprint(
+            {k: v for k, v in plan.items() if k != "policy_plan_id"}
+        )
+        if fingerprint != expected:
+            raise ValueError("hybrid policy-plan id does not match content")
+        self._write(self._path("policy-plans", fingerprint), plan)
+        return fingerprint
+
+    def verify_policy_plan(self, policy_plan_id: str) -> dict[str, Any]:
+        path = self._path("policy-plans", policy_plan_id)
+        if not path.exists() or path.is_symlink() or not path.is_file():
+            raise ValueError("hybrid policy plan not found")
+        plan = json.loads(path.read_text(encoding="utf-8"))
+        validate_contract("hybrid_retrieval_policy_plan.schema.json", plan)
+        expected_id = _fingerprint(
+            {k: v for k, v in plan.items() if k != "policy_plan_id"}
+        )
+        errors: list[str] = []
+        if plan["policy_plan_id"] != policy_plan_id:
+            errors.append("policy-plan id/path mismatch")
+        if expected_id != policy_plan_id:
+            errors.append("policy-plan content fingerprint mismatch")
+        try:
+            expected = _build_hybrid_policy_plan(
+                plan["admission_id"],
+                str(plan["task_class"]),
+                self,
+                created_at=plan["created_at"],
+            )
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"policy-plan evidence rebuild failed: {exc}")
+        else:
+            if expected != plan:
+                errors.append("policy-plan content does not match verified admission")
+
+        return {
+            "policy_plan_id": policy_plan_id,
+            "status": "VERIFIED" if not errors else "REFUSED",
+            "errors": errors,
+            "policy_plan": plan,
+        }
 
     def verify_admission(self, admission_id: str) -> dict[str, Any]:
         path = self._path("admissions", admission_id)
@@ -919,4 +965,128 @@ def evaluate_hybrid_admission(
     )
     if persist:
         store.save_admission(payload)
+    return payload
+
+
+def _eligible_channel_selection(channels: list[str]) -> dict[str, bool]:
+    selected = set(channels)
+    unknown = selected - set(SINGLETON_ADMISSION_VARIANTS)
+    if unknown:
+        raise ValueError(
+            "hybrid admission contains unknown eligible channels: "
+            + ", ".join(sorted(unknown))
+        )
+    return {
+        "notebook_keyword": "notebook-keyword" in selected,
+        "notebook_vector": "notebook-vector" in selected,
+        "codegraph": "codegraph" in selected,
+    }
+
+
+def _build_hybrid_policy_plan(
+    admission_id: str,
+    task_class: str,
+    store: HybridEvidenceStore,
+    *,
+    created_at: str,
+) -> dict[str, Any]:
+    verified = store.verify_admission(admission_id)
+    if verified["status"] != "VERIFIED":
+        raise ValueError("hybrid admission must verify before policy planning")
+    admission = verified["admission"]
+
+    matches = [
+        item
+        for item in admission["task_classes"]
+        if str(item["task_class"]) == task_class
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"hybrid admission has no unique task class decision for {task_class}"
+        )
+    task = matches[0]
+    eligible_channels = sorted(str(value) for value in task["eligible_channels"])
+    proposed = _eligible_channel_selection(eligible_channels)
+
+    admission_decision = str(task["decision"])
+    if admission_decision == "ACTIVE_ONLY":
+        decision = "ACTIVE_ONLY"
+        proposed = dict(ACTIVE_ONLY_SELECTION)
+        next_action = "use-active-only"
+        status = "PASS"
+    elif admission_decision == "OPTIONAL_CHANNELS_ELIGIBLE":
+        decision = "REVIEW_REQUIRED"
+        next_action = "human-review"
+        status = "PASS"
+    else:
+        decision = "INSUFFICIENT_EVIDENCE"
+        proposed = dict(ACTIVE_ONLY_SELECTION)
+        next_action = "collect-more-evidence"
+        status = "INSUFFICIENT_EVIDENCE"
+
+    payload: dict[str, Any] = {
+        "schema": POLICY_PLAN_SCHEMA,
+        "created_at": created_at,
+        "admission_id": admission_id,
+        "task_class": task_class,
+        "status": status,
+        "decision": decision,
+        "admission_decision": admission_decision,
+        "eligible_channels": eligible_channels,
+        "proposed_channel_selection": proposed,
+        "effective_channel_selection": dict(ACTIVE_ONLY_SELECTION),
+        "zero_effect": True,
+        "apply_available": False,
+        "runtime_consumption_available": False,
+        "human_approval_required": True,
+        "requirements": [
+            {
+                "id": "verified-admission",
+                "status": "PASS",
+                "detail": "referenced admission was content-address verified and rebuilt from underlying evidence",
+            },
+            {
+                "id": "task-class-bound",
+                "status": "PASS",
+                "detail": "policy plan is bound to one exact admission task-class decision",
+            },
+            {
+                "id": "no-implicit-activation",
+                "status": "PASS",
+                "detail": "effective channel selection remains active-only; optional eligibility is proposal evidence only",
+            },
+        ],
+        "next_action": next_action,
+        "limitations": [
+            "This is a read-only policy plan and is not consumed by Hybrid Retrieval runtime.",
+            "Effective channel selection remains active-only even when optional channels are eligible.",
+            "No apply command, automatic activation or RRF mutation is available from this contract.",
+            "A future runtime consumer must re-verify the exact policy plan and admission before using any optional channel.",
+        ],
+    }
+    payload["policy_plan_id"] = _fingerprint(payload)
+    validate_contract("hybrid_retrieval_policy_plan.schema.json", payload)
+    return payload
+
+
+def plan_hybrid_runtime_policy(
+    admission_id: str,
+    task_class: str,
+    *,
+    state_root: Path | None = None,
+    persist: bool = True,
+) -> dict[str, Any]:
+    """Build a zero-effect, fail-closed runtime channel policy plan."""
+    normalized = task_class.strip()
+    if not normalized:
+        raise ValueError("task class is required")
+    store = HybridEvidenceStore(state_root)
+    payload = _build_hybrid_policy_plan(
+        admission_id,
+        normalized,
+        store,
+        created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+    )
+    if persist:
+        store.save_policy_plan(payload)
     return payload

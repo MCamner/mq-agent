@@ -11,6 +11,7 @@ from mq_agent.memory.hybrid_evidence import (
     collect_hybrid_ablation,
     collect_hybrid_evidence,
     evaluate_hybrid_admission,
+    plan_hybrid_runtime_policy,
 )
 from mq_agent.notebook_corpus import build_from_document
 
@@ -338,6 +339,151 @@ def test_admission_keeps_active_only_when_singletons_reduce_precision(
             assert channel["decision"] == "ACTIVE_ONLY"
             assert channel["mean_delta_vs_active_only"]["precision"] < 0
             assert "precision" in channel["cases"][0]["quality_regressions"]
+
+
+def test_policy_plan_keeps_verified_active_only_effective(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_active_only_optimal_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(ablation["ablation_id"], state_root=root)
+    plan = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "repo-review",
+        state_root=root,
+    )
+
+    assert plan["schema"] == "mq.hybrid-retrieval-policy-plan.v1"
+    assert plan["status"] == "PASS"
+    assert plan["decision"] == "ACTIVE_ONLY"
+    assert plan["admission_decision"] == "ACTIVE_ONLY"
+    assert plan["eligible_channels"] == []
+    assert plan["proposed_channel_selection"] == {
+        "notebook_keyword": False,
+        "notebook_vector": False,
+        "codegraph": False,
+    }
+    assert plan["effective_channel_selection"] == {
+        "notebook_keyword": False,
+        "notebook_vector": False,
+        "codegraph": False,
+    }
+    assert plan["apply_available"] is False
+    assert plan["runtime_consumption_available"] is False
+    assert plan["next_action"] == "use-active-only"
+
+    verified = HybridEvidenceStore(root).verify_policy_plan(
+        plan["policy_plan_id"]
+    )
+    assert verified["status"] == "VERIFIED"
+    assert verified["errors"] == []
+
+
+def test_policy_plan_never_effects_eligible_optional_channels(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_ablation_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(ablation["ablation_id"], state_root=root)
+    plan = plan_hybrid_runtime_policy(
+        admission["admission_id"],
+        "docs",
+        state_root=root,
+    )
+
+    assert plan["decision"] == "REVIEW_REQUIRED"
+    assert plan["admission_decision"] == "OPTIONAL_CHANNELS_ELIGIBLE"
+    assert plan["eligible_channels"] == [
+        "codegraph",
+        "notebook-keyword",
+        "notebook-vector",
+    ]
+    assert plan["proposed_channel_selection"] == {
+        "notebook_keyword": True,
+        "notebook_vector": True,
+        "codegraph": True,
+    }
+    assert plan["effective_channel_selection"] == {
+        "notebook_keyword": False,
+        "notebook_vector": False,
+        "codegraph": False,
+    }
+    assert plan["next_action"] == "human-review"
+
+
+def test_policy_plan_fails_closed_for_unknown_task_class(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_active_only_optimal_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(ablation["ablation_id"], state_root=root)
+
+    with pytest.raises(ValueError, match="no unique task class decision"):
+        plan_hybrid_runtime_policy(
+            admission["admission_id"],
+            "unknown-task-class",
+            state_root=root,
+        )
 
 
 def test_admission_no_write_does_not_create_admission_record(

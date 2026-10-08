@@ -5411,6 +5411,84 @@ def memory_hybrid_admission_status_cmd(
         raise typer.Exit(1)
 
 
+@hybrid_evidence_app.command("policy-plan")
+def memory_hybrid_policy_plan_cmd(
+    admission_id: Annotated[str, typer.Argument(help="sha256 admission id")],
+    task_class: Annotated[str, typer.Option("--task-class", help="Exact admission task class")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    no_write: Annotated[
+        bool,
+        typer.Option("--no-write", help="Plan without persisting the policy record"),
+    ] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Build a zero-effect runtime channel policy plan from verified admission."""
+    from mq_agent.memory.hybrid_evidence import plan_hybrid_runtime_policy
+
+    try:
+        payload = plan_hybrid_runtime_policy(
+            admission_id,
+            task_class,
+            state_root=Path(state_root).expanduser() if state_root else None,
+            persist=not no_write,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                f"Decision: {payload['decision']}\n"
+                f"Task class: {payload['task_class']}\n"
+                f"Effective channels: active-only\n"
+                f"Next action: {payload['next_action']}",
+                title=f"Hybrid Policy Plan {payload['policy_plan_id']}",
+            )
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("policy-plan-status")
+def memory_hybrid_policy_plan_status_cmd(
+    policy_plan_id: Annotated[str, typer.Argument(help="sha256 policy-plan id")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify one persisted Hybrid Retrieval runtime policy plan."""
+    from mq_agent.memory.hybrid_evidence import HybridEvidenceStore
+
+    try:
+        payload = HybridEvidenceStore(
+            Path(state_root).expanduser() if state_root else None
+        ).verify_policy_plan(policy_plan_id)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                f"Status: {payload['status']}\n"
+                f"Errors: {len(payload['errors'])}",
+                title=f"Hybrid Policy Plan {policy_plan_id}",
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "VERIFIED":
+        raise typer.Exit(1)
+
+
 @hybrid_evidence_app.command("status")
 def memory_hybrid_evidence_status_cmd(
     evidence_id: Annotated[str, typer.Argument(help="sha256 evidence-set id")],

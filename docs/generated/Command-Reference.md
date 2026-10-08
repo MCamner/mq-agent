@@ -1222,6 +1222,8 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 | [`mq-agent memory hybrid-evidence admission`](#mq-agent-memory-hybrid-evidence-admission) | Evaluate one verified ablation into a read-only task-class admission gate. |
 | [`mq-agent memory hybrid-evidence admission-status`](#mq-agent-memory-hybrid-evidence-admission-status) | Verify one persisted Hybrid Retrieval admission record. |
 | [`mq-agent memory hybrid-evidence collect`](#mq-agent-memory-hybrid-evidence-collect) | Collect fixture-backed live Hybrid Retrieval v2 evidence. |
+| [`mq-agent memory hybrid-evidence policy-plan`](#mq-agent-memory-hybrid-evidence-policy-plan) | Build a zero-effect runtime channel policy plan from verified admission. |
+| [`mq-agent memory hybrid-evidence policy-plan-status`](#mq-agent-memory-hybrid-evidence-policy-plan-status) | Verify one persisted Hybrid Retrieval runtime policy plan. |
 | [`mq-agent memory hybrid-evidence status`](#mq-agent-memory-hybrid-evidence-status) | Verify one persisted Hybrid Retrieval v2 evidence set and all run refs. |
 
 ## `mq-agent memory hybrid-evidence ablate`
@@ -1310,6 +1312,42 @@ Collect fixture-backed live Hybrid Retrieval v2 evidence.
 |---|---:|---|---|
 | `--state-root` | No | `""` | Override local evidence store root |
 | `--no-write` | No | `false` | Run the live suite without persisting evidence |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence policy-plan`
+
+Build a zero-effect runtime channel policy plan from verified admission.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `ADMISSION_ID` | Yes | — | sha256 admission id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--task-class` | Yes | — | Exact admission task class |
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--no-write` | No | `false` | Plan without persisting the policy record |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence policy-plan-status`
+
+Verify one persisted Hybrid Retrieval runtime policy plan.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `POLICY_PLAN_ID` | Yes | — | sha256 policy-plan id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
 | `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-evidence status`

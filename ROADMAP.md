@@ -752,14 +752,28 @@ justify an activation design.
   precision/recall/contradiction/stale regression. Token/latency deltas are
   reported but no budget threshold is invented. The gate cannot activate or
   mutate runtime policy.
-* [ ] Run the admission gate against the live ablation and persist/verify the
+* [x] Run the admission gate against the live ablation and persist/verify the
   resulting task-class decision before designing any runtime policy consumer.
+  Admission
+  `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`
+  verified with no errors on 2026-10-08. The global decision and each of
+  repo-review, ci and docs are ACTIVE_ONLY with no eligible optional channels;
+  all gate requirements pass and `next_action=keep-active-only`.
+* [x] Add a content-addressed read-only Hybrid Retrieval runtime policy plan.
+  `hybrid-evidence policy-plan` requires a verified admission and exact task
+  class, then emits proposed and effective channel selections separately.
+  ACTIVE_ONLY remains effective active-only; even when future evidence makes an
+  optional channel eligible, the plan can only mark it proposed/REVIEW_REQUIRED.
+  There is no apply command or runtime consumer and unknown task classes fail
+  closed.
+* [ ] Run and verify policy plans for the live ci, docs and repo-review decisions
+  before considering any runtime consumer.
 
-Next roadmap item: **Hybrid Retrieval live admission decision** — evaluate
-`sha256:84ce33fc6e7b1d523f25569cf8054e25586fdb4f8601b0810e8c5d338f5ff814`
-with `memory hybrid-evidence admission`, verify the resulting admission record,
-and keep active retrieval unchanged. Runtime consumption remains out of scope
-until the decision is explicitly reviewed.
+Next roadmap item: **Hybrid Retrieval live policy plans** — create
+`mq.hybrid-retrieval-policy-plan.v1` records from verified admission
+`sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`
+for ci, docs and repo-review, verify each content address, and confirm effective
+selection stays active-only. Runtime consumption remains out of scope.
 
 ### v1.32.0 Canary v2 checkpoint
 
