@@ -48,6 +48,7 @@
     "mq.hybrid-retrieval.v2",
     "mq.hybrid-retrieval-evidence-set.v1",
     "mq.hybrid-retrieval-ablation.v1",
+    "mq.hybrid-retrieval-admission.v1",
     "mq.hybrid-retrieval-suite.v1",
     "mq.feedback-canary.v1",
     "mq.feedback-policy-snapshot.v1",
@@ -66,6 +67,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Run live Hybrid Retrieval channel ablation matrix before any fusion-policy change",
+  "next_focus": "Run and verify live Hybrid Retrieval admission decision before runtime consumption",
   "release_mode": "pull_request"
 }

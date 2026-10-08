@@ -735,16 +735,31 @@ justify an activation design.
   persists a content-addressed `mq.hybrid-retrieval-ablation.v1` record whose
   evidence references, channel selections and aggregate deltas are independently
   verifiable. Historical v2/evidence records remain readable.
-* [ ] Run the unchanged live repo-review, ci and docs suite through the ablation
+* [x] Run the unchanged live repo-review, ci and docs suite through the ablation
   matrix and record each optional channel's marginal precision/recall, payload
-  and latency contribution before any fusion-policy change. Keep active mq-mcp
-  semantic memory authoritative and preserve `promotion_eligible=false`.
+  and latency contribution before any fusion-policy change. The controlled
+  2026-10-08 ablation
+  `sha256:84ce33fc6e7b1d523f25569cf8054e25586fdb4f8601b0810e8c5d338f5ff814`
+  measured active-only at precision/recall 1.0/1.0 with zero token delta.
+  Keyword, vector and CodeGraph singleton variants each kept recall at 1.0 but
+  reduced precision to 0.1 while adding about +1643.67, +1319.0 and +5760.67
+  tokens respectively. The all-channel variant remained 0.1/1.0 at +8723.33
+  tokens. No optional channel earned admission from this evidence.
+* [x] Add a read-only, task-class-isolated Evidence-Gated Channel Admission
+  contract. `hybrid-evidence admission` re-verifies one content-addressed
+  ablation and its singleton evidence, requires identical case identity, and
+  marks a channel ELIGIBLE only when measured quality improves with no
+  precision/recall/contradiction/stale regression. Token/latency deltas are
+  reported but no budget threshold is invented. The gate cannot activate or
+  mutate runtime policy.
+* [ ] Run the admission gate against the live ablation and persist/verify the
+  resulting task-class decision before designing any runtime policy consumer.
 
-Next roadmap item: **Hybrid Retrieval live channel ablation** — run
-`memory hybrid-evidence ablate` against the unchanged operator suite and use
-the verified per-variant deltas to decide whether any optional channel earns its
-marginal token/latency cost. Do not tune RRF weights from the combined
-four-channel result alone.
+Next roadmap item: **Hybrid Retrieval live admission decision** — evaluate
+`sha256:84ce33fc6e7b1d523f25569cf8054e25586fdb4f8601b0810e8c5d338f5ff814`
+with `memory hybrid-evidence admission`, verify the resulting admission record,
+and keep active retrieval unchanged. Runtime consumption remains out of scope
+until the decision is explicitly reviewed.
 
 ### v1.32.0 Canary v2 checkpoint
 

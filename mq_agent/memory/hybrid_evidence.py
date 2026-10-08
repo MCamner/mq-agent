@@ -19,6 +19,7 @@ from mq_agent.tools.contract_validation import validate_contract
 SUITE_SCHEMA = "mq.hybrid-retrieval-suite.v1"
 EVIDENCE_SCHEMA = "mq.hybrid-retrieval-evidence-set.v1"
 ABLATION_SCHEMA = "mq.hybrid-retrieval-ablation.v1"
+ADMISSION_SCHEMA = "mq.hybrid-retrieval-admission.v1"
 
 ABLATION_MATRIX: tuple[tuple[str, dict[str, bool]], ...] = (
     ("keyword", {"notebook_keyword": True, "notebook_vector": False, "codegraph": False}),
@@ -33,6 +34,11 @@ ACTIVE_ONLY_SELECTION = {
     "notebook_keyword": False,
     "notebook_vector": False,
     "codegraph": False,
+}
+SINGLETON_ADMISSION_VARIANTS = {
+    "notebook-keyword": "keyword",
+    "notebook-vector": "vector",
+    "codegraph": "codegraph",
 }
 
 
@@ -183,6 +189,108 @@ def _metric_delta(
     return result
 
 
+def _admission_case_delta(
+    baseline: dict[str, Any],
+    variant: dict[str, Any],
+) -> dict[str, float | None]:
+    fields = (
+        "precision",
+        "recall",
+        "contradiction_rate",
+        "stale_rate",
+        "token_delta_vs_active",
+        "total_channel_latency_ms",
+    )
+    result: dict[str, float | None] = {}
+    for field in fields:
+        left = variant["metrics"].get(field)
+        right = baseline["metrics"].get(field)
+        result[field] = (
+            round(float(left) - float(right), 6)
+            if left is not None and right is not None
+            else None
+        )
+    return result
+
+
+def _admission_case_result(
+    baseline: dict[str, Any],
+    variant: dict[str, Any],
+) -> dict[str, Any]:
+    delta = _admission_case_delta(baseline, variant)
+    quality = {
+        key: delta[key]
+        for key in ("precision", "recall", "contradiction_rate", "stale_rate")
+    }
+    if any(value is None for value in quality.values()):
+        status = "INSUFFICIENT_EVIDENCE"
+        regressions: list[str] = []
+        gains: list[str] = []
+    else:
+        regressions = [
+            name
+            for name, value in quality.items()
+            if (
+                value is not None
+                and (
+                    value < 0
+                    if name in {"precision", "recall"}
+                    else value > 0
+                )
+            )
+        ]
+        gains = [
+            name
+            for name, value in quality.items()
+            if (
+                value is not None
+                and (
+                    value > 0
+                    if name in {"precision", "recall"}
+                    else value < 0
+                )
+            )
+        ]
+        if regressions:
+            status = "BLOCKS_ADMISSION"
+        elif gains:
+            status = "SUPPORTS_ADMISSION"
+        else:
+            status = "NEUTRAL"
+
+    return {
+        "case_id": baseline["case_id"],
+        "baseline_run_fingerprint": baseline["run_fingerprint"],
+        "variant_run_fingerprint": variant["run_fingerprint"],
+        "status": status,
+        "quality_gains": sorted(gains),
+        "quality_regressions": sorted(regressions),
+        "delta_vs_active_only": delta,
+    }
+
+
+def _admission_delta_mean(
+    case_results: list[dict[str, Any]],
+) -> dict[str, float | None]:
+    fields = (
+        "precision",
+        "recall",
+        "contradiction_rate",
+        "stale_rate",
+        "token_delta_vs_active",
+        "total_channel_latency_ms",
+    )
+    result: dict[str, float | None] = {}
+    for field in fields:
+        values = [
+            float(item["delta_vs_active_only"][field])
+            for item in case_results
+            if item["delta_vs_active_only"].get(field) is not None
+        ]
+        result[field] = round(fmean(values), 6) if values else None
+    return result
+
+
 def _aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
     channels: dict[str, dict[str, int]] = {}
     for case in cases:
@@ -273,6 +381,51 @@ class HybridEvidenceStore:
             raise ValueError("hybrid ablation id does not match content")
         self._write(self._path("ablations", fingerprint), ablation)
         return fingerprint
+
+    def save_admission(self, admission: dict[str, Any]) -> str:
+        validate_contract("hybrid_retrieval_admission.schema.json", admission)
+        fingerprint = admission["admission_id"]
+        expected = _fingerprint(
+            {k: v for k, v in admission.items() if k != "admission_id"}
+        )
+        if fingerprint != expected:
+            raise ValueError("hybrid admission id does not match content")
+        self._write(self._path("admissions", fingerprint), admission)
+        return fingerprint
+
+    def verify_admission(self, admission_id: str) -> dict[str, Any]:
+        path = self._path("admissions", admission_id)
+        if not path.exists() or path.is_symlink() or not path.is_file():
+            raise ValueError("hybrid admission record not found")
+        admission = json.loads(path.read_text(encoding="utf-8"))
+        validate_contract("hybrid_retrieval_admission.schema.json", admission)
+        expected_id = _fingerprint(
+            {k: v for k, v in admission.items() if k != "admission_id"}
+        )
+        errors: list[str] = []
+        if admission["admission_id"] != admission_id:
+            errors.append("admission id/path mismatch")
+        if expected_id != admission_id:
+            errors.append("admission content fingerprint mismatch")
+
+        try:
+            expected = _build_hybrid_admission(
+                admission["ablation_id"],
+                self,
+                created_at=admission["created_at"],
+            )
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"admission evidence rebuild failed: {exc}")
+        else:
+            if expected != admission:
+                errors.append("admission content does not match verified evidence")
+
+        return {
+            "admission_id": admission_id,
+            "status": "VERIFIED" if not errors else "REFUSED",
+            "errors": errors,
+            "admission": admission,
+        }
 
     def verify_ablation(self, ablation_id: str) -> dict[str, Any]:
         path = self._path("ablations", ablation_id)
@@ -561,4 +714,209 @@ def collect_hybrid_ablation(
     validate_contract("hybrid_retrieval_ablation.schema.json", payload)
     if persist:
         store.save_ablation(payload)
+    return payload
+
+
+def _build_hybrid_admission(
+    ablation_id: str,
+    store: HybridEvidenceStore,
+    *,
+    created_at: str,
+) -> dict[str, Any]:
+    verified_ablation = store.verify_ablation(ablation_id)
+    if verified_ablation["status"] != "VERIFIED":
+        raise ValueError("hybrid ablation must verify before admission evaluation")
+    ablation = verified_ablation["ablation"]
+
+    baseline_verified = store.verify_set(ablation["baseline"]["evidence_id"])
+    if baseline_verified["status"] != "VERIFIED":
+        raise ValueError("active-only baseline evidence must verify")
+    baseline_evidence = baseline_verified["evidence"]
+    baseline_by_case = {
+        str(case["case_id"]): case for case in baseline_evidence["cases"]
+    }
+
+    variants = {
+        str(item["variant_id"]): item
+        for item in ablation["variants"]
+    }
+    singleton_evidence: dict[str, dict[str, Any]] = {}
+    for channel, variant_id in SINGLETON_ADMISSION_VARIANTS.items():
+        entry = variants.get(variant_id)
+        if entry is None:
+            raise ValueError(f"ablation singleton variant missing: {variant_id}")
+        verified = store.verify_set(str(entry["evidence_id"]))
+        if verified["status"] != "VERIFIED":
+            raise ValueError(f"{variant_id}: singleton evidence must verify")
+        singleton_evidence[channel] = verified["evidence"]
+
+    task_classes = sorted(
+        {str(case["task_class"]) for case in baseline_evidence["cases"]}
+    )
+    task_results: list[dict[str, Any]] = []
+    evidence_complete = True
+
+    for task_class in task_classes:
+        baseline_cases = [
+            case
+            for case in baseline_evidence["cases"]
+            if str(case["task_class"]) == task_class
+        ]
+        baseline_ids = {str(case["case_id"]) for case in baseline_cases}
+        channel_results: list[dict[str, Any]] = []
+
+        for channel, variant_id in SINGLETON_ADMISSION_VARIANTS.items():
+            variant_evidence = singleton_evidence[channel]
+            variant_by_case = {
+                str(case["case_id"]): case
+                for case in variant_evidence["cases"]
+                if str(case["task_class"]) == task_class
+            }
+            variant_ids = set(variant_by_case)
+            if variant_ids != baseline_ids:
+                raise ValueError(
+                    f"{task_class}/{channel}: singleton case identity mismatch"
+                )
+
+            case_results = [
+                _admission_case_result(
+                    baseline_by_case[case_id],
+                    variant_by_case[case_id],
+                )
+                for case_id in sorted(baseline_ids)
+            ]
+            statuses = {str(item["status"]) for item in case_results}
+            if "INSUFFICIENT_EVIDENCE" in statuses:
+                decision = "INSUFFICIENT_EVIDENCE"
+                reason = "quality metrics are incomplete"
+                evidence_complete = False
+            elif "BLOCKS_ADMISSION" in statuses:
+                decision = "ACTIVE_ONLY"
+                reason = "singleton channel regresses measured quality"
+            elif "SUPPORTS_ADMISSION" in statuses:
+                decision = "ELIGIBLE"
+                reason = "measured quality gain with no measured quality regression"
+            else:
+                decision = "ACTIVE_ONLY"
+                reason = "no measured quality gain"
+
+            channel_results.append(
+                {
+                    "channel": channel,
+                    "variant_id": variant_id,
+                    "decision": decision,
+                    "reason": reason,
+                    "baseline_evidence_id": baseline_evidence["evidence_id"],
+                    "variant_evidence_id": variant_evidence["evidence_id"],
+                    "case_count": len(case_results),
+                    "mean_delta_vs_active_only": _admission_delta_mean(case_results),
+                    "cases": case_results,
+                }
+            )
+
+        eligible = sorted(
+            item["channel"]
+            for item in channel_results
+            if item["decision"] == "ELIGIBLE"
+        )
+        insufficient = any(
+            item["decision"] == "INSUFFICIENT_EVIDENCE"
+            for item in channel_results
+        )
+        task_results.append(
+            {
+                "task_class": task_class,
+                "decision": (
+                    "INSUFFICIENT_EVIDENCE"
+                    if insufficient
+                    else "OPTIONAL_CHANNELS_ELIGIBLE"
+                    if eligible
+                    else "ACTIVE_ONLY"
+                ),
+                "eligible_channels": eligible,
+                "channels": channel_results,
+            }
+        )
+
+    any_eligible = any(item["eligible_channels"] for item in task_results)
+    status = "PASS" if evidence_complete else "INSUFFICIENT_EVIDENCE"
+    decision = (
+        "INSUFFICIENT_EVIDENCE"
+        if not evidence_complete
+        else "OPTIONAL_CHANNELS_ELIGIBLE"
+        if any_eligible
+        else "ACTIVE_ONLY"
+    )
+    payload: dict[str, Any] = {
+        "schema": ADMISSION_SCHEMA,
+        "created_at": created_at,
+        "ablation_id": ablation_id,
+        "suite_sha256": ablation["suite_sha256"],
+        "status": status,
+        "decision": decision,
+        "zero_effect": True,
+        "promotion_eligible": False,
+        "activation_available": False,
+        "human_approval_required": True,
+        "task_classes": task_results,
+        "requirements": [
+            {
+                "id": "verified-ablation",
+                "status": "PASS",
+                "detail": "referenced ablation and all underlying evidence verified",
+            },
+            {
+                "id": "singleton-case-identity",
+                "status": "PASS",
+                "detail": "active-only and singleton variants use identical case ids per task class",
+            },
+            {
+                "id": "quality-complete",
+                "status": "PASS" if evidence_complete else "FAIL",
+                "detail": (
+                    "precision, recall, contradiction and stale metrics are complete"
+                    if evidence_complete
+                    else "one or more singleton comparisons lack complete quality metrics"
+                ),
+            },
+            {
+                "id": "no-invented-cost-threshold",
+                "status": "PASS",
+                "detail": "token and latency deltas are reported but do not gate admission without an explicit budget policy",
+            },
+        ],
+        "next_action": (
+            "collect-more-evidence"
+            if not evidence_complete
+            else "review-eligible-channels"
+            if any_eligible
+            else "keep-active-only"
+        ),
+        "limitations": [
+            "This gate is read-only evidence evaluation; it does not alter Hybrid Retrieval channel selection.",
+            "A channel is eligible only when singleton evidence shows at least one measured quality gain and no measured precision, recall, contradiction or stale regression within the task class.",
+            "Token and latency costs are reported for operator review but no budget threshold is invented.",
+            "Eligibility is not activation; runtime policy remains unchanged and human approval is still required.",
+        ],
+    }
+    payload["admission_id"] = _fingerprint(payload)
+    validate_contract("hybrid_retrieval_admission.schema.json", payload)
+    return payload
+
+
+def evaluate_hybrid_admission(
+    ablation_id: str,
+    *,
+    state_root: Path | None = None,
+    persist: bool = True,
+) -> dict[str, Any]:
+    """Evaluate one verified ablation into a read-only task-class admission gate."""
+    store = HybridEvidenceStore(state_root)
+    payload = _build_hybrid_admission(
+        ablation_id,
+        store,
+        created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+    )
+    if persist:
+        store.save_admission(payload)
     return payload

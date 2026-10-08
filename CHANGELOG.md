@@ -11,6 +11,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Evidence-Gated Channel Admission adds content-addressed
+  `mq.hybrid-retrieval-admission.v1` plus
+  `memory hybrid-evidence admission|admission-status`. The read-only gate
+  re-verifies one ablation and singleton evidence per task class, allowing a
+  channel to become ELIGIBLE only for measured quality gain with no
+  precision/recall/contradiction/stale regression. It reports token/latency
+  cost without inventing a budget threshold and cannot activate runtime policy.
+- The live 2026-10-08 channel ablation is now recorded as active-only
+  precision/recall 1.0/1.0 versus 0.1/1.0 for every singleton optional channel;
+  the measured singleton token deltas were +1643.67 keyword, +1319.0 vector and
+  +5760.67 CodeGraph, so no fusion-policy change is justified.
 - Hybrid Retrieval channel ablation adds explicit Notebook keyword/vector and
   CodeGraph selection to new v2 runs plus `memory hybrid-evidence ablate`.
   The fixed matrix measures an active-only baseline and all seven optional-channel

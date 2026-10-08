@@ -10,6 +10,7 @@ from mq_agent.memory.hybrid_evidence import (
     HybridEvidenceStore,
     collect_hybrid_ablation,
     collect_hybrid_evidence,
+    evaluate_hybrid_admission,
 )
 from mq_agent.notebook_corpus import build_from_document
 
@@ -106,6 +107,18 @@ def _write_ablation_suite(tmp_path: Path) -> Path:
     suite = json.loads(path.read_text(encoding="utf-8"))
     suite["semantic_index"] = "semantic-index.json"
     path.write_text(json.dumps(suite), encoding="utf-8")
+    return path
+
+
+def _write_active_only_optimal_suite(tmp_path: Path) -> Path:
+    path = _write_ablation_suite(tmp_path)
+    fixture = {
+        "schema": "mq.hybrid-retrieval-fixture.v1",
+        "expected_refs": ["semantic-memory:memory-1"],
+        "contradicted_refs": [],
+        "stale_refs": [],
+    }
+    (tmp_path / "fixture.json").write_text(json.dumps(fixture), encoding="utf-8")
     return path
 
 
@@ -227,6 +240,139 @@ def test_collects_and_verifies_fixed_channel_ablation(
     verified = HybridEvidenceStore(root).verify_ablation(result["ablation_id"])
     assert verified["status"] == "VERIFIED"
     assert verified["errors"] == []
+
+
+def test_admission_marks_quality_improving_singletons_eligible(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_ablation_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(
+        ablation["ablation_id"],
+        state_root=root,
+    )
+
+    assert admission["schema"] == "mq.hybrid-retrieval-admission.v1"
+    assert admission["status"] == "PASS"
+    assert admission["decision"] == "OPTIONAL_CHANNELS_ELIGIBLE"
+    assert admission["zero_effect"] is True
+    assert admission["activation_available"] is False
+    assert admission["promotion_eligible"] is False
+    assert all(
+        row["eligible_channels"]
+        == ["codegraph", "notebook-keyword", "notebook-vector"]
+        for row in admission["task_classes"]
+    )
+    assert all(
+        channel["decision"] == "ELIGIBLE"
+        for row in admission["task_classes"]
+        for channel in row["channels"]
+    )
+
+    verified = HybridEvidenceStore(root).verify_admission(
+        admission["admission_id"]
+    )
+    assert verified["status"] == "VERIFIED"
+    assert verified["errors"] == []
+
+
+def test_admission_keeps_active_only_when_singletons_reduce_precision(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_active_only_optimal_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(
+        ablation["ablation_id"],
+        state_root=root,
+    )
+
+    assert admission["decision"] == "ACTIVE_ONLY"
+    assert admission["next_action"] == "keep-active-only"
+    assert all(
+        row["decision"] == "ACTIVE_ONLY"
+        and row["eligible_channels"] == []
+        for row in admission["task_classes"]
+    )
+    for row in admission["task_classes"]:
+        for channel in row["channels"]:
+            assert channel["decision"] == "ACTIVE_ONLY"
+            assert channel["mean_delta_vs_active_only"]["precision"] < 0
+            assert "precision" in channel["cases"][0]["quality_regressions"]
+
+
+def test_admission_no_write_does_not_create_admission_record(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_ablation_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    ablation = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(
+        ablation["ablation_id"],
+        state_root=root,
+        persist=False,
+    )
+
+    assert admission["status"] == "PASS"
+    assert not (root / "admissions").exists()
 
 
 def test_ablation_no_write_leaves_no_state(
