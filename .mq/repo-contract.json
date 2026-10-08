@@ -65,6 +65,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Run live Hybrid Retrieval v2 evidence suite on operator MQ runtime",
+  "next_focus": "Rebuild D8 semantic index with balanced sampling and rerun Hybrid Retrieval v2 evidence suite",
   "release_mode": "pull_request"
 }

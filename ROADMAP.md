@@ -682,12 +682,26 @@ justify an activation design.
   a stored evidence set as VERIFIED.
 * [x] Keep evidence zero-effect and `promotion_eligible=false`; representativeness
   remains an operator review question rather than a hard-coded promotion threshold.
-* [ ] Run the suite against the operator's live mq-mcp + Notebook + CodeGraph
-  runtime and review the resulting task-class coverage.
+* [x] Run the suite against the operator's live mq-mcp + Notebook runtime and
+  review the resulting task-class coverage. The first fixture-backed run covered
+  repo-review, ci and docs with mq-mcp semantic + Notebook keyword, measured
+  recall 1.0 and precision 0.10, and kept CodeGraph explicitly unavailable.
+* [x] Add Notebook vector as a third live channel and rerun the same cases. The
+  bounded D8 index was technically available but did not improve measured
+  precision and increased retrieval payload size, exposing sampling bias in the
+  experiment index rather than evidence for promotion.
+* [x] Fix D8 bounded sampling to filter unsupported MIME before selection and
+  spread selected files across notebooks before taking a second item from any
+  notebook; retain source-before-derived ordering and explicit build trace.
+* [ ] Rebuild the operator D8 semantic index with the balanced sampler and rerun
+  the exact same fixture-backed evidence suite before changing fusion policy.
+* [ ] Connect CodeGraph MCP as a separately evidenced follow-up; its absence must
+  not be hidden by Notebook channels.
 
-Next roadmap item: **live Hybrid Retrieval v2 evidence run** — execute the
-fixture-backed suite on the operator MQ runtime. Do not treat deterministic CI
-fixtures as production evidence and do not promote retrieval from this step alone.
+Next roadmap item: **balanced D8 live rerun** — rebuild the local semantic index
+with notebook-balanced, text-capable sampling and rerun the unchanged Hybrid
+Retrieval v2 suite. Do not change RRF weights or promote retrieval until that
+controlled rerun shows measured quality benefit.
 
 ### v1.32.0 Canary v2 checkpoint
 

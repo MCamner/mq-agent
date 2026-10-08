@@ -29,6 +29,11 @@ _TEXT_MIMES = {
 _CLAIM_ROLE = "source"
 
 
+def is_text_fetchable_mime(mime_type: str) -> bool:
+    """Return whether the bounded Drive fetcher can read this MIME as text."""
+    return mime_type == GOOGLE_DOC_MIME or mime_type in _TEXT_MIMES
+
+
 class SelectiveFetchError(RuntimeError):
     """One selected provider item could not be read safely."""
 

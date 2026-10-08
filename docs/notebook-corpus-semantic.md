@@ -23,11 +23,23 @@ No hosted embedding service is used by this implementation.
 
 ```text
 D3 catalog
+  -> source/derived role filter
+  -> text-fetchable MIME filter
+  -> notebook-balanced bounded selection
   -> bounded D5 text fetch
   -> bounded chunks
   -> local Ollama embeddings
   -> disposable JSON index
 ```
+
+The bounded selector walks notebooks round-robin and prefers source items before
+derived material within each notebook. A single notebook is capped at two selected
+items by default, so lexicographically early notebook ids cannot monopolize a
+small experiment index. Unsupported MIME types are excluded before fetch rather
+than counted as attempted retrieval failures.
+
+Build trace records text-capable/unsupported counts, selected/fetched notebook
+coverage, attempted/fetched/unavailable file counts and unavailable reasons.
 
 Each chunk retains:
 

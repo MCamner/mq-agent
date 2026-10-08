@@ -52,6 +52,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   can require `mq.perception-review-receipt.v1` bound to the exact perception,
   review, reviewer runtime and optional repository commit.
 
+### Fixed
+
+- D8 semantic-index builds now filter to Drive text-fetchable MIME types before
+  selection and sample notebooks round-robin instead of taking the first
+  lexicographically sorted corpus items. The bounded build therefore avoids one
+  early notebook monopolizing a small vector index and reports notebook coverage
+  plus explicit unavailable reasons in its trace.
+
 ### Safety
 
 - Promotion evidence never maps the feedback task-class vocabulary onto the

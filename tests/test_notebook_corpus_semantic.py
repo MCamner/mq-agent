@@ -111,6 +111,157 @@ def _texts():
     )
 
 
+def _balanced_catalog():
+    doc = {
+        "corpus_key": "notebooklm-archive",
+        "snapshot_at": "2026-09-29T00:00:00Z",
+        "notebooks": [
+            {"drive_item_id": "nb-a", "title": "Notebook A"},
+            {"drive_item_id": "nb-b", "title": "Notebook B"},
+            {"drive_item_id": "nb-c", "title": "Notebook C"},
+        ],
+        "items": [
+            {
+                "drive_item_id": "a-pdf",
+                "notebook_drive_item_id": "nb-a",
+                "parent_drive_item_id": "s-a",
+                "relative_path": "Sources/a.pdf",
+                "title": "unsupported PDF",
+                "mime_type": "application/pdf",
+                "size_bytes": 100,
+                "modified_time": "2026-09-20T00:00:00Z",
+                "origin_provider": "google-drive",
+                "content_sha256": "1" * 64,
+            },
+            {
+                "drive_item_id": "a-one",
+                "notebook_drive_item_id": "nb-a",
+                "parent_drive_item_id": "s-a",
+                "relative_path": "Sources/a-one.md",
+                "title": "A one",
+                "mime_type": "text/markdown",
+                "size_bytes": 100,
+                "modified_time": "2026-09-20T00:00:00Z",
+                "origin_provider": "google-drive",
+                "content_sha256": "2" * 64,
+            },
+            {
+                "drive_item_id": "a-two",
+                "notebook_drive_item_id": "nb-a",
+                "parent_drive_item_id": "s-a",
+                "relative_path": "Sources/a-two.html",
+                "title": "A two",
+                "mime_type": "text/html",
+                "size_bytes": 100,
+                "modified_time": "2026-09-20T00:00:00Z",
+                "origin_provider": "google-drive",
+                "content_sha256": "3" * 64,
+            },
+            {
+                "drive_item_id": "b-one",
+                "notebook_drive_item_id": "nb-b",
+                "parent_drive_item_id": "s-b",
+                "relative_path": "Sources/b-one.md",
+                "title": "B one",
+                "mime_type": "text/markdown",
+                "size_bytes": 100,
+                "modified_time": "2026-09-20T00:00:00Z",
+                "origin_provider": "google-drive",
+                "content_sha256": "4" * 64,
+            },
+            {
+                "drive_item_id": "b-two",
+                "notebook_drive_item_id": "nb-b",
+                "parent_drive_item_id": "s-b",
+                "relative_path": "Sources/b-two.html",
+                "title": "B two",
+                "mime_type": "text/html",
+                "size_bytes": 100,
+                "modified_time": "2026-09-20T00:00:00Z",
+                "origin_provider": "google-drive",
+                "content_sha256": "5" * 64,
+            },
+            {
+                "drive_item_id": "c-one",
+                "notebook_drive_item_id": "nb-c",
+                "parent_drive_item_id": "s-c",
+                "relative_path": "Sources/c-one.md",
+                "title": "C one",
+                "mime_type": "text/markdown",
+                "size_bytes": 100,
+                "modified_time": "2026-09-20T00:00:00Z",
+                "origin_provider": "google-drive",
+                "content_sha256": "6" * 64,
+            },
+        ],
+    }
+    return build_from_document(doc)[0]
+
+
+def test_semantic_index_balances_selection_across_notebooks_and_skips_unsupported_mime():
+    catalog = _balanced_catalog()
+    provider = FakeTextProvider(
+        {
+            "a-one": "alpha",
+            "a-two": "alpha second",
+            "b-one": "beta",
+            "b-two": "beta second",
+            "c-one": "gamma",
+        }
+    )
+
+    index = build_semantic_index(
+        catalog,
+        provider,
+        KeywordEmbedding(),
+        max_files=3,
+        max_files_per_notebook=2,
+    )
+
+    called_ids = [drive_item_id for drive_item_id, _, _ in provider.calls]
+    notebook_by_drive = {
+        str(row["drive_item_id"]): str(row["notebook_id"])
+        for row in catalog["items"]
+    }
+
+    assert "a-pdf" not in called_ids
+    assert len(called_ids) == 3
+    assert len({notebook_by_drive[drive_item_id] for drive_item_id in called_ids}) == 3
+    assert index["trace"]["files_available"] == 6
+    assert index["trace"]["files_text_capable"] == 5
+    assert index["trace"]["files_skipped_unsupported_mime"] == 1
+    assert index["trace"]["files_selected"] == 3
+    assert index["trace"]["notebooks_selected"] == 3
+    assert index["trace"]["notebooks_fetched"] == 3
+    assert index["trace"]["files_unavailable"] == 0
+    assert index["trace"]["unavailable_reasons"] == {}
+
+
+def test_semantic_index_honors_per_notebook_cap():
+    catalog = _balanced_catalog()
+    provider = FakeTextProvider(
+        {
+            "a-one": "alpha",
+            "a-two": "alpha second",
+            "b-one": "beta",
+            "b-two": "beta second",
+            "c-one": "gamma",
+        }
+    )
+
+    index = build_semantic_index(
+        catalog,
+        provider,
+        KeywordEmbedding(),
+        max_files=10,
+        max_files_per_notebook=1,
+    )
+
+    assert index["trace"]["files_selected"] == 3
+    assert index["trace"]["notebooks_selected"] == 3
+    assert index["trace"]["max_files_per_notebook"] == 1
+
+
 def test_semantic_index_keeps_provenance_and_is_disposable():
     index = build_semantic_index(
         _catalog(),

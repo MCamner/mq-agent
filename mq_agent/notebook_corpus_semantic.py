@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
 from mq_agent.notebook_corpus import validate_catalog
+from mq_agent.notebook_corpus_retrieval import is_text_fetchable_mime
 from mq_agent.notebook_corpus_search import search_catalog
 
 FROZEN_D4_QUERIES = [
@@ -30,6 +31,8 @@ FROZEN_D4_QUERIES = [
 ]
 
 _TEXT_ROLES = {"source", "derived", "derived-note"}
+_ROLE_PRIORITY = {"source": 0, "derived": 1, "derived-note": 2}
+DEFAULT_MAX_FILES_PER_NOTEBOOK = 2
 DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 DEFAULT_EMBED_MODEL = "nomic-embed-text"
 
@@ -99,6 +102,63 @@ def _chunk_text(text: str, *, chunk_chars: int, overlap_chars: int) -> list[tupl
     return chunks
 
 
+def _select_semantic_items(
+    catalog: Mapping[str, Any],
+    *,
+    max_files: int,
+    max_files_per_notebook: int,
+) -> tuple[list[Mapping[str, Any]], dict[str, int]]:
+    """Select a bounded, notebook-balanced set of text-fetchable corpus items."""
+    if max_files < 1:
+        raise ValueError("max_files must be at least 1")
+    if max_files_per_notebook < 1:
+        raise ValueError("max_files_per_notebook must be at least 1")
+
+    role_items = [
+        row
+        for row in catalog["items"]
+        if str(row["classification"]["role"]) in _TEXT_ROLES
+    ]
+    text_items = [
+        row for row in role_items if is_text_fetchable_mime(str(row["mime_type"]))
+    ]
+
+    grouped: dict[str, list[Mapping[str, Any]]] = {}
+    for row in text_items:
+        grouped.setdefault(str(row["notebook_id"]), []).append(row)
+
+    for rows in grouped.values():
+        rows.sort(
+            key=lambda row: (
+                _ROLE_PRIORITY.get(str(row["classification"]["role"]), 99),
+                str(row["item_id"]),
+            )
+        )
+
+    selected: list[Mapping[str, Any]] = []
+    notebook_ids = sorted(grouped)
+    for offset in range(max_files_per_notebook):
+        for notebook_id in notebook_ids:
+            rows = grouped[notebook_id]
+            if offset >= len(rows):
+                continue
+            selected.append(rows[offset])
+            if len(selected) >= max_files:
+                break
+        if len(selected) >= max_files:
+            break
+
+    return selected, {
+        "files_available": len(role_items),
+        "files_text_capable": len(text_items),
+        "files_skipped_unsupported_mime": len(role_items) - len(text_items),
+        "files_selected": len(selected),
+        "notebooks_available": len(grouped),
+        "notebooks_selected": len({str(row["notebook_id"]) for row in selected}),
+        "max_files_per_notebook": max_files_per_notebook,
+    }
+
+
 def build_semantic_index(
     catalog: Mapping[str, Any],
     text_provider: TextProvider,
@@ -109,22 +169,25 @@ def build_semantic_index(
     max_total_bytes: int = 1_048_576,
     chunk_chars: int = 2_000,
     overlap_chars: int = 200,
+    max_files_per_notebook: int = DEFAULT_MAX_FILES_PER_NOTEBOOK,
 ) -> dict[str, Any]:
     validate_catalog(catalog)
     titles = {str(n["notebook_id"]): str(n["title"]) for n in catalog["notebooks"]}
-    items = [
-        row for row in catalog["items"]
-        if str(row["classification"]["role"]) in _TEXT_ROLES
-    ]
-    items.sort(key=lambda row: (str(row["notebook_id"]), str(row["item_id"])))
+    selected, selection_trace = _select_semantic_items(
+        catalog,
+        max_files=max_files,
+        max_files_per_notebook=max_files_per_notebook,
+    )
 
     total_bytes = 0
     fetched = 0
     unavailable = 0
+    unavailable_reasons: dict[str, int] = {}
+    fetched_notebooks: set[str] = set()
     chunks: list[dict[str, Any]] = []
     chunk_texts: list[str] = []
 
-    for item in items[:max_files]:
+    for item in selected:
         remaining = max_total_bytes - total_bytes
         if remaining <= 0:
             break
@@ -135,11 +198,14 @@ def build_semantic_index(
         )
         if str(result.get("status")) != "ok":
             unavailable += 1
+            reason = str(result.get("reason") or "unknown")
+            unavailable_reasons[reason] = unavailable_reasons.get(reason, 0) + 1
             continue
         text = str(result.get("text", ""))
         consumed = int(result.get("bytes_fetched", len(text.encode("utf-8"))))
         total_bytes += max(0, consumed)
         fetched += 1
+        fetched_notebooks.add(str(item["notebook_id"]))
         role = str(item["classification"]["role"])
 
         for index, (start, end, chunk) in enumerate(
@@ -179,10 +245,12 @@ def build_semantic_index(
         "corpus": dict(catalog["corpus"]),
         "chunks": chunks,
         "trace": {
-            "files_available": len(items),
-            "files_selected": min(len(items), max_files),
+            **selection_trace,
+            "files_attempted": fetched + unavailable,
             "files_fetched": fetched,
             "files_unavailable": unavailable,
+            "unavailable_reasons": dict(sorted(unavailable_reasons.items())),
+            "notebooks_fetched": len(fetched_notebooks),
             "bytes_fetched": total_bytes,
             "chunks": len(chunks),
             "embedding_dimension": dimension,
