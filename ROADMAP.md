@@ -643,9 +643,30 @@ justify an activation design.
 * [x] Keep human approval, Canary v2 and explicit activation requirements
   unchanged; no automatic promotion or routing is introduced.
 
-Next roadmap item: **Hybrid Retrieval v2** — broaden measured retrieval across
-keyword/vector/CodeGraph/Notebook channels with deterministic provenance and
-precision/recall/contradiction/token metrics before any promotion.
+### Hybrid Retrieval v2 checkpoint
+
+* [x] Define and package `mq.hybrid-retrieval.v2` without changing the historical
+  `mq.hybrid-retrieval-shadow.v1` contract.
+* [x] Keep authoritative mq-mcp semantic memory unchanged and run every added
+  retrieval channel as zero-effect shadow evidence.
+* [x] Measure vector, keyword, Notebook and installed CodeGraph MCP channels
+  independently, preserving unavailable/skipped state instead of fabricating zeroes.
+* [x] Merge normalized references with deterministic reciprocal-rank fusion and
+  stable tie-breaking; preserve per-channel rank provenance on every merged ref.
+* [x] Deduplicate Notebook identity across lexical and semantic retrieval channels.
+* [x] Measure precision, recall, contradiction rate and stale rate only against an
+  explicit relevance fixture; otherwise report those quality metrics unavailable.
+* [x] Measure per-channel latency and a deterministic retrieval-payload token
+  estimate without retaining query text or retrieved bodies.
+* [x] Require the active semantic baseline plus at least one additional measured
+  channel for PASS.
+* [x] Keep `promotion_eligible=false`; PASS means the measurement ran, not that
+  any retrieval policy may be activated.
+* [x] Preserve existing `context pack --codegraph auto` semantics.
+
+Next roadmap item: **Hybrid Retrieval v2 real-run evidence collection** — run
+fixture-backed zero-effect measurements on representative task classes before
+considering any promotion of hybrid retrieval.
 
 ### v1.32.0 Canary v2 checkpoint
 
