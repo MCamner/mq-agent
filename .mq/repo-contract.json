@@ -65,6 +65,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Rerun unchanged Hybrid Retrieval suite with CodeGraph available",
+  "next_focus": "Run Hybrid Retrieval channel ablation before any fusion-policy change",
   "release_mode": "pull_request"
 }
