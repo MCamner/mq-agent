@@ -664,9 +664,30 @@ justify an activation design.
   any retrieval policy may be activated.
 * [x] Preserve existing `context pack --codegraph auto` semantics.
 
-Next roadmap item: **Hybrid Retrieval v2 real-run evidence collection** — run
-fixture-backed zero-effect measurements on representative task classes before
-considering any promotion of hybrid retrieval.
+### Hybrid Retrieval v2 evidence-collection checkpoint
+
+* [x] Define and package operator-input `mq.hybrid-retrieval-suite.v1`.
+* [x] Define and package content-addressed
+  `mq.hybrid-retrieval-evidence-set.v1`.
+* [x] Execute every suite case through the real Hybrid Retrieval v2 channel
+  adapters; CI fixtures verify the mechanism but are never labeled real-run evidence.
+* [x] Require an explicit relevance fixture for every evidence case.
+* [x] Persist each v2 run by content fingerprint and bind the evidence set to
+  exact run, query and fixture hashes.
+* [x] Aggregate task-class coverage, PASS/INSUFFICIENT counts, precision, recall,
+  contradiction, stale, token-delta and channel-latency metrics.
+* [x] Keep raw queries, local paths and retrieved bodies out of persisted
+  evidence sets.
+* [x] Verify referenced run content and query/fixture binding before reporting
+  a stored evidence set as VERIFIED.
+* [x] Keep evidence zero-effect and `promotion_eligible=false`; representativeness
+  remains an operator review question rather than a hard-coded promotion threshold.
+* [ ] Run the suite against the operator's live mq-mcp + Notebook + CodeGraph
+  runtime and review the resulting task-class coverage.
+
+Next roadmap item: **live Hybrid Retrieval v2 evidence run** — execute the
+fixture-backed suite on the operator MQ runtime. Do not treat deterministic CI
+fixtures as production evidence and do not promote retrieval from this step alone.
 
 ### v1.32.0 Canary v2 checkpoint
 
