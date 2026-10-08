@@ -98,6 +98,7 @@ def _project_case(
         "query_sha256": result["query_sha256"],
         "fixture_sha256": fixture_sha,
         "run_fingerprint": run_fingerprint,
+        "input_fingerprints": dict(result["input_fingerprints"]),
         "status": result["status"],
         "available_channels": available,
         "unavailable_channels": unavailable,
@@ -225,6 +226,13 @@ class HybridEvidenceStore:
                 errors.append(f"{case['case_id']}: referenced run fingerprint mismatch")
             if run["query_sha256"] != case["query_sha256"]:
                 errors.append(f"{case['case_id']}: query hash mismatch")
+            case_inputs = case.get("input_fingerprints")
+            if case_inputs is not None:
+                run_inputs = run.get("input_fingerprints")
+                if run_inputs is None:
+                    errors.append(f"{case['case_id']}: run input fingerprints missing")
+                elif run_inputs != case_inputs:
+                    errors.append(f"{case['case_id']}: input fingerprint mismatch")
             if run["quality_evidence"]["fixture_sha256"] is None:
                 errors.append(f"{case['case_id']}: fixture evidence is unavailable")
             elif "sha256:" + run["quality_evidence"]["fixture_sha256"] != case["fixture_sha256"]:
