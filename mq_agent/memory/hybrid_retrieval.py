@@ -234,7 +234,7 @@ def _rrf(
             channels.setdefault(key, []).append(channel)
             ranks.setdefault(key, {})[channel] = rank
 
-    merged = [
+    merged: list[dict[str, Any]] = [
         {
             "namespace": namespace,
             "reference": reference,
