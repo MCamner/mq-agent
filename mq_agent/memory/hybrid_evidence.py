@@ -942,16 +942,17 @@ def _challenge_case_result(
 ) -> dict[str, Any]:
     comparison = _admission_case_result(baseline, variant)
     baseline_metrics = _challenge_quality_metrics(baseline)
+    precision = baseline_metrics["precision"]
+    recall = baseline_metrics["recall"]
     complete = (
         comparison["status"] != "INSUFFICIENT_EVIDENCE"
         and all(value is not None for value in baseline_metrics.values())
     )
     baseline_non_ceiling = bool(
         complete
-        and (
-            float(baseline_metrics["precision"]) < 1.0
-            or float(baseline_metrics["recall"]) < 1.0
-        )
+        and precision is not None
+        and recall is not None
+        and (precision < 1.0 or recall < 1.0)
     )
 
     if not complete:
