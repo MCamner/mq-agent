@@ -50,6 +50,7 @@
     "mq.hybrid-retrieval-ablation.v1",
     "mq.hybrid-retrieval-admission.v1",
     "mq.hybrid-retrieval-policy-plan.v1",
+    "mq.hybrid-retrieval-challenge.v1",
     "mq.hybrid-retrieval-suite.v1",
     "mq.feedback-canary.v1",
     "mq.feedback-policy-snapshot.v1",
@@ -68,6 +69,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Build discriminating zero-effect Hybrid Retrieval challenge suite before runtime consumption",
+  "next_focus": "Curate and run live discriminating zero-effect Hybrid Retrieval challenge suite",
   "release_mode": "pull_request"
 }
