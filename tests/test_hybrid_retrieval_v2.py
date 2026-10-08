@@ -198,6 +198,37 @@ def test_active_baseline_is_required_for_pass() -> None:
     assert result["shadow_effect_on_active_result"] is False
 
 
+def test_default_codegraph_adapter_receives_selected_root(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    calls = []
+
+    def fake_search(query: str, root: Path | None = None):
+        calls.append((query, root))
+        return {
+            "results": [
+                {"path": "mq_agent/main.py", "symbol": "memory_hybrid_retrieval_cmd"}
+            ]
+        }
+
+    monkeypatch.setattr(
+        "mq_agent.memory.codegraph_runtime.search_codegraph",
+        fake_search,
+    )
+
+    result = hybrid_retrieval_v2(
+        "hybrid retrieval",
+        codegraph_root=tmp_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+    )
+
+    codegraph = next(row for row in result["channels"] if row["name"] == "codegraph")
+    assert codegraph["status"] == "AVAILABLE"
+    assert codegraph["returned"] == 1
+    assert calls == [("hybrid retrieval", tmp_path)]
+
+
 def test_codegraph_can_be_explicitly_skipped() -> None:
     result = hybrid_retrieval_v2(
         "retrieval",
