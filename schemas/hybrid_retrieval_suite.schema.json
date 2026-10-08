@@ -34,7 +34,8 @@
           "notebook_keyword": {"type": "boolean"},
           "notebook_vector": {"type": "boolean"},
           "codegraph": {"type": "boolean"},
-          "codegraph_root": {"type": "string", "minLength": 1}
+          "codegraph_root": {"type": "string", "minLength": 1},
+          "challenge_target": {"enum": ["notebook-keyword", "notebook-vector", "codegraph"]}
         }
       }
     }
