@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-admission.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema","admission_id","created_at","ablation_id","suite_sha256",
+    "status","decision","zero_effect","promotion_eligible",
+    "activation_available","human_approval_required","task_classes",
+    "requirements","next_action","limitations"
+  ],
+  "properties": {
+    "schema": {"const": "mq.hybrid-retrieval-admission.v1"},
+    "admission_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "ablation_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "suite_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
+    "decision": {
+      "enum": ["ACTIVE_ONLY","OPTIONAL_CHANNELS_ELIGIBLE","INSUFFICIENT_EVIDENCE"]
+    },
+    "zero_effect": {"const": true},
+    "promotion_eligible": {"const": false},
+    "activation_available": {"const": false},
+    "human_approval_required": {"const": true},
+    "task_classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/taskClass"}
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id","status","detail"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "status": {"enum": ["PASS","FAIL"]},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "next_action": {
+      "enum": ["keep-active-only","review-eligible-channels","collect-more-evidence"]
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "nullableNumber": {"type": ["number","null"]},
+    "delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "precision","recall","contradiction_rate","stale_rate",
+        "token_delta_vs_active","total_channel_latency_ms"
+      ],
+      "properties": {
+        "precision": {"$ref": "#/$defs/nullableNumber"},
+        "recall": {"$ref": "#/$defs/nullableNumber"},
+        "contradiction_rate": {"$ref": "#/$defs/nullableNumber"},
+        "stale_rate": {"$ref": "#/$defs/nullableNumber"},
+        "token_delta_vs_active": {"$ref": "#/$defs/nullableNumber"},
+        "total_channel_latency_ms": {"$ref": "#/$defs/nullableNumber"}
+      }
+    },
+    "caseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id","baseline_run_fingerprint","variant_run_fingerprint",
+        "status","quality_gains","quality_regressions","delta_vs_active_only"
+      ],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "baseline_run_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "variant_run_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "status": {
+          "enum": ["SUPPORTS_ADMISSION","NEUTRAL","BLOCKS_ADMISSION","INSUFFICIENT_EVIDENCE"]
+        },
+        "quality_gains": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["precision","recall","contradiction_rate","stale_rate"]}
+        },
+        "quality_regressions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["precision","recall","contradiction_rate","stale_rate"]}
+        },
+        "delta_vs_active_only": {"$ref": "#/$defs/delta"}
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel","variant_id","decision","reason","baseline_evidence_id",
+        "variant_evidence_id","case_count","mean_delta_vs_active_only","cases"
+      ],
+      "properties": {
+        "channel": {"enum": ["notebook-keyword","notebook-vector","codegraph"]},
+        "variant_id": {"enum": ["keyword","vector","codegraph"]},
+        "decision": {"enum": ["ELIGIBLE","ACTIVE_ONLY","INSUFFICIENT_EVIDENCE"]},
+        "reason": {"type": "string", "minLength": 1},
+        "baseline_evidence_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "variant_evidence_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "case_count": {"type": "integer", "minimum": 1},
+        "mean_delta_vs_active_only": {"$ref": "#/$defs/delta"},
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/caseResult"}
+        }
+      }
+    },
+    "taskClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_class","decision","eligible_channels","channels"],
+      "properties": {
+        "task_class": {"type": "string", "minLength": 1},
+        "decision": {
+          "enum": ["ACTIVE_ONLY","OPTIONAL_CHANNELS_ELIGIBLE","INSUFFICIENT_EVIDENCE"]
+        },
+        "eligible_channels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["notebook-keyword","notebook-vector","codegraph"]}
+        },
+        "channels": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"$ref": "#/$defs/channel"}
+        }
+      }
+    }
+  }
+}
