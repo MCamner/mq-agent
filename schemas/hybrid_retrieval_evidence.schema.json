@@ -25,6 +25,16 @@
           "query_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
           "fixture_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
           "run_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "channel_selection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["notebook_keyword","notebook_vector","codegraph"],
+            "properties": {
+              "notebook_keyword": {"type": "boolean"},
+              "notebook_vector": {"type": "boolean"},
+              "codegraph": {"type": "boolean"}
+            }
+          },
           "input_fingerprints": {
             "type": "object",
             "additionalProperties": false,
