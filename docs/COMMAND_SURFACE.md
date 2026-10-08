@@ -171,6 +171,9 @@ OpenAI, Ollama or mq-mcp.
 | `mq-agent memory refresh . --approve` | yes | Upload with explicit approval gate |
 | `mq-agent memory search <query>` | yes | Search mq-mcp semantic memory (requires mq-mcp v1.4.0+) |
 | `mq-agent memory search <query> --json` | yes | Raw mq-mcp JSON result |
+| `mq-agent memory hybrid-shadow <query>` | yes | Historical v1 zero-effect identity/provenance comparison |
+| `mq-agent memory hybrid-retrieval <query>` | yes | Hybrid Retrieval v2 RRF measurement across semantic, Notebook and CodeGraph channels |
+| `mq-agent memory hybrid-retrieval <query> --fixture FILE --json` | yes | Add fixture-backed precision/recall/contradiction/stale metrics; never activates retrieval |
 | `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 | `mq-agent context export --repo <repo> --output-root <dir>` | no | Export compact `.mq/context/` snapshot from mqobsidian context cards |
