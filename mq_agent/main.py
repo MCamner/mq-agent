@@ -49,6 +49,11 @@ app.add_typer(skills_app, name="skills")
 memory_app = typer.Typer(help="Semantic repository memory commands.")
 app.add_typer(memory_app, name="memory")
 
+hybrid_evidence_app = typer.Typer(
+    help="Collect and verify zero-effect Hybrid Retrieval v2 evidence."
+)
+memory_app.add_typer(hybrid_evidence_app, name="hybrid-evidence")
+
 state_app = typer.Typer(help="Inventory, snapshot, verify and restore allowlisted MQ runtime state.")
 app.add_typer(state_app, name="state")
 
@@ -5149,6 +5154,87 @@ def memory_hybrid_retrieval_cmd(
             "active result unchanged"
         )
     if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("collect")
+def memory_hybrid_evidence_collect_cmd(
+    suite: Annotated[str, typer.Argument(help="mq.hybrid-retrieval-suite.v1 JSON")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    no_write: Annotated[
+        bool,
+        typer.Option("--no-write", help="Run the live suite without persisting evidence"),
+    ] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Collect fixture-backed live Hybrid Retrieval v2 evidence."""
+    from mq_agent.memory.hybrid_evidence import collect_hybrid_evidence
+
+    try:
+        payload = collect_hybrid_evidence(
+            Path(suite),
+            state_root=Path(state_root).expanduser() if state_root else None,
+            persist=not no_write,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        aggregate = payload["aggregate"]
+        console.print(
+            Panel(
+                f"Evidence: {payload['evidence_id']}\n"
+                f"Status: {payload['status']}\n"
+                f"Cases: {aggregate['case_count']} across "
+                f"{aggregate['task_class_count']} task classes\n"
+                f"PASS: {aggregate['pass_count']} | "
+                f"INSUFFICIENT: {aggregate['insufficient_evidence_count']}\n"
+                f"Quality measured: {aggregate['quality_measured_count']}\n"
+                "active retrieval unchanged",
+                title="Hybrid Retrieval v2 Evidence",
+            )
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("status")
+def memory_hybrid_evidence_status_cmd(
+    evidence_id: Annotated[str, typer.Argument(help="sha256 evidence-set id")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify one persisted Hybrid Retrieval v2 evidence set and all run refs."""
+    from mq_agent.memory.hybrid_evidence import HybridEvidenceStore
+
+    try:
+        payload = HybridEvidenceStore(
+            Path(state_root).expanduser() if state_root else None
+        ).verify_set(evidence_id)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                f"Status: {payload['status']}\n"
+                f"Errors: {len(payload['errors'])}",
+                title=f"Hybrid Evidence {evidence_id}",
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "VERIFIED":
         raise typer.Exit(1)
 
 
