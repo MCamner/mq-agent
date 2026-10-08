@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -104,8 +105,64 @@ def _notebook_refs(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
     return _dedupe_refs(refs)
 
 
+_CODEGRAPH_FILE_HEADER = re.compile(r"^\\*\\*\\`([^\\`]+)\\`\\*\\*(?: — (.+))?$")
+
+
+def _codegraph_text_values(value: Any) -> list[str]:
+    """Collect bounded text leaves from MCP wrappers or CLI output."""
+    found: list[str] = []
+    stack = [value]
+    while stack and len(found) < 100:
+        item = stack.pop()
+        if isinstance(item, str):
+            found.append(item)
+        elif isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple)):
+            stack.extend(item)
+    return found
+
+
+def _codegraph_text_refs(value: Any) -> list[dict[str, str]]:
+    """Extract stable path/symbol refs from CodeGraph explore file headers."""
+    refs: list[dict[str, str]] = []
+    for text in _codegraph_text_values(value):
+        for line in text.splitlines():
+            match = _CODEGRAPH_FILE_HEADER.match(line.strip())
+            if not match:
+                continue
+            path, suffix = match.groups()
+            if not suffix:
+                normalized = _ref("codegraph", path)
+                if normalized:
+                    refs.append(normalized)
+                continue
+
+            # Explore headers are `path — sym(kind), other · tag` or
+            # `path — sym, other`. The marker is unique in CodeGraph output;
+            # source bodies do not use it as a section header.
+            names = suffix.split(" · ", 1)[0]
+            emitted = False
+            for raw_name in names.split(","):
+                name = raw_name.strip()
+                if not name or re.fullmatch(r"\\+\\d+ more", name):
+                    continue
+                name = re.sub(r"\\([A-Za-z_-]+\\)$", "", name).strip()
+                if not name:
+                    continue
+                normalized = _ref("codegraph", f"{path}#{name}")
+                if normalized:
+                    refs.append(normalized)
+                    emitted = True
+            if not emitted:
+                normalized = _ref("codegraph", path)
+                if normalized:
+                    refs.append(normalized)
+    return _dedupe_refs(refs)
+
+
 def _codegraph_refs(result: Any) -> list[dict[str, str]]:
-    """Normalize common structured CodeGraph shapes without depending on one MCP version."""
+    """Normalize structured or textual CodeGraph explore results."""
     candidates: list[Any]
     if isinstance(result, dict):
         value = (
@@ -138,6 +195,9 @@ def _codegraph_refs(result: Any) -> list[dict[str, str]]:
 
     if refs:
         return _dedupe_refs(refs)
+    text_refs = _codegraph_text_refs(result)
+    if text_refs:
+        return text_refs
     if result not in (None, "", [], {}):
         return [{"namespace": "codegraph", "reference": "sha256:" + _digest(result)}]
     return []
