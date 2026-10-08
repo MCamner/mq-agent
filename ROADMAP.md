@@ -782,18 +782,25 @@ justify an activation design.
   Every decision is ACTIVE_ONLY, all expected task classes are present exactly
   once, effective optional channels remain false, and runtime consumption is
   unavailable.
-* [ ] Build and run a discriminating zero-effect Hybrid Retrieval challenge suite
-  where active-only does not already saturate precision/recall at 1.0/1.0.
-  Include fixture-backed cases whose relevant evidence is intentionally isolated
-  to Notebook lexical/semantic or repository-structure sources so each optional
-  channel can demonstrate measurable marginal recall/precision without changing
-  production behavior.
+* [x] Add a discriminating zero-effect Hybrid Retrieval challenge contract and
+  runner. Suite cases may declare an optional `challenge_target` for Notebook
+  keyword, Notebook vector or CodeGraph. `hybrid-evidence challenge` runs the
+  unchanged fixed ablation matrix, binds the exact suite SHA, keeps PASS
+  measurement success separate from `discriminating=true`, and requires at
+  least one measured non-ceiling singleton quality gain per optional channel
+  before calling the suite discriminating. Challenge evidence is
+  content-addressed and re-verifiable; runtime consumption remains unavailable.
+* [ ] Curate and run the live discriminating challenge suite where active-only
+  does not already saturate precision/recall at 1.0/1.0. Include fixture-backed
+  target cases for Notebook keyword, Notebook vector and CodeGraph, then require
+  `status=PASS`, `discriminating=true` and VERIFIED challenge evidence before
+  reopening admission or runtime-consumption design.
 
-Next roadmap item: **Hybrid Retrieval discriminating challenge suite** — extend
-the fixture-backed suite with non-ceiling active-only cases, rerun the fixed
-ablation matrix, and require measured singleton quality gain before reconsidering
-any admission or runtime-consumption design. Do not tune RRF or enable optional
-channels from the existing ceilinged three-case suite.
+Next roadmap item: **Hybrid Retrieval live discriminating challenge** — add
+operator-curated non-ceiling target cases to the local fixture-backed suite and
+run `memory hybrid-evidence challenge`. Do not tune RRF, alter top-k, promote a
+channel or build a runtime consumer unless the new challenge evidence measures
+singleton quality gain without regression.
 
 ### v1.32.0 Canary v2 checkpoint
 
