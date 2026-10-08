@@ -5196,6 +5196,98 @@ def memory_hybrid_retrieval_cmd(
         raise typer.Exit(1)
 
 
+@hybrid_evidence_app.command("challenge")
+def memory_hybrid_challenge_cmd(
+    suite: Annotated[str, typer.Argument(help="mq.hybrid-retrieval-suite.v1 JSON")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    no_write: Annotated[
+        bool,
+        typer.Option("--no-write", help="Run challenge without persisting evidence"),
+    ] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Run and evaluate a discriminating zero-effect Hybrid Retrieval challenge."""
+    from mq_agent.memory.hybrid_evidence import collect_hybrid_challenge
+
+    try:
+        payload = collect_hybrid_challenge(
+            Path(suite),
+            state_root=Path(state_root).expanduser() if state_root else None,
+            persist=not no_write,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(
+            title=(
+                "Hybrid Challenge — "
+                + ("DISCRIMINATING" if payload["discriminating"] else "NOT DISCRIMINATING")
+            )
+        )
+        table.add_column("Channel")
+        table.add_column("Cases", justify="right")
+        table.add_column("Non-ceiling", justify="right")
+        table.add_column("Supporting", justify="right")
+        table.add_column("Result")
+        for row in payload["channels"]:
+            table.add_row(
+                str(row["channel"]),
+                str(row["case_count"]),
+                str(row["non_ceiling_case_count"]),
+                str(row["supporting_case_count"]),
+                str(row["result"]),
+            )
+        console.print(table)
+        console.print(
+            f"Challenge: {payload['challenge_id']} | "
+            f"status={payload['status']} | next={payload['next_action']}"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("challenge-status")
+def memory_hybrid_challenge_status_cmd(
+    challenge_id: Annotated[str, typer.Argument(help="sha256 challenge id")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify one persisted Hybrid Retrieval challenge record."""
+    from mq_agent.memory.hybrid_evidence import HybridEvidenceStore
+
+    try:
+        payload = HybridEvidenceStore(
+            Path(state_root).expanduser() if state_root else None
+        ).verify_challenge(challenge_id)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                f"Status: {payload['status']}\n"
+                f"Errors: {len(payload['errors'])}\n"
+                f"Discriminating: {payload['challenge']['discriminating']}",
+                title=f"Hybrid Challenge {challenge_id}",
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "VERIFIED":
+        raise typer.Exit(1)
+
+
 @hybrid_evidence_app.command("collect")
 def memory_hybrid_evidence_collect_cmd(
     suite: Annotated[str, typer.Argument(help="mq.hybrid-retrieval-suite.v1 JSON")],
