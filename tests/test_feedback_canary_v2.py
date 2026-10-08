@@ -16,6 +16,10 @@ from mq_agent.feedback.models import build_feedback_experiment
 from mq_agent.feedback.store import append_experiment
 from mq_agent.feedback.control import activate, approval_receipt, effective_strategy
 from mq_agent.feedback.evaluation import metric_pair
+from mq_agent.tools.execution_outcome import (
+    build_execution_outcome,
+    record_execution_outcome,
+)
 
 
 BASELINE = "context-pack-v1"
@@ -60,19 +64,72 @@ def _comparison(
     }
 
 
-def _ready_candidate(root: Path) -> str:
+def _seed_real_run(
+    root: Path,
+    outcome_path: Path,
+    *,
+    feedback_run_id: str,
+    execution_run_id: str,
+    recorded_at: str,
+    commit: str,
+) -> None:
+    experiment = build_feedback_experiment(
+        task_class="repo-review",
+        repository="MCamner/mq-agent",
+        active_strategy=BASELINE,
+        shadow_strategy=CANDIDATE,
+        snapshot_ref="main",
+        snapshot_commit=commit,
+        evidence_sources=["repo-context"],
+        state="completed",
+        execution_run_id=execution_run_id,
+        feedback_run_id=feedback_run_id,
+    )
+    append_experiment(experiment, root)
+    outcome = build_execution_outcome(
+        runtime="agent",
+        task_class="audit",
+        result="PASS",
+        exit_status="ok",
+        latency_ms=10,
+        run_id=execution_run_id,
+    )
+    outcome["recorded_at"] = recorded_at
+    record_execution_outcome(outcome, outcome_path)
+
+
+def _ready_candidate(root: Path, monkeypatch) -> str:
+    outcome_path = root / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(outcome_path))
     candidate_id = ""
-    for comparison in (
-        _comparison("cmp-a", commit="a" * 40),
-        _comparison("cmp-b", commit="b" * 40),
-    ):
+    rows = (
+        (_comparison("cmp-a", commit="a" * 40), "2026-10-01T10:00:00Z"),
+        (_comparison("cmp-b", commit="b" * 40), "2026-10-02T10:00:00Z"),
+        (_comparison("cmp-c", commit="c" * 40), "2026-10-03T10:00:00Z"),
+    )
+    for comparison, recorded_at in rows:
+        _seed_real_run(
+            root,
+            outcome_path,
+            feedback_run_id=comparison["feedback_run_id"],
+            execution_run_id=f"exec-{comparison['comparison_id']}",
+            recorded_at=recorded_at,
+            commit=comparison["snapshot"]["commit"],
+        )
         append_comparison(comparison, root)
         candidate, _ = maybe_create_candidate(comparison, state_root=root)
         assert candidate is not None
         candidate_id = candidate["candidate_id"]
+
+    _seed_real_run(
+        root,
+        outcome_path,
+        feedback_run_id="fb-calibration-extra",
+        execution_run_id="exec-calibration-extra",
+        recorded_at="2026-10-04T10:00:00Z",
+        commit="e" * 40,
+    )
     return candidate_id
-
-
 def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
     counter = {"value": 0}
 
@@ -149,7 +206,7 @@ def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
 
 def test_canary_v2_plan_run_status_and_activation(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MQ_FEEDBACK_ACTIVATION", "on")
-    candidate_id = _ready_candidate(tmp_path)
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
     approval = approval_receipt(
         candidate_id,
         reason="operator reviewed exact evidence",
@@ -202,7 +259,7 @@ def test_canary_v2_plan_run_status_and_activation(tmp_path: Path, monkeypatch) -
 
 def test_canary_v2_fail_blocks_activation(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MQ_FEEDBACK_ACTIVATION", "on")
-    candidate_id = _ready_candidate(tmp_path)
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
     approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
     plan = create_canary_plan(
         candidate_id,
@@ -243,7 +300,7 @@ def test_canary_v2_inconclusive_is_not_activation_evidence(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setenv("MQ_FEEDBACK_ACTIVATION", "on")
-    candidate_id = _ready_candidate(tmp_path)
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
     approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
     plan = create_canary_plan(
         candidate_id,
@@ -275,7 +332,7 @@ def test_canary_v2_inconclusive_is_not_activation_evidence(
 
 
 def test_canary_v2_refuses_duplicate_result(tmp_path: Path, monkeypatch) -> None:
-    candidate_id = _ready_candidate(tmp_path)
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
     approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
     plan = create_canary_plan(
         candidate_id,
@@ -303,7 +360,7 @@ def test_canary_v2_refuses_duplicate_result(tmp_path: Path, monkeypatch) -> None
 
 
 def test_canary_v2_refuses_stale_policy_snapshot(tmp_path: Path, monkeypatch) -> None:
-    candidate_id = _ready_candidate(tmp_path)
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
     approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
     plan = create_canary_plan(
         candidate_id,
