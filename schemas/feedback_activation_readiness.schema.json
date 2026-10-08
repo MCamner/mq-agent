@@ -1,44 +1,242 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "mq.feedback-activation-readiness.v1",
-  "description": "Read-only gate stating whether one task-class-isolated feedback candidate has enough validated evidence to be presented for human activation approval. It never grants approval or exposes activation.",
+  "description": "Read-only gate stating whether one task-class-isolated feedback candidate has enough validated comparison evidence and outcome-correlated task-class evidence to be presented for human activation approval. It never grants approval or exposes activation.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "candidate_id", "status", "task_class", "candidate_state", "kind",
-    "current_strategy", "proposed_strategy", "rollback_target", "scope", "evidence",
-    "requirements", "human_approval_required", "canary_required",
-    "activation_available", "next_action"
+    "schema",
+    "candidate_id",
+    "status",
+    "task_class",
+    "candidate_state",
+    "kind",
+    "current_strategy",
+    "proposed_strategy",
+    "rollback_target",
+    "scope",
+    "evidence",
+    "requirements",
+    "human_approval_required",
+    "canary_required",
+    "activation_available",
+    "next_action"
   ],
   "properties": {
-    "schema": {"const": "mq.feedback-activation-readiness.v1"},
-    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128},
-    "status": {"enum": ["READY_FOR_HUMAN_APPROVAL", "INSUFFICIENT_EVIDENCE", "BLOCKED"]},
-    "task_class": {"type": "string", "minLength": 1, "maxLength": 80},
-    "candidate_state": {"type": "string", "minLength": 1, "maxLength": 80},
-    "kind": {"type": "string", "minLength": 1, "maxLength": 80},
-    "current_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
-    "proposed_strategy": {"type": "string", "minLength": 1, "maxLength": 120},
-    "rollback_target": {"type": "string", "minLength": 1, "maxLength": 120},
+    "schema": {
+      "const": "mq.feedback-activation-readiness.v1"
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "status": {
+      "enum": [
+        "READY_FOR_HUMAN_APPROVAL",
+        "INSUFFICIENT_EVIDENCE",
+        "BLOCKED"
+      ]
+    },
+    "task_class": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "candidate_state": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "current_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "proposed_strategy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "rollback_target": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
     "scope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["task_class", "cross_task_activation"],
+      "required": [
+        "task_class",
+        "cross_task_activation"
+      ],
       "properties": {
-        "task_class": {"type": "string", "minLength": 1, "maxLength": 80},
-        "cross_task_activation": {"const": false}
+        "task_class": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "cross_task_activation": {
+          "const": false
+        }
       }
     },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["comparison_count", "distinct_snapshot_count", "comparison_ids", "snapshots", "material_regressions"],
+      "required": [
+        "comparison_count",
+        "distinct_snapshot_count",
+        "comparison_ids",
+        "snapshots",
+        "material_regressions",
+        "real_outcomes"
+      ],
       "properties": {
-        "comparison_count": {"type": "integer", "minimum": 0},
-        "distinct_snapshot_count": {"type": "integer", "minimum": 0},
-        "comparison_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "snapshots": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "material_regressions": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+        "comparison_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "distinct_snapshot_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "comparison_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "snapshots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "material_regressions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "real_outcomes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "execution_store_issues",
+            "experiment_store_issues",
+            "population_outcome_count",
+            "population_feedback_run_count",
+            "linked_outcome_count",
+            "linked_distinct_days",
+            "linked_window_days",
+            "linked_success_rate",
+            "linked_execution_run_ids",
+            "linked_outcome_fingerprints",
+            "linked_refs",
+            "unresolved_feedback_run_ids"
+          ],
+          "properties": {
+            "execution_store_issues": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "experiment_store_issues": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "population_outcome_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "population_feedback_run_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "linked_outcome_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "linked_distinct_days": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "linked_window_days": {
+              "type": "number",
+              "minimum": 0
+            },
+            "linked_success_rate": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "linked_execution_run_ids": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "linked_outcome_fingerprints": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            },
+            "linked_refs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "feedback_run_id",
+                  "execution_run_id",
+                  "fingerprint"
+                ],
+                "properties": {
+                  "feedback_run_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "execution_run_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fingerprint": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "unresolved_feedback_run_ids": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
       }
     },
     "requirements": {
@@ -47,18 +245,126 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "status", "detail", "class"],
+        "required": [
+          "id",
+          "status",
+          "detail",
+          "class"
+        ],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
-          "status": {"enum": ["PASS", "FAIL"]},
-          "detail": {"type": "string"},
-          "class": {"enum": ["blocker", "evidence"]}
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "class": {
+            "enum": [
+              "blocker",
+              "evidence"
+            ]
+          }
         }
       }
     },
-    "human_approval_required": {"const": true},
-    "canary_required": {"const": true},
-    "activation_available": {"const": false},
-    "next_action": {"enum": ["request-human-approval", "collect-more-evidence", "resolve-blockers"]}
+    "human_approval_required": {
+      "const": true
+    },
+    "canary_required": {
+      "const": true
+    },
+    "activation_available": {
+      "const": false
+    },
+    "next_action": {
+      "enum": [
+        "request-human-approval",
+        "collect-more-evidence",
+        "resolve-blockers"
+      ]
+    },
+    "promotion_criteria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "derivation",
+        "calibration_outcomes",
+        "calibration_distinct_days",
+        "calibration_window_days",
+        "calibration_median_gap_days",
+        "calibration_success_rate",
+        "required_linked_outcomes",
+        "required_distinct_days",
+        "required_window_days",
+        "required_success_rate",
+        "calibration_fingerprint"
+      ],
+      "properties": {
+        "derivation": {
+          "const": "sqrt-population+task-class-baseline+observed-cadence"
+        },
+        "calibration_outcomes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "calibration_distinct_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "calibration_window_days": {
+          "type": "number",
+          "minimum": 0
+        },
+        "calibration_median_gap_days": {
+          "type": "number",
+          "minimum": 0
+        },
+        "calibration_success_rate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "required_linked_outcomes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "required_distinct_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "required_window_days": {
+          "type": "number",
+          "minimum": 0
+        },
+        "required_success_rate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "calibration_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "evidence_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
   }
 }
