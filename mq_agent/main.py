@@ -5329,6 +5329,88 @@ def memory_hybrid_ablation_status_cmd(
         raise typer.Exit(1)
 
 
+@hybrid_evidence_app.command("admission")
+def memory_hybrid_admission_cmd(
+    ablation_id: Annotated[str, typer.Argument(help="sha256 ablation id")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    no_write: Annotated[
+        bool,
+        typer.Option("--no-write", help="Evaluate without persisting the admission record"),
+    ] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Evaluate one verified ablation into a read-only task-class admission gate."""
+    from mq_agent.memory.hybrid_evidence import evaluate_hybrid_admission
+
+    try:
+        payload = evaluate_hybrid_admission(
+            ablation_id,
+            state_root=Path(state_root).expanduser() if state_root else None,
+            persist=not no_write,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Channel Admission — {payload['decision']}")
+        table.add_column("Task class")
+        table.add_column("Decision")
+        table.add_column("Eligible channels")
+        for row in payload["task_classes"]:
+            table.add_row(
+                str(row["task_class"]),
+                str(row["decision"]),
+                ", ".join(row["eligible_channels"]) or "active-only",
+            )
+        console.print(table)
+        console.print(
+            f"Admission: {payload['admission_id']} | "
+            "read-only gate | activation unavailable"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("admission-status")
+def memory_hybrid_admission_status_cmd(
+    admission_id: Annotated[str, typer.Argument(help="sha256 admission id")],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify one persisted Hybrid Retrieval admission record."""
+    from mq_agent.memory.hybrid_evidence import HybridEvidenceStore
+
+    try:
+        payload = HybridEvidenceStore(
+            Path(state_root).expanduser() if state_root else None
+        ).verify_admission(admission_id)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                f"Status: {payload['status']}\n"
+                f"Errors: {len(payload['errors'])}",
+                title=f"Hybrid Admission {admission_id}",
+            )
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "VERIFIED":
+        raise typer.Exit(1)
+
+
 @hybrid_evidence_app.command("status")
 def memory_hybrid_evidence_status_cmd(
     evidence_id: Annotated[str, typer.Argument(help="sha256 evidence-set id")],
