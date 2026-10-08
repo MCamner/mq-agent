@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval channel ablation adds explicit Notebook keyword/vector and
+  CodeGraph selection to new v2 runs plus `memory hybrid-evidence ablate`.
+  The fixed matrix measures an active-only baseline and all seven optional-channel
+  combinations against one unchanged suite, persists each underlying evidence
+  set, and binds them into content-addressed
+  `mq.hybrid-retrieval-ablation.v1` with verified per-variant metric deltas.
 - Live Hybrid Retrieval evidence now proves CodeGraph available in all three
   unchanged fixture-backed task classes. The measured quality stayed flat
   (precision 0.10, recall 1.0, contradiction/stale 0.0) while mean token delta
