@@ -65,6 +65,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Rebuild D8 semantic index with balanced sampling and rerun Hybrid Retrieval v2 evidence suite",
+  "next_focus": "Bind Hybrid Retrieval Notebook fingerprints and connect CodeGraph as a separately measured channel",
   "release_mode": "pull_request"
 }
