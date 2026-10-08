@@ -772,17 +772,28 @@ justify an activation design.
   unique task-class set, and refuses any non-ACTIVE_ONLY decision, eligible
   optional channel, or non-active-only proposed/effective selection. The audit
   remains read-only and cannot enable runtime consumption.
-* [ ] Run and verify policy plans for the live ci, docs and repo-review decisions
-  before considering any runtime consumer. Use one closure audit over the three
-  exact live plan ids so missing/duplicate task classes or evidence drift fail
-  closed.
+* [x] Run and verify policy plans for the live ci, docs and repo-review decisions
+  before considering any runtime consumer. The 2026-10-08 closure audit verified
+  all three exact plans with no errors against admission
+  `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`:
+  ci `sha256:7815c1ef2d628bcb45d1dea2e8b33353802e645c67c850be50c03139fa185d8a`,
+  docs `sha256:5290ef69987e46db86b075f299c16ea41ef6fdc0004bcb18e4098bc32d69ac33`,
+  repo-review `sha256:ab09e581e5592bbb4180b0984c6b8555fcca890f508daa6efebf5af0bb33ca56`.
+  Every decision is ACTIVE_ONLY, all expected task classes are present exactly
+  once, effective optional channels remain false, and runtime consumption is
+  unavailable.
+* [ ] Build and run a discriminating zero-effect Hybrid Retrieval challenge suite
+  where active-only does not already saturate precision/recall at 1.0/1.0.
+  Include fixture-backed cases whose relevant evidence is intentionally isolated
+  to Notebook lexical/semantic or repository-structure sources so each optional
+  channel can demonstrate measurable marginal recall/precision without changing
+  production behavior.
 
-Next roadmap item: **Hybrid Retrieval live policy-plan audit** — audit the exact
-ci, docs and repo-review policy-plan ids from verified admission
-`sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`
-with `memory hybrid-evidence policy-plan-audit`. Require VERIFIED with no
-errors and effective active-only before closing this checkpoint. Runtime
-consumption remains out of scope.
+Next roadmap item: **Hybrid Retrieval discriminating challenge suite** — extend
+the fixture-backed suite with non-ceiling active-only cases, rerun the fixed
+ablation matrix, and require measured singleton quality gain before reconsidering
+any admission or runtime-consumption design. Do not tune RRF or enable optional
+channels from the existing ceilinged three-case suite.
 
 ### v1.32.0 Canary v2 checkpoint
 
