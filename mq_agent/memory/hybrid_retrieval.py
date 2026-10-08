@@ -226,6 +226,19 @@ def _default_codegraph_search(query: str, root: Path | None = None) -> Any:
     return search_codegraph(query, root)
 
 
+def _skipped_channel(name: str, kind: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "kind": kind,
+        "status": "SKIPPED",
+        "latency_ms": 0.0,
+        "returned": 0,
+        "payload_token_estimate": None,
+        "reason": "disabled by operator",
+        "refs": [],
+    }
+
+
 def _run_channel(
     name: str,
     kind: str,
@@ -378,6 +391,8 @@ def hybrid_retrieval_v2(
     top_k: int = 10,
     active_search: RetrievalSearch | None = None,
     codegraph_search: RetrievalSearch | None = None,
+    enable_notebook_keyword: bool = True,
+    enable_notebook_vector: bool = True,
     enable_codegraph: bool = True,
 ) -> dict[str, Any]:
     """Measure a deterministic hybrid shadow without changing active retrieval."""
@@ -409,7 +424,7 @@ def hybrid_retrieval_v2(
     if active_channel["status"] == "AVAILABLE":
         ranked.append((active_channel["name"], active_refs))
 
-    if catalog_path is not None:
+    if enable_notebook_keyword and catalog_path is not None:
         from mq_agent.notebook_corpus_search import search_catalog
 
         lexical_channel, lexical_refs = _run_channel(
@@ -425,8 +440,10 @@ def hybrid_retrieval_v2(
         channels.append(lexical_channel)
         if lexical_channel["status"] == "AVAILABLE":
             ranked.append((lexical_channel["name"], lexical_refs))
+    elif not enable_notebook_keyword:
+        channels.append(_skipped_channel("notebook-keyword", "keyword"))
 
-    if semantic_index_path is not None:
+    if enable_notebook_vector and semantic_index_path is not None:
         from mq_agent.notebook_corpus_semantic import (
             OllamaEmbeddingProvider,
             semantic_search,
@@ -449,6 +466,8 @@ def hybrid_retrieval_v2(
         channels.append(semantic_channel)
         if semantic_channel["status"] == "AVAILABLE":
             ranked.append((semantic_channel["name"], semantic_refs))
+    elif not enable_notebook_vector:
+        channels.append(_skipped_channel("notebook-vector", "notebook"))
 
     if enable_codegraph:
         codegraph_channel, codegraph_refs = _run_channel(
@@ -461,18 +480,7 @@ def hybrid_retrieval_v2(
         if codegraph_channel["status"] == "AVAILABLE":
             ranked.append((codegraph_channel["name"], codegraph_refs))
     else:
-        channels.append(
-            {
-                "name": "codegraph",
-                "kind": "codegraph",
-                "status": "SKIPPED",
-                "latency_ms": 0.0,
-                "returned": 0,
-                "payload_token_estimate": None,
-                "reason": "disabled by operator",
-                "refs": [],
-            }
-        )
+        channels.append(_skipped_channel("codegraph", "codegraph"))
 
     merged = _rrf(ranked, top_k)
     available = [row for row in channels if row["status"] == "AVAILABLE"]
@@ -509,6 +517,11 @@ def hybrid_retrieval_v2(
         "shadow_effect_on_active_result": False,
         "promotion_eligible": False,
         "top_k": top_k,
+        "channel_selection": {
+            "notebook_keyword": enable_notebook_keyword,
+            "notebook_vector": enable_notebook_vector,
+            "codegraph": enable_codegraph,
+        },
         "input_fingerprints": {
             "notebook_catalog_sha256": catalog_binding["sha256"],
             "notebook_semantic_index_sha256": semantic_index_binding["sha256"],
@@ -541,6 +554,7 @@ def hybrid_retrieval_v2(
             "Precision, recall, stale rate and contradiction rate are unavailable without an explicit relevance fixture.",
             "Token counts are deterministic JSON character estimates, not provider tokenizer counts.",
             "Notebook input fingerprints bind the exact local JSON bytes consumed by measured channels.",
+            "Channel selection is explicit run evidence; skipped channels are never inferred as unavailable.",
             "A PASS run is measurement success, never approval or activation evidence by itself.",
         ],
     }
