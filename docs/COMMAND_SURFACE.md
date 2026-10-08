@@ -174,6 +174,9 @@ OpenAI, Ollama or mq-mcp.
 | `mq-agent memory hybrid-shadow <query>` | yes | Historical v1 zero-effect identity/provenance comparison |
 | `mq-agent memory hybrid-retrieval <query>` | yes | Hybrid Retrieval v2 RRF measurement across semantic, Notebook and CodeGraph channels |
 | `mq-agent memory hybrid-retrieval <query> --fixture FILE --json` | yes | Add fixture-backed precision/recall/contradiction/stale metrics; never activates retrieval |
+| `mq-agent memory hybrid-evidence collect <suite.json>` | yes | Execute fixture-backed live v2 cases and persist content-addressed zero-effect evidence |
+| `mq-agent memory hybrid-evidence collect <suite.json> --no-write` | yes | Run the live suite without persisting evidence |
+| `mq-agent memory hybrid-evidence status <sha256:id>` | no | Re-verify evidence-set fingerprint and every referenced v2 run |
 | `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 | `mq-agent context export --repo <repo> --output-root <dir>` | no | Export compact `.mq/context/` snapshot from mqobsidian context cards |
