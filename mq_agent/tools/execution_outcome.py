@@ -52,6 +52,57 @@ def outcome_path(destination: Path | None = None) -> Path:
     ).expanduser()
 
 
+def execution_outcome_fingerprint(record: dict[str, Any]) -> str:
+    """Return a content fingerprint for one validated execution outcome."""
+    _validator().validate(record)
+    raw = json.dumps(
+        record,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    import hashlib
+
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def read_execution_outcomes(
+    destination: Path | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Read current + rotated execution outcomes oldest-first.
+
+    Invalid lines are reported as bounded issues and excluded from the returned
+    records. Callers deciding policy must fail closed when issues is non-empty.
+    """
+    base = outcome_path(destination)
+    paths = [
+        *(Path(f"{base}.{index}") for index in range(MAX_ROTATED_FILES, 0, -1)),
+        base,
+    ]
+    validator = _validator()
+    records: list[dict[str, Any]] = []
+    issues: list[str] = []
+    for path in paths:
+        if not path.exists():
+            continue
+        if path.is_symlink() or not path.is_file():
+            issues.append(f"{path.name}: unsafe outcome store entry")
+            continue
+        for line_number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if not raw.strip():
+                continue
+            try:
+                value = json.loads(raw)
+                if not isinstance(value, dict):
+                    raise ValueError("record is not an object")
+                validator.validate(value)
+            except Exception as exc:  # noqa: BLE001 - bounded evidence issue
+                issues.append(f"{path.name}:{line_number}: {type(exc).__name__}")
+                continue
+            records.append(value)
+    return records, issues
+
+
 def _schema_path() -> Path:
     packaged = Path(__file__).resolve().parents[1] / "schemas" / SCHEMA_FILE
     if packaged.exists():
