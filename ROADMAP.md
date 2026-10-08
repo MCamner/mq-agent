@@ -714,15 +714,32 @@ justify an activation design.
   mq-agent is itself outside an MCP client, use CodeGraph's local read-only
   `codegraph explore` CLI equivalent against the selected repository root.
   Missing CLI/index/root remains explicit UNAVAILABLE evidence.
-* [ ] Rerun the unchanged fixture-backed live suite with CodeGraph available and
+* [x] Rerun the unchanged fixture-backed live suite with CodeGraph available and
   record its channel coverage, quality, payload and latency separately before
-  considering any fusion-policy change.
+  considering any fusion-policy change. The controlled 2026-10-08 run used the
+  same suite fingerprint
+  `sha256:71d617e60fc1947dcf3c51f0188175cc4494150df287f49196b951eda885cb52`,
+  measured CodeGraph AVAILABLE in 3/3 cases with no unavailable channels, and
+  produced evidence set
+  `sha256:328144cca7b3e30164700836a738b6ad3fcb1775d565cf3fb5f7afa6593ae49e`.
+  Precision remained 0.10, recall remained 1.0, contradiction/stale rates
+  remained 0.0, while mean token delta versus the active baseline rose from
+  +2962.67 in the balanced-D8 run to +8722.33 (+5759.66, about +194%). Mean
+  total channel latency was 1032.71 ms. CodeGraph availability is now proven,
+  but this fixture set shows no measured quality gain and a large payload cost;
+  no RRF or promotion change is justified by this evidence.
+* [ ] Run a controlled Hybrid Retrieval channel-ablation matrix over the same
+  fixture-backed cases so each optional channel's marginal quality, payload and
+  latency contribution is measured independently before any fusion-policy
+  change. Keep the active mq-mcp semantic baseline authoritative and preserve
+  `promotion_eligible=false`.
 
-Next roadmap item: **CodeGraph live evidence rerun** — pull this adapter onto the
-operator machine and rerun the unchanged three-case Hybrid Retrieval suite from
-the indexed mq-agent repository. Keep the current RRF and
-`promotion_eligible=false` until that evidence demonstrates a material quality
-gain.
+Next roadmap item: **Hybrid Retrieval channel ablation** — compare the same
+repo-review, ci and docs fixtures with optional channels admitted one at a time
+and in bounded combinations. The goal is to identify whether Notebook keyword,
+Notebook vector or CodeGraph contributes a measurable relevant ref that
+justifies its marginal token/latency cost; do not tune RRF weights from the
+combined 4-channel result alone.
 
 ### v1.32.0 Canary v2 checkpoint
 
