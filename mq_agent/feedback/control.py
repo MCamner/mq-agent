@@ -79,6 +79,7 @@ def approval_receipt(
         "approval_id": f"approval-{uuid.uuid4()}",
         "candidate_id": candidate_id,
         "candidate_fingerprint": candidate["fingerprint"],
+        "readiness_fingerprint": readiness["evidence_fingerprint"],
         "task_class": candidate["task_class"],
         "current_strategy": candidate["current_strategy"],
         "proposed_strategy": candidate["proposed_strategy"],
@@ -146,6 +147,14 @@ def validate_canary(
         )
     if approval["candidate_fingerprint"] != candidate["fingerprint"]:
         raise ValueError("approval expired because candidate fingerprint changed")
+    if approval.get("readiness_fingerprint") is None:
+        raise ValueError(
+            "approval predates outcome-bound readiness; issue a new approval"
+        )
+    if approval["readiness_fingerprint"] != current_readiness["evidence_fingerprint"]:
+        raise ValueError(
+            "approval expired because task-class readiness evidence changed"
+        )
     if datetime.fromisoformat(approval["expires_at"].replace("Z", "+00:00")) <= _now():
         raise ValueError("approval receipt has expired")
     if comparison["recorded_at"] <= approval["approved_at"]:
