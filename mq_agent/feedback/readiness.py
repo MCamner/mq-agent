@@ -1,16 +1,48 @@
-"""Read-only evidence gate for future controlled feedback activation."""
+"""Read-only evidence gate for controlled feedback activation.
+
+The original gate used one global floor: two comparisons from two Git snapshots.
+That proved repetition, but it did not prove that the candidate evidence came
+from real task executions or that the same amount of evidence made sense for
+every task class.
+
+This gate now derives bounded promotion criteria from real execution outcomes
+that are explicitly correlated by feedback experiments. The feedback task class
+remains authoritative; mq.execution-outcome.v1 uses a different execution-class
+vocabulary, so this module never invents a repo-review -> audit mapping.
+"""
 from __future__ import annotations
 
+import hashlib
+import json
+import math
+import statistics
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from mq_agent.tools.execution_outcome import (
+    execution_outcome_fingerprint,
+    read_execution_outcomes,
+)
+
 from .candidates import candidate_detail
 from .contracts import validate_activation_readiness
-from .store import read_candidate_history, read_comparison_history
+from .store import (
+    read_candidate_history,
+    read_comparison_history,
+    read_experiment_history,
+)
 
 SCHEMA_ID = "mq.feedback-activation-readiness.v1"
-MIN_COMPARISONS = 2
-MIN_DISTINCT_SNAPSHOTS = 2
+
+# These are calibration bounds, not one global promotion threshold. Four real
+# outcomes are the minimum needed to have three timing intervals from which a
+# cadence can be derived. The candidate sample then grows sub-linearly with the
+# task class's observed population and is bounded so readiness cannot demand an
+# ever-growing replay of history.
+MIN_CALIBRATION_OUTCOMES = 4
+MIN_DERIVED_SAMPLE = 3
+MAX_DERIVED_SAMPLE = 8
 
 
 def _preference(metric: dict[str, Any]) -> int:
@@ -25,6 +57,207 @@ def _preference(metric: dict[str, Any]) -> int:
     if direction == "lower_is_better":
         return 1 if delta < 0 else -1
     return 0
+
+
+def _parse_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _span_days(records: list[dict[str, Any]]) -> float:
+    stamps = sorted(_parse_time(str(record["recorded_at"])) for record in records)
+    if len(stamps) < 2:
+        return 0.0
+    return round((stamps[-1] - stamps[0]).total_seconds() / 86400, 6)
+
+
+def _distinct_days(records: list[dict[str, Any]]) -> int:
+    return len({_parse_time(str(record["recorded_at"])).date() for record in records})
+
+
+def _success_rate(records: list[dict[str, Any]]) -> float | None:
+    if not records:
+        return None
+    successful = sum(
+        1
+        for record in records
+        if record["result"] == "PASS" and record["exit_status"] == "ok"
+    )
+    return round(successful / len(records), 6)
+
+
+def _median_gap_days(records: list[dict[str, Any]]) -> float:
+    stamps = sorted(
+        {
+            _parse_time(str(record["recorded_at"]))
+            for record in records
+        }
+    )
+    if len(stamps) < 2:
+        return 0.0
+    gaps = [
+        (right - left).total_seconds() / 86400
+        for left, right in zip(stamps, stamps[1:])
+    ]
+    return round(float(statistics.median(gaps)), 6)
+
+
+def _sha256(value: Any) -> str:
+    raw = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _task_class_evidence(
+    task_class: str,
+    comparisons: list[dict[str, Any]],
+    state_root: Path | None,
+) -> dict[str, Any]:
+    experiments = read_experiment_history(state_root)
+    outcomes, outcome_issues = read_execution_outcomes()
+
+    experiment_by_feedback: dict[str, list[dict[str, Any]]] = {}
+    for item in experiments.records:
+        experiment_by_feedback.setdefault(
+            str(item.record["feedback_run_id"]), []
+        ).append(item.record)
+
+    outcome_by_run: dict[str, list[dict[str, Any]]] = {}
+    for outcome in outcomes:
+        outcome_by_run.setdefault(str(outcome["run_id"]), []).append(outcome)
+
+    population_by_run: dict[str, dict[str, Any]] = {}
+    population_experiments: list[str] = []
+    for item in experiments.records:
+        experiment = item.record
+        if (
+            experiment.get("task_class") != task_class
+            or experiment.get("state") != "completed"
+        ):
+            continue
+        execution_run_id = experiment.get("execution_run_id")
+        if not isinstance(execution_run_id, str):
+            continue
+        matches = outcome_by_run.get(execution_run_id, [])
+        if len(matches) != 1:
+            continue
+        population_by_run.setdefault(execution_run_id, matches[0])
+        population_experiments.append(str(experiment["feedback_run_id"]))
+
+    population = list(population_by_run.values())
+    population.sort(key=lambda record: (str(record["recorded_at"]), str(record["run_id"])))
+
+    linked_by_run: dict[str, dict[str, Any]] = {}
+    linked_refs: list[dict[str, str]] = []
+    unresolved_feedback_runs: list[str] = []
+    for comparison in comparisons:
+        feedback_run_id = str(comparison["feedback_run_id"])
+        experiment_matches = experiment_by_feedback.get(feedback_run_id, [])
+        if len(experiment_matches) != 1:
+            unresolved_feedback_runs.append(feedback_run_id)
+            continue
+        experiment = experiment_matches[0]
+        if experiment.get("task_class") != task_class:
+            unresolved_feedback_runs.append(feedback_run_id)
+            continue
+        execution_run_id = experiment.get("execution_run_id")
+        if not isinstance(execution_run_id, str):
+            unresolved_feedback_runs.append(feedback_run_id)
+            continue
+        outcome_matches = outcome_by_run.get(execution_run_id, [])
+        if len(outcome_matches) != 1:
+            unresolved_feedback_runs.append(feedback_run_id)
+            continue
+        outcome = outcome_matches[0]
+        linked_by_run.setdefault(execution_run_id, outcome)
+        linked_refs.append(
+            {
+                "feedback_run_id": feedback_run_id,
+                "execution_run_id": execution_run_id,
+                "fingerprint": execution_outcome_fingerprint(outcome),
+            }
+        )
+
+    linked = list(linked_by_run.values())
+    linked.sort(key=lambda record: (str(record["recorded_at"]), str(record["run_id"])))
+
+    population_count = len(population)
+    population_days = _distinct_days(population)
+    required_linked = min(
+        MAX_DERIVED_SAMPLE,
+        max(MIN_DERIVED_SAMPLE, math.ceil(math.sqrt(population_count))),
+    )
+    required_distinct_days = min(
+        required_linked,
+        max(2, math.ceil(math.sqrt(population_days))) if population_days else 2,
+    )
+    median_gap = _median_gap_days(population)
+    required_window_days = round(
+        min(_span_days(population), median_gap * 2),
+        6,
+    )
+
+    population_rate = _success_rate(population)
+    linked_rate = _success_rate(linked)
+
+    calibration_basis = [
+        {
+            "run_id": str(record["run_id"]),
+            "fingerprint": execution_outcome_fingerprint(record),
+        }
+        for record in population
+    ]
+    criteria = {
+        "derivation": "sqrt-population+task-class-baseline+observed-cadence",
+        "calibration_outcomes": population_count,
+        "calibration_distinct_days": population_days,
+        "calibration_window_days": _span_days(population),
+        "calibration_median_gap_days": median_gap,
+        "calibration_success_rate": population_rate,
+        "required_linked_outcomes": required_linked,
+        "required_distinct_days": required_distinct_days,
+        "required_window_days": required_window_days,
+        "required_success_rate": population_rate,
+        "calibration_fingerprint": _sha256(calibration_basis),
+    }
+
+    linked_run_ids = [str(record["run_id"]) for record in linked]
+    evidence = {
+        "execution_store_issues": sorted(outcome_issues),
+        "experiment_store_issues": [
+            f"{issue.filename}:{issue.line_number}:{issue.error}"
+            for issue in experiments.issues
+        ],
+        "population_outcome_count": population_count,
+        "population_feedback_run_count": len(set(population_experiments)),
+        "linked_outcome_count": len(linked),
+        "linked_distinct_days": _distinct_days(linked),
+        "linked_window_days": _span_days(linked),
+        "linked_success_rate": linked_rate,
+        "linked_execution_run_ids": linked_run_ids,
+        "linked_outcome_fingerprints": [
+            execution_outcome_fingerprint(record) for record in linked
+        ],
+        "linked_refs": sorted(
+            linked_refs,
+            key=lambda item: (item["feedback_run_id"], item["execution_run_id"]),
+        ),
+        "unresolved_feedback_run_ids": sorted(set(unresolved_feedback_runs)),
+    }
+    fingerprint_basis = {
+        "task_class": task_class,
+        "criteria": criteria,
+        "linked_refs": evidence["linked_refs"],
+        "unresolved_feedback_run_ids": evidence["unresolved_feedback_run_ids"],
+    }
+    return {
+        "criteria": criteria,
+        "evidence": evidence,
+        "evidence_fingerprint": _sha256(fingerprint_basis),
+    }
 
 
 def activation_readiness(
@@ -56,14 +289,44 @@ def activation_readiness(
         if _preference(metric) < 0
     ]
 
+    real = _task_class_evidence(
+        str(candidate["task_class"]),
+        comparisons,
+        state_root,
+    )
+    criteria = real["criteria"]
+    real_evidence = real["evidence"]
+    linked_rate = real_evidence["linked_success_rate"]
+    required_rate = criteria["required_success_rate"]
+
     requirements = [
         {
             "id": "store-integrity",
-            "status": "PASS" if not candidate_history.issues and not comparison_history.issues else "FAIL",
+            "status": (
+                "PASS"
+                if (
+                    not candidate_history.issues
+                    and not comparison_history.issues
+                    and not real_evidence["experiment_store_issues"]
+                    and not real_evidence["execution_store_issues"]
+                )
+                else "FAIL"
+            ),
             "detail": (
-                "candidate and comparison histories parsed without invalid records"
-                if not candidate_history.issues and not comparison_history.issues
-                else f"invalid records: candidates={len(candidate_history.issues)} comparisons={len(comparison_history.issues)}"
+                "candidate, comparison, experiment and execution histories parsed without invalid records"
+                if (
+                    not candidate_history.issues
+                    and not comparison_history.issues
+                    and not real_evidence["experiment_store_issues"]
+                    and not real_evidence["execution_store_issues"]
+                )
+                else (
+                    "invalid records: "
+                    f"candidates={len(candidate_history.issues)} "
+                    f"comparisons={len(comparison_history.issues)} "
+                    f"experiments={len(real_evidence['experiment_store_issues'])} "
+                    f"outcomes={len(real_evidence['execution_store_issues'])}"
+                )
             ),
             "class": "blocker",
         },
@@ -126,15 +389,83 @@ def activation_readiness(
             "class": "blocker",
         },
         {
-            "id": "repeated-evidence",
-            "status": "PASS" if len(comparisons) >= MIN_COMPARISONS else "FAIL",
-            "detail": f"comparisons={len(comparisons)} required={MIN_COMPARISONS}",
+            "id": "task-class-calibration",
+            "status": (
+                "PASS"
+                if (
+                    criteria["calibration_outcomes"] >= MIN_CALIBRATION_OUTCOMES
+                    and criteria["calibration_distinct_days"] >= 2
+                )
+                else "FAIL"
+            ),
+            "detail": (
+                f"real_outcomes={criteria['calibration_outcomes']} "
+                f"distinct_days={criteria['calibration_distinct_days']}; "
+                f"need >= {MIN_CALIBRATION_OUTCOMES} outcomes across >= 2 UTC days"
+            ),
             "class": "evidence",
         },
         {
-            "id": "distinct-snapshots",
-            "status": "PASS" if len(snapshots) >= MIN_DISTINCT_SNAPSHOTS else "FAIL",
-            "detail": f"distinct_snapshots={len(snapshots)} required={MIN_DISTINCT_SNAPSHOTS}",
+            "id": "real-outcome-links-complete",
+            "status": (
+                "PASS"
+                if not real_evidence["unresolved_feedback_run_ids"]
+                else "FAIL"
+            ),
+            "detail": (
+                "every comparison resolves through one experiment to one execution outcome"
+                if not real_evidence["unresolved_feedback_run_ids"]
+                else "unresolved=" + ",".join(real_evidence["unresolved_feedback_run_ids"])
+            ),
+            "class": "evidence",
+        },
+        {
+            "id": "derived-sample-size",
+            "status": (
+                "PASS"
+                if real_evidence["linked_outcome_count"] >= criteria["required_linked_outcomes"]
+                else "FAIL"
+            ),
+            "detail": (
+                f"linked_real_outcomes={real_evidence['linked_outcome_count']} "
+                f"required={criteria['required_linked_outcomes']} "
+                f"from population={criteria['calibration_outcomes']}"
+            ),
+            "class": "evidence",
+        },
+        {
+            "id": "derived-temporal-coverage",
+            "status": (
+                "PASS"
+                if (
+                    real_evidence["linked_distinct_days"] >= criteria["required_distinct_days"]
+                    and real_evidence["linked_window_days"] >= criteria["required_window_days"]
+                )
+                else "FAIL"
+            ),
+            "detail": (
+                f"days={real_evidence['linked_distinct_days']}/"
+                f"{criteria['required_distinct_days']} "
+                f"window_days={real_evidence['linked_window_days']}/"
+                f"{criteria['required_window_days']}"
+            ),
+            "class": "evidence",
+        },
+        {
+            "id": "task-class-success-baseline",
+            "status": (
+                "PASS"
+                if (
+                    linked_rate is not None
+                    and required_rate is not None
+                    and linked_rate >= required_rate
+                )
+                else "FAIL"
+            ),
+            "detail": (
+                f"linked_success_rate={linked_rate} "
+                f"task_class_baseline={required_rate}"
+            ),
             "class": "evidence",
         },
     ]
@@ -174,7 +505,10 @@ def activation_readiness(
             "comparison_ids": found_ids,
             "snapshots": sorted(snapshots),
             "material_regressions": material_regressions,
+            "real_outcomes": real_evidence,
         },
+        "promotion_criteria": criteria,
+        "evidence_fingerprint": real["evidence_fingerprint"],
         "requirements": requirements,
         "human_approval_required": True,
         "canary_required": True,
