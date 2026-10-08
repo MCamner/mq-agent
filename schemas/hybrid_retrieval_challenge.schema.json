@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-challenge.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema","challenge_id","created_at","ablation_id","suite_sha256",
+    "status","discriminating","zero_effect","promotion_eligible",
+    "runtime_consumption_available","required_channels","channels",
+    "next_action","limitations"
+  ],
+  "properties": {
+    "schema": {"const": "mq.hybrid-retrieval-challenge.v1"},
+    "challenge_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "ablation_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "suite_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
+    "discriminating": {"type": "boolean"},
+    "zero_effect": {"const": true},
+    "promotion_eligible": {"const": false},
+    "runtime_consumption_available": {"const": false},
+    "required_channels": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {"enum": ["notebook-keyword","notebook-vector","codegraph"]}
+    },
+    "channels": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/channel"}
+    },
+    "next_action": {
+      "enum": ["review-channel-gains","redesign-challenge-cases","collect-more-evidence"]
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "nullableNumber": {"type": ["number","null"]},
+    "qualityMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["precision","recall","contradiction_rate","stale_rate"],
+      "properties": {
+        "precision": {"$ref": "#/$defs/nullableNumber"},
+        "recall": {"$ref": "#/$defs/nullableNumber"},
+        "contradiction_rate": {"$ref": "#/$defs/nullableNumber"},
+        "stale_rate": {"$ref": "#/$defs/nullableNumber"}
+      }
+    },
+    "delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "precision","recall","contradiction_rate","stale_rate",
+        "token_delta_vs_active","total_channel_latency_ms"
+      ],
+      "properties": {
+        "precision": {"$ref": "#/$defs/nullableNumber"},
+        "recall": {"$ref": "#/$defs/nullableNumber"},
+        "contradiction_rate": {"$ref": "#/$defs/nullableNumber"},
+        "stale_rate": {"$ref": "#/$defs/nullableNumber"},
+        "token_delta_vs_active": {"$ref": "#/$defs/nullableNumber"},
+        "total_channel_latency_ms": {"$ref": "#/$defs/nullableNumber"}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id","task_class","target_channel","baseline_run_fingerprint",
+        "variant_run_fingerprint","baseline_non_ceiling","comparison_status",
+        "challenge_result","baseline_metrics","delta_vs_active_only"
+      ],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "task_class": {"type": "string", "minLength": 1},
+        "target_channel": {"enum": ["notebook-keyword","notebook-vector","codegraph"]},
+        "baseline_run_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "variant_run_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "baseline_non_ceiling": {"type": "boolean"},
+        "comparison_status": {
+          "enum": ["SUPPORTS_ADMISSION","NEUTRAL","BLOCKS_ADMISSION","INSUFFICIENT_EVIDENCE"]
+        },
+        "challenge_result": {
+          "enum": ["SUPPORTS_TARGET","NO_GAIN","REGRESSION","CEILINGED","INSUFFICIENT_EVIDENCE"]
+        },
+        "baseline_metrics": {"$ref": "#/$defs/qualityMetrics"},
+        "delta_vs_active_only": {"$ref": "#/$defs/delta"}
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel","variant_id","case_count","measured_count",
+        "non_ceiling_case_count","supporting_case_count","result","cases"
+      ],
+      "properties": {
+        "channel": {"enum": ["notebook-keyword","notebook-vector","codegraph"]},
+        "variant_id": {"enum": ["keyword","vector","codegraph"]},
+        "case_count": {"type": "integer", "minimum": 0},
+        "measured_count": {"type": "integer", "minimum": 0},
+        "non_ceiling_case_count": {"type": "integer", "minimum": 0},
+        "supporting_case_count": {"type": "integer", "minimum": 0},
+        "result": {"enum": ["DISCRIMINATING","NO_MEASURED_GAIN","MISSING_CASES","INSUFFICIENT_EVIDENCE"]},
+        "cases": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/case"}
+        }
+      }
+    }
+  }
+}
