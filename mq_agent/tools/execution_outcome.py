@@ -13,6 +13,7 @@ Two rules hold everywhere this module is called:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import uuid
