@@ -1221,6 +1221,8 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 | [`mq-agent memory hybrid-evidence ablation-status`](#mq-agent-memory-hybrid-evidence-ablation-status) | Verify one persisted Hybrid Retrieval ablation and all evidence refs. |
 | [`mq-agent memory hybrid-evidence admission`](#mq-agent-memory-hybrid-evidence-admission) | Evaluate one verified ablation into a read-only task-class admission gate. |
 | [`mq-agent memory hybrid-evidence admission-status`](#mq-agent-memory-hybrid-evidence-admission-status) | Verify one persisted Hybrid Retrieval admission record. |
+| [`mq-agent memory hybrid-evidence challenge`](#mq-agent-memory-hybrid-evidence-challenge) | Run and evaluate a discriminating zero-effect Hybrid Retrieval challenge. |
+| [`mq-agent memory hybrid-evidence challenge-status`](#mq-agent-memory-hybrid-evidence-challenge-status) | Verify one persisted Hybrid Retrieval challenge record. |
 | [`mq-agent memory hybrid-evidence collect`](#mq-agent-memory-hybrid-evidence-collect) | Collect fixture-backed live Hybrid Retrieval v2 evidence. |
 | [`mq-agent memory hybrid-evidence policy-plan`](#mq-agent-memory-hybrid-evidence-policy-plan) | Build a zero-effect runtime channel policy plan from verified admission. |
 | [`mq-agent memory hybrid-evidence policy-plan-audit`](#mq-agent-memory-hybrid-evidence-policy-plan-audit) | Audit an exact live policy-plan set before any runtime consumption. |
@@ -1289,6 +1291,41 @@ Verify one persisted Hybrid Retrieval admission record.
 | Argument | Required | Default | Description |
 |---|---:|---|---|
 | `ADMISSION_ID` | Yes | — | sha256 admission id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence challenge`
+
+Run and evaluate a discriminating zero-effect Hybrid Retrieval challenge.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `SUITE` | Yes | — | mq.hybrid-retrieval-suite.v1 JSON |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--no-write` | No | `false` | Run challenge without persisting evidence |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence challenge-status`
+
+Verify one persisted Hybrid Retrieval challenge record.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CHALLENGE_ID` | Yes | — | sha256 challenge id |
 
 ### Options
 
