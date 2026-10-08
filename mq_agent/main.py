@@ -5057,6 +5057,101 @@ def memory_hybrid_shadow_cmd(
         raise typer.Exit(1)
 
 
+@memory_app.command("hybrid-retrieval")
+def memory_hybrid_retrieval_cmd(
+    query: Annotated[str, typer.Argument(help="Retrieval query")],
+    catalog: Annotated[
+        str,
+        typer.Option("--catalog", help="Optional notebook-corpus-index.v1 JSON"),
+    ] = "",
+    semantic_index: Annotated[
+        str,
+        typer.Option("--semantic-index", help="Optional local notebook semantic index JSON"),
+    ] = "",
+    semantic_model: Annotated[
+        str,
+        typer.Option("--semantic-model", help="Local Ollama embedding model"),
+    ] = "nomic-embed-text",
+    fixture: Annotated[
+        str,
+        typer.Option("--fixture", help="Optional mq.hybrid-retrieval-fixture.v1 JSON"),
+    ] = "",
+    codegraph: Annotated[
+        bool,
+        typer.Option(
+            "--codegraph/--no-codegraph",
+            help="Measure the installed CodeGraph MCP channel when available",
+        ),
+    ] = True,
+    top_k: Annotated[int, typer.Option("--top-k", min=1)] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Measure Hybrid Retrieval v2 in zero-effect shadow mode."""
+    from mq_agent.memory.hybrid_retrieval import hybrid_retrieval_v2
+
+    try:
+        payload = hybrid_retrieval_v2(
+            query,
+            catalog_path=Path(catalog).expanduser() if catalog else None,
+            semantic_index_path=(
+                Path(semantic_index).expanduser() if semantic_index else None
+            ),
+            semantic_model=semantic_model,
+            fixture_path=Path(fixture).expanduser() if fixture else None,
+            top_k=top_k,
+            enable_codegraph=codegraph,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Retrieval v2 — {payload['status']}")
+        table.add_column("Channel")
+        table.add_column("Kind")
+        table.add_column("Status")
+        table.add_column("Results", justify="right")
+        table.add_column("Tokens", justify="right")
+        table.add_column("Latency", justify="right")
+        for row in payload["channels"]:
+            token_value = row["payload_token_estimate"]
+            table.add_row(
+                str(row["name"]),
+                str(row["kind"]),
+                str(row["status"]),
+                str(row["returned"]),
+                "—" if token_value is None else str(token_value),
+                f"{row['latency_ms']} ms",
+            )
+        console.print(table)
+        metrics = payload["metrics"]
+        precision = (
+            "unavailable"
+            if metrics["precision"] is None
+            else str(metrics["precision"])
+        )
+        recall = (
+            "unavailable"
+            if metrics["recall"] is None
+            else str(metrics["recall"])
+        )
+        contradictions = (
+            "unavailable"
+            if metrics["contradiction_rate"] is None
+            else str(metrics["contradiction_rate"])
+        )
+        console.print(
+            f"Merged: {payload['merge']['result_count']} | "
+            f"precision: {precision} | recall: {recall} | "
+            f"contradiction rate: {contradictions} | "
+            f"payload tokens: {metrics['payload_token_estimate']} | "
+            "active result unchanged"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
 # ── memory store ────────────────────────────────────────────────────────────
 
 @memory_app.command("store")
