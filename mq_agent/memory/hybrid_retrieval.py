@@ -147,7 +147,7 @@ def _codegraph_text_refs(value: Any) -> list[dict[str, str]]:
                 name = raw_name.strip()
                 if not name or re.fullmatch(r"\\+\\d+ more", name):
                     continue
-                name = re.sub(r"\\([A-Za-z_-]+\\)$", "", name).strip()
+                name = re.sub(r"\([A-Za-z_-]+\)$", "", name).strip()
                 if not name:
                     continue
                 normalized = _ref("codegraph", f"{path}#{name}")
