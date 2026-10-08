@@ -4436,6 +4436,21 @@ def notebook_semantic_build_cmd(
             chunk_chars=chunk_chars,
             overlap_chars=overlap_chars,
         )
+        if not index["chunks"]:
+            report = {
+                "status": "UNAVAILABLE",
+                "path": str(Path(output).expanduser()),
+                "written": False,
+                "reason": "semantic index build produced no usable chunks",
+                "trace": index["trace"],
+            }
+            if json_out:
+                typer.echo(json.dumps(report, indent=2, ensure_ascii=False))
+            else:
+                console.print("[bold red]semantic index unavailable[/bold red]")
+                console.print("reason: semantic index build produced no usable chunks")
+                console.print(f"trace: {index['trace']}")
+            raise typer.Exit(1)
         path = write_semantic_index(index, Path(output))
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         if json_out:
