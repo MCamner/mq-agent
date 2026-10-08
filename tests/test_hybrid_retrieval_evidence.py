@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -107,6 +108,17 @@ def test_collects_content_addressed_bounded_evidence(tmp_path: Path) -> None:
     assert result["aggregate"]["quality_measured_count"] == 2
     assert result["aggregate"]["mean_precision"] == 1.0
     assert result["aggregate"]["mean_recall"] == 1.0
+    expected_catalog_sha = (
+        "sha256:" + hashlib.sha256((tmp_path / "catalog.json").read_bytes()).hexdigest()
+    )
+    assert all(
+        case["input_fingerprints"]["notebook_catalog_sha256"] == expected_catalog_sha
+        for case in result["cases"]
+    )
+    assert all(
+        case["input_fingerprints"]["notebook_semantic_index_sha256"] is None
+        for case in result["cases"]
+    )
 
     serialized = json.dumps(result)
     assert "MCP orchestration" not in serialized
@@ -193,6 +205,27 @@ def test_tampered_run_refuses_verification(tmp_path: Path) -> None:
     run_path = root / "runs" / f"{digest}.json"
     data = json.loads(run_path.read_text(encoding="utf-8"))
     data["top_k"] = data["top_k"] + 1
+    run_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
+    assert verified["status"] == "REFUSED"
+    assert any("fingerprint mismatch" in error for error in verified["errors"])
+
+
+def test_run_input_fingerprint_mismatch_refuses_verification(tmp_path: Path) -> None:
+    suite = _write_suite(tmp_path)
+    root = tmp_path / "state"
+    result = collect_hybrid_evidence(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    run_id = result["cases"][0]["run_fingerprint"]
+    digest = run_id.split(":", 1)[1]
+    run_path = root / "runs" / f"{digest}.json"
+    data = json.loads(run_path.read_text(encoding="utf-8"))
+    data["input_fingerprints"]["notebook_catalog_sha256"] = "sha256:" + ("0" * 64)
     run_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
     verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
