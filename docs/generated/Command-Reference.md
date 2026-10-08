@@ -1217,8 +1217,45 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 
 | Subcommand | Description |
 |---|---|
+| [`mq-agent memory hybrid-evidence ablate`](#mq-agent-memory-hybrid-evidence-ablate) | Run the fixed active-only plus seven-variant Hybrid Retrieval ablation matrix. |
+| [`mq-agent memory hybrid-evidence ablation-status`](#mq-agent-memory-hybrid-evidence-ablation-status) | Verify one persisted Hybrid Retrieval ablation and all evidence refs. |
 | [`mq-agent memory hybrid-evidence collect`](#mq-agent-memory-hybrid-evidence-collect) | Collect fixture-backed live Hybrid Retrieval v2 evidence. |
 | [`mq-agent memory hybrid-evidence status`](#mq-agent-memory-hybrid-evidence-status) | Verify one persisted Hybrid Retrieval v2 evidence set and all run refs. |
+
+## `mq-agent memory hybrid-evidence ablate`
+
+Run the fixed active-only plus seven-variant Hybrid Retrieval ablation matrix.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `SUITE` | Yes | — | mq.hybrid-retrieval-suite.v1 JSON |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--no-write` | No | `false` | Run the ablation matrix without persisting evidence |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence ablation-status`
+
+Verify one persisted Hybrid Retrieval ablation and all evidence refs.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `ABLATION_ID` | Yes | — | sha256 ablation id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-evidence collect`
 
@@ -1273,6 +1310,8 @@ Measure Hybrid Retrieval v2 in zero-effect shadow mode.
 | `--semantic-index` | No | `""` | Optional local notebook semantic index JSON |
 | `--semantic-model` | No | `nomic-embed-text` | Local Ollama embedding model |
 | `--fixture` | No | `""` | Optional mq.hybrid-retrieval-fixture.v1 JSON |
+| `--notebook-keyword`, `--no-notebook-keyword` | No | `true` | Measure the Notebook keyword channel when configured |
+| `--notebook-vector`, `--no-notebook-vector` | No | `true` | Measure the Notebook vector channel when configured |
 | `--codegraph-root` | No | `""` | Optional repository root for the local CodeGraph index |
 | `--codegraph`, `--no-codegraph` | No | `true` | Measure the installed CodeGraph channel when available |
 | `--top-k` | No | `10` | — |
