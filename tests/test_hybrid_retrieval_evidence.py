@@ -198,3 +198,23 @@ def test_tampered_run_refuses_verification(tmp_path: Path) -> None:
     verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
     assert verified["status"] == "REFUSED"
     assert any("fingerprint mismatch" in error for error in verified["errors"])
+
+
+def test_tampered_evidence_id_refuses_verification(tmp_path: Path) -> None:
+    suite = _write_suite(tmp_path)
+    root = tmp_path / "state"
+    result = collect_hybrid_evidence(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    digest = result["evidence_id"].split(":", 1)[1]
+    set_path = root / "sets" / f"{digest}.json"
+    data = json.loads(set_path.read_text(encoding="utf-8"))
+    data["evidence_id"] = "sha256:" + ("0" * 64)
+    set_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
+    assert verified["status"] == "REFUSED"
+    assert "evidence set id/path mismatch" in verified["errors"]
