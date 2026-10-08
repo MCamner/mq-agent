@@ -230,7 +230,7 @@ def test_run_input_fingerprint_mismatch_refuses_verification(tmp_path: Path) -> 
 
     verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
     assert verified["status"] == "REFUSED"
-    assert any("fingerprint mismatch" in error for error in verified["errors"])
+    assert "repo-review-1: input fingerprint mismatch" in verified["errors"]
 
 
 def test_tampered_evidence_id_refuses_verification(tmp_path: Path) -> None:
