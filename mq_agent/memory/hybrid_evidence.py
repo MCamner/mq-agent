@@ -204,6 +204,8 @@ class HybridEvidenceStore:
         validate_contract("hybrid_retrieval_evidence.schema.json", evidence)
         expected = _fingerprint({k: v for k, v in evidence.items() if k != "evidence_id"})
         errors: list[str] = []
+        if evidence["evidence_id"] != evidence_id:
+            errors.append("evidence set id/path mismatch")
         if expected != evidence_id:
             errors.append("evidence set content fingerprint mismatch")
 
