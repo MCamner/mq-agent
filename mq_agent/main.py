@@ -5107,7 +5107,7 @@ def memory_hybrid_retrieval_cmd(
         bool,
         typer.Option(
             "--codegraph/--no-codegraph",
-            help="Measure the installed CodeGraph MCP channel when available",
+            help="Measure the installed CodeGraph channel when available",
         ),
     ] = True,
     top_k: Annotated[int, typer.Option("--top-k", min=1)] = 10,
