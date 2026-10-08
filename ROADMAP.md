@@ -693,15 +693,27 @@ justify an activation design.
 * [x] Fix D8 bounded sampling to filter unsupported MIME before selection and
   spread selected files across notebooks before taking a second item from any
   notebook; retain source-before-derived ordering and explicit build trace.
-* [ ] Rebuild the operator D8 semantic index with the balanced sampler and rerun
+* [x] Rebuild the operator D8 semantic index with the balanced sampler and rerun
   the exact same fixture-backed evidence suite before changing fusion policy.
+  The controlled 2026-10-08 rerun selected 50 text-capable files across 50
+  notebooks, fetched 22 files from 22 notebooks, built 120 chunks at 768
+  dimensions, and produced evidence set
+  `sha256:00631f506409075ee77e7aff0907df0b2425ebab8fba67dc4b5ab20a173834ca`.
+  Precision remained 0.10, recall 1.0, contradiction/stale rates 0.0, and mean
+  token delta versus the active baseline was +2962.67. Balanced sampling fixed
+  the experiment bias but produced no measured retrieval-quality benefit, so no
+  RRF/promotion change is justified by this evidence.
+* [ ] Bind exact Notebook catalog and semantic-index content fingerprints into
+  each Hybrid Retrieval v2 run/evidence chain so a vector result proves which
+  local D8 state it measured.
 * [ ] Connect CodeGraph MCP as a separately evidenced follow-up; its absence must
   not be hidden by Notebook channels.
 
-Next roadmap item: **balanced D8 live rerun** — rebuild the local semantic index
-with notebook-balanced, text-capable sampling and rerun the unchanged Hybrid
-Retrieval v2 suite. Do not change RRF weights or promote retrieval until that
-controlled rerun shows measured quality benefit.
+Next roadmap item: **Hybrid Retrieval evidence integrity + CodeGraph** — bind
+the exact Notebook catalog/semantic-index fingerprints to each measured run,
+then make CodeGraph available as an independently measured fourth channel.
+Keep the current RRF and `promotion_eligible=false` until new fixture-backed
+evidence demonstrates a material quality gain.
 
 ### v1.32.0 Canary v2 checkpoint
 
