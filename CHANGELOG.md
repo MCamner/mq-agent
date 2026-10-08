@@ -11,6 +11,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval discriminating challenges add
+  `mq.hybrid-retrieval-challenge.v1` plus
+  `memory hybrid-evidence challenge|challenge-status`. Operator-curated suite
+  cases can target Notebook keyword, Notebook vector or CodeGraph; the runner
+  executes the fixed ablation matrix, distinguishes measurement PASS from
+  `discriminating=true`, and only marks a channel discriminating when a
+  targeted non-ceiling case shows measured quality gain with no regression.
+  Challenge evidence is content-addressed, zero-effect and cannot enable runtime
+  consumption.
 - The 2026-10-08 Hybrid Retrieval policy-plan closure audit verified the exact
   ci, docs and repo-review plans with no errors against admission
   `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`.
