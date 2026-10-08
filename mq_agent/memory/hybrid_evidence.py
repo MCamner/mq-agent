@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import fmean
@@ -21,6 +22,7 @@ EVIDENCE_SCHEMA = "mq.hybrid-retrieval-evidence-set.v1"
 ABLATION_SCHEMA = "mq.hybrid-retrieval-ablation.v1"
 ADMISSION_SCHEMA = "mq.hybrid-retrieval-admission.v1"
 POLICY_PLAN_SCHEMA = "mq.hybrid-retrieval-policy-plan.v1"
+CHALLENGE_SCHEMA = "mq.hybrid-retrieval-challenge.v1"
 
 ABLATION_MATRIX: tuple[tuple[str, dict[str, bool]], ...] = (
     ("keyword", {"notebook_keyword": True, "notebook_vector": False, "codegraph": False}),
@@ -41,6 +43,7 @@ SINGLETON_ADMISSION_VARIANTS = {
     "notebook-vector": "vector",
     "codegraph": "codegraph",
 }
+CHALLENGE_CHANNELS = ("notebook-keyword", "notebook-vector", "codegraph")
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -383,6 +386,17 @@ class HybridEvidenceStore:
         self._write(self._path("ablations", fingerprint), ablation)
         return fingerprint
 
+    def save_challenge(self, challenge: dict[str, Any]) -> str:
+        validate_contract("hybrid_retrieval_challenge.schema.json", challenge)
+        fingerprint = challenge["challenge_id"]
+        expected = _fingerprint(
+            {k: v for k, v in challenge.items() if k != "challenge_id"}
+        )
+        if fingerprint != expected:
+            raise ValueError("hybrid challenge id does not match content")
+        self._write(self._path("challenges", fingerprint), challenge)
+        return fingerprint
+
     def save_admission(self, admission: dict[str, Any]) -> str:
         validate_contract("hybrid_retrieval_admission.schema.json", admission)
         fingerprint = admission["admission_id"]
@@ -437,6 +451,51 @@ class HybridEvidenceStore:
             "status": "VERIFIED" if not errors else "REFUSED",
             "errors": errors,
             "policy_plan": plan,
+        }
+
+    def verify_challenge(self, challenge_id: str) -> dict[str, Any]:
+        path = self._path("challenges", challenge_id)
+        if not path.exists() or path.is_symlink() or not path.is_file():
+            raise ValueError("hybrid challenge record not found")
+        challenge = json.loads(path.read_text(encoding="utf-8"))
+        validate_contract("hybrid_retrieval_challenge.schema.json", challenge)
+        expected_id = _fingerprint(
+            {k: v for k, v in challenge.items() if k != "challenge_id"}
+        )
+        errors: list[str] = []
+        if challenge["challenge_id"] != challenge_id:
+            errors.append("challenge id/path mismatch")
+        if expected_id != challenge_id:
+            errors.append("challenge content fingerprint mismatch")
+
+        targets = [
+            {
+                "case_id": case["case_id"],
+                "task_class": case["task_class"],
+                "target_channel": case["target_channel"],
+            }
+            for channel in challenge["channels"]
+            for case in channel["cases"]
+        ]
+        try:
+            expected = _build_hybrid_challenge(
+                challenge["ablation_id"],
+                targets,
+                self,
+                suite_sha256=challenge["suite_sha256"],
+                created_at=challenge["created_at"],
+            )
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"challenge evidence rebuild failed: {exc}")
+        else:
+            if expected != challenge:
+                errors.append("challenge content does not match verified ablation")
+
+        return {
+            "challenge_id": challenge_id,
+            "status": "VERIFIED" if not errors else "REFUSED",
+            "errors": errors,
+            "challenge": challenge,
         }
 
     def verify_admission(self, admission_id: str) -> dict[str, Any]:
