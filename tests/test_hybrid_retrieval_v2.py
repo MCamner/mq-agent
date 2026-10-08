@@ -107,6 +107,65 @@ def test_v2_schema_keeps_historical_runs_without_input_fingerprints_readable(
     validate_contract("hybrid_retrieval_v2.schema.json", historical)
 
 
+def test_semantic_index_fingerprint_binds_exact_consumed_bytes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    semantic_index_path = tmp_path / "semantic-index.json"
+    semantic_index_path.write_text(
+        json.dumps(
+            {
+                "schema": "notebook-semantic-index-experiment.v1",
+                "canonical": False,
+                "disposable": True,
+                "chunks": [
+                    {
+                        "chunk_id": "doc-1:0",
+                        "item_id": "item-1",
+                        "drive_item_id": "doc-1",
+                        "notebook_id": "nb-1",
+                        "notebook_title": "MQ research",
+                        "title": "MCP orchestration tools",
+                        "source_role": "source",
+                        "claim_eligible": True,
+                        "modified_time": "2026-10-01T00:00:00Z",
+                        "content_sha256": "a" * 64,
+                        "start_char": 0,
+                        "end_char": 3,
+                        "vector": [1.0],
+                    }
+                ],
+                "trace": {"chunks": 1, "embedding_dimension": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    result = hybrid_retrieval_v2(
+        "MCP orchestration",
+        semantic_index_path=semantic_index_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+        enable_codegraph=False,
+    )
+
+    expected = "sha256:" + hashlib.sha256(semantic_index_path.read_bytes()).hexdigest()
+    assert result["input_fingerprints"]["notebook_catalog_sha256"] is None
+    assert result["input_fingerprints"]["notebook_semantic_index_sha256"] == expected
+    assert result["status"] == "PASS"
+
+
 def test_quality_metrics_are_unavailable_without_fixture(tmp_path: Path) -> None:
     catalog_path = tmp_path / "catalog.json"
     catalog_path.write_text(json.dumps(_catalog()), encoding="utf-8")
