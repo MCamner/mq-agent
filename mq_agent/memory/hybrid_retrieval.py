@@ -389,7 +389,10 @@ def hybrid_retrieval_v2(
     fixture, fixture_sha = _load_fixture(fixture_path)
     active_search = active_search or _default_active_search
     if codegraph_search is None:
-        codegraph_search = lambda value: _default_codegraph_search(value, codegraph_root)
+        def default_codegraph_search(value: str) -> Any:
+            return _default_codegraph_search(value, codegraph_root)
+
+        codegraph_search = default_codegraph_search
 
     channels: list[dict[str, Any]] = []
     ranked: list[tuple[str, list[dict[str, str]]]] = []
