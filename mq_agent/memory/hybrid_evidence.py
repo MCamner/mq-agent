@@ -263,6 +263,7 @@ def collect_hybrid_evidence(
 
     shared_catalog = _resolve(base, suite.get("catalog"))
     shared_semantic_index = _resolve(base, suite.get("semantic_index"))
+    shared_codegraph_root = _resolve(base, suite.get("codegraph_root"))
     semantic_model = str(suite.get("semantic_model", "nomic-embed-text"))
     top_k = int(suite.get("top_k", 10))
     enable_codegraph = bool(suite.get("codegraph", True))
@@ -283,6 +284,9 @@ def collect_hybrid_evidence(
             ),
             semantic_model=str(case.get("semantic_model") or semantic_model),
             fixture_path=fixture_path,
+            codegraph_root=(
+                _resolve(base, case.get("codegraph_root")) or shared_codegraph_root
+            ),
             top_k=int(case.get("top_k") or top_k),
             enable_codegraph=bool(case.get("codegraph", enable_codegraph)),
             active_search=active_search,

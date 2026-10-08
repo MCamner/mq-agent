@@ -4,7 +4,11 @@ import hashlib
 import json
 from pathlib import Path
 
-from mq_agent.memory.hybrid_retrieval import _rrf, hybrid_retrieval_v2
+from mq_agent.memory.hybrid_retrieval import (
+    _codegraph_refs,
+    _rrf,
+    hybrid_retrieval_v2,
+)
 from mq_agent.tools.contract_validation import validate_contract
 from mq_agent.notebook_corpus import build_from_document
 
@@ -196,6 +200,103 @@ def test_active_baseline_is_required_for_pass() -> None:
     assert result["status"] == "INSUFFICIENT_EVIDENCE"
     assert result["channels"][0]["status"] == "UNAVAILABLE"
     assert result["shadow_effect_on_active_result"] is False
+
+
+def test_codegraph_explore_text_normalizes_file_and_symbol_refs() -> None:
+    result = _codegraph_refs(
+        """Found 3 relevant code symbols across 2 files.
+
+**`mq_agent/tools/context_pack.py`** — build_task_pack(function), _codegraph_section(function)
+
+```python
+def build_task_pack(...):
+    pass
+```
+
+**`mq_agent/memory/hybrid_retrieval.py`** — hybrid_retrieval_v2, _codegraph_refs · focused
+"""
+    )
+
+    assert result == [
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/tools/context_pack.py#build_task_pack",
+        },
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/tools/context_pack.py#_codegraph_section",
+        },
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/memory/hybrid_retrieval.py#hybrid_retrieval_v2",
+        },
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/memory/hybrid_retrieval.py#_codegraph_refs",
+        },
+    ]
+
+
+def test_codegraph_explore_text_refs_measure_against_fixture(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "fixture.json"
+    fixture_path.write_text(
+        json.dumps(
+            {
+                "schema": "mq.hybrid-retrieval-fixture.v1",
+                "expected_refs": [
+                    "semantic-memory:memory-1",
+                    "codegraph:mq_agent/tools/context_pack.py#build_task_pack",
+                ],
+                "contradicted_refs": [],
+                "stale_refs": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = hybrid_retrieval_v2(
+        "build task pack",
+        fixture_path=fixture_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+        codegraph_search=lambda _query: (
+            "**`mq_agent/tools/context_pack.py`** — build_task_pack(function)"
+        ),
+    )
+
+    assert result["status"] == "PASS"
+    assert result["metrics"]["precision"] == 1.0
+    assert result["metrics"]["recall"] == 1.0
+
+
+def test_default_codegraph_adapter_receives_selected_root(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    calls = []
+
+    def fake_search(query: str, root: Path | None = None):
+        calls.append((query, root))
+        return {
+            "results": [
+                {"path": "mq_agent/main.py", "symbol": "memory_hybrid_retrieval_cmd"}
+            ]
+        }
+
+    monkeypatch.setattr(
+        "mq_agent.memory.codegraph_runtime.search_codegraph",
+        fake_search,
+    )
+
+    result = hybrid_retrieval_v2(
+        "hybrid retrieval",
+        codegraph_root=tmp_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+    )
+
+    codegraph = next(row for row in result["channels"] if row["name"] == "codegraph")
+    assert codegraph["status"] == "AVAILABLE"
+    assert codegraph["returned"] == 1
+    assert calls == [("hybrid retrieval", tmp_path)]
 
 
 def test_codegraph_can_be_explicitly_skipped() -> None:

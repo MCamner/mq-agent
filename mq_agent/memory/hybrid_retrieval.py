@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -104,8 +105,64 @@ def _notebook_refs(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
     return _dedupe_refs(refs)
 
 
+_CODEGRAPH_FILE_HEADER = re.compile(r"^\*\*`([^`]+)`\*\*(?: — (.+))?$")
+
+
+def _codegraph_text_values(value: Any) -> list[str]:
+    """Collect bounded text leaves from MCP wrappers or CLI output."""
+    found: list[str] = []
+    stack = [value]
+    while stack and len(found) < 100:
+        item = stack.pop()
+        if isinstance(item, str):
+            found.append(item)
+        elif isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, (list, tuple)):
+            stack.extend(item)
+    return found
+
+
+def _codegraph_text_refs(value: Any) -> list[dict[str, str]]:
+    """Extract stable path/symbol refs from CodeGraph explore file headers."""
+    refs: list[dict[str, str]] = []
+    for text in _codegraph_text_values(value):
+        for line in text.splitlines():
+            match = _CODEGRAPH_FILE_HEADER.match(line.strip())
+            if not match:
+                continue
+            path, suffix = match.groups()
+            if not suffix:
+                normalized = _ref("codegraph", path)
+                if normalized:
+                    refs.append(normalized)
+                continue
+
+            # Explore headers are `path — sym(kind), other · tag` or
+            # `path — sym, other`. The marker is unique in CodeGraph output;
+            # source bodies do not use it as a section header.
+            names = suffix.split(" · ", 1)[0]
+            emitted = False
+            for raw_name in names.split(","):
+                name = raw_name.strip()
+                if not name or re.fullmatch(r"\\+\\d+ more", name):
+                    continue
+                name = re.sub(r"\([A-Za-z_-]+\)$", "", name).strip()
+                if not name:
+                    continue
+                normalized = _ref("codegraph", f"{path}#{name}")
+                if normalized:
+                    refs.append(normalized)
+                    emitted = True
+            if not emitted:
+                normalized = _ref("codegraph", path)
+                if normalized:
+                    refs.append(normalized)
+    return _dedupe_refs(refs)
+
+
 def _codegraph_refs(result: Any) -> list[dict[str, str]]:
-    """Normalize common structured CodeGraph shapes without depending on one MCP version."""
+    """Normalize structured or textual CodeGraph explore results."""
     candidates: list[Any]
     if isinstance(result, dict):
         value = (
@@ -138,6 +195,9 @@ def _codegraph_refs(result: Any) -> list[dict[str, str]]:
 
     if refs:
         return _dedupe_refs(refs)
+    text_refs = _codegraph_text_refs(result)
+    if text_refs:
+        return text_refs
     if result not in (None, "", [], {}):
         return [{"namespace": "codegraph", "reference": "sha256:" + _digest(result)}]
     return []
@@ -159,18 +219,11 @@ def _default_active_search(query: str) -> Any:
     return MultiMCPBridge().search_semantic_memory(query)
 
 
-def _default_codegraph_search(query: str) -> Any:
-    """Use the installed CodeGraph MCP surface when the read-only tool exists."""
-    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+def _default_codegraph_search(query: str, root: Path | None = None) -> Any:
+    """Use the connected CodeGraph MCP tool or its local read-only CLI equivalent."""
+    from mq_agent.memory.codegraph_runtime import search_codegraph
 
-    bridge = MultiMCPBridge()
-    names = {spec.name for spec in bridge.list_tool_specs()}
-    if "codegraph_explore" not in names:
-        return {
-            "ok": False,
-            "reason": "CodeGraph MCP tool codegraph_explore is unavailable",
-        }
-    return bridge.call_tool("codegraph_explore", {"query": query})
+    return search_codegraph(query, root)
 
 
 def _run_channel(
@@ -321,6 +374,7 @@ def hybrid_retrieval_v2(
     semantic_index_path: Path | None = None,
     semantic_model: str = "nomic-embed-text",
     fixture_path: Path | None = None,
+    codegraph_root: Path | None = None,
     top_k: int = 10,
     active_search: RetrievalSearch | None = None,
     codegraph_search: RetrievalSearch | None = None,
@@ -334,7 +388,11 @@ def hybrid_retrieval_v2(
 
     fixture, fixture_sha = _load_fixture(fixture_path)
     active_search = active_search or _default_active_search
-    codegraph_search = codegraph_search or _default_codegraph_search
+    if codegraph_search is None:
+        def default_codegraph_search(value: str) -> Any:
+            return _default_codegraph_search(value, codegraph_root)
+
+        codegraph_search = default_codegraph_search
 
     channels: list[dict[str, Any]] = []
     ranked: list[tuple[str, list[dict[str, str]]]] = []

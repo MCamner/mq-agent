@@ -5096,11 +5096,18 @@ def memory_hybrid_retrieval_cmd(
         str,
         typer.Option("--fixture", help="Optional mq.hybrid-retrieval-fixture.v1 JSON"),
     ] = "",
+    codegraph_root: Annotated[
+        str,
+        typer.Option(
+            "--codegraph-root",
+            help="Optional repository root for the local CodeGraph index",
+        ),
+    ] = "",
     codegraph: Annotated[
         bool,
         typer.Option(
             "--codegraph/--no-codegraph",
-            help="Measure the installed CodeGraph MCP channel when available",
+            help="Measure the installed CodeGraph channel when available",
         ),
     ] = True,
     top_k: Annotated[int, typer.Option("--top-k", min=1)] = 10,
@@ -5118,6 +5125,7 @@ def memory_hybrid_retrieval_cmd(
             ),
             semantic_model=semantic_model,
             fixture_path=Path(fixture).expanduser() if fixture else None,
+            codegraph_root=Path(codegraph_root).expanduser() if codegraph_root else None,
             top_k=top_k,
             enable_codegraph=codegraph,
         )

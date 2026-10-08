@@ -709,13 +709,20 @@ justify an activation design.
   by each Notebook channel, project those bindings into the evidence case and
   verify case-to-run equality. Historical v2 runs/evidence without the extension
   remain readable.
-* [ ] Connect CodeGraph MCP as a separately evidenced follow-up; its absence must
-  not be hidden by Notebook channels.
+* [x] Connect CodeGraph as an independently measured Hybrid Retrieval channel
+  for operator runs. Prefer a connected `codegraph_explore` MCP tool; when
+  mq-agent is itself outside an MCP client, use CodeGraph's local read-only
+  `codegraph explore` CLI equivalent against the selected repository root.
+  Missing CLI/index/root remains explicit UNAVAILABLE evidence.
+* [ ] Rerun the unchanged fixture-backed live suite with CodeGraph available and
+  record its channel coverage, quality, payload and latency separately before
+  considering any fusion-policy change.
 
-Next roadmap item: **CodeGraph Hybrid Retrieval evidence** — make CodeGraph
-available as an independently measured fourth channel and rerun the unchanged
-fixture-backed suite. Keep the current RRF and `promotion_eligible=false`
-until that evidence demonstrates a material quality gain.
+Next roadmap item: **CodeGraph live evidence rerun** — pull this adapter onto the
+operator machine and rerun the unchanged three-case Hybrid Retrieval suite from
+the indexed mq-agent repository. Keep the current RRF and
+`promotion_eligible=false` until that evidence demonstrates a material quality
+gain.
 
 ### v1.32.0 Canary v2 checkpoint
 

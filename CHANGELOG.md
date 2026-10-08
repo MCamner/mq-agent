@@ -11,6 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval v2 now reaches CodeGraph from non-MCP operator runs: it prefers
+  an already-connected `codegraph_explore` MCP tool and otherwise falls back to
+  the local read-only `codegraph explore` CLI against the selected repository
+  index. Suite/CLI input may set `codegraph_root`; local paths remain input-only.
 - New Hybrid Retrieval v2 writes bind the exact Notebook catalog and semantic-index
   JSON bytes consumed by each measured run with SHA-256 fingerprints, and evidence
   sets project and verify the same bindings without persisting local paths.
