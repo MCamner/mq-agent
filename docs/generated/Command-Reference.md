@@ -1138,6 +1138,7 @@ Semantic repository memory commands.
 | [`mq-agent memory build`](#mq-agent-memory-build) | Preview semantic repo memory upload. Non-dry-run uses refresh safety. |
 | [`mq-agent memory doctor`](#mq-agent-memory-doctor) | Diagnose semantic memory environment. |
 | [`mq-agent memory emit-cochange`](#mq-agent-memory-emit-cochange) | Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is the producer; Bridget/CG-2 is the evidence source. Writes nothing when no co-change cluster clears the gate. mqobsidian scores and promotes. |
+| [`mq-agent memory hybrid-retrieval`](#mq-agent-memory-hybrid-retrieval) | Measure Hybrid Retrieval v2 in zero-effect shadow mode. |
 | [`mq-agent memory hybrid-shadow`](#mq-agent-memory-hybrid-shadow) | Compare active semantic memory with hybrid retrieval in zero-effect shadow mode. |
 | [`mq-agent memory inbox-cochange`](#mq-agent-memory-inbox-cochange) | Operator-triggered co-change intake: emit → score → writeback → status. Runs the autonomous learning loop end-to-end for one file, but only when you ask (not auto-after-workflow). mq-agent orchestrates; Bridget/CG-2 is evidence source; mqobsidian owns scoring/writeback/status (invoked via its own local-only CLI). |
 | [`mq-agent memory ingest`](#mq-agent-memory-ingest) | Scan mqobsidian memory notes into a local read-only index. |
@@ -1206,6 +1207,28 @@ Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is
 | `--min-confidence` | No | `0.05` | Cluster confidence gate (weak-signal intake; default low) |
 | `--min-support` | No | `2` | Min co-change count |
 | `--vault` | No | — | mqobsidian vault path |
+
+## `mq-agent memory hybrid-retrieval`
+
+Measure Hybrid Retrieval v2 in zero-effect shadow mode.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Retrieval query |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Optional notebook-corpus-index.v1 JSON |
+| `--semantic-index` | No | `""` | Optional local notebook semantic index JSON |
+| `--semantic-model` | No | `nomic-embed-text` | Local Ollama embedding model |
+| `--fixture` | No | `""` | Optional mq.hybrid-retrieval-fixture.v1 JSON |
+| `--codegraph`, `--no-codegraph` | No | `true` | Measure the installed CodeGraph MCP channel when available |
+| `--top-k` | No | `10` | — |
+| `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-shadow`
 
