@@ -811,6 +811,7 @@ Run one zero-effect active-versus-shadow repo-review experiment.
 | `--task` | Yes | — | Task used only in-memory for context selection |
 | `--repo` | No | `.` | Clean Git repository to evaluate |
 | `--task-class` | No | `repo-review` | Feedback task class |
+| `--execution-run-id` | No | — | Exact mq.execution-outcome.v1 run id for the real task this shadow experiment evaluates |
 | `--vault` | No | — | mqobsidian vault override |
 | `--timeout-ms` | No | `2000` | Hard per-strategy collection deadline |
 | `--max-context-bytes` | No | `65536` | — |
