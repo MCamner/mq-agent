@@ -11,6 +11,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- New Hybrid Retrieval v2 writes bind the exact Notebook catalog and semantic-index
+  JSON bytes consumed by each measured run with SHA-256 fingerprints, and evidence
+  sets project and verify the same bindings without persisting local paths.
 - Hybrid Retrieval v2 evidence collection adds
   `mq.hybrid-retrieval-suite.v1` and content-addressed
   `mq.hybrid-retrieval-evidence-set.v1` with exact run/query/fixture binding.
