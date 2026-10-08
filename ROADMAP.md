@@ -728,18 +728,23 @@ justify an activation design.
   total channel latency was 1032.71 ms. CodeGraph availability is now proven,
   but this fixture set shows no measured quality gain and a large payload cost;
   no RRF or promotion change is justified by this evidence.
-* [ ] Run a controlled Hybrid Retrieval channel-ablation matrix over the same
-  fixture-backed cases so each optional channel's marginal quality, payload and
-  latency contribution is measured independently before any fusion-policy
-  change. Keep the active mq-mcp semantic baseline authoritative and preserve
-  `promotion_eligible=false`.
+* [x] Add deterministic Hybrid Retrieval channel-ablation support over the same
+  fixture-backed suite. New runs bind explicit Notebook keyword, Notebook vector
+  and CodeGraph channel selection; `hybrid-evidence ablate` measures an
+  active-only baseline plus the seven fixed optional-channel combinations and
+  persists a content-addressed `mq.hybrid-retrieval-ablation.v1` record whose
+  evidence references, channel selections and aggregate deltas are independently
+  verifiable. Historical v2/evidence records remain readable.
+* [ ] Run the unchanged live repo-review, ci and docs suite through the ablation
+  matrix and record each optional channel's marginal precision/recall, payload
+  and latency contribution before any fusion-policy change. Keep active mq-mcp
+  semantic memory authoritative and preserve `promotion_eligible=false`.
 
-Next roadmap item: **Hybrid Retrieval channel ablation** — compare the same
-repo-review, ci and docs fixtures with optional channels admitted one at a time
-and in bounded combinations. The goal is to identify whether Notebook keyword,
-Notebook vector or CodeGraph contributes a measurable relevant ref that
-justifies its marginal token/latency cost; do not tune RRF weights from the
-combined 4-channel result alone.
+Next roadmap item: **Hybrid Retrieval live channel ablation** — run
+`memory hybrid-evidence ablate` against the unchanged operator suite and use
+the verified per-variant deltas to decide whether any optional channel earns its
+marginal token/latency cost. Do not tune RRF weights from the combined
+four-channel result alone.
 
 ### v1.32.0 Canary v2 checkpoint
 

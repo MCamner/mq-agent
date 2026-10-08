@@ -107,6 +107,7 @@ def test_v2_schema_keeps_historical_runs_without_input_fingerprints_readable(
     )
     historical = dict(result)
     historical.pop("input_fingerprints")
+    historical.pop("channel_selection")
 
     validate_contract("hybrid_retrieval_v2.schema.json", historical)
 
@@ -297,6 +298,38 @@ def test_default_codegraph_adapter_receives_selected_root(
     assert codegraph["status"] == "AVAILABLE"
     assert codegraph["returned"] == 1
     assert calls == [("hybrid retrieval", tmp_path)]
+
+
+def test_notebook_channels_can_be_explicitly_skipped(tmp_path: Path) -> None:
+    catalog_path = tmp_path / "catalog.json"
+    catalog_path.write_text(json.dumps(_catalog()), encoding="utf-8")
+    semantic_index_path = tmp_path / "semantic-index.json"
+    semantic_index_path.write_text("{}", encoding="utf-8")
+
+    result = hybrid_retrieval_v2(
+        "retrieval",
+        catalog_path=catalog_path,
+        semantic_index_path=semantic_index_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+        codegraph_search=lambda _query: {
+            "results": [{"path": "mq_agent/main.py", "symbol": "app"}]
+        },
+        enable_notebook_keyword=False,
+        enable_notebook_vector=False,
+    )
+
+    keyword = next(row for row in result["channels"] if row["name"] == "notebook-keyword")
+    vector = next(row for row in result["channels"] if row["name"] == "notebook-vector")
+    assert keyword["status"] == "SKIPPED"
+    assert vector["status"] == "SKIPPED"
+    assert result["channel_selection"] == {
+        "notebook_keyword": False,
+        "notebook_vector": False,
+        "codegraph": True,
+    }
+    assert result["input_fingerprints"]["notebook_catalog_sha256"] is None
+    assert result["input_fingerprints"]["notebook_semantic_index_sha256"] is None
+    assert result["status"] == "PASS"
 
 
 def test_codegraph_can_be_explicitly_skipped() -> None:

@@ -18,6 +18,22 @@ from mq_agent.tools.contract_validation import validate_contract
 
 SUITE_SCHEMA = "mq.hybrid-retrieval-suite.v1"
 EVIDENCE_SCHEMA = "mq.hybrid-retrieval-evidence-set.v1"
+ABLATION_SCHEMA = "mq.hybrid-retrieval-ablation.v1"
+
+ABLATION_MATRIX: tuple[tuple[str, dict[str, bool]], ...] = (
+    ("keyword", {"notebook_keyword": True, "notebook_vector": False, "codegraph": False}),
+    ("vector", {"notebook_keyword": False, "notebook_vector": True, "codegraph": False}),
+    ("codegraph", {"notebook_keyword": False, "notebook_vector": False, "codegraph": True}),
+    ("keyword+vector", {"notebook_keyword": True, "notebook_vector": True, "codegraph": False}),
+    ("keyword+codegraph", {"notebook_keyword": True, "notebook_vector": False, "codegraph": True}),
+    ("vector+codegraph", {"notebook_keyword": False, "notebook_vector": True, "codegraph": True}),
+    ("all", {"notebook_keyword": True, "notebook_vector": True, "codegraph": True}),
+)
+ACTIVE_ONLY_SELECTION = {
+    "notebook_keyword": False,
+    "notebook_vector": False,
+    "codegraph": False,
+}
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -98,6 +114,7 @@ def _project_case(
         "query_sha256": result["query_sha256"],
         "fixture_sha256": fixture_sha,
         "run_fingerprint": run_fingerprint,
+        "channel_selection": dict(result["channel_selection"]),
         "input_fingerprints": dict(result["input_fingerprints"]),
         "status": result["status"],
         "available_channels": available,
@@ -115,6 +132,55 @@ def _project_case(
             "total_channel_latency_ms": total_latency,
         },
     }
+
+
+def _ablation_metrics(aggregate: dict[str, Any]) -> dict[str, float | None]:
+    return {
+        "mean_precision": aggregate["mean_precision"],
+        "mean_recall": aggregate["mean_recall"],
+        "mean_contradiction_rate": aggregate["mean_contradiction_rate"],
+        "mean_stale_rate": aggregate["mean_stale_rate"],
+        "mean_token_delta_vs_active": aggregate["mean_token_delta_vs_active"],
+        "mean_total_channel_latency_ms": aggregate["mean_total_channel_latency_ms"],
+    }
+
+
+def _ablation_summary(
+    evidence: dict[str, Any],
+    selection: dict[str, bool],
+    *,
+    variant_id: str | None = None,
+) -> dict[str, Any]:
+    aggregate = evidence["aggregate"]
+    summary: dict[str, Any] = {
+        "evidence_id": evidence["evidence_id"],
+        "status": evidence["status"],
+        "channel_selection": dict(selection),
+        "case_count": aggregate["case_count"],
+        "pass_count": aggregate["pass_count"],
+        "quality_measured_count": aggregate["quality_measured_count"],
+        "metrics": _ablation_metrics(aggregate),
+        "channel_coverage": aggregate["channel_coverage"],
+    }
+    if variant_id is not None:
+        summary["variant_id"] = variant_id
+    return summary
+
+
+def _metric_delta(
+    current: dict[str, float | None],
+    baseline: dict[str, float | None],
+) -> dict[str, float | None]:
+    result: dict[str, float | None] = {}
+    for field in current:
+        left = current[field]
+        right = baseline[field]
+        result[field] = (
+            round(float(left) - float(right), 6)
+            if left is not None and right is not None
+            else None
+        )
+    return result
 
 
 def _aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
@@ -197,6 +263,70 @@ class HybridEvidenceStore:
         self._write(self._path("sets", fingerprint), evidence)
         return fingerprint
 
+    def save_ablation(self, ablation: dict[str, Any]) -> str:
+        validate_contract("hybrid_retrieval_ablation.schema.json", ablation)
+        fingerprint = ablation["ablation_id"]
+        expected = _fingerprint(
+            {k: v for k, v in ablation.items() if k != "ablation_id"}
+        )
+        if fingerprint != expected:
+            raise ValueError("hybrid ablation id does not match content")
+        self._write(self._path("ablations", fingerprint), ablation)
+        return fingerprint
+
+    def verify_ablation(self, ablation_id: str) -> dict[str, Any]:
+        path = self._path("ablations", ablation_id)
+        if not path.exists() or path.is_symlink() or not path.is_file():
+            raise ValueError("hybrid ablation set not found")
+        ablation = json.loads(path.read_text(encoding="utf-8"))
+        validate_contract("hybrid_retrieval_ablation.schema.json", ablation)
+        expected = _fingerprint(
+            {k: v for k, v in ablation.items() if k != "ablation_id"}
+        )
+        errors: list[str] = []
+        if ablation["ablation_id"] != ablation_id:
+            errors.append("ablation id/path mismatch")
+        if expected != ablation_id:
+            errors.append("ablation content fingerprint mismatch")
+
+        entries = [("baseline", ablation["baseline"])] + [
+            (str(item["variant_id"]), item) for item in ablation["variants"]
+        ]
+        for label, entry in entries:
+            verified = self.verify_set(str(entry["evidence_id"]))
+            if verified["status"] != "VERIFIED":
+                errors.append(f"{label}: referenced evidence is not verified")
+                continue
+            evidence = verified["evidence"]
+            if evidence["suite_sha256"] != ablation["suite_sha256"]:
+                errors.append(f"{label}: suite fingerprint mismatch")
+            selection = entry["channel_selection"]
+            if any(
+                case.get("channel_selection") != selection
+                for case in evidence["cases"]
+            ):
+                errors.append(f"{label}: channel selection mismatch")
+            expected_summary = _ablation_summary(
+                evidence,
+                selection,
+                variant_id=None if label == "baseline" else label,
+            )
+            if label != "baseline":
+                baseline_metrics = ablation["baseline"]["metrics"]
+                expected_summary["delta_vs_baseline"] = _metric_delta(
+                    expected_summary["metrics"],
+                    baseline_metrics,
+                )
+            if expected_summary != entry:
+                errors.append(f"{label}: summary does not match referenced evidence")
+
+        return {
+            "ablation_id": ablation_id,
+            "status": "VERIFIED" if not errors else "REFUSED",
+            "errors": errors,
+            "ablation": ablation,
+        }
+
     def verify_set(self, evidence_id: str) -> dict[str, Any]:
         path = self._path("sets", evidence_id)
         if not path.exists() or path.is_symlink() or not path.is_file():
@@ -226,6 +356,13 @@ class HybridEvidenceStore:
                 errors.append(f"{case['case_id']}: referenced run fingerprint mismatch")
             if run["query_sha256"] != case["query_sha256"]:
                 errors.append(f"{case['case_id']}: query hash mismatch")
+            case_selection = case.get("channel_selection")
+            if case_selection is not None:
+                run_selection = run.get("channel_selection")
+                if run_selection is None:
+                    errors.append(f"{case['case_id']}: run channel selection missing")
+                elif run_selection != case_selection:
+                    errors.append(f"{case['case_id']}: channel selection mismatch")
             case_inputs = case.get("input_fingerprints")
             if case_inputs is not None:
                 run_inputs = run.get("input_fingerprints")
@@ -253,6 +390,7 @@ def collect_hybrid_evidence(
     persist: bool = True,
     active_search: Any = None,
     codegraph_search: Any = None,
+    channel_override: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """Run one fixture-backed zero-effect suite and optionally persist evidence."""
     suite_path = suite_path.expanduser().resolve()
@@ -266,7 +404,11 @@ def collect_hybrid_evidence(
     shared_codegraph_root = _resolve(base, suite.get("codegraph_root"))
     semantic_model = str(suite.get("semantic_model", "nomic-embed-text"))
     top_k = int(suite.get("top_k", 10))
-    enable_codegraph = bool(suite.get("codegraph", True))
+    shared_selection = {
+        "notebook_keyword": bool(suite.get("notebook_keyword", True)),
+        "notebook_vector": bool(suite.get("notebook_vector", True)),
+        "codegraph": bool(suite.get("codegraph", True)),
+    }
 
     for case in suite["cases"]:
         fixture_path = _resolve(base, str(case["fixture"]))
@@ -288,7 +430,21 @@ def collect_hybrid_evidence(
                 _resolve(base, case.get("codegraph_root")) or shared_codegraph_root
             ),
             top_k=int(case.get("top_k") or top_k),
-            enable_codegraph=bool(case.get("codegraph", enable_codegraph)),
+            enable_notebook_keyword=(
+                channel_override["notebook_keyword"]
+                if channel_override is not None
+                else bool(case.get("notebook_keyword", shared_selection["notebook_keyword"]))
+            ),
+            enable_notebook_vector=(
+                channel_override["notebook_vector"]
+                if channel_override is not None
+                else bool(case.get("notebook_vector", shared_selection["notebook_vector"]))
+            ),
+            enable_codegraph=(
+                channel_override["codegraph"]
+                if channel_override is not None
+                else bool(case.get("codegraph", shared_selection["codegraph"]))
+            ),
             active_search=active_search,
             codegraph_search=codegraph_search,
         )
@@ -323,4 +479,86 @@ def collect_hybrid_evidence(
     validate_contract("hybrid_retrieval_evidence.schema.json", payload)
     if persist:
         store.save_set(payload)
+    return payload
+
+
+def collect_hybrid_ablation(
+    suite_path: Path,
+    *,
+    state_root: Path | None = None,
+    persist: bool = True,
+    active_search: Any = None,
+    codegraph_search: Any = None,
+) -> dict[str, Any]:
+    """Measure the fixed optional-channel ablation matrix over one unchanged suite."""
+    suite_path = suite_path.expanduser().resolve()
+    _suite_value, suite_sha = _suite(suite_path)
+    store = HybridEvidenceStore(state_root)
+
+    baseline_evidence = collect_hybrid_evidence(
+        suite_path,
+        state_root=state_root,
+        persist=persist,
+        active_search=active_search,
+        codegraph_search=codegraph_search,
+        channel_override=ACTIVE_ONLY_SELECTION,
+    )
+    baseline = _ablation_summary(
+        baseline_evidence,
+        ACTIVE_ONLY_SELECTION,
+    )
+    baseline_metrics = baseline["metrics"]
+
+    variants: list[dict[str, Any]] = []
+    for variant_id, selection in ABLATION_MATRIX:
+        evidence = collect_hybrid_evidence(
+            suite_path,
+            state_root=state_root,
+            persist=persist,
+            active_search=active_search,
+            codegraph_search=codegraph_search,
+            channel_override=selection,
+        )
+        summary = _ablation_summary(
+            evidence,
+            selection,
+            variant_id=variant_id,
+        )
+        summary["delta_vs_baseline"] = _metric_delta(
+            summary["metrics"],
+            baseline_metrics,
+        )
+        variants.append(summary)
+
+    case_count = int(baseline["case_count"])
+    complete_baseline = baseline["quality_measured_count"] == case_count
+    complete_variants = all(
+        item["status"] == "PASS"
+        and item["quality_measured_count"] == item["case_count"]
+        for item in variants
+    )
+    payload: dict[str, Any] = {
+        "schema": ABLATION_SCHEMA,
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "suite_sha256": suite_sha,
+        "status": (
+            "PASS"
+            if complete_baseline and complete_variants
+            else "INSUFFICIENT_EVIDENCE"
+        ),
+        "zero_effect": True,
+        "promotion_eligible": False,
+        "baseline": baseline,
+        "variants": variants,
+        "limitations": [
+            "Ablation is zero-effect measurement only; active semantic memory remains authoritative.",
+            "The baseline intentionally disables every optional channel and may be INSUFFICIENT_EVIDENCE as a Hybrid Retrieval run while still providing measured fixture metrics.",
+            "Variant deltas compare aggregate measured metrics with the active-only baseline; they do not authorize RRF tuning or promotion.",
+            "Suite queries and local paths remain input-only and are not persisted in the ablation record.",
+        ],
+    }
+    payload["ablation_id"] = _fingerprint(payload)
+    validate_contract("hybrid_retrieval_ablation.schema.json", payload)
+    if persist:
+        store.save_ablation(payload)
     return payload

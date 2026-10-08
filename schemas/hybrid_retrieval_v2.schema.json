@@ -12,6 +12,16 @@
     "shadow_effect_on_active_result": {"const": false},
     "promotion_eligible": {"const": false},
     "top_k": {"type": "integer", "minimum": 1},
+    "channel_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notebook_keyword","notebook_vector","codegraph"],
+      "properties": {
+        "notebook_keyword": {"type": "boolean"},
+        "notebook_vector": {"type": "boolean"},
+        "codegraph": {"type": "boolean"}
+      }
+    },
     "input_fingerprints": {
       "type": "object",
       "additionalProperties": false,

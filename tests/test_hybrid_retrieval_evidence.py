@@ -8,6 +8,7 @@ import pytest
 
 from mq_agent.memory.hybrid_evidence import (
     HybridEvidenceStore,
+    collect_hybrid_ablation,
     collect_hybrid_evidence,
 )
 from mq_agent.notebook_corpus import build_from_document
@@ -73,6 +74,41 @@ def _write_suite(tmp_path: Path) -> Path:
     return path
 
 
+def _write_ablation_suite(tmp_path: Path) -> Path:
+    path = _write_suite(tmp_path)
+    semantic_index = {
+        "schema": "notebook-semantic-index-experiment.v1",
+        "canonical": False,
+        "disposable": True,
+        "chunks": [
+            {
+                "chunk_id": "doc-1:0",
+                "item_id": "doc-1",
+                "drive_item_id": "doc-1",
+                "notebook_id": "nb-1",
+                "notebook_title": "MQ research",
+                "title": "MCP orchestration tools",
+                "source_role": "source",
+                "claim_eligible": True,
+                "modified_time": "2026-10-01T00:00:00Z",
+                "content_sha256": "a" * 64,
+                "start_char": 0,
+                "end_char": 3,
+                "vector": [1.0],
+            }
+        ],
+        "trace": {"chunks": 1, "embedding_dimension": 1},
+    }
+    (tmp_path / "semantic-index.json").write_text(
+        json.dumps(semantic_index),
+        encoding="utf-8",
+    )
+    suite = json.loads(path.read_text(encoding="utf-8"))
+    suite["semantic_index"] = "semantic-index.json"
+    path.write_text(json.dumps(suite), encoding="utf-8")
+    return path
+
+
 def _active(_query: str):
     return {"results": [{"id": "memory-1"}]}
 
@@ -128,6 +164,100 @@ def test_collects_content_addressed_bounded_evidence(tmp_path: Path) -> None:
     verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
     assert verified["status"] == "VERIFIED"
     assert verified["errors"] == []
+
+
+def test_collects_and_verifies_fixed_channel_ablation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_ablation_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    result = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert result["schema"] == "mq.hybrid-retrieval-ablation.v1"
+    assert result["status"] == "PASS"
+    assert result["zero_effect"] is True
+    assert result["promotion_eligible"] is False
+    assert result["baseline"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert result["baseline"]["metrics"]["mean_precision"] == 1.0
+    assert result["baseline"]["metrics"]["mean_recall"] == 0.333333
+    assert [row["variant_id"] for row in result["variants"]] == [
+        "keyword",
+        "vector",
+        "codegraph",
+        "keyword+vector",
+        "keyword+codegraph",
+        "vector+codegraph",
+        "all",
+    ]
+
+    by_id = {row["variant_id"]: row for row in result["variants"]}
+    assert by_id["keyword"]["metrics"]["mean_recall"] == 0.666667
+    assert by_id["vector"]["metrics"]["mean_recall"] == 0.666667
+    assert by_id["codegraph"]["metrics"]["mean_recall"] == 0.666667
+    assert by_id["keyword+vector"]["metrics"]["mean_recall"] == 0.666667
+    assert by_id["keyword+codegraph"]["metrics"]["mean_recall"] == 1.0
+    assert by_id["vector+codegraph"]["metrics"]["mean_recall"] == 1.0
+    assert by_id["all"]["metrics"]["mean_recall"] == 1.0
+    assert by_id["all"]["delta_vs_baseline"]["mean_recall"] == 0.666667
+    assert by_id["all"]["metrics"]["mean_token_delta_vs_active"] > 0
+
+    serialized = json.dumps(result)
+    assert "MCP orchestration" not in serialized
+    assert str(tmp_path) not in serialized
+
+    verified = HybridEvidenceStore(root).verify_ablation(result["ablation_id"])
+    assert verified["status"] == "VERIFIED"
+    assert verified["errors"] == []
+
+
+def test_ablation_no_write_leaves_no_state(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_ablation_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    result = collect_hybrid_ablation(
+        suite,
+        state_root=root,
+        persist=False,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert result["status"] == "PASS"
+    assert not root.exists()
 
 
 def test_no_write_mode_leaves_no_state(tmp_path: Path) -> None:

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-ablation.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","ablation_id","created_at","suite_sha256","status","zero_effect","promotion_eligible","baseline","variants","limitations"],
+  "properties": {
+    "schema": {"const": "mq.hybrid-retrieval-ablation.v1"},
+    "ablation_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "suite_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
+    "zero_effect": {"const": true},
+    "promotion_eligible": {"const": false},
+    "baseline": {"$ref": "#/$defs/result"},
+    "variants": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/result"},
+          {
+            "type": "object",
+            "required": ["variant_id","delta_vs_baseline"],
+            "properties": {
+              "variant_id": {
+                "enum": ["keyword","vector","codegraph","keyword+vector","keyword+codegraph","vector+codegraph","all"]
+              },
+              "delta_vs_baseline": {"$ref": "#/$defs/metrics"}
+            }
+          }
+        ]
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notebook_keyword","notebook_vector","codegraph"],
+      "properties": {
+        "notebook_keyword": {"type": "boolean"},
+        "notebook_vector": {"type": "boolean"},
+        "codegraph": {"type": "boolean"}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mean_precision","mean_recall","mean_contradiction_rate","mean_stale_rate","mean_token_delta_vs_active","mean_total_channel_latency_ms"],
+      "properties": {
+        "mean_precision": {"type": ["number","null"]},
+        "mean_recall": {"type": ["number","null"]},
+        "mean_contradiction_rate": {"type": ["number","null"]},
+        "mean_stale_rate": {"type": ["number","null"]},
+        "mean_token_delta_vs_active": {"type": ["number","null"]},
+        "mean_total_channel_latency_ms": {"type": ["number","null"]}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["available","unavailable","skipped"],
+        "properties": {
+          "available": {"type": "integer", "minimum": 0},
+          "unavailable": {"type": "integer", "minimum": 0},
+          "skipped": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id","status","channel_selection","case_count","pass_count","quality_measured_count","metrics","channel_coverage"],
+      "properties": {
+        "variant_id": {
+          "enum": ["keyword","vector","codegraph","keyword+vector","keyword+codegraph","vector+codegraph","all"]
+        },
+        "evidence_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
+        "channel_selection": {"$ref": "#/$defs/selection"},
+        "case_count": {"type": "integer", "minimum": 1},
+        "pass_count": {"type": "integer", "minimum": 0},
+        "quality_measured_count": {"type": "integer", "minimum": 0},
+        "metrics": {"$ref": "#/$defs/metrics"},
+        "channel_coverage": {"$ref": "#/$defs/coverage"},
+        "delta_vs_baseline": {"$ref": "#/$defs/metrics"}
+      }
+    }
+  }
+}
