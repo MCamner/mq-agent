@@ -1274,7 +1274,7 @@ Measure Hybrid Retrieval v2 in zero-effect shadow mode.
 | `--semantic-model` | No | `nomic-embed-text` | Local Ollama embedding model |
 | `--fixture` | No | `""` | Optional mq.hybrid-retrieval-fixture.v1 JSON |
 | `--codegraph-root` | No | `""` | Optional repository root for the local CodeGraph index |
-| `--codegraph`, `--no-codegraph` | No | `true` | Measure the installed CodeGraph MCP channel when available |
+| `--codegraph`, `--no-codegraph` | No | `true` | Measure the installed CodeGraph channel when available |
 | `--top-k` | No | `10` | — |
 | `--json` | No | `false` | — |
 
