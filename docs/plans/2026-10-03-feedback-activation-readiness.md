@@ -6,7 +6,6 @@
 > experiments to exact `mq.execution-outcome.v1` runs. The blocker rules and
 > human-approval/canary boundary remain in force.
 
-
 ## Goal
 
 Add the first read-only gate for future Evidence-Gated Activation & Rollback.
