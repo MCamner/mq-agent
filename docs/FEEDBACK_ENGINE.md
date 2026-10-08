@@ -55,6 +55,7 @@ mq-agent feedback run \
   --task-class repo-review \
   --repo . \
   --task "review release boundaries" \
+  --execution-run-id <mq.execution-outcome-run-id> \
   --json
 ```
 
@@ -124,14 +125,34 @@ candidate/approval and re-verifies the referenced experiments/comparisons.
 Activation and rollback append policy events; they never rewrite evidence
 history. v1.33 also binds each new policy event to immutable policy snapshots.
 
-`READY_FOR_HUMAN_APPROVAL` requires:
+`READY_FOR_HUMAN_APPROVAL` keeps the original blockers — effective
+`proposed` context-strategy state, complete comparison links, exact task class
+and strategy pair, valid `CANDIDATE_BETTER` verdicts, no material regression,
+and exact rollback target — but the evidence floor is no longer a global
+two-comparison/two-snapshot rule.
 
-- an effective `proposed` context-strategy candidate;
-- complete, valid comparison links for the exact task class and strategy pair;
-- at least two `CANDIDATE_BETTER` comparisons;
-- evidence from at least two distinct Git snapshots;
-- no material regression in any linked comparison; and
-- `rollback_target == current_strategy`.
+Promotion-authorizing evidence now resolves:
+
+```text
+comparison
+  -> feedback experiment
+  -> exact execution_run_id
+  -> mq.execution-outcome.v1
+```
+
+For the feedback task class, readiness requires a real correlated calibration
+population, then derives bounded requirements for candidate-linked outcome
+sample size, temporal coverage and success rate from that population. The
+feedback task-class name remains authoritative: mq-agent does not pretend that
+`repo-review` equals `audit`, `docs`, or another execution-outcome class.
+
+The calibration population and exact candidate-linked outcomes are fingerprinted.
+A new approval receipt binds that readiness fingerprint, so later evidence drift
+requires a fresh human approval. Historical v1 approval records remain readable
+but cannot authorize a new canary without being reissued.
+
+A shadow experiment without `--execution-run-id` is still valid for analysis,
+but it cannot satisfy the real-outcome promotion evidence gates.
 
 The readiness result still says `human_approval_required: true`,
 `canary_required: true`, and `activation_available: false`. Readiness itself
