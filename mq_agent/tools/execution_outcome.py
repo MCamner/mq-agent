@@ -61,8 +61,6 @@ def execution_outcome_fingerprint(record: dict[str, Any]) -> str:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    import hashlib
-
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
