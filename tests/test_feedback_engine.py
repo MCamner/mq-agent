@@ -113,7 +113,10 @@ def test_f2_execution_correlation_must_resolve_before_shadow_collection(
 
     monkeypatch.setattr("mq_agent.feedback.engine.build_task_pack", build)
 
-    with pytest.raises(ValueError, match="execution_run_id must resolve exactly once"):
+    with pytest.raises(
+        ValueError,
+        match="execution_run_id must resolve to exactly one mq.execution-outcome.v1",
+    ):
         run_context_experiment(
             "review repo",
             tmp_path / "not-even-a-repo",
