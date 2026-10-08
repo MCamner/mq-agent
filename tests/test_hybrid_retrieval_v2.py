@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 from mq_agent.memory.hybrid_retrieval import _rrf, hybrid_retrieval_v2
+from mq_agent.tools.contract_validation import validate_contract
 from mq_agent.notebook_corpus import build_from_document
 
 
@@ -71,6 +73,10 @@ def test_v2_merges_channels_and_measures_explicit_fixture(tmp_path: Path) -> Non
     assert result["active_authoritative"] is True
     assert result["shadow_effect_on_active_result"] is False
     assert result["promotion_eligible"] is False
+    assert result["input_fingerprints"]["notebook_catalog_sha256"] == (
+        "sha256:" + hashlib.sha256(catalog_path.read_bytes()).hexdigest()
+    )
+    assert result["input_fingerprints"]["notebook_semantic_index_sha256"] is None
     assert result["merge"]["algorithm"] == "reciprocal-rank-fusion"
     assert result["quality_evidence"]["status"] == "MEASURED"
     assert result["metrics"]["precision"] == 0.75
@@ -81,6 +87,24 @@ def test_v2_merges_channels_and_measures_explicit_fixture(tmp_path: Path) -> Non
     assert result["metrics"]["token_delta_vs_active"] is not None
     serialized = json.dumps(result)
     assert "MCP orchestration" not in serialized
+
+
+def test_v2_schema_keeps_historical_runs_without_input_fingerprints_readable(
+    tmp_path: Path,
+) -> None:
+    catalog_path = tmp_path / "catalog.json"
+    catalog_path.write_text(json.dumps(_catalog()), encoding="utf-8")
+
+    result = hybrid_retrieval_v2(
+        "MCP orchestration",
+        catalog_path=catalog_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+        codegraph_search=lambda _query: {"results": []},
+    )
+    historical = dict(result)
+    historical.pop("input_fingerprints")
+
+    validate_contract("hybrid_retrieval_v2.schema.json", historical)
 
 
 def test_quality_metrics_are_unavailable_without_fixture(tmp_path: Path) -> None:
