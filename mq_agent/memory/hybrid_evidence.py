@@ -925,6 +925,276 @@ def collect_hybrid_ablation(
     return payload
 
 
+def _challenge_quality_metrics(case: dict[str, Any]) -> dict[str, float | None]:
+    metrics = case["metrics"]
+    return {
+        "precision": metrics.get("precision"),
+        "recall": metrics.get("recall"),
+        "contradiction_rate": metrics.get("contradiction_rate"),
+        "stale_rate": metrics.get("stale_rate"),
+    }
+
+
+def _challenge_case_result(
+    baseline: dict[str, Any],
+    variant: dict[str, Any],
+    target_channel: str,
+) -> dict[str, Any]:
+    comparison = _admission_case_result(baseline, variant)
+    baseline_metrics = _challenge_quality_metrics(baseline)
+    complete = (
+        comparison["status"] != "INSUFFICIENT_EVIDENCE"
+        and all(value is not None for value in baseline_metrics.values())
+    )
+    baseline_non_ceiling = bool(
+        complete
+        and (
+            float(baseline_metrics["precision"]) < 1.0
+            or float(baseline_metrics["recall"]) < 1.0
+        )
+    )
+
+    if not complete:
+        challenge_result = "INSUFFICIENT_EVIDENCE"
+    elif not baseline_non_ceiling:
+        challenge_result = "CEILINGED"
+    elif comparison["status"] == "SUPPORTS_ADMISSION":
+        challenge_result = "SUPPORTS_TARGET"
+    elif comparison["status"] == "BLOCKS_ADMISSION":
+        challenge_result = "REGRESSION"
+    else:
+        challenge_result = "NO_GAIN"
+
+    return {
+        "case_id": baseline["case_id"],
+        "task_class": baseline["task_class"],
+        "target_channel": target_channel,
+        "baseline_run_fingerprint": baseline["run_fingerprint"],
+        "variant_run_fingerprint": variant["run_fingerprint"],
+        "baseline_non_ceiling": baseline_non_ceiling,
+        "comparison_status": comparison["status"],
+        "challenge_result": challenge_result,
+        "baseline_metrics": baseline_metrics,
+        "delta_vs_active_only": comparison["delta_vs_active_only"],
+    }
+
+
+def _build_hybrid_challenge(
+    ablation_id: str,
+    targets: list[dict[str, str]],
+    store: HybridEvidenceStore,
+    *,
+    suite_sha256: str,
+    created_at: str,
+) -> dict[str, Any]:
+    verified_ablation = store.verify_ablation(ablation_id)
+    if verified_ablation["status"] != "VERIFIED":
+        raise ValueError("hybrid ablation must verify before challenge evaluation")
+    ablation = verified_ablation["ablation"]
+    if ablation["suite_sha256"] != suite_sha256:
+        raise ValueError("challenge suite fingerprint does not match ablation")
+
+    baseline_verified = store.verify_set(ablation["baseline"]["evidence_id"])
+    if baseline_verified["status"] != "VERIFIED":
+        raise ValueError("challenge baseline evidence must verify")
+    baseline_evidence = baseline_verified["evidence"]
+    baseline_by_case = {
+        str(case["case_id"]): case for case in baseline_evidence["cases"]
+    }
+
+    variants = {str(item["variant_id"]): item for item in ablation["variants"]}
+    singleton_by_channel: dict[str, dict[str, Any]] = {}
+    for channel in CHALLENGE_CHANNELS:
+        variant_id = SINGLETON_ADMISSION_VARIANTS[channel]
+        entry = variants.get(variant_id)
+        if entry is None:
+            raise ValueError(f"challenge singleton variant missing: {variant_id}")
+        verified = store.verify_set(str(entry["evidence_id"]))
+        if verified["status"] != "VERIFIED":
+            raise ValueError(f"{variant_id}: challenge singleton evidence must verify")
+        singleton_by_channel[channel] = verified["evidence"]
+
+    normalized_targets: list[dict[str, str]] = []
+    seen_case_ids: set[str] = set()
+    for target in targets:
+        case_id = str(target["case_id"])
+        task_class = str(target["task_class"])
+        target_channel = str(target["target_channel"])
+        if target_channel not in CHALLENGE_CHANNELS:
+            raise ValueError(f"{case_id}: unsupported challenge target {target_channel}")
+        if case_id in seen_case_ids:
+            raise ValueError(f"{case_id}: challenge case target must be unique")
+        seen_case_ids.add(case_id)
+        baseline_case = baseline_by_case.get(case_id)
+        if baseline_case is None:
+            raise ValueError(f"{case_id}: challenge case missing from baseline evidence")
+        if str(baseline_case["task_class"]) != task_class:
+            raise ValueError(f"{case_id}: challenge task class mismatch")
+        normalized_targets.append(
+            {
+                "case_id": case_id,
+                "task_class": task_class,
+                "target_channel": target_channel,
+            }
+        )
+
+    channel_rows: list[dict[str, Any]] = []
+    complete_measurement = ablation["status"] == "PASS"
+    for channel in CHALLENGE_CHANNELS:
+        variant_id = SINGLETON_ADMISSION_VARIANTS[channel]
+        variant_evidence = singleton_by_channel[channel]
+        variant_by_case = {
+            str(case["case_id"]): case for case in variant_evidence["cases"]
+        }
+        channel_targets = [
+            target
+            for target in normalized_targets
+            if target["target_channel"] == channel
+        ]
+        case_rows: list[dict[str, Any]] = []
+        for target in sorted(channel_targets, key=lambda item: item["case_id"]):
+            case_id = target["case_id"]
+            variant_case = variant_by_case.get(case_id)
+            if variant_case is None:
+                raise ValueError(
+                    f"{case_id}: challenge case missing from {variant_id} evidence"
+                )
+            case_rows.append(
+                _challenge_case_result(
+                    baseline_by_case[case_id],
+                    variant_case,
+                    channel,
+                )
+            )
+
+        measured_count = sum(
+            row["challenge_result"] != "INSUFFICIENT_EVIDENCE"
+            for row in case_rows
+        )
+        non_ceiling_count = sum(row["baseline_non_ceiling"] for row in case_rows)
+        supporting_count = sum(
+            row["challenge_result"] == "SUPPORTS_TARGET"
+            for row in case_rows
+        )
+        if not case_rows:
+            result = "MISSING_CASES"
+            complete_measurement = False
+        elif measured_count != len(case_rows):
+            result = "INSUFFICIENT_EVIDENCE"
+            complete_measurement = False
+        elif supporting_count > 0:
+            result = "DISCRIMINATING"
+        else:
+            result = "NO_MEASURED_GAIN"
+
+        channel_rows.append(
+            {
+                "channel": channel,
+                "variant_id": variant_id,
+                "case_count": len(case_rows),
+                "measured_count": measured_count,
+                "non_ceiling_case_count": non_ceiling_count,
+                "supporting_case_count": supporting_count,
+                "result": result,
+                "cases": case_rows,
+            }
+        )
+
+    discriminating = bool(
+        complete_measurement
+        and all(row["result"] == "DISCRIMINATING" for row in channel_rows)
+    )
+    status = "PASS" if complete_measurement else "INSUFFICIENT_EVIDENCE"
+    payload: dict[str, Any] = {
+        "schema": CHALLENGE_SCHEMA,
+        "created_at": created_at,
+        "ablation_id": ablation_id,
+        "suite_sha256": suite_sha256,
+        "status": status,
+        "discriminating": discriminating,
+        "zero_effect": True,
+        "promotion_eligible": False,
+        "runtime_consumption_available": False,
+        "required_channels": sorted(CHALLENGE_CHANNELS),
+        "channels": channel_rows,
+        "next_action": (
+            "collect-more-evidence"
+            if status != "PASS"
+            else "review-channel-gains"
+            if discriminating
+            else "redesign-challenge-cases"
+        ),
+        "limitations": [
+            "PASS means the challenge measurement is complete; it does not mean the suite is discriminating or authorize activation.",
+            "Challenge targets are operator-authored suite metadata bound to the exact suite SHA-256; mq-agent does not invent relevance labels.",
+            "A channel is discriminating only when at least one targeted non-ceiling case shows measured quality gain with no precision, recall, contradiction or stale regression.",
+            "The challenge is zero-effect only; active semantic memory remains authoritative and runtime consumption is unavailable.",
+        ],
+    }
+    payload["challenge_id"] = _fingerprint(payload)
+    validate_contract("hybrid_retrieval_challenge.schema.json", payload)
+    return payload
+
+
+def collect_hybrid_challenge(
+    suite_path: Path,
+    *,
+    state_root: Path | None = None,
+    persist: bool = True,
+    active_search: Any = None,
+    codegraph_search: Any = None,
+) -> dict[str, Any]:
+    """Run the fixed ablation and evaluate operator-targeted discriminating cases."""
+    suite_path = suite_path.expanduser().resolve()
+    suite, suite_sha = _suite(suite_path)
+    targets = [
+        {
+            "case_id": str(case["id"]),
+            "task_class": str(case["task_class"]),
+            "target_channel": str(case["challenge_target"]),
+        }
+        for case in suite["cases"]
+        if case.get("challenge_target") is not None
+    ]
+    created_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+    if persist:
+        ablation = collect_hybrid_ablation(
+            suite_path,
+            state_root=state_root,
+            persist=True,
+            active_search=active_search,
+            codegraph_search=codegraph_search,
+        )
+        store = HybridEvidenceStore(state_root)
+        payload = _build_hybrid_challenge(
+            ablation["ablation_id"],
+            targets,
+            store,
+            suite_sha256=suite_sha,
+            created_at=created_at,
+        )
+        store.save_challenge(payload)
+        return payload
+
+    with tempfile.TemporaryDirectory(prefix="mq-hybrid-challenge-") as tmp:
+        transient_root = Path(tmp)
+        ablation = collect_hybrid_ablation(
+            suite_path,
+            state_root=transient_root,
+            persist=True,
+            active_search=active_search,
+            codegraph_search=codegraph_search,
+        )
+        return _build_hybrid_challenge(
+            ablation["ablation_id"],
+            targets,
+            HybridEvidenceStore(transient_root),
+            suite_sha256=suite_sha,
+            created_at=created_at,
+        )
+
+
 def _build_hybrid_admission(
     ablation_id: str,
     store: HybridEvidenceStore,
