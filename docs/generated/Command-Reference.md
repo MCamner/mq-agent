@@ -1138,6 +1138,7 @@ Semantic repository memory commands.
 | [`mq-agent memory build`](#mq-agent-memory-build) | Preview semantic repo memory upload. Non-dry-run uses refresh safety. |
 | [`mq-agent memory doctor`](#mq-agent-memory-doctor) | Diagnose semantic memory environment. |
 | [`mq-agent memory emit-cochange`](#mq-agent-memory-emit-cochange) | Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is the producer; Bridget/CG-2 is the evidence source. Writes nothing when no co-change cluster clears the gate. mqobsidian scores and promotes. |
+| [`mq-agent memory hybrid-evidence`](#mq-agent-memory-hybrid-evidence) | Collect and verify zero-effect Hybrid Retrieval v2 evidence. |
 | [`mq-agent memory hybrid-retrieval`](#mq-agent-memory-hybrid-retrieval) | Measure Hybrid Retrieval v2 in zero-effect shadow mode. |
 | [`mq-agent memory hybrid-shadow`](#mq-agent-memory-hybrid-shadow) | Compare active semantic memory with hybrid retrieval in zero-effect shadow mode. |
 | [`mq-agent memory inbox-cochange`](#mq-agent-memory-inbox-cochange) | Operator-triggered co-change intake: emit → score → writeback → status. Runs the autonomous learning loop end-to-end for one file, but only when you ask (not auto-after-workflow). mq-agent orchestrates; Bridget/CG-2 is evidence source; mqobsidian owns scoring/writeback/status (invoked via its own local-only CLI). |
@@ -1207,6 +1208,52 @@ Emit one co-change memory-observation.v1 from Bridget/CG-2 evidence. mq-agent is
 | `--min-confidence` | No | `0.05` | Cluster confidence gate (weak-signal intake; default low) |
 | `--min-support` | No | `2` | Min co-change count |
 | `--vault` | No | — | mqobsidian vault path |
+
+## `mq-agent memory hybrid-evidence`
+
+Collect and verify zero-effect Hybrid Retrieval v2 evidence.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent memory hybrid-evidence collect`](#mq-agent-memory-hybrid-evidence-collect) | Collect fixture-backed live Hybrid Retrieval v2 evidence. |
+| [`mq-agent memory hybrid-evidence status`](#mq-agent-memory-hybrid-evidence-status) | Verify one persisted Hybrid Retrieval v2 evidence set and all run refs. |
+
+## `mq-agent memory hybrid-evidence collect`
+
+Collect fixture-backed live Hybrid Retrieval v2 evidence.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `SUITE` | Yes | — | mq.hybrid-retrieval-suite.v1 JSON |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--no-write` | No | `false` | Run the live suite without persisting evidence |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence status`
+
+Verify one persisted Hybrid Retrieval v2 evidence set and all run refs.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `EVIDENCE_ID` | Yes | — | sha256 evidence-set id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-retrieval`
 

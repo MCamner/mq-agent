@@ -331,6 +331,20 @@ uv run pytest tests/ -v
 - [x] Deterministic release states, bounded blockers, and one next action
 - [x] Existing `stack release` remains the release engine
 
+## Hybrid Retrieval v2 evidence collection status
+
+Real-run collection is now a separate content-addressed layer over the v2
+measurement engine.
+
+- [x] `mq.hybrid-retrieval-suite.v1` describes operator-selected task cases
+- [x] `mq.hybrid-retrieval-evidence-set.v1` binds exact live run fingerprints
+- [x] `memory hybrid-evidence collect` executes fixture-backed live channels
+- [x] `memory hybrid-evidence status` re-verifies every stored run reference
+- [x] persisted evidence excludes query text, local paths and retrieved bodies
+- [x] aggregate evidence reports task-class/channel coverage and quality metrics
+- [x] CI verifies the collector with deterministic adapters but is not real-run evidence
+- [ ] operator-local mq-mcp + Notebook + CodeGraph suite still must be executed
+
 ## Hybrid Retrieval v2 status
 
 Hybrid Retrieval v2 broadens the existing zero-effect retrieval shadow into a

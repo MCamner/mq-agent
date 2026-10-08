@@ -46,6 +46,8 @@
     "mq.state-snapshot.v2",
     "mq.hybrid-retrieval-shadow.v1",
     "mq.hybrid-retrieval.v2",
+    "mq.hybrid-retrieval-evidence-set.v1",
+    "mq.hybrid-retrieval-suite.v1",
     "mq.feedback-canary.v1",
     "mq.feedback-policy-snapshot.v1",
     "mq.workflow-checkpoint.v1"
@@ -63,6 +65,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Hybrid Retrieval v2 real-run evidence collection",
+  "next_focus": "Run live Hybrid Retrieval v2 evidence suite on operator MQ runtime",
   "release_mode": "pull_request"
 }
