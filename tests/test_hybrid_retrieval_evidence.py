@@ -52,6 +52,7 @@ def _write_suite(tmp_path: Path) -> Path:
     suite = {
         "schema": "mq.hybrid-retrieval-suite.v1",
         "catalog": "catalog.json",
+        "codegraph_root": ".",
         "cases": [
             {
                 "id": "repo-review-1",
