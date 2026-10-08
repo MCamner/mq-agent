@@ -54,6 +54,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- D8 semantic builds now fail closed when provider reads produce no usable chunks:
+  the CLI does not overwrite the existing local index, and Hybrid Retrieval v2
+  treats an empty Notebook vector index as unavailable instead of a successful
+  zero-result channel.
 - D8 semantic-index builds now filter to Drive text-fetchable MIME types before
   selection and sample notebooks round-robin instead of taking the first
   lexicographically sorted corpus items. The bounded build therefore avoids one

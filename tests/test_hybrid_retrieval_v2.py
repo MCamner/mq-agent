@@ -127,6 +127,38 @@ def test_codegraph_can_be_explicitly_skipped() -> None:
     assert result["status"] == "INSUFFICIENT_EVIDENCE"
 
 
+def test_empty_notebook_vector_index_is_unavailable(tmp_path: Path) -> None:
+    catalog_path = tmp_path / "catalog.json"
+    catalog_path.write_text(json.dumps(_catalog()), encoding="utf-8")
+    semantic_index_path = tmp_path / "semantic-index.json"
+    semantic_index_path.write_text(
+        json.dumps(
+            {
+                "schema": "notebook-semantic-index-experiment.v1",
+                "canonical": False,
+                "disposable": True,
+                "chunks": [],
+                "trace": {"chunks": 0, "embedding_dimension": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = hybrid_retrieval_v2(
+        "MCP orchestration",
+        catalog_path=catalog_path,
+        semantic_index_path=semantic_index_path,
+        active_search=lambda _query: {"results": [{"id": "memory-1"}]},
+        enable_codegraph=False,
+    )
+
+    vector = next(row for row in result["channels"] if row["name"] == "notebook-vector")
+    assert vector["status"] == "UNAVAILABLE"
+    assert vector["returned"] == 0
+    assert "no usable chunks" in vector["reason"]
+    assert result["status"] == "PASS"
+
+
 def test_rrf_dedupes_same_notebook_identity_across_channels() -> None:
     merged = _rrf(
         [

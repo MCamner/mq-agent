@@ -288,6 +288,9 @@ def semantic_search(
 ) -> dict[str, Any]:
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
+    chunks = index.get("chunks")
+    if not isinstance(chunks, list) or not chunks:
+        raise ValueError("semantic index has no usable chunks")
     query_vector = embedding_provider.embed([query])[0]
     scored: list[dict[str, Any]] = []
     for chunk in index.get("chunks", []):
