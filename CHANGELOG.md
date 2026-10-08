@@ -11,6 +11,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval policy-plan closure auditing adds
+  `memory hybrid-evidence policy-plan-audit`. One read-only audit re-verifies
+  an exact operator-supplied plan set and refuses missing/duplicate task
+  classes, admission drift, non-ACTIVE_ONLY decisions, eligible optional
+  channels, or any proposed/effective selection other than active-only.
 - Hybrid Retrieval runtime policy planning adds content-addressed
   `mq.hybrid-retrieval-policy-plan.v1` plus
   `memory hybrid-evidence policy-plan|policy-plan-status`. Plans require a

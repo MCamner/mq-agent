@@ -766,14 +766,23 @@ justify an activation design.
   optional channel eligible, the plan can only mark it proposed/REVIEW_REQUIRED.
   There is no apply command or runtime consumer and unknown task classes fail
   closed.
+* [x] Add a fail-closed policy-plan closure audit for an exact operator-supplied
+  plan set. `hybrid-evidence policy-plan-audit` re-verifies every referenced
+  content address, requires one shared expected admission, requires an exact
+  unique task-class set, and refuses any non-ACTIVE_ONLY decision, eligible
+  optional channel, or non-active-only proposed/effective selection. The audit
+  remains read-only and cannot enable runtime consumption.
 * [ ] Run and verify policy plans for the live ci, docs and repo-review decisions
-  before considering any runtime consumer.
+  before considering any runtime consumer. Use one closure audit over the three
+  exact live plan ids so missing/duplicate task classes or evidence drift fail
+  closed.
 
-Next roadmap item: **Hybrid Retrieval live policy plans** — create
-`mq.hybrid-retrieval-policy-plan.v1` records from verified admission
+Next roadmap item: **Hybrid Retrieval live policy-plan audit** — audit the exact
+ci, docs and repo-review policy-plan ids from verified admission
 `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`
-for ci, docs and repo-review, verify each content address, and confirm effective
-selection stays active-only. Runtime consumption remains out of scope.
+with `memory hybrid-evidence policy-plan-audit`. Require VERIFIED with no
+errors and effective active-only before closing this checkpoint. Runtime
+consumption remains out of scope.
 
 ### v1.32.0 Canary v2 checkpoint
 

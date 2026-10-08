@@ -1223,6 +1223,7 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 | [`mq-agent memory hybrid-evidence admission-status`](#mq-agent-memory-hybrid-evidence-admission-status) | Verify one persisted Hybrid Retrieval admission record. |
 | [`mq-agent memory hybrid-evidence collect`](#mq-agent-memory-hybrid-evidence-collect) | Collect fixture-backed live Hybrid Retrieval v2 evidence. |
 | [`mq-agent memory hybrid-evidence policy-plan`](#mq-agent-memory-hybrid-evidence-policy-plan) | Build a zero-effect runtime channel policy plan from verified admission. |
+| [`mq-agent memory hybrid-evidence policy-plan-audit`](#mq-agent-memory-hybrid-evidence-policy-plan-audit) | Audit an exact live policy-plan set before any runtime consumption. |
 | [`mq-agent memory hybrid-evidence policy-plan-status`](#mq-agent-memory-hybrid-evidence-policy-plan-status) | Verify one persisted Hybrid Retrieval runtime policy plan. |
 | [`mq-agent memory hybrid-evidence status`](#mq-agent-memory-hybrid-evidence-status) | Verify one persisted Hybrid Retrieval v2 evidence set and all run refs. |
 
@@ -1331,6 +1332,20 @@ Build a zero-effect runtime channel policy plan from verified admission.
 | `--task-class` | Yes | — | Exact admission task class |
 | `--state-root` | No | `""` | Override local evidence store root |
 | `--no-write` | No | `false` | Plan without persisting the policy record |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence policy-plan-audit`
+
+Audit an exact live policy-plan set before any runtime consumption.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--policy-plan-id` | No | — | sha256 policy-plan id (repeatable) |
+| `--admission-id` | No | `""` | Expected sha256 admission id |
+| `--task-class` | No | — | Expected task class (repeatable) |
+| `--state-root` | No | `""` | Override local evidence store root |
 | `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-evidence policy-plan-status`

@@ -68,6 +68,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Run and verify live Hybrid Retrieval policy plans before runtime consumption",
+  "next_focus": "Run live Hybrid Retrieval policy-plan audit before runtime consumption",
   "release_mode": "pull_request"
 }

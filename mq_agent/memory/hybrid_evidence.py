@@ -582,6 +582,109 @@ class HybridEvidenceStore:
         }
 
 
+def audit_hybrid_policy_plans(
+    policy_plan_ids: list[str],
+    *,
+    admission_id: str,
+    expected_task_classes: list[str],
+    state_root: Path | None = None,
+) -> dict[str, Any]:
+    """Verify an exact policy-plan set and fail closed on any closure drift."""
+    if not policy_plan_ids:
+        raise ValueError("at least one policy-plan id is required")
+    expected = [value.strip() for value in expected_task_classes if value.strip()]
+    if not expected:
+        raise ValueError("at least one expected task class is required")
+    if len(expected) != len(set(expected)):
+        raise ValueError("expected task classes must be unique")
+    if len(policy_plan_ids) != len(set(policy_plan_ids)):
+        raise ValueError("policy-plan ids must be unique")
+
+    store = HybridEvidenceStore(state_root)
+    errors: list[str] = []
+    plans: list[dict[str, Any]] = []
+    seen_task_classes: list[str] = []
+
+    for policy_plan_id in policy_plan_ids:
+        try:
+            verified = store.verify_policy_plan(policy_plan_id)
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"{policy_plan_id}: verification failed: {exc}")
+            plans.append(
+                {
+                    "policy_plan_id": policy_plan_id,
+                    "status": "REFUSED",
+                    "task_class": None,
+                    "decision": None,
+                    "errors": [str(exc)],
+                }
+            )
+            continue
+
+        plan = verified["policy_plan"]
+        task_class = str(plan["task_class"])
+        plan_errors = list(verified["errors"])
+        if verified["status"] != "VERIFIED":
+            plan_errors.append("policy plan is not VERIFIED")
+        if plan["admission_id"] != admission_id:
+            plan_errors.append("admission id mismatch")
+        if task_class not in expected:
+            plan_errors.append("unexpected task class")
+        if plan["decision"] != "ACTIVE_ONLY":
+            plan_errors.append("decision is not ACTIVE_ONLY")
+        if plan["eligible_channels"]:
+            plan_errors.append("eligible channels are not empty")
+        if plan["proposed_channel_selection"] != ACTIVE_ONLY_SELECTION:
+            plan_errors.append("proposed channel selection is not active-only")
+        if plan["effective_channel_selection"] != ACTIVE_ONLY_SELECTION:
+            plan_errors.append("effective channel selection is not active-only")
+        if plan_errors:
+            errors.extend(
+                f"{policy_plan_id}: {error}" for error in plan_errors
+            )
+
+        seen_task_classes.append(task_class)
+        plans.append(
+            {
+                "policy_plan_id": policy_plan_id,
+                "status": "VERIFIED" if not plan_errors else "REFUSED",
+                "task_class": task_class,
+                "decision": plan["decision"],
+                "errors": plan_errors,
+            }
+        )
+
+    duplicates = sorted(
+        task_class
+        for task_class in set(seen_task_classes)
+        if seen_task_classes.count(task_class) > 1
+    )
+    if duplicates:
+        errors.append(
+            "duplicate task classes: " + ", ".join(duplicates)
+        )
+
+    expected_set = set(expected)
+    seen_set = set(seen_task_classes)
+    missing = sorted(expected_set - seen_set)
+    unexpected = sorted(seen_set - expected_set)
+    if missing:
+        errors.append("missing task classes: " + ", ".join(missing))
+    if unexpected:
+        errors.append("unexpected task classes: " + ", ".join(unexpected))
+
+    return {
+        "status": "VERIFIED" if not errors else "REFUSED",
+        "admission_id": admission_id,
+        "expected_task_classes": sorted(expected_set),
+        "verified_task_classes": sorted(seen_set & expected_set),
+        "effective_channel_selection": dict(ACTIVE_ONLY_SELECTION),
+        "runtime_consumption_available": False,
+        "plans": plans,
+        "errors": errors,
+    }
+
+
 def collect_hybrid_evidence(
     suite_path: Path,
     *,

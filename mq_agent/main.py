@@ -5454,6 +5454,66 @@ def memory_hybrid_policy_plan_cmd(
         raise typer.Exit(1)
 
 
+@hybrid_evidence_app.command("policy-plan-audit")
+def memory_hybrid_policy_plan_audit_cmd(
+    policy_plan_id: Annotated[
+        list[str],
+        typer.Option("--policy-plan-id", help="sha256 policy-plan id (repeatable)"),
+    ] = [],
+    admission_id: Annotated[
+        str,
+        typer.Option("--admission-id", help="Expected sha256 admission id"),
+    ] = "",
+    task_class: Annotated[
+        list[str],
+        typer.Option("--task-class", help="Expected task class (repeatable)"),
+    ] = [],
+    state_root: Annotated[
+        str,
+        typer.Option("--state-root", help="Override local evidence store root"),
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Audit an exact live policy-plan set before any runtime consumption."""
+    from mq_agent.memory.hybrid_evidence import audit_hybrid_policy_plans
+
+    if not admission_id:
+        raise typer.BadParameter("--admission-id is required")
+    try:
+        payload = audit_hybrid_policy_plans(
+            policy_plan_id,
+            admission_id=admission_id,
+            expected_task_classes=task_class,
+            state_root=Path(state_root).expanduser() if state_root else None,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Policy Plan Audit — {payload['status']}")
+        table.add_column("Task class")
+        table.add_column("Plan")
+        table.add_column("Status")
+        table.add_column("Decision")
+        for row in payload["plans"]:
+            table.add_row(
+                str(row["task_class"] or "—"),
+                str(row["policy_plan_id"]),
+                str(row["status"]),
+                str(row["decision"] or "—"),
+            )
+        console.print(table)
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+        console.print(
+            "Effective channels: active-only | runtime consumption unavailable"
+        )
+    if payload["status"] != "VERIFIED":
+        raise typer.Exit(1)
+
+
 @hybrid_evidence_app.command("policy-plan-status")
 def memory_hybrid_policy_plan_status_cmd(
     policy_plan_id: Annotated[str, typer.Argument(help="sha256 policy-plan id")],
