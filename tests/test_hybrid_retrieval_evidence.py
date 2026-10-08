@@ -10,6 +10,7 @@ from mq_agent.memory.hybrid_evidence import (
     HybridEvidenceStore,
     audit_hybrid_policy_plans,
     collect_hybrid_ablation,
+    collect_hybrid_challenge,
     collect_hybrid_evidence,
     evaluate_hybrid_admission,
     plan_hybrid_runtime_policy,
@@ -109,6 +110,36 @@ def _write_ablation_suite(tmp_path: Path) -> Path:
     suite = json.loads(path.read_text(encoding="utf-8"))
     suite["semantic_index"] = "semantic-index.json"
     path.write_text(json.dumps(suite), encoding="utf-8")
+    return path
+
+
+def _write_challenge_suite(tmp_path: Path) -> Path:
+    path = _write_ablation_suite(tmp_path)
+    suite = json.loads(path.read_text(encoding="utf-8"))
+    suite["cases"][0]["challenge_target"] = "notebook-keyword"
+    suite["cases"][1]["challenge_target"] = "notebook-vector"
+    suite["cases"].append(
+        {
+            "id": "ci-1",
+            "task_class": "ci",
+            "query": "MCP orchestration",
+            "fixture": "fixture.json",
+            "challenge_target": "codegraph",
+        }
+    )
+    path.write_text(json.dumps(suite), encoding="utf-8")
+    return path
+
+
+def _write_ceilinged_challenge_suite(tmp_path: Path) -> Path:
+    path = _write_challenge_suite(tmp_path)
+    fixture = {
+        "schema": "mq.hybrid-retrieval-fixture.v1",
+        "expected_refs": ["semantic-memory:memory-1"],
+        "contradicted_refs": [],
+        "stale_refs": [],
+    }
+    (tmp_path / "fixture.json").write_text(json.dumps(fixture), encoding="utf-8")
     return path
 
 
@@ -242,6 +273,137 @@ def test_collects_and_verifies_fixed_channel_ablation(
     verified = HybridEvidenceStore(root).verify_ablation(result["ablation_id"])
     assert verified["status"] == "VERIFIED"
     assert verified["errors"] == []
+
+
+def test_challenge_suite_proves_singleton_discrimination(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_challenge_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    challenge = collect_hybrid_challenge(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert challenge["schema"] == "mq.hybrid-retrieval-challenge.v1"
+    assert challenge["status"] == "PASS"
+    assert challenge["discriminating"] is True
+    assert challenge["zero_effect"] is True
+    assert challenge["promotion_eligible"] is False
+    assert challenge["runtime_consumption_available"] is False
+    assert challenge["next_action"] == "review-channel-gains"
+    assert challenge["required_channels"] == [
+        "codegraph",
+        "notebook-keyword",
+        "notebook-vector",
+    ]
+    assert {row["channel"] for row in challenge["channels"]} == {
+        "notebook-keyword",
+        "notebook-vector",
+        "codegraph",
+    }
+    assert all(row["result"] == "DISCRIMINATING" for row in challenge["channels"])
+    assert all(row["supporting_case_count"] == 1 for row in challenge["channels"])
+    assert all(row["non_ceiling_case_count"] == 1 for row in challenge["channels"])
+    assert all(
+        row["cases"][0]["challenge_result"] == "SUPPORTS_TARGET"
+        for row in challenge["channels"]
+    )
+
+    serialized = json.dumps(challenge)
+    assert "MCP orchestration" not in serialized
+    assert str(tmp_path) not in serialized
+
+    verified = HybridEvidenceStore(root).verify_challenge(
+        challenge["challenge_id"]
+    )
+    assert verified["status"] == "VERIFIED"
+    assert verified["errors"] == []
+
+
+def test_challenge_suite_reports_ceiling_without_claiming_discrimination(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_ceilinged_challenge_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    challenge = collect_hybrid_challenge(
+        suite,
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert challenge["status"] == "PASS"
+    assert challenge["discriminating"] is False
+    assert challenge["next_action"] == "redesign-challenge-cases"
+    assert all(row["result"] == "NO_MEASURED_GAIN" for row in challenge["channels"])
+    assert all(row["non_ceiling_case_count"] == 0 for row in challenge["channels"])
+    assert all(
+        row["cases"][0]["challenge_result"] == "CEILINGED"
+        for row in challenge["channels"]
+    )
+
+
+def test_challenge_no_write_leaves_no_operator_state(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    suite = _write_challenge_suite(tmp_path)
+    root = tmp_path / "state"
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    challenge = collect_hybrid_challenge(
+        suite,
+        state_root=root,
+        persist=False,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert challenge["status"] == "PASS"
+    assert challenge["discriminating"] is True
+    assert not root.exists()
 
 
 def test_admission_marks_quality_improving_singletons_eligible(
