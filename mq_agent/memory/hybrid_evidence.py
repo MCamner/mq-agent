@@ -18,6 +18,22 @@ from mq_agent.tools.contract_validation import validate_contract
 
 SUITE_SCHEMA = "mq.hybrid-retrieval-suite.v1"
 EVIDENCE_SCHEMA = "mq.hybrid-retrieval-evidence-set.v1"
+ABLATION_SCHEMA = "mq.hybrid-retrieval-ablation.v1"
+
+ABLATION_MATRIX: tuple[tuple[str, dict[str, bool]], ...] = (
+    ("keyword", {"notebook_keyword": True, "notebook_vector": False, "codegraph": False}),
+    ("vector", {"notebook_keyword": False, "notebook_vector": True, "codegraph": False}),
+    ("codegraph", {"notebook_keyword": False, "notebook_vector": False, "codegraph": True}),
+    ("keyword+vector", {"notebook_keyword": True, "notebook_vector": True, "codegraph": False}),
+    ("keyword+codegraph", {"notebook_keyword": True, "notebook_vector": False, "codegraph": True}),
+    ("vector+codegraph", {"notebook_keyword": False, "notebook_vector": True, "codegraph": True}),
+    ("all", {"notebook_keyword": True, "notebook_vector": True, "codegraph": True}),
+)
+ACTIVE_ONLY_SELECTION = {
+    "notebook_keyword": False,
+    "notebook_vector": False,
+    "codegraph": False,
+}
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -98,6 +114,7 @@ def _project_case(
         "query_sha256": result["query_sha256"],
         "fixture_sha256": fixture_sha,
         "run_fingerprint": run_fingerprint,
+        "channel_selection": dict(result["channel_selection"]),
         "input_fingerprints": dict(result["input_fingerprints"]),
         "status": result["status"],
         "available_channels": available,
@@ -226,6 +243,13 @@ class HybridEvidenceStore:
                 errors.append(f"{case['case_id']}: referenced run fingerprint mismatch")
             if run["query_sha256"] != case["query_sha256"]:
                 errors.append(f"{case['case_id']}: query hash mismatch")
+            case_selection = case.get("channel_selection")
+            if case_selection is not None:
+                run_selection = run.get("channel_selection")
+                if run_selection is None:
+                    errors.append(f"{case['case_id']}: run channel selection missing")
+                elif run_selection != case_selection:
+                    errors.append(f"{case['case_id']}: channel selection mismatch")
             case_inputs = case.get("input_fingerprints")
             if case_inputs is not None:
                 run_inputs = run.get("input_fingerprints")
@@ -253,6 +277,7 @@ def collect_hybrid_evidence(
     persist: bool = True,
     active_search: Any = None,
     codegraph_search: Any = None,
+    channel_override: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """Run one fixture-backed zero-effect suite and optionally persist evidence."""
     suite_path = suite_path.expanduser().resolve()
@@ -266,7 +291,11 @@ def collect_hybrid_evidence(
     shared_codegraph_root = _resolve(base, suite.get("codegraph_root"))
     semantic_model = str(suite.get("semantic_model", "nomic-embed-text"))
     top_k = int(suite.get("top_k", 10))
-    enable_codegraph = bool(suite.get("codegraph", True))
+    shared_selection = {
+        "notebook_keyword": bool(suite.get("notebook_keyword", True)),
+        "notebook_vector": bool(suite.get("notebook_vector", True)),
+        "codegraph": bool(suite.get("codegraph", True)),
+    }
 
     for case in suite["cases"]:
         fixture_path = _resolve(base, str(case["fixture"]))
@@ -288,7 +317,21 @@ def collect_hybrid_evidence(
                 _resolve(base, case.get("codegraph_root")) or shared_codegraph_root
             ),
             top_k=int(case.get("top_k") or top_k),
-            enable_codegraph=bool(case.get("codegraph", enable_codegraph)),
+            enable_notebook_keyword=(
+                channel_override["notebook_keyword"]
+                if channel_override is not None
+                else bool(case.get("notebook_keyword", shared_selection["notebook_keyword"]))
+            ),
+            enable_notebook_vector=(
+                channel_override["notebook_vector"]
+                if channel_override is not None
+                else bool(case.get("notebook_vector", shared_selection["notebook_vector"]))
+            ),
+            enable_codegraph=(
+                channel_override["codegraph"]
+                if channel_override is not None
+                else bool(case.get("codegraph", shared_selection["codegraph"]))
+            ),
             active_search=active_search,
             codegraph_search=codegraph_search,
         )
