@@ -105,7 +105,7 @@ def _notebook_refs(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
     return _dedupe_refs(refs)
 
 
-_CODEGRAPH_FILE_HEADER = re.compile(r"^\\*\\*\\`([^\\`]+)\\`\\*\\*(?: — (.+))?$")
+_CODEGRAPH_FILE_HEADER = re.compile(r"^\*\*`([^`]+)`\*\*(?: — (.+))?$")
 
 
 def _codegraph_text_values(value: Any) -> list[str]:
