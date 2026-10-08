@@ -228,7 +228,7 @@ def _task_class_evidence(
     evidence = {
         "execution_store_issues": sorted(outcome_issues),
         "experiment_store_issues": [
-            f"{issue.filename}:{issue.line_number}:{issue.error}"
+            f"{issue.source}:{issue.line}:{issue.reason}"
             for issue in experiments.issues
         ],
         "population_outcome_count": population_count,
