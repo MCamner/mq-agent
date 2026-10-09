@@ -11,6 +11,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Hybrid Retrieval challenge candidate discovery adds
+  `mq.hybrid-retrieval-challenge-candidates.v1` and
+  `memory hybrid-evidence challenge-candidates`. It queries active semantic
+  memory plus configured Notebook keyword/vector and CodeGraph channels in
+  zero-effect mode, returns real normalized refs with bounded local Notebook
+  metadata and optional-channel overlap, and never persists candidates or writes
+  relevance fixtures automatically.
 - Hybrid Retrieval discriminating challenges add
   `mq.hybrid-retrieval-challenge.v1` plus
   `memory hybrid-evidence challenge|challenge-status`. Operator-curated suite

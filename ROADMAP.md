@@ -790,17 +790,25 @@ justify an activation design.
   least one measured non-ceiling singleton quality gain per optional channel
   before calling the suite discriminating. Challenge evidence is
   content-addressed and re-verifiable; runtime consumption remains unavailable.
+* [x] Add read-only live challenge candidate discovery.
+  `hybrid-evidence challenge-candidates` runs the existing zero-effect retrieval
+  channels without a relevance fixture, exposes real normalized optional-channel
+  refs plus bounded local Notebook metadata, identifies optional overlap, and
+  keeps relevance explicitly operator-reviewed. It never persists candidates or
+  writes fixtures automatically.
 * [ ] Curate and run the live discriminating challenge suite where active-only
-  does not already saturate precision/recall at 1.0/1.0. Include fixture-backed
-  target cases for Notebook keyword, Notebook vector and CodeGraph, then require
-  `status=PASS`, `discriminating=true` and VERIFIED challenge evidence before
-  reopening admission or runtime-consumption design.
+  does not already saturate precision/recall at 1.0/1.0. First use
+  `challenge-candidates` to select real Notebook keyword/vector and CodeGraph
+  refs, then author fixture-backed target cases and require `status=PASS`,
+  `discriminating=true` and VERIFIED challenge evidence before reopening
+  admission or runtime-consumption design.
 
-Next roadmap item: **Hybrid Retrieval live discriminating challenge** — add
-operator-curated non-ceiling target cases to the local fixture-backed suite and
-run `memory hybrid-evidence challenge`. Do not tune RRF, alter top-k, promote a
-channel or build a runtime consumer unless the new challenge evidence measures
-singleton quality gain without regression.
+Next roadmap item: **Hybrid Retrieval live candidate selection** — run
+`memory hybrid-evidence challenge-candidates` against the local Notebook
+catalog/semantic index and mq-agent CodeGraph index, review real refs, then
+author non-ceiling fixtures. Candidate absence from the active ref set is not
+itself a relevance claim. Do not tune RRF, alter top-k, promote a channel or
+build a runtime consumer from discovery output alone.
 
 ### v1.32.0 Canary v2 checkpoint
 

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-challenge-candidates.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema","status","query_sha256","zero_effect","persisted",
+    "fixture_generation_available","operator_review_required",
+    "input_fingerprints","active","channels","review_candidate_count",
+    "next_action","limitations"
+  ],
+  "properties": {
+    "schema": {"const": "mq.hybrid-retrieval-challenge-candidates.v1"},
+    "status": {"enum": ["PASS","INSUFFICIENT_EVIDENCE"]},
+    "query_sha256": {"type": "string", "minLength": 1},
+    "zero_effect": {"const": true},
+    "persisted": {"const": false},
+    "fixture_generation_available": {"const": false},
+    "operator_review_required": {"const": true},
+    "input_fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notebook_catalog_sha256","notebook_semantic_index_sha256"],
+      "properties": {
+        "notebook_catalog_sha256": {"type": ["string","null"]},
+        "notebook_semantic_index_sha256": {"type": ["string","null"]}
+      }
+    },
+    "active": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status","returned","refs"],
+      "properties": {
+        "status": {"enum": ["AVAILABLE","UNAVAILABLE","MISSING"]},
+        "returned": {"type": "integer", "minimum": 0},
+        "refs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "channels": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/channel"}
+    },
+    "review_candidate_count": {"type": "integer", "minimum": 0},
+    "next_action": {"enum": ["select-relevant-refs-for-fixtures","refine-query"]},
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "metadata": {
+      "type": ["object","null"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {"type": "string"},
+        "notebook_title": {"type": "string"},
+        "source_role": {"type": "string"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref","rank","not_in_active_ref_set","also_returned_by",
+        "exclusive_optional","metadata"
+      ],
+      "properties": {
+        "ref": {"type": "string", "minLength": 1},
+        "rank": {"type": "integer", "minimum": 1},
+        "not_in_active_ref_set": {"type": "boolean"},
+        "also_returned_by": {
+          "type": "array",
+          "items": {"enum": ["notebook-keyword","notebook-vector","codegraph"]}
+        },
+        "exclusive_optional": {"type": "boolean"},
+        "metadata": {"$ref": "#/$defs/metadata"}
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel","status","reason","returned","review_candidate_count",
+        "exclusive_optional_count","candidates"
+      ],
+      "properties": {
+        "channel": {"enum": ["notebook-keyword","notebook-vector","codegraph"]},
+        "status": {"enum": ["AVAILABLE","UNAVAILABLE","SKIPPED","NOT_CONFIGURED"]},
+        "reason": {"type": ["string","null"]},
+        "returned": {"type": "integer", "minimum": 0},
+        "review_candidate_count": {"type": "integer", "minimum": 0},
+        "exclusive_optional_count": {"type": "integer", "minimum": 0},
+        "candidates": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/candidate"}
+        }
+      }
+    }
+  }
+}

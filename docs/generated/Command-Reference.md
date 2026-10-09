@@ -1222,6 +1222,7 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 | [`mq-agent memory hybrid-evidence admission`](#mq-agent-memory-hybrid-evidence-admission) | Evaluate one verified ablation into a read-only task-class admission gate. |
 | [`mq-agent memory hybrid-evidence admission-status`](#mq-agent-memory-hybrid-evidence-admission-status) | Verify one persisted Hybrid Retrieval admission record. |
 | [`mq-agent memory hybrid-evidence challenge`](#mq-agent-memory-hybrid-evidence-challenge) | Run and evaluate a discriminating zero-effect Hybrid Retrieval challenge. |
+| [`mq-agent memory hybrid-evidence challenge-candidates`](#mq-agent-memory-hybrid-evidence-challenge-candidates) | Discover real optional-channel refs for operator-authored challenge fixtures. |
 | [`mq-agent memory hybrid-evidence challenge-status`](#mq-agent-memory-hybrid-evidence-challenge-status) | Verify one persisted Hybrid Retrieval challenge record. |
 | [`mq-agent memory hybrid-evidence collect`](#mq-agent-memory-hybrid-evidence-collect) | Collect fixture-backed live Hybrid Retrieval v2 evidence. |
 | [`mq-agent memory hybrid-evidence policy-plan`](#mq-agent-memory-hybrid-evidence-policy-plan) | Build a zero-effect runtime channel policy plan from verified admission. |
@@ -1315,6 +1316,28 @@ Run and evaluate a discriminating zero-effect Hybrid Retrieval challenge.
 |---|---:|---|---|
 | `--state-root` | No | `""` | Override local evidence store root |
 | `--no-write` | No | `false` | Run challenge without persisting evidence |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence challenge-candidates`
+
+Discover real optional-channel refs for operator-authored challenge fixtures.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Candidate discovery query |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | No | `""` | Optional notebook-corpus-index.v1 JSON |
+| `--semantic-index` | No | `""` | Optional local Notebook semantic index JSON |
+| `--semantic-model` | No | `nomic-embed-text` | Local Ollama embedding model |
+| `--codegraph-root` | No | `""` | Optional repository root for CodeGraph |
+| `--codegraph`, `--no-codegraph` | No | `true` | Query CodeGraph when available |
+| `--top-k` | No | `10` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-evidence challenge-status`

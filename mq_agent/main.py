@@ -5252,6 +5252,88 @@ def memory_hybrid_challenge_cmd(
         raise typer.Exit(1)
 
 
+@hybrid_evidence_app.command("challenge-candidates")
+def memory_hybrid_challenge_candidates_cmd(
+    query: Annotated[str, typer.Argument(help="Candidate discovery query")],
+    catalog: Annotated[
+        str,
+        typer.Option("--catalog", help="Optional notebook-corpus-index.v1 JSON"),
+    ] = "",
+    semantic_index: Annotated[
+        str,
+        typer.Option("--semantic-index", help="Optional local Notebook semantic index JSON"),
+    ] = "",
+    semantic_model: Annotated[
+        str,
+        typer.Option("--semantic-model", help="Local Ollama embedding model"),
+    ] = "nomic-embed-text",
+    codegraph_root: Annotated[
+        str,
+        typer.Option("--codegraph-root", help="Optional repository root for CodeGraph"),
+    ] = "",
+    codegraph: Annotated[
+        bool,
+        typer.Option("--codegraph/--no-codegraph", help="Query CodeGraph when available"),
+    ] = True,
+    top_k: Annotated[int, typer.Option("--top-k")] = 10,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Discover real optional-channel refs for operator-authored challenge fixtures."""
+    from mq_agent.memory.hybrid_evidence import discover_hybrid_challenge_candidates
+
+    try:
+        payload = discover_hybrid_challenge_candidates(
+            query,
+            catalog_path=Path(catalog) if catalog else None,
+            semantic_index_path=Path(semantic_index) if semantic_index else None,
+            semantic_model=semantic_model,
+            codegraph_root=Path(codegraph_root) if codegraph_root else None,
+            top_k=top_k,
+            enable_codegraph=codegraph,
+        )
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        table = Table(title=f"Hybrid Challenge Candidates — {payload['status']}")
+        table.add_column("Channel")
+        table.add_column("Status")
+        table.add_column("Returned", justify="right")
+        table.add_column("Review", justify="right")
+        table.add_column("Exclusive", justify="right")
+        for row in payload["channels"]:
+            table.add_row(
+                str(row["channel"]),
+                str(row["status"]),
+                str(row["returned"]),
+                str(row["review_candidate_count"]),
+                str(row["exclusive_optional_count"]),
+            )
+        console.print(table)
+        for row in payload["channels"]:
+            for candidate in row["candidates"][:5]:
+                metadata = candidate.get("metadata") or {}
+                title = metadata.get("title")
+                suffix = f" — {title}" if title else ""
+                overlap = (
+                    " shared=" + ",".join(candidate["also_returned_by"])
+                    if candidate["also_returned_by"]
+                    else ""
+                )
+                console.print(
+                    f"[cyan]{row['channel']}[/cyan] #{candidate['rank']} "
+                    f"{candidate['ref']}{suffix}{overlap}"
+                )
+        console.print(
+            f"Review candidates: {payload['review_candidate_count']} | "
+            f"next={payload['next_action']} | no fixtures written"
+        )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
+
 @hybrid_evidence_app.command("challenge-status")
 def memory_hybrid_challenge_status_cmd(
     challenge_id: Annotated[str, typer.Argument(help="sha256 challenge id")],
