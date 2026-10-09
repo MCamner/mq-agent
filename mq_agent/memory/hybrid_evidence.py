@@ -1130,6 +1130,7 @@ def _build_hybrid_challenge(
             "Challenge targets are operator-authored suite metadata bound to the exact suite SHA-256; mq-agent does not invent relevance labels.",
             "A channel is discriminating only when at least one targeted non-ceiling case shows measured quality gain with no precision, recall, contradiction or stale regression.",
             "The challenge is zero-effect only; active semantic memory remains authoritative and runtime consumption is unavailable.",
+            "CodeGraph may contribute more pre-RRF candidates than the Notebook channels, which receive top_k. All quality metrics are computed on the common merged top-k result, so this can affect which refs survive fusion but does not change the metric denominator.",
         ],
     }
     payload["challenge_id"] = _fingerprint(payload)
