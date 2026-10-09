@@ -1261,7 +1261,11 @@ def discover_hybrid_challenge_candidates(
     review_candidate_count = 0
     for channel_name in optional_names:
         row = channel_rows.get(channel_name)
-        if row is None:
+        not_configured = (
+            (channel_name == "notebook-keyword" and catalog is None)
+            or (channel_name == "notebook-vector" and semantic_index is None)
+        )
+        if row is None or not_configured:
             channels.append(
                 {
                     "channel": channel_name,
