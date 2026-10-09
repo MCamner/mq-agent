@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.hybrid-retrieval-fixture.v1",
+  "description": "Operator-authored relevance ground truth for one hybrid retrieval case. This is the only input in the evidence chain a human writes by hand, so its shape is validated before any measurement reads it: a misspelled key such as `expected` used to be ignored, leaving expected_refs empty and the case reporting no recall rather than failing. The namespace:reference form of each entry is enforced at load time rather than here, matching how sibling schemas constrain refs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "expected_refs",
+    "contradicted_refs",
+    "stale_refs"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.hybrid-retrieval-fixture.v1"
+    },
+    "expected_refs": {
+      "description": "References a correct answer should retrieve.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "contradicted_refs": {
+      "description": "References that contradict a correct answer.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "stale_refs": {
+      "description": "References that are relevant but out of date.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
