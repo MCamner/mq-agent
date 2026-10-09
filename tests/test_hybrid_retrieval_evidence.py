@@ -12,6 +12,7 @@ from mq_agent.memory.hybrid_evidence import (
     collect_hybrid_ablation,
     collect_hybrid_challenge,
     collect_hybrid_evidence,
+    discover_hybrid_challenge_candidates,
     evaluate_hybrid_admission,
     plan_hybrid_runtime_policy,
 )
@@ -273,6 +274,87 @@ def test_collects_and_verifies_fixed_channel_ablation(
     verified = HybridEvidenceStore(root).verify_ablation(result["ablation_id"])
     assert verified["status"] == "VERIFIED"
     assert verified["errors"] == []
+
+
+def test_discovers_real_challenge_candidates_without_writing_fixtures(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _write_ablation_suite(tmp_path)
+
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+
+    result = discover_hybrid_challenge_candidates(
+        "MCP orchestration",
+        catalog_path=tmp_path / "catalog.json",
+        semantic_index_path=tmp_path / "semantic-index.json",
+        codegraph_root=tmp_path,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert result["schema"] == "mq.hybrid-retrieval-challenge-candidates.v1"
+    assert result["status"] == "PASS"
+    assert result["zero_effect"] is True
+    assert result["persisted"] is False
+    assert result["fixture_generation_available"] is False
+    assert result["operator_review_required"] is True
+    assert result["active"]["refs"] == ["semantic-memory:memory-1"]
+    assert result["next_action"] == "select-relevant-refs-for-fixtures"
+
+    by_channel = {row["channel"]: row for row in result["channels"]}
+    keyword = by_channel["notebook-keyword"]["candidates"][0]
+    vector = by_channel["notebook-vector"]["candidates"][0]
+    codegraph = by_channel["codegraph"]["candidates"][0]
+
+    assert keyword["ref"] == "notebook:doc-1"
+    assert keyword["also_returned_by"] == ["notebook-vector"]
+    assert keyword["exclusive_optional"] is False
+    assert keyword["not_in_active_ref_set"] is True
+    assert keyword["metadata"] == {
+        "title": "MCP orchestration tools",
+        "notebook_title": "MQ research",
+        "source_role": "source",
+    }
+
+    assert vector["ref"] == "notebook:doc-1"
+    assert vector["also_returned_by"] == ["notebook-keyword"]
+    assert vector["exclusive_optional"] is False
+
+    assert codegraph["ref"] == (
+        "codegraph:mq_agent/tools/context_pack.py#build_task_pack"
+    )
+    assert codegraph["also_returned_by"] == []
+    assert codegraph["exclusive_optional"] is True
+    assert codegraph["metadata"] is None
+
+    serialized = json.dumps(result)
+    assert str(tmp_path) not in serialized
+
+
+def test_candidate_discovery_marks_unconfigured_notebook_channels() -> None:
+    result = discover_hybrid_challenge_candidates(
+        "build task pack",
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+
+    assert result["status"] == "PASS"
+    by_channel = {row["channel"]: row for row in result["channels"]}
+    assert by_channel["notebook-keyword"]["status"] == "NOT_CONFIGURED"
+    assert by_channel["notebook-vector"]["status"] == "NOT_CONFIGURED"
+    assert by_channel["codegraph"]["status"] == "AVAILABLE"
+    assert by_channel["codegraph"]["review_candidate_count"] == 1
 
 
 def test_challenge_suite_proves_singleton_discrimination(
