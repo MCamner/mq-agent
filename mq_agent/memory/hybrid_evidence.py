@@ -1137,6 +1137,224 @@ def _build_hybrid_challenge(
     return payload
 
 
+def _candidate_notebook_metadata(
+    reference: str,
+    *,
+    catalog_path: Path | None,
+    semantic_index_path: Path | None,
+) -> dict[str, Any] | None:
+    metadata: dict[str, Any] = {}
+
+    if catalog_path is not None and catalog_path.is_file():
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        notebooks = {
+            str(row.get("notebook_id")): str(row.get("title", ""))
+            for row in catalog.get("notebooks", [])
+            if isinstance(row, dict)
+        }
+        for item in catalog.get("items", []):
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("drive_item_id")) != reference:
+                continue
+            classification = item.get("classification")
+            metadata.update(
+                {
+                    "title": item.get("title"),
+                    "notebook_title": notebooks.get(str(item.get("notebook_id"))),
+                    "source_role": (
+                        classification.get("role")
+                        if isinstance(classification, dict)
+                        else None
+                    ),
+                }
+            )
+            break
+
+    if semantic_index_path is not None and semantic_index_path.is_file():
+        semantic_index = json.loads(semantic_index_path.read_text(encoding="utf-8"))
+        for chunk in semantic_index.get("chunks", []):
+            if not isinstance(chunk, dict):
+                continue
+            if str(chunk.get("drive_item_id")) != reference:
+                continue
+            metadata.setdefault("title", chunk.get("title"))
+            metadata.setdefault("notebook_title", chunk.get("notebook_title"))
+            metadata.setdefault("source_role", chunk.get("source_role"))
+            break
+
+    cleaned = {
+        key: value
+        for key, value in metadata.items()
+        if value not in (None, "")
+    }
+    return cleaned or None
+
+
+def discover_hybrid_challenge_candidates(
+    query: str,
+    *,
+    catalog_path: Path | None = None,
+    semantic_index_path: Path | None = None,
+    semantic_model: str = "nomic-embed-text",
+    codegraph_root: Path | None = None,
+    top_k: int = 10,
+    enable_codegraph: bool = True,
+    active_search: Any = None,
+    codegraph_search: Any = None,
+) -> dict[str, Any]:
+    """Discover real optional-channel refs for operator-authored challenge fixtures."""
+    normalized = query.strip()
+    if not normalized:
+        raise ValueError("query must not be empty")
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1")
+
+    catalog = catalog_path.expanduser().resolve() if catalog_path is not None else None
+    semantic_index = (
+        semantic_index_path.expanduser().resolve()
+        if semantic_index_path is not None
+        else None
+    )
+    codegraph = (
+        codegraph_root.expanduser().resolve()
+        if codegraph_root is not None
+        else None
+    )
+
+    result = hybrid_retrieval_v2(
+        normalized,
+        catalog_path=catalog,
+        semantic_index_path=semantic_index,
+        semantic_model=semantic_model,
+        fixture_path=None,
+        codegraph_root=codegraph,
+        top_k=top_k,
+        active_search=active_search,
+        codegraph_search=codegraph_search,
+        enable_notebook_keyword=catalog is not None,
+        enable_notebook_vector=semantic_index is not None,
+        enable_codegraph=enable_codegraph,
+    )
+
+    channel_rows = {
+        str(row["name"]): row
+        for row in result["channels"]
+    }
+    active_row = channel_rows.get("mq-mcp-semantic")
+    active_refs = {
+        (str(item["namespace"]), str(item["reference"]))
+        for item in (active_row or {}).get("refs", [])
+    }
+
+    optional_names = ("notebook-keyword", "notebook-vector", "codegraph")
+    optional_membership: dict[tuple[str, str], set[str]] = {}
+    for channel_name in optional_names:
+        row = channel_rows.get(channel_name)
+        if not row or row.get("status") != "AVAILABLE":
+            continue
+        for item in row.get("refs", []):
+            key = (str(item["namespace"]), str(item["reference"]))
+            optional_membership.setdefault(key, set()).add(channel_name)
+
+    channels: list[dict[str, Any]] = []
+    review_candidate_count = 0
+    for channel_name in optional_names:
+        row = channel_rows.get(channel_name)
+        if row is None:
+            channels.append(
+                {
+                    "channel": channel_name,
+                    "status": "NOT_CONFIGURED",
+                    "reason": "channel input was not configured",
+                    "returned": 0,
+                    "review_candidate_count": 0,
+                    "exclusive_optional_count": 0,
+                    "candidates": [],
+                }
+            )
+            continue
+
+        candidates: list[dict[str, Any]] = []
+        if row.get("status") == "AVAILABLE":
+            for rank, item in enumerate(row.get("refs", []), start=1):
+                namespace = str(item["namespace"])
+                reference = str(item["reference"])
+                key = (namespace, reference)
+                also = sorted(optional_membership.get(key, set()) - {channel_name})
+                not_in_active = key not in active_refs
+                metadata = (
+                    _candidate_notebook_metadata(
+                        reference,
+                        catalog_path=catalog,
+                        semantic_index_path=semantic_index,
+                    )
+                    if namespace == "notebook"
+                    else None
+                )
+                candidate = {
+                    "ref": f"{namespace}:{reference}",
+                    "rank": rank,
+                    "not_in_active_ref_set": not_in_active,
+                    "also_returned_by": also,
+                    "exclusive_optional": not also,
+                    "metadata": metadata,
+                }
+                candidates.append(candidate)
+                if not_in_active:
+                    review_candidate_count += 1
+
+        channels.append(
+            {
+                "channel": channel_name,
+                "status": str(row.get("status")),
+                "reason": row.get("reason"),
+                "returned": int(row.get("returned", 0)),
+                "review_candidate_count": sum(
+                    bool(item["not_in_active_ref_set"])
+                    for item in candidates
+                ),
+                "exclusive_optional_count": sum(
+                    bool(item["exclusive_optional"])
+                    for item in candidates
+                ),
+                "candidates": candidates,
+            }
+        )
+
+    return {
+        "schema": "mq.hybrid-retrieval-challenge-candidates.v1",
+        "status": result["status"],
+        "query_sha256": result["query_sha256"],
+        "zero_effect": True,
+        "persisted": False,
+        "fixture_generation_available": False,
+        "operator_review_required": True,
+        "input_fingerprints": dict(result["input_fingerprints"]),
+        "active": {
+            "status": str((active_row or {}).get("status", "MISSING")),
+            "returned": int((active_row or {}).get("returned", 0)),
+            "refs": [
+                f"{item['namespace']}:{item['reference']}"
+                for item in (active_row or {}).get("refs", [])
+            ],
+        },
+        "channels": channels,
+        "review_candidate_count": review_candidate_count,
+        "next_action": (
+            "select-relevant-refs-for-fixtures"
+            if review_candidate_count
+            else "refine-query"
+        ),
+        "limitations": [
+            "Candidate discovery is read-only and never writes evidence or fixtures.",
+            "A ref missing from the active ref set is not proof that the underlying fact is absent from semantic memory.",
+            "Candidate relevance is not inferred; an operator must select expected, contradicted and stale refs for fixtures.",
+            "Titles and source-role metadata are local display aids only and are not persisted by this command.",
+        ],
+    }
+
+
 def collect_hybrid_challenge(
     suite_path: Path,
     *,
