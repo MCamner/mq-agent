@@ -27,6 +27,29 @@ class FakeTextProvider:
         }
 
 
+class StarvedTextProvider:
+    """Yields nothing within the byte budget, like a saved page that is all head.
+
+    96% of this corpus's text-fetchable items are text/html saved pages, where a
+    byte-prefix budget frequently lands entirely inside <head>, inline CSS or
+    base64 assets. The fetcher reports `truncated` when more bytes exist, which
+    is the difference between "the budget hid the text" and "this document has
+    none".
+    """
+
+    def __init__(self, truncated_ids):
+        self.truncated_ids = set(truncated_ids)
+
+    def fetch_text(self, drive_item_id, mime_type, *, max_bytes):
+        return {
+            "status": "unavailable",
+            "reason": "no_readable_text_in_budget",
+            "text": "",
+            "bytes_fetched": max_bytes,
+            "truncated": drive_item_id in self.truncated_ids,
+        }
+
+
 class KeywordEmbedding:
     vocab = ["mcp", "agent", "togaf", "guitar", "akkadian", "python"]
 
@@ -371,3 +394,31 @@ def test_negative_control_can_report_semantic_regression():
         "SEMANTIC_REGRESSION_OR_MIXED",
         "NO_MEASURED_BENEFIT",
     }
+
+
+def test_unavailable_trace_separates_budget_limited_from_empty_documents():
+    """A 56% loss is only actionable once its cause is distinguishable.
+
+    `no_readable_text_in_budget` collapsed two different facts into one counter:
+    a truncated fetch, where text may well exist past the budget, and a complete
+    fetch of a document that genuinely holds no text. The first is answered by
+    raising the budget; the second never will be. Aggregating `truncated` makes
+    that a diagnosis rather than an opaque number.
+    """
+    catalog = _catalog()
+    all_ids = [row["drive_item_id"] for row in catalog["items"]]
+    index = build_semantic_index(
+        catalog,
+        StarvedTextProvider(truncated_ids=all_ids[:1]),
+        KeywordEmbedding(),
+        max_files=4,
+    )
+
+    trace = index["trace"]
+    assert trace["files_fetched"] == 0
+    assert trace["unavailable_reasons"]["no_readable_text_in_budget"] == trace["files_unavailable"]
+    assert trace["files_unavailable_budget_limited"] == 1
+    assert (
+        trace["files_unavailable_complete"]
+        == trace["files_unavailable"] - 1
+    )
