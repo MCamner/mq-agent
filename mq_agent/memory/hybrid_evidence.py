@@ -1322,7 +1322,7 @@ def discover_hybrid_challenge_candidates(
             }
         )
 
-    return {
+    payload = {
         "schema": "mq.hybrid-retrieval-challenge-candidates.v1",
         "status": result["status"],
         "query_sha256": result["query_sha256"],
@@ -1353,6 +1353,8 @@ def discover_hybrid_challenge_candidates(
             "Titles and source-role metadata are local display aids only and are not persisted by this command.",
         ],
     }
+    validate_contract("hybrid_retrieval_challenge_candidates.schema.json", payload)
+    return payload
 
 
 def collect_hybrid_challenge(
