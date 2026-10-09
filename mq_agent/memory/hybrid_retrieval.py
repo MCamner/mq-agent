@@ -350,6 +350,12 @@ def _load_fixture(path: Path | None) -> tuple[dict[str, Any] | None, str | None]
     fixture = json.loads(raw.decode("utf-8"))
     if not isinstance(fixture, dict) or fixture.get("schema") != FIXTURE_SCHEMA_ID:
         raise ValueError(f"fixture schema must be {FIXTURE_SCHEMA_ID}")
+    # Shape first, semantics after. The contract rejects unknown keys, missing
+    # arrays and duplicates; the loop below keeps enforcing the
+    # namespace:reference form, which sibling schemas also leave to runtime.
+    # A misspelled key used to be silently ignored, leaving expected_refs empty
+    # and the case reporting no recall instead of failing.
+    validate_contract("hybrid_retrieval_fixture.schema.json", fixture)
     for field in ("expected_refs", "contradicted_refs", "stale_refs"):
         value = fixture.get(field, [])
         if not isinstance(value, list) or not all(
