@@ -238,6 +238,34 @@ def build_task_pack(...):
     ]
 
 
+def test_codegraph_truncation_marker_is_not_a_ref() -> None:
+    """`+N more` is a display marker, not an addressable symbol.
+
+    CodeGraph truncates long symbol lists in its explore header. Emitting the
+    marker as a ref puts an unresolvable reference into candidate discovery,
+    where an operator can pick it as a fixture `expected_refs` entry. Such a
+    case can never match, so it reads as a channel weakness rather than as the
+    parsing artifact it is.
+    """
+    result = _codegraph_refs(
+        """Found 40 relevant code symbols across 1 file.
+
+**`mq_agent/memory/hybrid_evidence.py`** — calls, _fingerprint, +28 more
+"""
+    )
+
+    assert result == [
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/memory/hybrid_evidence.py#calls",
+        },
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/memory/hybrid_evidence.py#_fingerprint",
+        },
+    ]
+
+
 def test_codegraph_explore_text_refs_measure_against_fixture(tmp_path: Path) -> None:
     fixture_path = tmp_path / "fixture.json"
     fixture_path.write_text(
