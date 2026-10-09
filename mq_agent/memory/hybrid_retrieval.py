@@ -145,7 +145,10 @@ def _codegraph_text_refs(value: Any) -> list[dict[str, str]]:
             emitted = False
             for raw_name in names.split(","):
                 name = raw_name.strip()
-                if not name or re.fullmatch(r"\\+\\d+ more", name):
+                # r"\\+" is a literal backslash, not an escaped plus, so the
+                # previous pattern only matched names made of backslashes and
+                # never the marker it was written for.
+                if not name or re.fullmatch(r"\+\d+ more", name):
                     continue
                 name = re.sub(r"\([A-Za-z_-]+\)$", "", name).strip()
                 if not name:
