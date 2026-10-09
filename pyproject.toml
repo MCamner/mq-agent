@@ -70,6 +70,7 @@ packages = ["mq_agent"]
 "schemas/hybrid_retrieval_admission.schema.json" = "mq_agent/schemas/hybrid_retrieval_admission.schema.json"
 "schemas/hybrid_retrieval_policy_plan.schema.json" = "mq_agent/schemas/hybrid_retrieval_policy_plan.schema.json"
 "schemas/hybrid_retrieval_challenge.schema.json" = "mq_agent/schemas/hybrid_retrieval_challenge.schema.json"
+"schemas/hybrid_retrieval_challenge_candidates.schema.json" = "mq_agent/schemas/hybrid_retrieval_challenge_candidates.schema.json"
 "schemas/perception_review.schema.json" = "mq_agent/schemas/perception_review.schema.json"
 "schemas/perception_review_receipt.schema.json" = "mq_agent/schemas/perception_review_receipt.schema.json"
 "schemas/runtime_identity.schema.json" = "mq_agent/schemas/runtime_identity.schema.json"
