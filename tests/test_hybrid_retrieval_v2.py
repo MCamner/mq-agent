@@ -388,3 +388,29 @@ def test_rrf_dedupes_same_notebook_identity_across_channels() -> None:
     assert len(merged) == 1
     assert merged[0]["channels"] == ["notebook-keyword", "notebook-vector"]
     assert merged[0]["ranks"] == {"notebook-keyword": 1, "notebook-vector": 1}
+
+def test_codegraph_success_output_may_contain_mcp_bridge_error_text() -> None:
+    from mq_agent.memory.hybrid_retrieval import (
+        _codegraph_refs,
+        _failure_reason,
+    )
+
+    result = """**Exploration: MCP interoperability**
+
+Found 1 symbol across 1 file.
+
+**`mq_agent/tools/mcp_bridge.py`** — MultiMCPBridge(class)
+
+```python
+def example():
+    return "MCP bridge error: embedded source text"
+```
+"""
+
+    assert _failure_reason(result) is None
+    assert _codegraph_refs(result) == [
+        {
+            "namespace": "codegraph",
+            "reference": "mq_agent/tools/mcp_bridge.py#MultiMCPBridge",
+        }
+    ]

@@ -207,8 +207,14 @@ def _failure_reason(result: Any) -> str | None:
     if isinstance(result, dict) and result.get("ok") is False:
         return str(result.get("error") or result.get("reason") or "tool reported failure")[:240]
     if isinstance(result, str):
-        lowered = result.lower()
-        if "not found on any connected mcp server" in lowered or "mcp bridge error" in lowered:
+        head = result.lstrip()[:512].lower()
+        if (
+            (
+                head.startswith("tool ")
+                and "not found on any connected mcp server" in head
+            )
+            or head.startswith("mcp bridge error")
+        ):
             return result[:240]
     return None
 
