@@ -137,10 +137,15 @@ def main(argv: list[str]) -> int:
         "notebooks_selected",
         "files_fetched",
         "files_unavailable",
+        # Splits the loss into "the byte budget hid the text" and "this document
+        # holds none". Only the first is answered by raising the budget, so the
+        # two belong apart when deciding whether a rebuild is worth repeating.
+        "files_unavailable_budget_limited",
+        "files_unavailable_complete",
     ):
         if key in trace:
-            print(f"{key + ':':28}{trace[key]}")
-    print(f"{'chunks:':28}{len(chunks)}")
+            print(f"{key + ':':34}{trace[key]}")
+    print(f"{'chunks:':34}{len(chunks)}")
     print()
     print(f"MQ docs in catalog:         {mq_catalog} / {len(catalog_titles)}")
     print(f"MQ docs in semantic index:  {len(mq_indexed)} / {len(indexed_docs)}")

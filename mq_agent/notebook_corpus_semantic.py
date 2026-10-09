@@ -183,6 +183,13 @@ def build_semantic_index(
     fetched = 0
     unavailable = 0
     unavailable_reasons: dict[str, int] = {}
+    # A byte-prefix budget is the wrong unit for HTML, and 96% of this corpus's
+    # text-fetchable items are saved pages. A fetch that read only <head>,
+    # inline CSS or base64 assets reports `truncated`; one that read the whole
+    # document and still found nothing does not. Counting them together turns a
+    # large loss into an opaque number -- the first is answered by raising the
+    # budget, the second never will be.
+    unavailable_budget_limited = 0
     fetched_notebooks: set[str] = set()
     chunks: list[dict[str, Any]] = []
     chunk_texts: list[str] = []
@@ -200,6 +207,8 @@ def build_semantic_index(
             unavailable += 1
             reason = str(result.get("reason") or "unknown")
             unavailable_reasons[reason] = unavailable_reasons.get(reason, 0) + 1
+            if result.get("truncated"):
+                unavailable_budget_limited += 1
             continue
         text = str(result.get("text", ""))
         consumed = int(result.get("bytes_fetched", len(text.encode("utf-8"))))
@@ -249,6 +258,8 @@ def build_semantic_index(
             "files_attempted": fetched + unavailable,
             "files_fetched": fetched,
             "files_unavailable": unavailable,
+            "files_unavailable_budget_limited": unavailable_budget_limited,
+            "files_unavailable_complete": unavailable - unavailable_budget_limited,
             "unavailable_reasons": dict(sorted(unavailable_reasons.items())),
             "notebooks_fetched": len(fetched_notebooks),
             "bytes_fetched": total_bytes,
