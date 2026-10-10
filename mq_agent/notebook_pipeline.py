@@ -125,6 +125,26 @@ def build_semantic_stage(
         chunk_chars=chunk_chars,
         overlap_chars=overlap_chars,
     )
+    trace = index["trace"]
+    attempted = int(trace.get("files_attempted", 0))
+    fetched = int(trace.get("files_fetched", 0))
+    if attempted and not fetched:
+        # Fail before the write. An expired Drive token refused all 356 fetches
+        # and this stage reported PASS with chunks: 0, then replaced a populated
+        # index with an empty one. The reason is named because `http_401` and
+        # `no_readable_text_in_budget` call for opposite actions: a new
+        # credential, or a larger byte budget.
+        reasons = trace.get("unavailable_reasons") or {}
+        detail = ", ".join(
+            f"{reason}={count}"
+            for reason, count in sorted(
+                reasons.items(), key=lambda row: (-row[1], row[0])
+            )
+        )
+        raise RuntimeError(
+            f"semantic index fetched 0 of {attempted} attempted files"
+            + (f" ({detail})" if detail else "")
+        )
     write_semantic_index(index, output_path)
     return {
         "stage": "P1",
