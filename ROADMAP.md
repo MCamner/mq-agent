@@ -796,19 +796,41 @@ justify an activation design.
   refs plus bounded local Notebook metadata, identifies optional overlap, and
   keeps relevance explicitly operator-reviewed. It never persists candidates or
   writes fixtures automatically.
-* [ ] Curate and run the live discriminating challenge suite where active-only
+* [x] Curate and run the live discriminating challenge suite where active-only
   does not already saturate precision/recall at 1.0/1.0. First use
   `challenge-candidates` to select real Notebook keyword/vector and CodeGraph
   refs, then author fixture-backed target cases and require `status=PASS`,
   `discriminating=true` and VERIFIED challenge evidence before reopening
   admission or runtime-consumption design.
+  Three operator-authored cases, one per optional channel, three expected refs
+  each: `status=PASS`, `discriminating=true`, challenge
+  `sha256:f700fae0…` VERIFIED. Baseline was 0.0/0.0 on every case, so none
+  saturated. Deltas against active-only: notebook-keyword +0.3 precision /
+  +1.0 recall, notebook-vector +0.3 / +1.0, codegraph +0.2 / +0.667.
+  CodeGraph's 0.667 is the first intermediate recall in this chain; a single
+  expected ref at `top_k: 10` can only yield 0.0 or 1.0, which is why the
+  earlier placeholder suite reported identical deltas for all three channels
+  and measured hit/miss rather than ranking.
+  Two preconditions were added to get here. The semantic index was rebuilt
+  after the embedding request was bounded by its timeout rather than by the
+  corpus (#367) and P1 was made to refuse a PASS for an index that fetched
+  nothing (#368): 1982 chunks over 252 documents across all 201 notebooks,
+  17 of them MQ-domain, against 120 chunks over 22 documents with zero MQ
+  material before. Keyword/vector ref overlap fell from 66% to ~15%.
+  Case selection is gated on candidate source diversity (#369) so a pool of
+  derivatives cannot stand in for a measurable one; exclusions and the reason
+  for each are recorded in `.mq/hybrid-challenge/EXCLUSIONS.md`.
+  Known limit: three expected refs resolve recall in steps of 0.33, and two of
+  the three channels landed at 1.0. Finer resolution needs more
+  operator-authored refs per case, not a code change.
 
-Next roadmap item: **Hybrid Retrieval live candidate selection** — run
-`memory hybrid-evidence challenge-candidates` against the local Notebook
-catalog/semantic index and mq-agent CodeGraph index, review real refs, then
-author non-ceiling fixtures. Candidate absence from the active ref set is not
-itself a relevance claim. Do not tune RRF, alter top-k, promote a channel or
-build a runtime consumer from discovery output alone.
+Next roadmap item: **Hybrid Retrieval admission re-evaluation** — with VERIFIED
+challenge evidence in place, run `memory hybrid-evidence admission` against the
+verified ablation and read the result as a read-only task-class gate. Relevance
+ground truth stays operator-authored: `fixture_generation_available` is false
+and a model-authored fixture would make VERIFIED an assertion about nothing that
+no preflight gate can detect. Do not tune RRF, alter top-k, promote a channel or
+build a runtime consumer from challenge output alone.
 
 ### v1.32.0 Canary v2 checkpoint
 
