@@ -35,6 +35,12 @@ _ROLE_PRIORITY = {"source": 0, "derived": 1, "derived-note": 2}
 DEFAULT_MAX_FILES_PER_NOTEBOOK = 2
 DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 DEFAULT_EMBED_MODEL = "nomic-embed-text"
+# One request per batch, sized so the request finishes well inside `timeout`.
+# nomic-embed-text sustains ~4.4 chunks/s locally for ~2000-character chunks,
+# so 64 chunks is ~15s against a 60s budget. Before batching existed the whole
+# corpus went in one request, which capped a build at ~264 chunks and failed
+# with TimeoutError as soon as the Drive fetch started returning real volume.
+DEFAULT_EMBED_BATCH_SIZE = 64
 
 
 class TextProvider(Protocol):
@@ -50,17 +56,33 @@ class OllamaEmbeddingProvider:
     model: str = DEFAULT_EMBED_MODEL
     host: str = DEFAULT_OLLAMA_HOST
     timeout: int = 60
+    batch_size: int = DEFAULT_EMBED_BATCH_SIZE
 
     def __post_init__(self) -> None:
         configured = (os.environ.get("OLLAMA_HOST") or self.host).strip()
         if "://" not in configured:
             configured = "http://" + configured
         self.host = configured.rstrip("/")
+        if self.batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        """Embed every text, in input order, over as many requests as it takes.
+
+        The timeout bounds one request, so the corpus must not. Callers zip the
+        result against their own rows, so order across batch boundaries is part
+        of the contract.
+        """
+        out: list[list[float]] = []
+        pending = list(texts)
+        for start in range(0, len(pending), self.batch_size):
+            out.extend(self._embed_batch(pending[start : start + self.batch_size]))
+        return out
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        body = json.dumps({"model": self.model, "input": list(texts)}).encode("utf-8")
+        body = json.dumps({"model": self.model, "input": texts}).encode("utf-8")
         req = urllib.request.Request(
             f"{self.host}/api/embed",
             data=body,
