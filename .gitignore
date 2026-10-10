@@ -44,3 +44,16 @@ templates/CLAUDE.md
 
 # Disposable local NotebookLM Drive corpus state (contains real Drive IDs).
 .mq/notebook-corpus/
+
+# Hybrid Retrieval evidence working state. Candidate pools and run records are
+# large machine-generated JSON holding real Drive IDs, and the labelling
+# worksheet is scratch material regenerated from the pools on demand -- none of
+# it is a deliverable, and the worksheet's HTML <details> blocks fail
+# markdownlint. EXCLUSIONS.md is the exception and stays tracked: it is the
+# record of which challenge cases were taken out of use and why, which has to
+# be auditable after the fact or the reason is just a claim.
+# The pattern is `/*` rather than `/` so the negation below can apply; git does
+# not descend into a directory excluded by a trailing-slash pattern.
+.mq/hybrid-challenge/*
+!.mq/hybrid-challenge/EXCLUSIONS.md
+.mq/hybrid-evidence/
