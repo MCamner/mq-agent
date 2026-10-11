@@ -183,3 +183,16 @@ counterparts. Read these numbers narrowly:
 
 This evidence does not support an automatic agent-integration design. No new
 consumption receipt was issued and RRF/top-k are unchanged.
+
+### Correction after the evaluation
+
+The persisted ablation correctly measures the keyword implementation as it was
+then. After the evaluation a concrete ranking defect was identified: Swedish
+function words were missing from `_STOP_WORDS` and could therefore contribute
+to the match score and lift irrelevant Swedish titles. The corpus does contain
+MQ-relevant material, so the result must not be read as evidence that such
+material is missing. The fix adds Swedish function words only; scoring weights,
+top-k, RRF, fusion and fallback are unchanged. The keyword channel still matches
+exact title tokens only, so other limits remain. The effect of the fix has not
+been re-measured; that requires a new frozen candidate collection and new
+labels, and is a separate decision.
