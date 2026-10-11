@@ -1149,6 +1149,7 @@ Semantic repository memory commands.
 | [`mq-agent memory query`](#mq-agent-memory-query) | Search mqobsidian memory notes. Alias: search-vault. |
 | [`mq-agent memory refresh`](#mq-agent-memory-refresh) | Refresh semantic repo memory. Requires --approve; cleanup is explicit. |
 | [`mq-agent memory resolve-supersede`](#mq-agent-memory-resolve-supersede) | Accept or reject a deep-conflict supersede proposal (exactly one of --accept/--reject). |
+| [`mq-agent memory retrieve`](#mq-agent-memory-retrieve) | Retrieve active memory; optionally fuse one receipt-approved keyword channel. |
 | [`mq-agent memory review-status`](#mq-agent-memory-review-status) | Show the mqobsidian scoring review state: tier tally + held review queues (read-only). Delegates to mqobsidian's local-only CLI; mq-agent stays the orchestrator so mqlaunch never reaches mqobsidian directly. |
 | [`mq-agent memory search`](#mq-agent-memory-search) | Search mq-mcp semantic memory. Read-only. Requires mq-mcp v1.4.0+. |
 | [`mq-agent memory search-vault`](#mq-agent-memory-search-vault) | Search mqobsidian memory notes. Alias: search-vault. |
@@ -1221,6 +1222,9 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 | [`mq-agent memory hybrid-evidence ablation-status`](#mq-agent-memory-hybrid-evidence-ablation-status) | Verify one persisted Hybrid Retrieval ablation and all evidence refs. |
 | [`mq-agent memory hybrid-evidence admission`](#mq-agent-memory-hybrid-evidence-admission) | Evaluate one verified ablation into a read-only task-class admission gate. |
 | [`mq-agent memory hybrid-evidence admission-status`](#mq-agent-memory-hybrid-evidence-admission-status) | Verify one persisted Hybrid Retrieval admission record. |
+| [`mq-agent memory hybrid-evidence approval`](#mq-agent-memory-hybrid-evidence-approval) | Approve repo-review/Notebook keyword evidence and budgets; no activation. |
+| [`mq-agent memory hybrid-evidence approval-revoke`](#mq-agent-memory-hybrid-evidence-approval-revoke) | Revoke one approval permanently while retaining its evidence. |
+| [`mq-agent memory hybrid-evidence approval-status`](#mq-agent-memory-hybrid-evidence-approval-status) | Verify receipt expiry, revocation, evidence, current catalog and runtime. |
 | [`mq-agent memory hybrid-evidence challenge`](#mq-agent-memory-hybrid-evidence-challenge) | Run and evaluate a discriminating zero-effect Hybrid Retrieval challenge. |
 | [`mq-agent memory hybrid-evidence challenge-candidates`](#mq-agent-memory-hybrid-evidence-challenge-candidates) | Discover real optional-channel refs for operator-authored challenge fixtures. |
 | [`mq-agent memory hybrid-evidence challenge-status`](#mq-agent-memory-hybrid-evidence-challenge-status) | Verify one persisted Hybrid Retrieval challenge record. |
@@ -1228,6 +1232,7 @@ Collect and verify zero-effect Hybrid Retrieval v2 evidence.
 | [`mq-agent memory hybrid-evidence policy-plan`](#mq-agent-memory-hybrid-evidence-policy-plan) | Build a zero-effect runtime channel policy plan from verified admission. |
 | [`mq-agent memory hybrid-evidence policy-plan-audit`](#mq-agent-memory-hybrid-evidence-policy-plan-audit) | Audit an exact live policy-plan set before any runtime consumption. |
 | [`mq-agent memory hybrid-evidence policy-plan-status`](#mq-agent-memory-hybrid-evidence-policy-plan-status) | Verify one persisted Hybrid Retrieval runtime policy plan. |
+| [`mq-agent memory hybrid-evidence policy-proposal-review`](#mq-agent-memory-hybrid-evidence-policy-proposal-review) | Review positive channel proposals without approving or activating them. |
 | [`mq-agent memory hybrid-evidence status`](#mq-agent-memory-hybrid-evidence-status) | Verify one persisted Hybrid Retrieval v2 evidence set and all run refs. |
 
 ## `mq-agent memory hybrid-evidence ablate`
@@ -1298,6 +1303,67 @@ Verify one persisted Hybrid Retrieval admission record.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--state-root` | No | `""` | Override local evidence store root |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence approval`
+
+Approve repo-review/Notebook keyword evidence and budgets; no activation.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `POLICY_PLAN_ID` | Yes | — | Exact verified policy-plan id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--challenge-id` | Yes | — | — |
+| `--catalog` | Yes | — | Measured Notebook catalog |
+| `--max-additional-tokens` | Yes | — | — |
+| `--optional-timeout-ms` | Yes | — | — |
+| `--validity-seconds` | Yes | — | — |
+| `--reason` | Yes | — | — |
+| `--approve` | No | `false` | Explicitly approve this bounded receipt |
+| `--state-root` | No | `""` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence approval-revoke`
+
+Revoke one approval permanently while retaining its evidence.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `APPROVAL_ID` | Yes | — | Exact approval id to revoke |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--reason` | Yes | — | — |
+| `--approve` | No | `false` | — |
+| `--state-root` | No | `""` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence approval-status`
+
+Verify receipt expiry, revocation, evidence, current catalog and runtime.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `APPROVAL_ID` | Yes | — | Exact approval id |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--catalog` | Yes | — | Current Notebook catalog |
+| `--state-root` | No | `""` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent memory hybrid-evidence challenge`
@@ -1422,6 +1488,21 @@ Verify one persisted Hybrid Retrieval runtime policy plan.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--json` | No | `false` | — |
+
+## `mq-agent memory hybrid-evidence policy-proposal-review`
+
+Review positive channel proposals without approving or activating them.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--admission-id` | Yes | — | Expected admission id |
+| `--challenge-id` | Yes | — | Discriminating challenge id |
+| `--policy-plan-id` | Yes | — | Exact policy-plan id (repeatable) |
+| `--task-class` | Yes | — | Expected task class (repeatable) |
 | `--state-root` | No | `""` | Override local evidence store root |
 | `--json` | No | `false` | — |
 
@@ -1613,6 +1694,26 @@ Accept or reject a deep-conflict supersede proposal (exactly one of --accept/--r
 | `--reject` | No | `false` | Keep the promoted directive; dismiss the conflict |
 | `--apply` | No | `false` | Persist the resolution (default: dry-run) |
 | `--vault` | No | — | mqobsidian vault path (or $MQ_OBSIDIAN_DIR) |
+
+## `mq-agent memory retrieve`
+
+Retrieve active memory; optionally fuse one receipt-approved keyword channel.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `QUERY` | Yes | — | Memory retrieval query |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--approval-id` | No | `""` | Opt in using one exact approval receipt |
+| `--catalog` | No | `""` | Current approved Notebook catalog |
+| `--task-class` | No | `repo-review` | Exact approval task class |
+| `--state-root` | No | `""` | Override local evidence store root |
+| `--json` | No | `false` | — |
 
 ## `mq-agent memory review-status`
 

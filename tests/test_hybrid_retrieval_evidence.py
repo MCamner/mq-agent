@@ -1067,3 +1067,210 @@ def test_tampered_evidence_id_refuses_verification(tmp_path: Path) -> None:
     verified = HybridEvidenceStore(root).verify_set(result["evidence_id"])
     assert verified["status"] == "REFUSED"
     assert "evidence set id/path mismatch" in verified["errors"]
+
+
+@pytest.fixture
+def positive_proposals(tmp_path, monkeypatch):
+    class FakeEmbeddingProvider:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def embed(self, texts):
+            return [[1.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "mq_agent.notebook_corpus_semantic.OllamaEmbeddingProvider",
+        FakeEmbeddingProvider,
+    )
+    root = tmp_path / "state"
+    challenge = collect_hybrid_challenge(
+        _write_challenge_suite(tmp_path),
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(challenge["ablation_id"], state_root=root)
+    plans = [
+        plan_hybrid_runtime_policy(admission["admission_id"], task, state_root=root)
+        for task in ("ci", "docs", "repo-review")
+    ]
+    return root, challenge, admission, plans
+
+
+def _review_positive(data, **overrides):
+    from mq_agent.memory.hybrid_evidence import review_hybrid_policy_proposals
+
+    root, challenge, admission, plans = data
+    args = dict(
+        policy_plan_ids=[p["policy_plan_id"] for p in plans],
+        admission_id=admission["admission_id"],
+        challenge_id=challenge["challenge_id"],
+        expected_task_classes=["ci", "docs", "repo-review"],
+        state_root=root,
+    )
+    args.update(overrides)
+    return review_hybrid_policy_proposals(**args)
+
+
+def test_positive_proposal_review_verifies_without_activation(positive_proposals):
+    root, _, admission, plans = positive_proposals
+    before = {str(p): p.read_bytes() for p in root.rglob("*.json")}
+    result = _review_positive(positive_proposals)
+    assert result["status"] == "VERIFIED"
+    assert result["errors"] == []
+    assert result["decision"] == "REVIEW_REQUIRED"
+    assert result["human_approval_required"] is True
+    assert result["runtime_consumption_available"] is False
+    assert result["effective_channel_selection"] == {
+        "notebook_keyword": False,
+        "notebook_vector": False,
+        "codegraph": False,
+    }
+    assert {str(p): p.read_bytes() for p in root.rglob("*.json")} == before
+    closure = audit_hybrid_policy_plans(
+        [p["policy_plan_id"] for p in plans],
+        admission_id=admission["admission_id"],
+        expected_task_classes=["ci", "docs", "repo-review"],
+        state_root=root,
+    )
+    assert closure["status"] == "REFUSED"
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "missing-plan",
+        "tampered-plan",
+        "missing-run",
+        "wrong-challenge",
+        "duplicate-class",
+        "ineligible-channel",
+    ],
+)
+def test_positive_proposal_review_refuses_invalid_evidence(positive_proposals, damage):
+    root, challenge, _, plans = positive_proposals
+    store = HybridEvidenceStore(root)
+    overrides = {}
+    if damage == "missing-plan":
+        store._path("policy-plans", plans[0]["policy_plan_id"]).unlink()
+    elif damage in {"tampered-plan", "ineligible-channel"}:
+        path = store._path("policy-plans", plans[0]["policy_plan_id"])
+        plan = json.loads(path.read_text())
+        plan["eligible_channels"] = (
+            ["notebook-keyword"]
+            if damage == "ineligible-channel"
+            else ["unknown-channel"]
+        )
+        if damage == "ineligible-channel":
+            from mq_agent.memory.hybrid_evidence import _fingerprint
+
+            plan["policy_plan_id"] = _fingerprint(
+                {k: v for k, v in plan.items() if k != "policy_plan_id"}
+            )
+            store.save_policy_plan(plan)
+            overrides["policy_plan_ids"] = [plan["policy_plan_id"]] + [
+                p["policy_plan_id"] for p in plans[1:]
+            ]
+        else:
+            path.write_text(json.dumps(plan))
+    elif damage == "missing-run":
+        next((root / "runs").glob("*.json")).unlink()
+    elif damage == "wrong-challenge":
+        other = dict(challenge)
+        other["created_at"] = "2026-10-01T00:00:00Z"
+        # Valid evidence for another ablation, rather than a malformed id.
+        from mq_agent.memory.hybrid_evidence import _fingerprint
+
+        ablation = json.loads(
+            store._path("ablations", challenge["ablation_id"]).read_text()
+        )
+        ablation["created_at"] = "2026-10-01T00:00:00Z"
+        ablation["ablation_id"] = _fingerprint(
+            {k: v for k, v in ablation.items() if k != "ablation_id"}
+        )
+        store.save_ablation(ablation)
+        other["ablation_id"] = ablation["ablation_id"]
+        other["challenge_id"] = _fingerprint(
+            {k: v for k, v in other.items() if k != "challenge_id"}
+        )
+        store.save_challenge(other)
+        assert store.verify_challenge(other["challenge_id"])["status"] == "VERIFIED"
+        overrides["challenge_id"] = other["challenge_id"]
+    else:
+        extra = plan_hybrid_runtime_policy(
+            plans[0]["admission_id"], "ci", state_root=root
+        )
+        overrides["policy_plan_ids"] = [p["policy_plan_id"] for p in plans] + [
+            extra["policy_plan_id"]
+        ]
+    result = _review_positive(positive_proposals, **overrides)
+    assert result["status"] == "REFUSED"
+    assert result["errors"]
+    assert result["runtime_consumption_available"] is False
+
+
+def test_positive_proposal_review_cli_exit_codes(positive_proposals):
+    from typer.testing import CliRunner
+    from mq_agent.main import app
+
+    root, challenge, admission, plans = positive_proposals
+    args = [
+        "memory",
+        "hybrid-evidence",
+        "policy-proposal-review",
+        "--admission-id",
+        admission["admission_id"],
+        "--challenge-id",
+        challenge["challenge_id"],
+        "--state-root",
+        str(root),
+        "--json",
+    ]
+    for plan in plans:
+        args += [
+            "--policy-plan-id",
+            plan["policy_plan_id"],
+            "--task-class",
+            plan["task_class"],
+        ]
+    runner = CliRunner()
+    result = runner.invoke(app, args)
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["status"] == "VERIFIED"
+    HybridEvidenceStore(root)._path("challenges", challenge["challenge_id"]).unlink()
+    result = runner.invoke(app, args)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["status"] == "REFUSED"
+
+
+@pytest.mark.parametrize(
+    "expected", [[], ["ci", "ci"], ["ci"], ["ci", "docs", "other"]]
+)
+def test_positive_proposal_review_requires_exact_unique_scope(
+    positive_proposals, expected
+):
+    result = _review_positive(positive_proposals, expected_task_classes=expected)
+    assert result["status"] == "REFUSED"
+    assert result["errors"]
+
+
+def test_positive_proposal_review_refuses_ceilinged_challenge(
+    positive_proposals, tmp_path
+):
+    folder = tmp_path / "ceilinged"
+    folder.mkdir()
+    root = folder / "state"
+    challenge = collect_hybrid_challenge(
+        _write_ceilinged_challenge_suite(folder),
+        state_root=root,
+        active_search=_active,
+        codegraph_search=_codegraph,
+    )
+    admission = evaluate_hybrid_admission(challenge["ablation_id"], state_root=root)
+    plans = [
+        plan_hybrid_runtime_policy(admission["admission_id"], task, state_root=root)
+        for task in ("ci", "docs", "repo-review")
+    ]
+    result = _review_positive((root, challenge, admission, plans))
+    assert result["status"] == "REFUSED"
+    assert "challenge is not PASS and discriminating" in result["errors"]

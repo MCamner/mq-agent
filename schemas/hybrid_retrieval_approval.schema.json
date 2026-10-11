@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "title": "mq-agent-owned Hybrid Retrieval approval",
+  "required": [
+    "schema",
+    "approval_id",
+    "policy_plan_id",
+    "admission_id",
+    "challenge_id",
+    "ablation_id",
+    "suite_sha256",
+    "proposal_review_fingerprint",
+    "task_class",
+    "channel",
+    "runtime_revision",
+    "input_fingerprints",
+    "budget",
+    "approved_at",
+    "expires_at",
+    "reason",
+    "runtime_consumption_available"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.hybrid-retrieval-approval.v1"
+    },
+    "approval_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "policy_plan_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "admission_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "challenge_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "ablation_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "suite_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "proposal_review_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "task_class": {
+      "const": "repo-review"
+    },
+    "channel": {
+      "const": "notebook-keyword"
+    },
+    "runtime_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "input_fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_catalog_sha256"
+      ],
+      "properties": {
+        "notebook_catalog_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_additional_tokens",
+        "optional_timeout_ms",
+        "token_measurement"
+      ],
+      "properties": {
+        "max_additional_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "optional_timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "token_measurement": {
+          "const": "additional-json-chars-div-4"
+        }
+      }
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+    "runtime_consumption_available": {
+      "const": false
+    }
+  }
+}
