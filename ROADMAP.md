@@ -866,8 +866,9 @@ The [expanded evidence plan](docs/plans/2026-10-11-hybrid-repo-review-evidence.m
 measured five operator-confirmed questions: keyword returned one answer-bearing
 source in 50 reviewed candidates (AI-drafted, operator-confirmed labels). The
 verified ablation does not support automatic agent integration.
-That run predates a Swedish stop-word fix in the keyword channel; the fix has not
-been re-measured.
+That run predates a Swedish stop-word fix in the keyword channel. A verified
+re-measurement with the same questions and fresh operator labels rose from 1 to
+9 answer-bearing references in 50; exact title-token matching remains a limit.
 
 ### v1.32.0 Canary v2 checkpoint
 
