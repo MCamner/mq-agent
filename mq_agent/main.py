@@ -5026,6 +5026,62 @@ def memory_search_cmd(
     console.print(table)
 
 
+@memory_app.command("retrieve")
+def memory_retrieve_cmd(
+    query: Annotated[str, typer.Argument(help="Memory retrieval query")],
+    approval_id: Annotated[
+        str,
+        typer.Option("--approval-id", help="Opt in using one exact approval receipt"),
+    ] = "",
+    catalog: Annotated[
+        str, typer.Option("--catalog", help="Current approved Notebook catalog")
+    ] = "",
+    task_class: Annotated[
+        str, typer.Option("--task-class", help="Exact approval task class")
+    ] = "repo-review",
+    state_root: Annotated[
+        str, typer.Option("--state-root", help="Override local evidence store root")
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Retrieve active memory; optionally fuse one receipt-approved keyword channel."""
+    from mq_agent.memory.hybrid_runtime import retrieve_hybrid_memory
+
+    revision = None
+    if approval_id:
+        try:
+            revision = _hybrid_approval_runtime_revision()
+        except ValueError:
+            # Runtime refusal prevents optional consumption, not active search.
+            pass
+    try:
+        payload = retrieve_hybrid_memory(
+            query,
+            task_class=task_class,
+            approval_id=approval_id or None,
+            catalog_path=Path(catalog).expanduser() if catalog else None,
+            runtime_revision=revision,
+            state_root=Path(state_root).expanduser() if state_root else None,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(f"Memory retrieval: {payload['status']} | {payload['mode']}")
+        table = Table(title="Retrieved references")
+        table.add_column("Source")
+        table.add_column("Reference")
+        for row in payload["refs"]:
+            table.add_row(row["namespace"], row["reference"])
+        console.print(table)
+        if payload["trace"]["fallback_reason"]:
+            console.print(
+                f"Active-only fallback: {payload['trace']['fallback_reason']}"
+            )
+    if payload["status"] != "PASS":
+        raise typer.Exit(1)
+
 @memory_app.command("hybrid-shadow")
 def memory_hybrid_shadow_cmd(
     query: Annotated[str, typer.Argument(help="Retrieval query")],
@@ -5687,6 +5743,178 @@ def memory_hybrid_policy_plan_audit_cmd(
     if payload["status"] != "VERIFIED":
         raise typer.Exit(1)
 
+
+@hybrid_evidence_app.command("policy-proposal-review")
+def memory_hybrid_policy_proposal_review_cmd(
+    admission_id: Annotated[
+        str, typer.Option("--admission-id", help="Expected admission id")
+    ],
+    challenge_id: Annotated[
+        str, typer.Option("--challenge-id", help="Discriminating challenge id")
+    ],
+    policy_plan_id: Annotated[
+        list[str],
+        typer.Option("--policy-plan-id", help="Exact policy-plan id (repeatable)"),
+    ],
+    task_class: Annotated[
+        list[str], typer.Option("--task-class", help="Expected task class (repeatable)")
+    ],
+    state_root: Annotated[
+        str, typer.Option("--state-root", help="Override local evidence store root")
+    ] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Review positive channel proposals without approving or activating them."""
+    from mq_agent.memory.hybrid_evidence import review_hybrid_policy_proposals
+
+    payload = review_hybrid_policy_proposals(
+        policy_plan_id,
+        admission_id=admission_id,
+        challenge_id=challenge_id,
+        expected_task_classes=task_class,
+        state_root=Path(state_root).expanduser() if state_root else None,
+    )
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        console.print(
+            f"Hybrid proposal review: {payload['status']} | {payload['decision']}"
+        )
+        for row in payload["plans"]:
+            console.print(f"{row['task_class']}: {', '.join(row['eligible_channels'])}")
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+        console.print("Human approval required | effective channels: active-only")
+    if payload["status"] != "VERIFIED":
+        raise typer.Exit(1)
+
+
+def _hybrid_approval_runtime_revision() -> str:
+    from mq_agent.core.runtime_guard import check
+
+    verdict = check()
+    if not verdict.allowed or verdict.identity is None:
+        raise ValueError(f"runtime identity refused: {verdict.reason}")
+    return verdict.identity["commit"]
+
+
+@hybrid_evidence_app.command("approval")
+def memory_hybrid_approval_cmd(
+    policy_plan_id: Annotated[
+        str, typer.Argument(help="Exact verified policy-plan id")
+    ],
+    challenge_id: Annotated[str, typer.Option("--challenge-id")],
+    catalog: Annotated[
+        str, typer.Option("--catalog", help="Measured Notebook catalog")
+    ],
+    max_additional_tokens: Annotated[int, typer.Option("--max-additional-tokens")],
+    optional_timeout_ms: Annotated[int, typer.Option("--optional-timeout-ms")],
+    validity_seconds: Annotated[int, typer.Option("--validity-seconds")],
+    reason: Annotated[str, typer.Option("--reason")],
+    approve: Annotated[
+        bool, typer.Option("--approve", help="Explicitly approve this bounded receipt")
+    ] = False,
+    state_root: Annotated[str, typer.Option("--state-root")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Approve repo-review/Notebook keyword evidence and budgets; no activation."""
+    from mq_agent.memory.hybrid_runtime import approve_hybrid_policy
+
+    try:
+        if not approve:
+            raise ValueError("explicit approval is required; add --approve")
+        payload = approve_hybrid_policy(
+            policy_plan_id,
+            challenge_id=challenge_id,
+            task_class="repo-review",
+            channel="notebook-keyword",
+            catalog_path=Path(catalog).expanduser(),
+            runtime_revision=_hybrid_approval_runtime_revision(),
+            max_additional_tokens=max_additional_tokens,
+            optional_timeout_ms=optional_timeout_ms,
+            validity_seconds=validity_seconds,
+            reason=reason,
+            approve=True,
+            state_root=Path(state_root).expanduser() if state_root else None,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        console.print(
+            f"Approval: {payload['approval_id']} | expires: {payload['expires_at']}"
+        )
+        console.print(
+            "Scope: repo-review/notebook-keyword | runtime consumption unavailable"
+        )
+
+
+@hybrid_evidence_app.command("approval-status")
+def memory_hybrid_approval_status_cmd(
+    approval_id: Annotated[str, typer.Argument(help="Exact approval id")],
+    catalog: Annotated[str, typer.Option("--catalog", help="Current Notebook catalog")],
+    state_root: Annotated[str, typer.Option("--state-root")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Verify receipt expiry, revocation, evidence, current catalog and runtime."""
+    from mq_agent.memory.hybrid_runtime import verify_hybrid_approval
+
+    payload: dict[str, Any]
+    try:
+        revision = _hybrid_approval_runtime_revision()
+    except ValueError as exc:
+        payload = {
+            "approval_id": approval_id,
+            "status": "REFUSED",
+            "errors": [str(exc)],
+            "runtime_consumption_available": False,
+        }
+    else:
+        payload = verify_hybrid_approval(
+            approval_id,
+            task_class="repo-review",
+            channel="notebook-keyword",
+            catalog_path=Path(catalog).expanduser(),
+            runtime_revision=revision,
+            state_root=Path(state_root).expanduser() if state_root else None,
+        )
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        console.print(
+            f"Approval: {payload['status']} | runtime consumption unavailable"
+        )
+        for error in payload["errors"]:
+            console.print(f"[red]- {error}[/red]")
+    if payload["status"] != "VERIFIED":
+        raise typer.Exit(1)
+
+
+@hybrid_evidence_app.command("approval-revoke")
+def memory_hybrid_approval_revoke_cmd(
+    approval_id: Annotated[str, typer.Argument(help="Exact approval id to revoke")],
+    reason: Annotated[str, typer.Option("--reason")],
+    approve: Annotated[bool, typer.Option("--approve")] = False,
+    state_root: Annotated[str, typer.Option("--state-root")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Revoke one approval permanently while retaining its evidence."""
+    from mq_agent.memory.hybrid_runtime import revoke_hybrid_approval
+
+    try:
+        payload = revoke_hybrid_approval(
+            approval_id,
+            reason=reason,
+            approve=approve,
+            state_root=Path(state_root).expanduser() if state_root else None,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+    else:
+        console.print(f"Revoked: {approval_id} | evidence retained")
 
 @hybrid_evidence_app.command("policy-plan-status")
 def memory_hybrid_policy_plan_status_cmd(

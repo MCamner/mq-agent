@@ -14,6 +14,8 @@ from pathlib import Path
 from statistics import fmean
 from typing import Any
 
+from jsonschema.exceptions import ValidationError
+
 from mq_agent.memory.hybrid_retrieval import hybrid_retrieval_v2
 from mq_agent.tools.contract_validation import validate_contract
 
@@ -741,6 +743,134 @@ def audit_hybrid_policy_plans(
         "runtime_consumption_available": False,
         "plans": plans,
         "errors": errors,
+    }
+
+
+def review_hybrid_policy_proposals(
+    policy_plan_ids: list[str],
+    *,
+    admission_id: str,
+    challenge_id: str,
+    expected_task_classes: list[str],
+    state_root: Path | None = None,
+) -> dict[str, Any]:
+    """Review an exact positive proposal set without approving consumption."""
+    store = HybridEvidenceStore(state_root)
+    errors: list[str] = []
+    expected = [value.strip() for value in expected_task_classes]
+    if not expected or any(not value for value in expected):
+        errors.append("expected task classes must not be empty")
+    if len(expected) != len(set(expected)):
+        errors.append("expected task classes must be unique")
+    if not policy_plan_ids or len(policy_plan_ids) != len(set(policy_plan_ids)):
+        errors.append("policy-plan ids must be non-empty and unique")
+
+    admission = None
+    challenge = None
+    for label, verify, identity in (
+        ("admission", store.verify_admission, admission_id),
+        ("challenge", store.verify_challenge, challenge_id),
+    ):
+        try:
+            verified = verify(identity)
+        except (
+            OSError,
+            RuntimeError,
+            ValueError,
+            json.JSONDecodeError,
+            ValidationError,
+        ) as exc:
+            errors.append(f"{label}: verification failed: {exc}")
+            continue
+        if verified["status"] != "VERIFIED":
+            errors.extend(f"{label}: {error}" for error in verified["errors"])
+            continue
+        if label == "admission":
+            admission = verified[label]
+        else:
+            challenge = verified[label]
+
+    if admission is not None and admission["status"] != "PASS":
+        errors.append("admission is not PASS")
+    if challenge is not None:
+        if challenge["status"] != "PASS" or not challenge["discriminating"]:
+            errors.append("challenge is not PASS and discriminating")
+        if admission is not None and (
+            challenge["ablation_id"] != admission["ablation_id"]
+            or challenge["suite_sha256"] != admission["suite_sha256"]
+        ):
+            errors.append("challenge/admission ablation or suite mismatch")
+    discriminating = {
+        row["channel"]
+        for row in (challenge or {}).get("channels", [])
+        if row["result"] == "DISCRIMINATING"
+    }
+    plans: list[dict[str, Any]] = []
+    seen: list[str] = []
+    for identity in policy_plan_ids:
+        try:
+            verified = store.verify_policy_plan(identity)
+        except (
+            OSError,
+            RuntimeError,
+            ValueError,
+            json.JSONDecodeError,
+            ValidationError,
+        ) as exc:
+            errors.append(f"{identity}: verification failed: {exc}")
+            continue
+        plan = verified["policy_plan"]
+        task_class = str(plan["task_class"])
+        seen.append(task_class)
+        plan_errors = list(verified["errors"])
+        if verified["status"] != "VERIFIED":
+            plan_errors.append("policy plan is not VERIFIED")
+        if plan["admission_id"] != admission_id:
+            plan_errors.append("admission id mismatch")
+        if task_class not in expected:
+            plan_errors.append("unexpected task class")
+        if plan["status"] != "PASS" or plan["decision"] != "REVIEW_REQUIRED":
+            plan_errors.append("proposal must be PASS and REVIEW_REQUIRED")
+        channels = plan["eligible_channels"]
+        if not channels or not set(channels).issubset(discriminating):
+            plan_errors.append(
+                "proposed channels lack discriminating challenge evidence"
+            )
+        if plan["effective_channel_selection"] != ACTIVE_ONLY_SELECTION or (
+            not plan["zero_effect"]
+            or plan["apply_available"]
+            or plan["runtime_consumption_available"]
+            or not plan["human_approval_required"]
+        ):
+            plan_errors.append(
+                "proposal must remain zero-effect and require human approval"
+            )
+        errors.extend(f"{identity}: {error}" for error in plan_errors)
+        plans.append(
+            {
+                "policy_plan_id": identity,
+                "task_class": task_class,
+                "eligible_channels": channels,
+                "status": "REFUSED" if plan_errors else "VERIFIED",
+                "errors": plan_errors,
+            }
+        )
+    if len(seen) != len(set(seen)):
+        errors.append("duplicate task classes")
+    if set(seen) != set(expected):
+        errors.append("policy-plan task classes do not match expected set")
+    return {
+        "status": "REFUSED" if errors else "VERIFIED",
+        "decision": "REFUSED" if errors else "REVIEW_REQUIRED",
+        "admission_id": admission_id,
+        "challenge_id": challenge_id,
+        "expected_task_classes": sorted(set(expected)),
+        "plans": plans,
+        "errors": errors,
+        "zero_effect": True,
+        "human_approval_required": True,
+        "effective_channel_selection": dict(ACTIVE_ONLY_SELECTION),
+        "runtime_consumption_available": False,
     }
 
 

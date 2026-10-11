@@ -51,6 +51,35 @@ mq_agent/
 
 mq-agent has two parallel orchestration modes. They co-exist and do not replace each other.
 
+### Receipt-bound memory retrieval
+
+`memory retrieve` defaults to active mq-mcp semantic search. An explicit
+`--approval-id` and `--catalog` can add Notebook keyword references for
+`repo-review`, provided the receipt, complete evidence chain, current catalog,
+runtime commit and expiry verify. The measured top-k must be 10; the consumer
+uses existing RRF unchanged. Existing `memory search` and agent routing retain
+their current behavior.
+
+Notebook metadata search runs in a separate process against the exact catalog
+snapshot. Its timeout includes worker startup. The receipt caps additional
+normalized optional reference tokens before fusion using the documented JSON
+character estimate. A failed active search returns UNAVAILABLE; optional results
+cannot replace it. Optional failure, timeout, budget overflow, changed catalog,
+revocation or runtime mismatch returns the active-only result. Approval and the
+kill switch are checked again after optional retrieval, before fusion.
+
+`MQ_HYBRID_CONSUMPTION=off` disables optional consumption. Unset permits only
+receipt-bound opt-in; any value other than `on` disables it. Receipts and
+revocations remain immutable. Their historical zero-effect fields do not change
+when a consumer becomes available. The returned `trace` reports effective
+selection, evidence identities, estimated tokens, optional latency and a bounded
+fallback reason, without raw query, paths or retrieved content. Retrieval writes
+no state; an operator may record this trace separately for bounded validation.
+
+The consumer returns fused reference identities and preserves the original
+active response. It does not fetch Notebook document bodies or inject context
+into agent/model calls. Those are separate integration decisions.
+
 ### AI-backed planner loop
 
 Used by `audit`, `plan`, `signal`, `fix-ci`, `release-check`, `docs-audit`:

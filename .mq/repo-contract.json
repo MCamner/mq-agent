@@ -50,6 +50,8 @@
     "mq.hybrid-retrieval-ablation.v1",
     "mq.hybrid-retrieval-admission.v1",
     "mq.hybrid-retrieval-policy-plan.v1",
+    "mq.hybrid-retrieval-approval.v1",
+    "mq.hybrid-retrieval-revocation.v1",
     "mq.hybrid-retrieval-challenge.v1",
     "mq.hybrid-retrieval-challenge-candidates.v1",
     "mq.hybrid-retrieval-suite.v1",
@@ -70,6 +72,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Run live Hybrid Retrieval challenge candidate discovery and select real refs",
+  "next_focus": "Validate bounded receipt-bound retrieval, revocation and kill-switch fallback",
   "release_mode": "pull_request"
 }

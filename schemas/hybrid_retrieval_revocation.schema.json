@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "title": "mq-agent-owned Hybrid Retrieval revocation",
+  "required": [
+    "schema",
+    "revocation_id",
+    "approval_id",
+    "revoked_at",
+    "reason"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.hybrid-retrieval-revocation.v1"
+    },
+    "revocation_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "approval_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "revoked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    }
+  }
+}

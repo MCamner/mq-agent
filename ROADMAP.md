@@ -824,13 +824,39 @@ justify an activation design.
   the three channels landed at 1.0. Finer resolution needs more
   operator-authored refs per case, not a code change.
 
-Next roadmap item: **Hybrid Retrieval admission re-evaluation** — with VERIFIED
-challenge evidence in place, run `memory hybrid-evidence admission` against the
-verified ablation and read the result as a read-only task-class gate. Relevance
-ground truth stays operator-authored: `fixture_generation_available` is false
-and a model-authored fixture would make VERIFIED an assertion about nothing that
-no preflight gate can detect. Do not tune RRF, alter top-k, promote a channel or
-build a runtime consumer from challenge output alone.
+* [x] Re-evaluate admission against the discriminating challenge's verified
+  ablation. On 2026-10-11, admission `sha256:9526d1b1…` was persisted and
+  VERIFIED with no errors: codegraph eligible for ci, notebook-keyword and
+  notebook-vector for docs, notebook-keyword for repo-review. Three new
+  zero-effect policy plans individually verify and return REVIEW_REQUIRED.
+  The existing ACTIVE_ONLY closure audit refuses this positive proposal set;
+  runtime consumption remains unavailable.
+
+* [x] Add a separate read-only positive-proposal review gate.
+  `hybrid-evidence policy-proposal-review` verifies the exact policy-plan set,
+  admission and discriminating challenge against the same ablation and suite.
+  The live ci/docs/repo-review set returns VERIFIED with no errors and
+  REVIEW_REQUIRED; the ACTIVE_ONLY closure audit remains unchanged.
+
+* [x] Add mq-agent-owned Hybrid Retrieval approval and revocation contracts.
+  Initial scope is repo-review/notebook-keyword. Receipts bind exact proposal,
+  challenge/admission evidence, measured catalog, observed runtime commit,
+  explicit token/timeout budgets and expiry. CLI approval and revocation require
+  --approve; verification fails closed on stale or revoked receipts. No live
+  approval was issued and runtime consumption remains unavailable.
+
+* [x] Implement an explicit single-channel reference consumer.
+  `memory retrieve` supports receipt-bound repo-review/Notebook keyword opt-in
+  with fixed measured top-k=10, unchanged RRF, subprocess timeout, token budget
+  and active-only fallback. `MQ_HYBRID_CONSUMPTION=off` disables consumption.
+  Existing semantic search and agent routing remain unchanged. Live bounded
+  operator validation is still pending; no live approval was issued.
+
+Next roadmap item: **Hybrid Retrieval bounded operator validation** — follow
+the [bounded runtime-consumption plan](docs/plans/2026-10-11-hybrid-runtime-consumption.md)
+to define explicitly budgeted, receipt-bound single-channel consumption. Relevance
+ground truth stays operator-authored. Do not tune RRF, alter top-k or promote a
+channel from challenge, admission or policy-plan output alone.
 
 ### v1.32.0 Canary v2 checkpoint
 
