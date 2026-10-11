@@ -144,6 +144,24 @@ and never modifies the approval; a second revocation of the same approval is
 refused. Historical v1 approvals stay readable but report `INVALID` because
 they predate the repo/commit binding.
 
+Before `canary-run`, an operator can check the whole chain without starting
+anything:
+
+```bash
+mq-agent feedback canary-preflight <canary-id> --json
+```
+
+Preflight resolves the plan and its hash, requires that no RESULT exists, runs
+the shared approval status, re-checks that the plan still matches the candidate
+and the current policy snapshot, and checks that the budget is bounded and the
+rollback target is the plan's current strategy. It returns `CANARY_READY` or one
+of `BLOCKED_PLAN_MISMATCH`, `BLOCKED_CANARY_ALREADY_COMPLETED`,
+`BLOCKED_APPROVAL`, `BLOCKED_STALE_POLICY`, `BLOCKED_COMMIT_MISMATCH`,
+`BLOCKED_BUDGET` or `BLOCKED_NO_ROLLBACK` (exit 0 for ready, 1 otherwise).
+Preflight never executes an experiment or appends a record:
+`CANARY_READY` is not `CANARY_STARTED`, and `canary-run` still performs its own
+checks.
+
 `READY_FOR_HUMAN_APPROVAL` keeps the original blockers — effective
 `proposed` context-strategy state, complete comparison links, exact task class
 and strategy pair, valid `CANDIDATE_BETTER` verdicts, no material regression,

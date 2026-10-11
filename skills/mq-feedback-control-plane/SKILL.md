@@ -122,6 +122,8 @@ mq-agent feedback canary-plan <candidate-id> \
   --max-failure-rate 0 \
   --json
 
+mq-agent feedback canary-preflight <canary-id> --json
+
 mq-agent feedback canary-run <canary-id> \
   --task "review release boundaries" \
   --fixture <relevance-fixture.json> \
