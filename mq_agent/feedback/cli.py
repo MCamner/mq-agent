@@ -12,6 +12,7 @@ from rich.table import Table
 
 from .approvals import approval_status, revoke_approval
 from .canary import (
+    canary_preflight,
     canary_status,
     create_canary_plan,
     run_canary,
@@ -645,6 +646,35 @@ def feedback_canary_plan_cmd(
             title="Canary v2 Plan",
         )
     )
+
+
+@app.command("canary-preflight")
+def feedback_canary_preflight_cmd(
+    canary_id: Annotated[str, typer.Argument(help="Canary v2 identifier")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Check that a planned canary may run; read-only, never starts it."""
+    payload = canary_preflight(canary_id)
+    if json_out:
+        _emit_json(payload)
+    else:
+        console.print(
+            Panel(
+                f"Canary: {payload['canary_id']}\n"
+                f"Status: {payload['status']}\n"
+                f"Reason: {payload['reason'] or '-'}\n"
+                f"Approval: {payload['approval_id'] or '-'} "
+                f"({payload['approval_status'] or '-'})\n"
+                f"Task class: {payload['task_class'] or '-'}\n"
+                f"Canary started: no\n"
+                + "\n".join(
+                    f"{name}: {value}" for name, value in payload["checks"].items()
+                ),
+                title="Canary v2 Preflight",
+            )
+        )
+    if payload["status"] != "CANARY_READY":
+        raise typer.Exit(1)
 
 
 @app.command("canary-run")

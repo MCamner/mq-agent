@@ -472,6 +472,7 @@ Run and inspect evidence-grounded feedback experiments.
 | [`mq-agent feedback approve`](#mq-agent-feedback-approve) | Issue an expiring approval receipt bound to exact candidate evidence. |
 | [`mq-agent feedback canary-check`](#mq-agent-feedback-canary-check) | Validate one legacy v1.31 comparison; read-only and not activation-authorizing. |
 | [`mq-agent feedback canary-plan`](#mq-agent-feedback-canary-plan) | Create one immutable Canary v2 plan; no experiment is executed. |
+| [`mq-agent feedback canary-preflight`](#mq-agent-feedback-canary-preflight) | Check that a planned canary may run; read-only, never starts it. |
 | [`mq-agent feedback canary-run`](#mq-agent-feedback-canary-run) | Execute one bounded Canary v2 plan and append one immutable RESULT. |
 | [`mq-agent feedback canary-status`](#mq-agent-feedback-canary-status) | Show authoritative append-only PLAN/RESULT state for one canary. |
 | [`mq-agent feedback candidate`](#mq-agent-feedback-candidate) | Show one candidate with its immutable comparison evidence. |
@@ -614,6 +615,22 @@ Create one immutable Canary v2 plan; no experiment is executed.
 | `--min-executions` | No | `3` | — |
 | `--max-duration-seconds` | No | `300` | — |
 | `--max-failure-rate` | No | `0.0` | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback canary-preflight`
+
+Check that a planned canary may run; read-only, never starts it.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANARY_ID` | Yes | — | Canary v2 identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback canary-run`

@@ -52,6 +52,7 @@ CONTROLLED_ACTIVATION_COMMANDS = {
     "approval-status",
     "approval-revoke",
     "canary-plan",
+    "canary-preflight",
     "canary-run",
     "canary-status",
     "canary-check",

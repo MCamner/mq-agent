@@ -11,6 +11,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `feedback canary-preflight <canary-id>` checks a planned Canary v2 without
+  running it: plan hash, no existing RESULT, shared approval status, plan to
+  candidate binding, policy snapshot, bounded budget and rollback target. It
+  returns `CANARY_READY` or a `BLOCKED_*` status, never executes an experiment
+  and never appends a record.
 - Feedback approval lifecycle: `feedback approve` now writes
   `mq.feedback-approval.v2`, which binds the `repository@commit` snapshots
   readiness evaluated. `feedback approval-status` is a read-only status

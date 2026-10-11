@@ -162,6 +162,128 @@ def canary_status(canary_id: str, root: Path | None = None) -> dict[str, Any]:
     }
 
 
+_APPROVAL_BLOCKS = {
+    "STALE_POLICY": "BLOCKED_STALE_POLICY",
+    "COMMIT_MISMATCH": "BLOCKED_COMMIT_MISMATCH",
+}
+
+
+def canary_preflight(canary_id: str, root: Path | None = None) -> dict[str, Any]:
+    """Check that a planned canary may run, without running or writing anything.
+
+    CANARY_READY is not CANARY_STARTED: no experiment executes and no record is
+    appended. The first failing check sets the status.
+    """
+    from .approvals import approval_status
+    from .control import strategy_codegraph
+
+    checks = {
+        "plan_resolved": False,
+        "no_result": False,
+        "approval_valid": False,
+        "plan_matches_candidate": False,
+        "policy_snapshot_current": False,
+        "budget_bounded": False,
+        "rollback_available": False,
+    }
+    payload: dict[str, Any] = {
+        "kind": "feedback-canary-preflight",
+        "canary_id": canary_id,
+        "status": "BLOCKED_PLAN_MISMATCH",
+        "reason": None,
+        "candidate_id": None,
+        "approval_id": None,
+        "approval_status": None,
+        "task_class": None,
+        "plan_sha256": None,
+        "plan": None,
+        "checks": checks,
+        "read_only": True,
+        "runtime_effect": False,
+        "canary_started": False,
+    }
+
+    def blocked(status: str, reason: str) -> dict[str, Any]:
+        payload["status"] = status
+        payload["reason"] = reason
+        return payload
+
+    try:
+        plan, result = _records(canary_id, root)
+    except ValueError as exc:
+        if "duplicate RESULT" in str(exc):
+            return blocked("BLOCKED_CANARY_ALREADY_COMPLETED", str(exc))
+        return blocked("BLOCKED_PLAN_MISMATCH", str(exc))
+    checks["plan_resolved"] = True
+    payload.update(
+        candidate_id=plan["candidate_id"],
+        approval_id=plan["approval_id"],
+        task_class=plan["task_class"],
+        plan_sha256=plan["plan_sha256"],
+        plan=plan["plan"],
+    )
+
+    if result is not None:
+        return blocked("BLOCKED_CANARY_ALREADY_COMPLETED", "canary already has a RESULT")
+    checks["no_result"] = True
+
+    approval = approval_status(plan["approval_id"], root)
+    payload["approval_status"] = approval["status"]
+    if approval["status"] != "VALID":
+        return blocked(
+            _APPROVAL_BLOCKS.get(approval["status"], "BLOCKED_APPROVAL"),
+            str(approval["reason"]),
+        )
+    try:
+        candidate, approval_record = _validate_candidate_approval(
+            plan["candidate_id"], plan["approval_id"], root
+        )
+    except ValueError as exc:
+        return blocked("BLOCKED_APPROVAL", str(exc))
+    checks["approval_valid"] = True
+
+    if candidate["fingerprint"] != plan["candidate_fingerprint"]:
+        return blocked(
+            "BLOCKED_PLAN_MISMATCH", "canary plan candidate fingerprint is stale"
+        )
+    for field in ("task_class", "current_strategy", "proposed_strategy"):
+        if plan[field] != candidate[field]:
+            return blocked(
+                "BLOCKED_PLAN_MISMATCH",
+                f"canary plan {field.replace('_', ' ')} does not match candidate",
+            )
+    checks["plan_matches_candidate"] = True
+
+    if _policy_snapshot(plan["task_class"], root) != plan["policy_snapshot"]:
+        return blocked("BLOCKED_STALE_POLICY", "canary plan policy snapshot is stale")
+    checks["policy_snapshot_current"] = True
+
+    budget = plan["plan"]
+    if not (
+        1 <= budget["execution_budget"] <= 20
+        and 1 <= budget["min_executions"] <= budget["execution_budget"]
+        and 1 <= budget["max_duration_seconds"] <= 3600
+        and 0.0 <= budget["max_failure_rate"] <= 1.0
+    ):
+        return blocked("BLOCKED_BUDGET", "canary plan budget is not bounded")
+    checks["budget_bounded"] = True
+
+    rollback_target = approval_record["rollback_target"]
+    if rollback_target != plan["current_strategy"]:
+        return blocked(
+            "BLOCKED_NO_ROLLBACK",
+            "approval rollback target does not equal the plan's current strategy",
+        )
+    try:
+        strategy_codegraph(rollback_target)
+    except ValueError as exc:
+        return blocked("BLOCKED_NO_ROLLBACK", str(exc))
+    checks["rollback_available"] = True
+
+    payload["status"] = "CANARY_READY"
+    return payload
+
+
 def _candidate_regressions(comparison: dict[str, Any]) -> list[str]:
     regressions: list[str] = []
     for name, metric in comparison.get("metrics", {}).items():
