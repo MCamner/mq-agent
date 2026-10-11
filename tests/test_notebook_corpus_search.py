@@ -235,6 +235,63 @@ def test_query_terms_does_not_semantically_expand():
     assert query_terms("Find sources about MCP in Python") == ["mcp", "python"]
 
 
+def test_query_terms_drops_swedish_function_words():
+    terms = query_terms(
+        "Hur är ansvaret för kontrakt och evidens fördelat mellan en agent och den som granskar?"
+    )
+
+    assert terms == ["ansvaret", "kontrakt", "evidens", "fördelat", "agent", "granskar"]
+
+
+def _swedish_catalog() -> dict:
+    def item(drive_item_id: str, notebook: str, title: str, digest: str) -> dict:
+        return {
+            "drive_item_id": drive_item_id,
+            "notebook_drive_item_id": notebook,
+            "parent_drive_item_id": f"{notebook}-sources",
+            "relative_path": f"Sources/{drive_item_id}.html",
+            "title": title,
+            "mime_type": "text/html",
+            "size_bytes": 100,
+            "modified_time": "2026-09-27T10:00:00Z",
+            "origin_provider": "takeout",
+            "content_sha256": digest * 64,
+        }
+
+    document = {
+        "corpus_key": "notebooklm-archive",
+        "snapshot_at": "2026-09-28T16:32:50Z",
+        "notebooks": [
+            {"drive_item_id": "nb-mat", "title": "Svensk matkultur"},
+            {"drive_item_id": "nb-stack", "title": "Stackdokumentation"},
+        ],
+        "items": [
+            # Many shared function words, no shared content word.
+            item(
+                "filler",
+                "nb-mat",
+                "Den svenska soppan och en analys av det som är för alla.html",
+                "a",
+            ),
+            item("contract", "nb-stack", "Kontrakt och evidens.html", "b"),
+        ],
+    }
+    catalog, _ = build_from_document(document)
+    return catalog
+
+
+def test_swedish_function_words_do_not_outrank_content_match():
+    report = search_catalog(
+        _swedish_catalog(),
+        "Vilka kontrakt gäller för en agent och den evidens som är av betydelse?",
+        top_k=10,
+    )
+
+    ids = [row["drive_item_id"] for row in report["results"]]
+    assert ids == ["contract"]
+    assert report["results"][0]["matched_terms"] == ["kontrakt", "evidens"]
+
+
 
 def _write_catalog(tmp_path: Path) -> Path:
     path = tmp_path / "catalog.json"
