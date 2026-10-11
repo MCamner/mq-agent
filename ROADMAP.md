@@ -842,21 +842,30 @@ justify an activation design.
   Initial scope is repo-review/notebook-keyword. Receipts bind exact proposal,
   challenge/admission evidence, measured catalog, observed runtime commit,
   explicit token/timeout budgets and expiry. CLI approval and revocation require
-  --approve; verification fails closed on stale or revoked receipts. No live
-  approval was issued and runtime consumption remains unavailable.
+  --approve; verification fails closed on stale or revoked receipts.
 
 * [x] Implement an explicit single-channel reference consumer.
   `memory retrieve` supports receipt-bound repo-review/Notebook keyword opt-in
   with fixed measured top-k=10, unchanged RRF, subprocess timeout, token budget
   and active-only fallback. `MQ_HYBRID_CONSUMPTION=off` disables consumption.
-  Existing semantic search and agent routing remain unchanged. Live bounded
-  operator validation is still pending; no live approval was issued.
+  Existing semantic search and agent routing remain unchanged.
 
-Next roadmap item: **Hybrid Retrieval bounded operator validation** — follow
-the [bounded runtime-consumption plan](docs/plans/2026-10-11-hybrid-runtime-consumption.md)
-to define explicitly budgeted, receipt-bound single-channel consumption. Relevance
-ground truth stays operator-authored. Do not tune RRF, alter top-k or promote a
-channel from challenge, admission or policy-plan output alone.
+* [x] Validate bounded operator consumption and rollback on 2026-10-11.
+  The approved repo-review/keyword run returned HYBRID with 183 additional
+  estimated tokens and 791.052 ms optional latency, within limits of 2,000 tokens
+  and 5,000 ms. The receipt had a 15-minute validity period and was immediately
+  revoked. Kill-switch and revocation returned unchanged active-only references.
+  See the [validation evidence](docs/plans/2026-10-11-hybrid-runtime-consumption.md#task-4-bounded-operator-validation).
+
+Next roadmap item: **Broaden repo-review retrieval evidence** — define more
+operator-authored cases and relevance labels before proposing automatic agent
+integration. One live case verifies consumption and rollback, not general
+retrieval quality. Keep fixed RRF/top-k and require a new explicit receipt for
+any further optional consumption.
+The [expanded evidence plan](docs/plans/2026-10-11-hybrid-repo-review-evidence.md)
+measured five operator-confirmed questions: keyword returned one answer-bearing
+source in 50 reviewed candidates (AI-drafted, operator-confirmed labels). The
+verified ablation does not support automatic agent integration.
 
 ### v1.32.0 Canary v2 checkpoint
 

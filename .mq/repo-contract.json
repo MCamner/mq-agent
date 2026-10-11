@@ -72,6 +72,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Validate bounded receipt-bound retrieval, revocation and kill-switch fallback",
+  "next_focus": "Broaden operator-authored repo-review retrieval evidence before automatic agent integration",
   "release_mode": "pull_request"
 }

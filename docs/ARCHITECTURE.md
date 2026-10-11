@@ -80,6 +80,12 @@ The consumer returns fused reference identities and preserves the original
 active response. It does not fetch Notebook document bodies or inject context
 into agent/model calls. Those are separate integration decisions.
 
+The bounded operator validation on 2026-10-11 exercised real active search and
+keyword consumption within an explicit 2,000-token/5,000-ms budget. Kill-switch
+and revocation checks preserved active-only references; the receipt was revoked
+immediately. This validates one runtime case and rollback, not general retrieval
+quality. See [completion evidence](plans/2026-10-11-hybrid-runtime-consumption.md#task-4-bounded-operator-validation).
+
 ### AI-backed planner loop
 
 Used by `audit`, `plan`, `signal`, `fix-ci`, `release-check`, `docs-audit`:
