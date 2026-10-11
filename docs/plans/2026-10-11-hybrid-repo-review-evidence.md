@@ -204,11 +204,11 @@ A new candidate collection ran on runtime
 questions, unchanged, and the same catalog
 (`sha256:20bc31ea1ff2773d6ecde0747ae8ab2e97ecf4449471f64aee4f429a85f8ad59`).
 It was stored separately from the first collection; earlier labels were not
-reused. All five pools passed the source-diversity check. The operator labelled
-the new pools from scratch and confirmed the labels: 10 expected and 40
-reviewed-irrelevant references, no contradicted or stale references. Expected
-references were content files; their `metadata.json` siblings were labelled
-irrelevant. Active identities remain unjudged.
+reused. All five pools passed the source-diversity check. The new pools were
+labelled from scratch with AI-assisted source review, then operator-confirmed:
+10 expected and 40 reviewed-irrelevant references, with no contradicted or stale
+references. Expected references were content files; their `metadata.json`
+siblings were labelled irrelevant. Active identities remain unjudged.
 
 Ablation `sha256:0f53f3f98fe9edc602e6c76a3407a113c21f6697079a7adeb7de9a85dda16abc`
 was persisted and `ablation-status` returned VERIFIED. The earlier ablation
