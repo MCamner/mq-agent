@@ -5860,6 +5860,7 @@ def memory_hybrid_approval_status_cmd(
     """Verify receipt expiry, revocation, evidence, current catalog and runtime."""
     from mq_agent.memory.hybrid_runtime import verify_hybrid_approval
 
+    payload: dict[str, Any]
     try:
         revision = _hybrid_approval_runtime_revision()
     except ValueError as exc:

@@ -345,7 +345,7 @@ def retrieve_hybrid_memory(
 
     if not query.strip():
         raise ValueError("query must not be empty")
-    trace = {
+    trace: dict[str, Any] = {
         "query_sha256": _fingerprint(query),
         "approval_id": approval_id,
         "task_class": task_class,
@@ -359,7 +359,7 @@ def retrieve_hybrid_memory(
         "additional_token_estimate": None,
         "optional_latency_ms": None,
     }
-    output = {
+    output: dict[str, Any] = {
         "status": "PASS",
         "mode": "ACTIVE_ONLY",
         "active_result": None,
