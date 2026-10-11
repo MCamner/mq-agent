@@ -196,3 +196,49 @@ top-k, RRF, fusion and fallback are unchanged. The keyword channel still matches
 exact title tokens only, so other limits remain. The effect of the fix has not
 been re-measured; that requires a new frozen candidate collection and new
 labels, and is a separate decision.
+
+### Re-measurement after the stop-word fix
+
+A new candidate collection ran on runtime
+`eaaccce8627ac2b5bab5d05017ac14a1a76e0ee2` (PR #374) with the same five
+questions, unchanged, and the same catalog
+(`sha256:20bc31ea1ff2773d6ecde0747ae8ab2e97ecf4449471f64aee4f429a85f8ad59`).
+It was stored separately from the first collection; earlier labels were not
+reused. All five pools passed the source-diversity check. The new pools were
+labelled from scratch with AI-assisted source review, then operator-confirmed:
+10 expected and 40 reviewed-irrelevant references, with no contradicted or stale
+references. Expected references were content files; their `metadata.json`
+siblings were labelled irrelevant. Active identities remain unjudged.
+
+Ablation `sha256:0f53f3f98fe9edc602e6c76a3407a113c21f6697079a7adeb7de9a85dda16abc`
+was persisted and `ablation-status` returned VERIFIED. The earlier ablation
+`sha256:7e4d6cc8…` is unchanged.
+
+| Variant | Mean precision | Mean recall | Token delta vs active |
+|---|---|---|---|
+| active-only baseline | 0.0 | 0.0 | 0 |
+| keyword, before fix | 0.02 | 1.0 (1 measurable case) | +1,761.2 |
+| keyword, after fix | 0.18 | 0.889 (3 measurable cases) | +1,553.4 |
+| keyword+codegraph, after fix | 0.08 | 0.356 | +7,029.8 |
+
+Per case after the fix: review-1 found 2 of 3 expected references (the third was
+keyword rank 10 and fell outside the fused top-10 next to the active result);
+review-2 found 5 of 5; review-5 found 2 of 2; review-3 and review-4 had no
+expected references in their pools. Those two pools still matched on single
+exact title tokens ("closed", "version") and returned off-topic material.
+
+Read narrowly:
+
+- The stop-word defect was real and material for these questions: answer-bearing
+  references rose from 1 to 9 of 50 with the same questions and catalog.
+- Exact title-token matching remains a separate limit; it is not addressed here.
+- Recall averages three cases; baseline precision still counts unjudged active
+  identities as non-expected and is not a relevance verdict.
+- The suite file is byte-identical to the first run (same questions and fixture
+  names), so its digest does not distinguish the two label sets; the per-case
+  fixture digests in the evidence records do.
+- Adding CodeGraph displaces Notebook references within top-10 for this task class.
+
+This is a before/after comparison on five questions, not a general quality
+measurement. It does not by itself justify automatic agent integration. No
+consumption receipt was issued and RRF/top-k are unchanged.
