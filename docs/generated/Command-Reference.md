@@ -467,6 +467,8 @@ Run and inspect evidence-grounded feedback experiments.
 |---|---|
 | [`mq-agent feedback activate`](#mq-agent-feedback-activate) | Activate one task-class strategy after approval and a passing Canary v2 result. |
 | [`mq-agent feedback activation-readiness`](#mq-agent-feedback-activation-readiness) | Check evidence readiness for human activation approval; never activates. |
+| [`mq-agent feedback approval-revoke`](#mq-agent-feedback-approval-revoke) | Append a revocation for one approval; the approval record is never modified. |
+| [`mq-agent feedback approval-status`](#mq-agent-feedback-approval-status) | Show whether one approval is still valid; read-only. |
 | [`mq-agent feedback approve`](#mq-agent-feedback-approve) | Issue an expiring approval receipt bound to exact candidate evidence. |
 | [`mq-agent feedback canary-check`](#mq-agent-feedback-canary-check) | Validate one legacy v1.31 comparison; read-only and not activation-authorizing. |
 | [`mq-agent feedback canary-plan`](#mq-agent-feedback-canary-plan) | Create one immutable Canary v2 plan; no experiment is executed. |
@@ -516,6 +518,39 @@ Check evidence readiness for human activation approval; never activates.
 | Argument | Required | Default | Description |
 |---|---:|---|---|
 | `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback approval-revoke`
+
+Append a revocation for one approval; the approval record is never modified.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `APPROVAL_ID` | Yes | — | Feedback approval identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--reason` | Yes | — | Why the approval is withdrawn |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback approval-status`
+
+Show whether one approval is still valid; read-only.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `APPROVAL_ID` | Yes | — | Feedback approval identifier |
 
 ### Options
 

@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from .approvals import approval_status, revoke_approval
 from .canary import (
     canary_status,
     create_canary_plan,
@@ -548,6 +549,59 @@ def feedback_approve_cmd(
             f"Strategy: {payload['current_strategy']} -> {payload['proposed_strategy']}\n"
             f"Expires: {payload['expires_at']}",
             title="Feedback Approval",
+        )
+    )
+
+
+@app.command("approval-status")
+def feedback_approval_status_cmd(
+    approval_id: Annotated[str, typer.Argument(help="Feedback approval identifier")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Show whether one approval is still valid; read-only."""
+    payload = approval_status(approval_id)
+    if json_out:
+        _emit_json(payload)
+    else:
+        checks = payload["checks"]
+        console.print(
+            Panel(
+                f"Approval: {payload['approval_id']}\n"
+                f"Status: {payload['status']}\n"
+                f"Reason: {payload['reason'] or '-'}\n"
+                f"Candidate: {payload['candidate_id'] or '-'}\n"
+                f"Task class: {payload['task_class'] or '-'}\n"
+                f"Expires: {payload['expires_at'] or '-'}\n"
+                + "\n".join(f"{name}: {value}" for name, value in checks.items()),
+                title="Feedback Approval Status",
+            )
+        )
+    if payload["status"] == "INVALID":
+        raise typer.Exit(2)
+    if payload["status"] != "VALID":
+        raise typer.Exit(1)
+
+
+@app.command("approval-revoke")
+def feedback_approval_revoke_cmd(
+    approval_id: Annotated[str, typer.Argument(help="Feedback approval identifier")],
+    reason: Annotated[str, typer.Option("--reason", help="Why the approval is withdrawn")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Append a revocation for one approval; the approval record is never modified."""
+    try:
+        payload = revoke_approval(approval_id, reason=reason)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Approval: {payload['approval_id']}\n"
+            f"Revoked: {payload['revoked_at']}\n"
+            f"Reason: {payload['reason']}",
+            title="Feedback Approval Revoked",
         )
     )
 

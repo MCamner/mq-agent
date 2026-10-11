@@ -9,8 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .candidates import candidate_detail
-from .contracts import validate_approval, validate_canary_record
+from .approvals import require_valid_approval
+from .contracts import validate_canary_record
 from .engine import (
     DEFAULT_MAX_CONTEXT_BYTES,
     DEFAULT_MAX_SOURCES,
@@ -18,10 +18,8 @@ from .engine import (
     run_context_experiment,
 )
 from .evaluation import compare_feedback_run
-from .readiness import activation_readiness
 from .store import (
     append_canary,
-    read_approval_history,
     read_canary_history,
     read_comparison_history,
     read_experiment_history,
@@ -36,10 +34,6 @@ DEFAULT_MAX_FAILURE_RATE = 0.0
 
 def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
-
-
-def _parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def _sha256(value: dict[str, Any]) -> str:
@@ -68,56 +62,12 @@ def _policy_snapshot(task_class: str, root: Path | None) -> dict[str, Any]:
     }
 
 
-def _approval(approval_id: str, root: Path | None) -> dict[str, Any]:
-    history = read_approval_history(root)
-    if history.issues:
-        raise ValueError("approval store contains invalid records")
-    matches = [
-        item.record
-        for item in history.records
-        if item.record.get("approval_id") == approval_id
-    ]
-    if len(matches) != 1:
-        raise ValueError("approval must resolve to exactly one receipt")
-    record = matches[0]
-    validate_approval(record)
-    return record
-
-
 def _validate_candidate_approval(
     candidate_id: str,
     approval_id: str,
     root: Path | None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    candidate = candidate_detail(candidate_id, root)["candidate"]
-    approval = _approval(approval_id, root)
-    readiness = activation_readiness(candidate_id, root)
-    if readiness["status"] != "READY_FOR_HUMAN_APPROVAL":
-        raise ValueError(
-            "approval expired because candidate readiness/state changed: "
-            + str(readiness["status"])
-        )
-    if approval["candidate_id"] != candidate_id:
-        raise ValueError("approval is bound to another candidate")
-    if approval["candidate_fingerprint"] != candidate["fingerprint"]:
-        raise ValueError("approval expired because candidate fingerprint changed")
-    if approval.get("readiness_fingerprint") is None:
-        raise ValueError(
-            "approval predates outcome-bound readiness; issue a new approval"
-        )
-    if approval["readiness_fingerprint"] != readiness["evidence_fingerprint"]:
-        raise ValueError(
-            "approval expired because task-class readiness evidence changed"
-        )
-    if approval["task_class"] != candidate["task_class"]:
-        raise ValueError("approval task class does not match candidate")
-    if approval["current_strategy"] != candidate["current_strategy"]:
-        raise ValueError("approval current strategy does not match candidate")
-    if approval["proposed_strategy"] != candidate["proposed_strategy"]:
-        raise ValueError("approval proposed strategy does not match candidate")
-    if _parse_time(approval["expires_at"]) <= datetime.now(UTC):
-        raise ValueError("approval receipt has expired")
-    return candidate, approval
+    return require_valid_approval(candidate_id, approval_id, root)
 
 
 def _plan_basis(record: dict[str, Any]) -> dict[str, Any]:

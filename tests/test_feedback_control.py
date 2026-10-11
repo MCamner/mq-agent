@@ -307,6 +307,8 @@ def test_legacy_approval_without_readiness_binding_is_refused(
     approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
     path = tmp_path / "approvals.jsonl"
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    rows[0]["schema"] = "mq.feedback-approval.v1"
+    rows[0].pop("evidence_snapshots")
     rows[0].pop("readiness_fingerprint")
     path.write_text(json.dumps(rows[0]) + "\n", encoding="utf-8")
 

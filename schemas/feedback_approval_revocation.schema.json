@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mq.feedback-approval-revocation.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "approval_id",
+    "revoked_at",
+    "reason"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mq.feedback-approval-revocation.v1"
+    },
+    "approval_id": {
+      "type": "string",
+      "pattern": "^approval-[A-Za-z0-9-]{8,}$"
+    },
+    "revoked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    }
+  }
+}
