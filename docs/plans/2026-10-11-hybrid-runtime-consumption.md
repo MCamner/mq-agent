@@ -123,7 +123,7 @@ consumer exists, disable consumption or revoke its exact receipt to restore
 active-only immediately; retain append-only evidence. Code rollback uses the
 specific implementation commit through the normal PR flow.
 
-## Implementation tasks — proposed, not implemented
+## Implementation tasks and completion evidence
 
 ### Task 1: Positive proposal review
 
@@ -214,6 +214,31 @@ above and Ruff. Commit suggestion:
 `feat(hybrid): consume one approved channel with active-only fallback`.
 
 ### Task 4: Bounded operator validation
+
+Completed on 2026-10-11 against merged runtime
+`8f3b457afbab96d7aa1edad6ba79d09bcf2176a0` (PR #372). The operator approved
+2,000 additional estimated tokens, a 5,000 ms optional timeout and 900 seconds
+of receipt validity for repo-review/notebook-keyword. The real mq-mcp active
+adapter and catalog worker ran without test substitutes.
+
+- Approval: `sha256:39d6a7699f2731baae07e3264362bb37a3ff53abd5da2e3da4a958980da2e3d4`.
+- Hybrid result: PASS/HYBRID, 10 fused references, 183 additional estimated
+  candidate-payload tokens, 791.052 ms optional-channel latency.
+- Kill switch: PASS/ACTIVE_ONLY, `consumption-disabled`, active-only references
+  equal to the baseline projected from that invocation's original active response.
+- Revocation: `sha256:249884f6073ac672c122a32fed5ee87cc8ad7a3cc65fb25161e55cccb5626c60`.
+  Subsequent verification returned REFUSED; retrieval returned PASS/ACTIVE_ONLY,
+  `approval-refused`, with the same baseline-preservation check passing.
+
+The receipt was revoked immediately and the previous environment restored.
+The sanitized local validation report contains traces and reference counts,
+without raw queries, retrieved content or local paths. The approval and
+revocation remain in the immutable local evidence store.
+
+These are one-case runtime and rollback checks, not new relevance measurements
+or end-to-end overhead measurements. CI passed 2,571 tests (5 skipped), plus
+Linux/macOS gates and type checking of 276 files. Next: broaden operator-authored
+repo-review evidence before proposing automatic agent integration.
 
 Modify `ROADMAP.md`, `docs/ARCHITECTURE.md` and
 `tests/test_hybrid_runtime.py`; regenerate
