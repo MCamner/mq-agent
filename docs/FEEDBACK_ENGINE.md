@@ -125,6 +125,25 @@ candidate/approval and re-verifies the referenced experiments/comparisons.
 Activation and rollback append policy events; they never rewrite evidence
 history. v1.33 also binds each new policy event to immutable policy snapshots.
 
+New approvals are written as `mq.feedback-approval.v2`, which also binds the
+sorted `repository@commit` snapshots that readiness evaluated. The binding is
+derived from readiness, never typed by the operator. One read-only status
+evaluation decides whether an approval may still be used, and canary-plan,
+canary-run, canary-check and activate all consume it:
+
+```bash
+mq-agent feedback approval-status <approval-id> --json
+mq-agent feedback approval-revoke <approval-id> --reason "evidence withdrawn"
+```
+
+Status is one of `VALID`, `REVOKED`, `EXPIRED`, `STALE_CANDIDATE`,
+`STALE_READINESS`, `COMMIT_MISMATCH`, `STALE_POLICY` or `INVALID`; the first
+failing check wins. Exit status is 0 for `VALID`, 2 for `INVALID` and 1
+otherwise. Revocation appends one `mq.feedback-approval-revocation.v1` record
+and never modifies the approval; a second revocation of the same approval is
+refused. Historical v1 approvals stay readable but report `INVALID` because
+they predate the repo/commit binding.
+
 `READY_FOR_HUMAN_APPROVAL` keeps the original blockers — effective
 `proposed` context-strategy state, complete comparison links, exact task class
 and strategy pair, valid `CANDIDATE_BETTER` verdicts, no material regression,

@@ -11,6 +11,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Feedback approval lifecycle: `feedback approve` now writes
+  `mq.feedback-approval.v2`, which binds the `repository@commit` snapshots
+  readiness evaluated. `feedback approval-status` is a read-only status
+  evaluation (`VALID`, `REVOKED`, `EXPIRED`, `STALE_CANDIDATE`,
+  `STALE_READINESS`, `COMMIT_MISMATCH`, `STALE_POLICY`, `INVALID`), and
+  `feedback approval-revoke` appends an `mq.feedback-approval-revocation.v1`
+  record without modifying the approval. Canary plan/run, canary-check and
+  activate share that one validator. Historical v1 approvals stay readable but
+  can no longer authorize a canary.
 - Hybrid Retrieval challenge candidate discovery adds
   `mq.hybrid-retrieval-challenge-candidates.v1` and
   `memory hybrid-evidence challenge-candidates`. It queries active semantic

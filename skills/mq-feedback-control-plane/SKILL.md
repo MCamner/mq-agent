@@ -78,6 +78,9 @@ The control plane is fail-closed.
 - `mq_agent/tools/execution_outcome.py`
 - `schemas/feedback_activation_readiness.schema.json`
 - `schemas/feedback_approval.schema.json`
+- `schemas/feedback_approval_v2.schema.json`
+- `schemas/feedback_approval_revocation.schema.json`
+- `mq_agent/feedback/approvals.py`
 - `schemas/feedback_policy_event.schema.json`
 - `docs/FEEDBACK_ENGINE.md`
 - `tests/test_feedback_control.py`
@@ -98,6 +101,14 @@ mq-agent feedback approve <candidate-id> \
   --reason "reviewed exact candidate evidence" \
   --approve \
   --json
+```
+
+Check or withdraw an approval at any point; every consumer uses the same
+status evaluation:
+
+```bash
+mq-agent feedback approval-status <approval-id> --json
+mq-agent feedback approval-revoke <approval-id> --reason "<why>" --json
 ```
 
 Plan and run a bounded post-approval Canary v2:

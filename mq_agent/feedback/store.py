@@ -19,6 +19,7 @@ from jsonschema.exceptions import ValidationError
 
 from .contracts import (
     validate_approval,
+    validate_approval_revocation,
     validate_candidate,
     validate_canary_record,
     validate_comparison,
@@ -35,6 +36,7 @@ EXPERIMENTS_FILE = "experiments.jsonl"
 COMPARISONS_FILE = "comparisons.jsonl"
 CANDIDATES_FILE = "candidates.jsonl"
 APPROVALS_FILE = "approvals.jsonl"
+APPROVAL_REVOCATIONS_FILE = "approval-revocations.jsonl"
 POLICY_EVENTS_FILE = "policy-events.jsonl"
 CANARIES_FILE = "canaries.jsonl"
 POLICY_SNAPSHOTS_FILE = "policy-snapshots.jsonl"
@@ -123,6 +125,10 @@ def candidates_path(root: Path | None = None) -> Path:
 
 def approvals_path(root: Path | None = None) -> Path:
     return feedback_root(root) / APPROVALS_FILE
+
+
+def approval_revocations_path(root: Path | None = None) -> Path:
+    return feedback_root(root) / APPROVAL_REVOCATIONS_FILE
 
 
 def policy_events_path(root: Path | None = None) -> Path:
@@ -322,6 +328,17 @@ def append_approval(record: dict[str, Any], root: Path | None = None) -> Path:
     )
 
 
+def append_approval_revocation(
+    record: dict[str, Any], root: Path | None = None
+) -> Path:
+    return _append_record(
+        record,
+        filename=APPROVAL_REVOCATIONS_FILE,
+        validator=validate_approval_revocation,
+        root=root,
+    )
+
+
 def append_policy_event(record: dict[str, Any], root: Path | None = None) -> Path:
     return _append_record(
         record,
@@ -450,6 +467,16 @@ def read_approval_history(root: Path | None = None) -> FeedbackHistoryResult:
     )
 
 
+def read_approval_revocation_history(
+    root: Path | None = None,
+) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=APPROVAL_REVOCATIONS_FILE,
+        validator=validate_approval_revocation,
+        root=root,
+    )
+
+
 def read_policy_event_history(root: Path | None = None) -> FeedbackHistoryResult:
     return _read_history(
         filename=POLICY_EVENTS_FILE,
@@ -504,6 +531,7 @@ def purge_feedback_state(root: Path | None = None) -> int:
             CANDIDATES_FILE,
             "activations.jsonl",
             APPROVALS_FILE,
+            APPROVAL_REVOCATIONS_FILE,
             POLICY_EVENTS_FILE,
             CANARIES_FILE,
             POLICY_SNAPSHOTS_FILE,

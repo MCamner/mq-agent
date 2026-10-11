@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from .approvals import require_valid_approval
 from .candidates import candidate_detail
 from .contracts import (
     validate_approval,
@@ -29,7 +30,6 @@ from .store import (
     append_approval,
     append_policy_event,
     append_policy_snapshot,
-    read_approval_history,
     read_comparison_history,
     read_policy_event_history,
     read_policy_snapshot_history,
@@ -75,7 +75,7 @@ def approval_receipt(
     candidate = candidate_detail(candidate_id, root)["candidate"]
     now = _now()
     record = {
-        "schema": "mq.feedback-approval.v1",
+        "schema": "mq.feedback-approval.v2",
         "approval_id": f"approval-{uuid.uuid4()}",
         "candidate_id": candidate_id,
         "candidate_fingerprint": candidate["fingerprint"],
@@ -89,28 +89,13 @@ def approval_receipt(
             "to": candidate["evidence_window"]["to"],
             "comparison_ids": list(candidate["comparison_ids"]),
         },
+        "evidence_snapshots": list(readiness["evidence"]["snapshots"]),
         "approved_at": _iso(now),
         "expires_at": _iso(now + timedelta(hours=expires_hours)),
         "reason": reason.strip()[:320],
     }
     validate_approval(record)
     append_approval(record, root)
-    return record
-
-
-def _approval(approval_id: str, root: Path | None = None) -> dict[str, Any]:
-    history = read_approval_history(root)
-    if history.issues:
-        raise ValueError("approval store contains invalid records")
-    matches = [
-        item.record
-        for item in history.records
-        if item.record.get("approval_id") == approval_id
-    ]
-    if len(matches) != 1:
-        raise ValueError("approval must resolve to exactly one receipt")
-    record = matches[0]
-    validate_approval(record)
     return record
 
 
@@ -133,30 +118,9 @@ def validate_canary(
     root: Path | None = None,
 ) -> dict[str, Any]:
     """Validate one explicit post-approval comparison as canary evidence."""
-    candidate = candidate_detail(candidate_id, root)["candidate"]
-    approval = _approval(approval_id, root)
+    candidate, approval = require_valid_approval(candidate_id, approval_id, root)
     comparison = _comparison(comparison_id, root)
 
-    if approval["candidate_id"] != candidate_id:
-        raise ValueError("approval is bound to another candidate")
-    current_readiness = activation_readiness(candidate_id, root)
-    if current_readiness["status"] != "READY_FOR_HUMAN_APPROVAL":
-        raise ValueError(
-            "approval expired because candidate readiness/state changed: "
-            + str(current_readiness["status"])
-        )
-    if approval["candidate_fingerprint"] != candidate["fingerprint"]:
-        raise ValueError("approval expired because candidate fingerprint changed")
-    if approval.get("readiness_fingerprint") is None:
-        raise ValueError(
-            "approval predates outcome-bound readiness; issue a new approval"
-        )
-    if approval["readiness_fingerprint"] != current_readiness["evidence_fingerprint"]:
-        raise ValueError(
-            "approval expired because task-class readiness evidence changed"
-        )
-    if datetime.fromisoformat(approval["expires_at"].replace("Z", "+00:00")) <= _now():
-        raise ValueError("approval receipt has expired")
     if comparison["recorded_at"] <= approval["approved_at"]:
         raise ValueError("canary comparison must be recorded after approval")
     if comparison["task_class"] != candidate["task_class"]:

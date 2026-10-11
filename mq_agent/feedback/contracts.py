@@ -11,6 +11,8 @@ COMPARISON_SCHEMA_ID = "mq.feedback-comparison.v1"
 CANDIDATE_SCHEMA_ID = "mq.feedback-candidate.v1"
 ACTIVATION_READINESS_SCHEMA_ID = "mq.feedback-activation-readiness.v1"
 APPROVAL_SCHEMA_ID = "mq.feedback-approval.v1"
+APPROVAL_V2_SCHEMA_ID = "mq.feedback-approval.v2"
+APPROVAL_REVOCATION_SCHEMA_ID = "mq.feedback-approval-revocation.v1"
 POLICY_EVENT_SCHEMA_ID = "mq.feedback-policy-event.v1"
 CANARY_SCHEMA_ID = "mq.feedback-canary.v1"
 POLICY_SNAPSHOT_SCHEMA_ID = "mq.feedback-policy-snapshot.v1"
@@ -20,6 +22,8 @@ _SCHEMA_FILES = {
     CANDIDATE_SCHEMA_ID: "feedback_candidate.schema.json",
     ACTIVATION_READINESS_SCHEMA_ID: "feedback_activation_readiness.schema.json",
     APPROVAL_SCHEMA_ID: "feedback_approval.schema.json",
+    APPROVAL_V2_SCHEMA_ID: "feedback_approval_v2.schema.json",
+    APPROVAL_REVOCATION_SCHEMA_ID: "feedback_approval_revocation.schema.json",
     POLICY_EVENT_SCHEMA_ID: "feedback_policy_event.schema.json",
     CANARY_SCHEMA_ID: "feedback_canary.schema.json",
     POLICY_SNAPSHOT_SCHEMA_ID: "feedback_policy_snapshot.schema.json",
@@ -52,7 +56,15 @@ def validate_activation_readiness(record: dict[str, Any]) -> None:
 
 
 def validate_approval(record: dict[str, Any]) -> None:
-    validator(APPROVAL_SCHEMA_ID).validate(record)
+    """Validate a v2 approval, or a historical v1 approval kept readable."""
+    schema_id = record.get("schema")
+    if schema_id not in {APPROVAL_SCHEMA_ID, APPROVAL_V2_SCHEMA_ID}:
+        raise ValueError(f"unsupported approval schema: {schema_id!r}")
+    validator(str(schema_id)).validate(record)
+
+
+def validate_approval_revocation(record: dict[str, Any]) -> None:
+    validator(APPROVAL_REVOCATION_SCHEMA_ID).validate(record)
 
 
 def validate_policy_event(record: dict[str, Any]) -> None:
