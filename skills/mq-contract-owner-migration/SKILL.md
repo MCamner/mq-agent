@@ -141,6 +141,29 @@ mq-agent stack contract-check
 - Preserve contract ids unless a real incompatible version boundary is required.
 - A runtime implementation must not emit fields the canonical contract rejects.
 - A consumer must not claim canonical parity until the canonical owner merge is visible.
+- Widening an enum (for example a new `task_class`) is additive under the
+  owner's versioning rule (mqobsidian DEC-006): old records stay valid. It still
+  carries a forward cost, because an older closed-schema reader rejects the new
+  value. Add a consumer test that shows the older reader counting the new record
+  as invalid while still reading its own records.
+- When a runtime keeps a list of accepted values next to the schema (for example
+  `KNOWN_TASK_CLASSES`), update it in the same consumer PR. Otherwise the new
+  value is silently rewritten to `unclassified`.
+
+## Published Meaning and Pass-Through Payloads
+
+- Do not change what an existing field means. When a field's semantics change
+  (for example one `approval_id` that becomes two distinct approvals), write a
+  new contract version and keep the old one readable through a dispatch on
+  `schema`.
+- Do not add keys to a payload that the command only passes through, least of
+  all a content-addressed one such as `mq.review-receipt.v1`. Put the new data
+  in an explicit envelope behind a flag (`{"execution": …, "review": <unchanged>}`)
+  and keep the default output byte-identical.
+- Check the owner before planning the change, not after the consumer PR is
+  written. Incident: a plan to widen `mq.execution-outcome.v1` inside mq-agent
+  would have failed the vendoring gate. The owner PR went first, and the
+  consumer PR was opened with its vendoring gate expected red until that merge.
 
 ## Cross-Repo Safety
 
