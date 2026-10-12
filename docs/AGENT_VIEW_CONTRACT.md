@@ -97,6 +97,9 @@ One compact paragraph (hot mission/status first, index state as fallback).
     <system>` — wired as the last step of the `mq-hot-refresh` /
     `mq-index-refresh` flows in mqobsidian, so a view is refreshed exactly where
     its `hot.md` / `index.md` source was just rewritten.
+  - One prepare step — `mq-agent context prepare --all` — runs the rebuild,
+    then `context export`, then the drift check, so agent runs and CI get
+    deterministic, repeatable context in one command.
   - Drift guard — `mq-agent agent-views check [--system <system>]` — rebuilds in
     dry-run, writes nothing, and exits non-zero if any view is stale vs its
     source (CI-friendly). This is the precondition for ever defaulting the

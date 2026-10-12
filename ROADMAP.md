@@ -2403,8 +2403,9 @@ controlled exports before falling back to the full `mqobsidian` vault.
 * [x] Add drift guard in CI/prep
   * Explanation: `mq-agent agent-views check` fails when views are stale.
   * Result: CI can refuse runs when generated views are out of sync.
-* [ ] Create a repeatable prepare step (script/CI target)
-  * Explanation: combine rebuild + export into one `prepare-context` step.
+* [x] Create a repeatable prepare step (script/CI target)
+  * Explanation: combine rebuild + export into one prepare step —
+    `mq-agent context prepare --all` (rebuild, export, then drift check).
   * Result: deterministic, reproducible context preparation for all agent runs.
 
 ### Why this is the next big automation
