@@ -68,6 +68,16 @@ OPERATIONAL_METRICS = frozenset(
     }
 )
 
+# Context-pack guidance is small control-plane overhead, not a material payload
+# regression by itself. Require the existing 5% relative delta and at least one
+# compact context block before classifying context growth as material.
+_CONTEXT_ABSOLUTE_MATERIALITY = {
+    "context_lines": 10.0,
+    "context_bytes": 1024.0,
+    "context_tokens": 256.0,
+}
+_CONTEXT_RELATIVE_MATERIALITY = 0.05
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -80,9 +90,12 @@ def _material(name: str, active: float, shadow: float) -> bool:
     if name == "retrieval_latency_ms":
         baseline = max(abs(active), 1.0)
         return abs(delta) >= 5.0 and abs(delta) / baseline >= 0.10
-    if name in {"context_lines", "context_bytes", "context_tokens"}:
+    if name in _CONTEXT_ABSOLUTE_MATERIALITY:
         baseline = max(abs(active), 1.0)
-        return abs(delta) / baseline >= 0.05
+        return (
+            abs(delta) >= _CONTEXT_ABSOLUTE_MATERIALITY[name]
+            and abs(delta) / baseline >= _CONTEXT_RELATIVE_MATERIALITY
+        )
     if name.endswith("_rate") or name in {
         "provenance_coverage",
         "relevance_precision",

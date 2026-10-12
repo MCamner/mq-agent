@@ -11,6 +11,7 @@ from mq_agent.feedback import append_comparison, append_experiment, build_feedba
 from mq_agent.feedback.evaluation import (
     build_operational_comparison,
     compare_feedback_run,
+    metric_pair,
 )
 
 
@@ -277,3 +278,60 @@ def test_f3_comparison_schema_is_packaged_registered_and_rejects_incomplete_reco
         Draft202012Validator(schema).validate(
             {"schema": "mq.feedback-comparison.v1", "verdict": "CANDIDATE_BETTER"}
         )
+
+
+
+def test_f3_measured_codegraph_gain_survives_small_guidance_overhead(tmp_path) -> None:
+    experiment = _experiment("fb-codegraph-measured")
+    active, shadow = _metrics()
+    active["context_lines"] = 44
+    shadow["context_lines"] = 50
+    active["context_bytes"] = 1253
+    shadow["context_bytes"] = 1854
+    active["source_count"] = 2
+    shadow["source_count"] = 3
+    active["deduplicated_source_count"] = 2
+    shadow["deduplicated_source_count"] = 3
+
+    base_sources = [
+        "repo-context:repo-card.md",
+        "context-card:mq-agent-card.md",
+    ]
+    codegraph_ref = "codegraph:mq_agent/main.py#app"
+    comparison = build_operational_comparison(
+        experiment,
+        active_metrics=active,
+        shadow_metrics=shadow,
+        active_sources=base_sources,
+        shadow_sources=[*base_sources, codegraph_ref],
+    )
+    append_experiment(experiment, tmp_path)
+    append_comparison(comparison, tmp_path)
+    fixture = _fixture(
+        tmp_path,
+        {
+            "id": "measured-codegraph-gain",
+            "expected_sources": [*base_sources, codegraph_ref],
+            "negative": False,
+            "stale_sources": [],
+            "contradicted_sources": [],
+        },
+    )
+
+    result = compare_feedback_run(
+        experiment["feedback_run_id"],
+        fixture_path=fixture,
+        state_root=tmp_path,
+    )
+
+    assert result["metrics"]["context_lines"]["material"] is False
+    assert result["metrics"]["context_bytes"]["material"] is False
+    assert result["metrics"]["relevance_recall"]["active"] == pytest.approx(2 / 3)
+    assert result["metrics"]["relevance_recall"]["shadow"] == 1.0
+    assert result["verdict"] == "CANDIDATE_BETTER"
+
+
+def test_f3_large_context_growth_remains_material() -> None:
+    assert metric_pair("context_lines", 44, 60)["material"] is True
+    assert metric_pair("context_bytes", 1253, 2500)["material"] is True
+    assert metric_pair("context_tokens", 500, 800)["material"] is True

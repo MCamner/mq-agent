@@ -46,7 +46,12 @@ def _vault(tmp_path: Path) -> Path:
     return root
 
 
-def _pack(*, codegraph: str, content: str | None = None) -> dict:
+def _pack(
+    *,
+    codegraph: str,
+    content: str | None = None,
+    codegraph_applied: bool = False,
+) -> dict:
     body = content or ("active context\n" if codegraph == "off" else "shadow context\n")
     return {
         "content": body,
@@ -59,6 +64,7 @@ def _pack(*, codegraph: str, content: str | None = None) -> dict:
                 "publishability": "public-safe",
             }
         },
+        "codegraph_applied": codegraph_applied,
     }
 
 
@@ -222,3 +228,86 @@ def test_f2_timeout_records_cancelled_without_comparison(tmp_path, monkeypatch) 
     assert result["reason"] == "feedback-context-timeout"
     assert result["experiment"]["state"] == "cancelled"
     assert read_comparison_history(state).records == []
+
+
+
+def test_f2_shadow_records_real_codegraph_refs_without_persisting_raw_output(
+    tmp_path, monkeypatch
+) -> None:
+    repo = _repo(tmp_path)
+    vault = _vault(tmp_path)
+    state = tmp_path / "state"
+
+    monkeypatch.setattr(
+        "mq_agent.feedback.engine.build_task_pack",
+        lambda *args, codegraph, **kwargs: _pack(
+            codegraph=codegraph,
+            codegraph_applied=codegraph != "off",
+        ),
+    )
+    monkeypatch.setattr(
+        "mq_agent.memory.codegraph_runtime.search_codegraph",
+        lambda query, root: {
+            "results": [
+                {"path": "mq_agent/main.py", "symbol": "app"},
+                {"path": "mq_agent/feedback/engine.py", "symbol": "run_context_experiment"},
+            ],
+            "raw_secret": "do-not-persist-this-payload",
+        },
+    )
+
+    result = run_context_experiment(
+        "review mq-agent repository",
+        repo,
+        vault=vault,
+        state_root=state,
+    )
+
+    assert result["status"] == "PASS"
+    comparison = result["comparison"]
+    assert "codegraph:mq_agent/main.py#app" not in comparison["sources"]["active"]
+    assert "codegraph:mq_agent/main.py#app" in comparison["sources"]["shadow"]
+    assert (
+        "codegraph:mq_agent/feedback/engine.py#run_context_experiment"
+        in comparison["sources"]["shadow"]
+    )
+    persisted = (state / "comparisons.jsonl").read_text(encoding="utf-8")
+    assert "do-not-persist-this-payload" not in persisted
+
+
+def test_f2_shadow_without_codegraph_refs_cannot_claim_quality_gain(
+    tmp_path, monkeypatch
+) -> None:
+    repo = _repo(tmp_path)
+    vault = _vault(tmp_path)
+    state = tmp_path / "state"
+
+    monkeypatch.setattr(
+        "mq_agent.feedback.engine.build_task_pack",
+        lambda *args, codegraph, **kwargs: _pack(
+            codegraph=codegraph,
+            codegraph_applied=codegraph != "off",
+        ),
+    )
+    monkeypatch.setattr(
+        "mq_agent.memory.codegraph_runtime.search_codegraph",
+        lambda query, root: {"ok": False, "reason": "index unavailable"},
+    )
+
+    result = run_context_experiment(
+        "review mq-agent repository",
+        repo,
+        vault=vault,
+        state_root=state,
+    )
+
+    assert result["status"] == "PASS"
+    assert result["experiment"]["state"] == "completed"
+    comparison = result["comparison"]
+    assert comparison["verdict"] == "INSUFFICIENT_EVIDENCE"
+    assert comparison["sources"]["shadow"] == comparison["sources"]["active"]
+    assert not any(
+        source.startswith("codegraph:")
+        for source in comparison["sources"]["shadow"]
+    )
+    assert len(read_comparison_history(state).records) == 1
