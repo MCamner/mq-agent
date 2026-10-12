@@ -15,6 +15,7 @@ from mq_agent.feedback.candidates import maybe_create_candidate
 from mq_agent.feedback.models import build_feedback_experiment
 from mq_agent.feedback.store import append_experiment
 from mq_agent.feedback.control import activate, approval_receipt, effective_strategy
+from mq_agent.feedback.promotion import promotion_approve
 from mq_agent.feedback.evaluation import metric_pair
 from mq_agent.tools.execution_outcome import (
     build_execution_outcome,
@@ -245,9 +246,13 @@ def test_canary_v2_plan_run_status_and_activation(tmp_path: Path, monkeypatch) -
     assert status["state"] == "COMPLETED"
     assert status["result"]["plan_sha256"] == plan["plan_sha256"]
 
+    promotion = promotion_approve(
+        candidate_id, canary_id=plan["canary_id"], reason="promotion approved", root=tmp_path
+    )
     event = activate(
         candidate_id,
         approval_id=approval["approval_id"],
+        promotion_approval_id=promotion["promotion_approval_id"],
         canary_id=plan["canary_id"],
         reason="bounded Canary v2 passed",
         root=tmp_path,
@@ -286,14 +291,15 @@ def test_canary_v2_fail_blocks_activation(tmp_path: Path, monkeypatch) -> None:
     assert result["failure_rate"] == pytest.approx(1 / 3, abs=1e-6)
     assert result["regressions"]
 
+    # A FAIL result can never yield the promotion approval activation needs.
     with pytest.raises(ValueError, match="canary verdict is not PASS"):
-        activate(
+        promotion_approve(
             candidate_id,
-            approval_id=approval["approval_id"],
             canary_id=plan["canary_id"],
             reason="must fail closed",
             root=tmp_path,
         )
+    assert effective_strategy("repo-review", tmp_path) == BASELINE
 
 
 def test_canary_v2_inconclusive_is_not_activation_evidence(

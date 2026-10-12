@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .approvals import approval_status, revoke_approval
+from .promotion import promotion_approve, promotion_status
 from .canary import (
     canary_preflight,
     canary_status,
@@ -778,22 +779,93 @@ def feedback_canary_check_cmd(
     )
 
 
+@app.command("promotion-approve")
+def feedback_promotion_approve_cmd(
+    candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
+    canary_id: Annotated[str, typer.Option("--canary-id", help="Passing Canary v2 identifier")],
+    reason: Annotated[str, typer.Option("--reason", help="Human promotion reason")],
+    expires_hours: Annotated[int, typer.Option("--expires-hours", min=1, max=168)] = 24,
+    approve: Annotated[bool, typer.Option("--approve", help="Required: issue promotion approval")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Issue a promotion approval bound to one exact PASS Canary v2 RESULT."""
+    if not approve:
+        raise typer.BadParameter("feedback promotion-approve requires --approve")
+    try:
+        payload = promotion_approve(
+            candidate_id,
+            canary_id=canary_id,
+            reason=reason,
+            expires_hours=expires_hours,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_out:
+        _emit_json(payload)
+        return
+    console.print(
+        Panel(
+            f"Promotion approval: {payload['promotion_approval_id']}\n"
+            f"Canary approval: {payload['canary_approval_id']}\n"
+            f"Candidate: {payload['candidate_id']}\n"
+            f"Canary: {payload['canary_id']}\n"
+            f"Task class: {payload['task_class']}\n"
+            f"Strategy: {payload['current_strategy']} -> {payload['proposed_strategy']}\n"
+            f"Expires: {payload['expires_at']}",
+            title="Feedback Promotion Approval",
+        )
+    )
+
+
+@app.command("promotion-status")
+def feedback_promotion_status_cmd(
+    promotion_approval_id: Annotated[str, typer.Argument(help="Promotion approval identifier")],
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+) -> None:
+    """Show whether one promotion approval may still activate; read-only."""
+    payload = promotion_status(promotion_approval_id)
+    if json_out:
+        _emit_json(payload)
+    else:
+        console.print(
+            Panel(
+                f"Promotion approval: {payload['promotion_approval_id']}\n"
+                f"Status: {payload['status']}\n"
+                f"Reason: {payload['reason'] or '-'}\n"
+                f"Candidate: {payload['candidate_id'] or '-'}\n"
+                f"Canary: {payload['canary_id'] or '-'}\n"
+                f"Expires: {payload['expires_at'] or '-'}\n"
+                + "\n".join(f"{name}: {value}" for name, value in payload["checks"].items()),
+                title="Feedback Promotion Status",
+            )
+        )
+    if payload["status"] == "INVALID":
+        raise typer.Exit(2)
+    if payload["status"] != "VALID":
+        raise typer.Exit(1)
+
+
 @app.command("activate")
 def feedback_activate_cmd(
     candidate_id: Annotated[str, typer.Argument(help="Feedback candidate identifier")],
-    approval_id: Annotated[str, typer.Option("--approval-id")],
+    approval_id: Annotated[str, typer.Option("--approval-id", help="Canary approval (permission to test)")],
+    promotion_approval_id: Annotated[
+        str,
+        typer.Option("--promotion-approval-id", help="Promotion approval (permission to activate)"),
+    ],
     canary_id: Annotated[str, typer.Option("--canary-id", help="Passing Canary v2 identifier")],
     reason: Annotated[str, typer.Option("--reason")],
     approve: Annotated[bool, typer.Option("--approve", help="Required: change one task-class policy")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
-    """Activate one task-class strategy after approval and a passing Canary v2 result."""
+    """Activate one task-class strategy after canary and promotion approval."""
     if not approve:
         raise typer.BadParameter("feedback activate requires --approve")
     try:
         payload = activate_policy(
             candidate_id,
             approval_id=approval_id,
+            promotion_approval_id=promotion_approval_id,
             canary_id=canary_id,
             reason=reason,
         )

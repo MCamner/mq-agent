@@ -9,6 +9,7 @@ from mq_agent.feedback.canary import create_canary_plan
 from mq_agent.feedback.models import build_feedback_experiment
 from mq_agent.feedback.store import append_canary, append_experiment
 from mq_agent.feedback.candidates import maybe_create_candidate
+from mq_agent.feedback.promotion import promotion_approve
 from mq_agent.feedback.control import (
     activate,
     approval_receipt,
@@ -229,9 +230,13 @@ def test_activation_requires_post_approval_canary_and_rolls_back_append_only(
         approval_id=approval["approval_id"],
     )
 
+    promotion = promotion_approve(
+        candidate_id, canary_id=canary_id, reason="promotion approved", root=tmp_path
+    )
     event = activate(
         candidate_id,
         approval_id=approval["approval_id"],
+        promotion_approval_id=promotion["promotion_approval_id"],
         canary_id=canary_id,
         reason="bounded canary passed",
         root=tmp_path,
@@ -331,9 +336,13 @@ def test_policy_registry_snapshot_status_is_content_verified(
         candidate_id=candidate_id,
         approval_id=approval["approval_id"],
     )
+    promotion = promotion_approve(
+        candidate_id, canary_id=canary_id, reason="promotion approved", root=tmp_path
+    )
     event = activate(
         candidate_id,
         approval_id=approval["approval_id"],
+        promotion_approval_id=promotion["promotion_approval_id"],
         canary_id=canary_id,
         reason="registry snapshot test",
         root=tmp_path,
@@ -399,9 +408,13 @@ def test_policy_registry_detects_snapshot_tamper(
         candidate_id=candidate_id,
         approval_id=approval["approval_id"],
     )
+    promotion = promotion_approve(
+        candidate_id, canary_id=canary_id, reason="promotion approved", root=tmp_path
+    )
     event = activate(
         candidate_id,
         approval_id=approval["approval_id"],
+        promotion_approval_id=promotion["promotion_approval_id"],
         canary_id=canary_id,
         reason="snapshot tamper test",
         root=tmp_path,
@@ -436,9 +449,13 @@ def test_kill_switch_restores_baseline_without_deleting_activation(
         candidate_id=candidate_id,
         approval_id=approval["approval_id"],
     )
+    promotion = promotion_approve(
+        candidate_id, canary_id=canary_id, reason="promotion approved", root=tmp_path
+    )
     activate(
         candidate_id,
         approval_id=approval["approval_id"],
+        promotion_approval_id=promotion["promotion_approval_id"],
         canary_id=canary_id,
         reason="canary pass",
         root=tmp_path,

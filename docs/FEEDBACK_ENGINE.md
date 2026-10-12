@@ -106,8 +106,13 @@ mq-agent feedback canary-run <canary-id> \
   --task "review release boundaries" \
   --fixture path/to/relevance-fixture.json
 mq-agent feedback canary-status <canary-id>
+mq-agent feedback promotion-approve <candidate-id> \
+  --canary-id <canary-id> \
+  --reason "reviewed the PASS result" \
+  --approve
 mq-agent feedback activate <candidate-id> \
   --approval-id <approval-id> \
+  --promotion-approval-id <promotion-approval-id> \
   --canary-id <canary-id> \
   --reason "bounded Canary v2 passed" \
   --approve
@@ -143,6 +148,19 @@ otherwise. Revocation appends one `mq.feedback-approval-revocation.v1` record
 and never modifies the approval; a second revocation of the same approval is
 refused. Historical v1 approvals stay readable but report `INVALID` because
 they predate the repo/commit binding.
+
+Canary approval and promotion approval are separate receipts. The canary
+approval only permits testing. `feedback promotion-approve` issues an
+`mq.feedback-promotion-approval.v1` receipt, and only for a PASS Canary v2
+RESULT; it binds the exact candidate, canary, RESULT fingerprint, strategy pair
+and policy snapshot, and expires. `feedback activate` requires both receipts,
+and the promotion approval can never be the canary approval. The read-only
+`feedback promotion-status <promotion-approval-id>` reports `VALID`, `REVOKED`,
+`EXPIRED`, `STALE_CANDIDATE`, `STALE_POLICY`, `STALE_CANARY` or `INVALID`, and
+`feedback approval-revoke` revokes either kind of approval. New activation and
+rollback events are written as `mq.feedback-policy-event.v2`, which records
+`canary_approval_id` and `promotion_approval_id` instead of the single
+`approval_id` of v1; historical v1 events stay readable.
 
 Before `canary-run`, an operator can check the whole chain without starting
 anything:

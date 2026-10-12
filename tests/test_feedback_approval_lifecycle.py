@@ -22,6 +22,7 @@ from mq_agent.feedback.control import (
     effective_strategy,
     validate_canary,
 )
+from mq_agent.feedback.promotion import promotion_approve
 from mq_agent.feedback.readiness import activation_readiness
 from mq_agent.main import app
 from tests.test_feedback_canary_v2 import (
@@ -268,12 +269,16 @@ def test_revoked_approval_cannot_activate(tmp_path: Path, monkeypatch) -> None:
         root=tmp_path,
     )
     assert result["verdict"] == "PASS"
+    promotion = promotion_approve(
+        candidate_id, canary_id=plan["canary_id"], reason="promoted", root=tmp_path
+    )
     revoke_approval(approval["approval_id"], reason="withdrawn", root=tmp_path)
 
     with pytest.raises(ValueError, match="revoked"):
         activate(
             candidate_id,
             approval_id=approval["approval_id"],
+            promotion_approval_id=promotion["promotion_approval_id"],
             canary_id=plan["canary_id"],
             reason="canary passed",
             root=tmp_path,

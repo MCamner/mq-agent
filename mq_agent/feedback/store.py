@@ -25,6 +25,7 @@ from .contracts import (
     validate_comparison,
     validate_policy_event,
     validate_policy_snapshot,
+    validate_promotion_approval,
 )
 from .models import validate_experiment
 
@@ -37,6 +38,7 @@ COMPARISONS_FILE = "comparisons.jsonl"
 CANDIDATES_FILE = "candidates.jsonl"
 APPROVALS_FILE = "approvals.jsonl"
 APPROVAL_REVOCATIONS_FILE = "approval-revocations.jsonl"
+PROMOTION_APPROVALS_FILE = "promotion-approvals.jsonl"
 POLICY_EVENTS_FILE = "policy-events.jsonl"
 CANARIES_FILE = "canaries.jsonl"
 POLICY_SNAPSHOTS_FILE = "policy-snapshots.jsonl"
@@ -339,6 +341,17 @@ def append_approval_revocation(
     )
 
 
+def append_promotion_approval(
+    record: dict[str, Any], root: Path | None = None
+) -> Path:
+    return _append_record(
+        record,
+        filename=PROMOTION_APPROVALS_FILE,
+        validator=validate_promotion_approval,
+        root=root,
+    )
+
+
 def append_policy_event(record: dict[str, Any], root: Path | None = None) -> Path:
     return _append_record(
         record,
@@ -477,6 +490,16 @@ def read_approval_revocation_history(
     )
 
 
+def read_promotion_approval_history(
+    root: Path | None = None,
+) -> FeedbackHistoryResult:
+    return _read_history(
+        filename=PROMOTION_APPROVALS_FILE,
+        validator=validate_promotion_approval,
+        root=root,
+    )
+
+
 def read_policy_event_history(root: Path | None = None) -> FeedbackHistoryResult:
     return _read_history(
         filename=POLICY_EVENTS_FILE,
@@ -532,6 +555,7 @@ def purge_feedback_state(root: Path | None = None) -> int:
             "activations.jsonl",
             APPROVALS_FILE,
             APPROVAL_REVOCATIONS_FILE,
+            PROMOTION_APPROVALS_FILE,
             POLICY_EVENTS_FILE,
             CANARIES_FILE,
             POLICY_SNAPSHOTS_FILE,
