@@ -116,16 +116,43 @@ def _logical_sources(pack: dict[str, Any]) -> list[str]:
         refs.append("context-card:" + Path(str(card)).name)
     return list(dict.fromkeys(refs))
 
+
+def _codegraph_sources(task: str, repo_root: Path) -> list[str]:
+    """Execute the candidate's read-only CodeGraph lookup and keep stable refs only."""
+    from mq_agent.memory.codegraph_runtime import search_codegraph
+    from mq_agent.memory.hybrid_retrieval import _codegraph_refs, _failure_reason
+
+    raw = search_codegraph(task, repo_root)
+    failure = _failure_reason(raw)
+    if failure:
+        raise ValueError(f"codegraph-evidence-unavailable:{failure}")
+
+    refs = [
+        item
+        for item in _codegraph_refs(raw)
+        if not str(item.get("reference", "")).startswith("sha256:")
+    ]
+    if not refs:
+        raise ValueError("codegraph-evidence-unavailable:no-stable-source-refs")
+    return list(
+        dict.fromkeys(
+            f"codegraph:{item['reference']}"
+            for item in refs
+        )
+    )
+
+
 def _measurement(
     pack: dict[str, Any],
     *,
     elapsed_ms: float,
     max_context_bytes: int,
     max_sources: int,
+    extra_sources: list[str] | None = None,
 ) -> tuple[dict[str, float | int | None], list[str]]:
     content = str(pack["content"])
     encoded = content.encode("utf-8")
-    sources = _logical_sources(pack)
+    sources = list(dict.fromkeys([*_logical_sources(pack), *(extra_sources or [])]))
     if len(encoded) > max_context_bytes:
         raise FeedbackBudgetExceeded("context-byte-budget-exceeded")
     if len(sources) > max_sources:
@@ -163,6 +190,7 @@ def _collect_pack(
     *,
     repo_name: str,
     repo_parent: Path,
+    repo_root: Path,
     vault: Path,
     codegraph: str,
     generated_at: str,
@@ -181,12 +209,16 @@ def _collect_pack(
             codegraph=codegraph,
             generated_at=generated_at,
         )
+        extra_sources: list[str] = []
+        if codegraph != "off" and bool(pack.get("codegraph_applied")):
+            extra_sources = _codegraph_sources(task, repo_root)
     elapsed_ms = (time.perf_counter() - started) * 1000
     return _measurement(
         pack,
         elapsed_ms=elapsed_ms,
         max_context_bytes=max_context_bytes,
         max_sources=max_sources,
+        extra_sources=extra_sources,
     )
 
 
@@ -273,6 +305,7 @@ def run_context_experiment(
             task,
             repo_name=repo_name,
             repo_parent=repo_root.parent,
+            repo_root=repo_root,
             vault=vault_root,
             codegraph=active_codegraph,
             generated_at=generated_at,
@@ -292,6 +325,7 @@ def run_context_experiment(
             task,
             repo_name=repo_name,
             repo_parent=repo_root.parent,
+            repo_root=repo_root,
             vault=vault_root,
             codegraph=shadow_codegraph,
             generated_at=generated_at,
