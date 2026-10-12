@@ -4716,6 +4716,96 @@ def context_export_cmd(
         raise typer.Exit(1)
 
 
+
+@context_app.command("prepare")
+def context_prepare_cmd(
+    repo: Annotated[str, typer.Option("--repo", help="Repo name to export")] = "",
+    all_repos: Annotated[bool, typer.Option("--all", help="Export all core MQ repos")] = False,
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    output_root: Annotated[str, typer.Option("--output-root", help="Repo root containing <repo>/ directories (default: ~)")] = "",
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be written without writing")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Prepare agent context in one repeatable step: rebuild views, export, verify.
+
+    Runs `agent-views rebuild`, then `context export`, then the agent-views
+    drift check, using the same functions those commands use. Export is skipped
+    when the rebuild reports errors, so repos never receive context cut from a
+    half-rebuilt vault. Re-running it changes nothing. Exits non-zero on any
+    error or if a view is still stale afterwards (CI-friendly).
+    """
+    from mq_agent.tools.agent_views import rebuild_agent_views
+    from mq_agent.tools.context_export import CORE_MQ_REPOS, export_repo_contexts
+
+    if all_repos and repo:
+        console.print("[bold red]Use either --repo or --all, not both.[/bold red]")
+        raise typer.Exit(2)
+    if not all_repos and not repo:
+        console.print("[bold red]Provide --repo or --all.[/bold red]")
+        raise typer.Exit(2)
+
+    vault_path = Path(vault).expanduser() if vault else None
+    views = rebuild_agent_views(vault=vault_path, dry_run=dry_run)
+    export: dict[str, Any] | None = None
+    fresh_after: bool | None = None
+    if not views["errors"]:
+        export = export_repo_contexts(
+            repos=CORE_MQ_REPOS if all_repos else [repo],
+            vault=vault_path,
+            output_root=Path(output_root).expanduser() if output_root else None,
+            dry_run=dry_run,
+            clean=False,
+        )
+        if not dry_run:
+            check = rebuild_agent_views(vault=vault_path, dry_run=True)
+            fresh_after = not (
+                check["views_written"] or check["views_updated"] or check["errors"]
+            )
+    ok = (
+        not views["errors"]
+        and export is not None
+        and not export["errors"]
+        and fresh_after is not False
+    )
+    report = {
+        "kind": "context-prepare",
+        "dry_run": dry_run,
+        "ok": ok,
+        "agent_views": views,
+        "context_export": export,
+        "views_fresh_after": fresh_after,
+    }
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2, default=str))
+        raise typer.Exit(0 if ok else 1)
+
+    tag = "[blue](dry-run)[/blue] " if dry_run else ""
+    console.rule("[bold]context prepare[/bold]")
+    console.print(
+        f"{tag}agent views: written {len(views['views_written'])}  "
+        f"updated {len(views['views_updated'])}  "
+        f"unchanged {len(views['views_unchanged'])}"
+    )
+    for err in views["errors"]:
+        console.print(f"[bold red]agent-views error:[/bold red] {err}")
+    if export is None:
+        console.print("[yellow]context export skipped: agent-views rebuild failed[/yellow]")
+    else:
+        for item in export["results"]:
+            changed = item["would_write"] if dry_run else item["written"]
+            console.print(
+                f"{tag}{item['repo']}: {len(changed)} changed, "
+                f"{len(item['unchanged'])} unchanged -> {item['context_dir']}"
+            )
+        for err in export["errors"]:
+            console.print(f"[bold red]context-export error:[/bold red] {err}")
+    if fresh_after is False:
+        console.print("[bold red]agent views still stale after rebuild[/bold red]")
+    if not ok:
+        raise typer.Exit(1)
+    console.print("[bold green]context prepared[/bold green]")
+
 # ── context pack (task-specific, Phase 5) ──────────────────────────────────────
 
 @context_app.command("feedback")

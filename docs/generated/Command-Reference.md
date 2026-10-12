@@ -298,6 +298,7 @@ Export compact repo-local .mq/context snapshots.
 | [`mq-agent context export`](#mq-agent-context-export) | Export small `.mq/context/` snapshots from mqobsidian context cards. This is Phase 4 orchestration: mqobsidian owns the card content; mq-agent selects repos and writes repo-local context files. Use `--output-root` for staging/tests before writing into real sibling repos. |
 | [`mq-agent context feedback`](#mq-agent-context-feedback) | Record one `feedback-signal.v1` pack-usage event in the vault's local log. Phase 11c: mqobsidian owns the vocabulary and the promotion/downgrade policy; this emits the signal. Records land in the gitignored `feedback/` surface and are never committed. |
 | [`mq-agent context pack`](#mq-agent-context-pack) | Generate a small task-specific `context-pack.v1` pack from mqobsidian cards. Phase 5 orchestration: mqobsidian owns the durable cards and the pack contract; mq-agent selects the relevant repos, cards, and do-not-read guidance for one task and adds an optional CodeGraph source-intelligence hint when the task is source-structure heavy. |
+| [`mq-agent context prepare`](#mq-agent-context-prepare) | Prepare agent context in one repeatable step: rebuild views, export, verify. Runs `agent-views rebuild`, then `context export`, then the agent-views drift check, using the same functions those commands use. Export is skipped when the rebuild reports errors, so repos never receive context cut from a half-rebuilt vault. Re-running it changes nothing. Exits non-zero on any error or if a view is still stale afterwards (CI-friendly). |
 
 ## `mq-agent context export`
 
@@ -363,6 +364,21 @@ Generate a small task-specific `context-pack.v1` pack from mqobsidian cards. Pha
 | `--task-class` | No | `repo-review` | Task class used for feedback-controlled context policy |
 | `--symbol` | No | — | Named symbol for a CodeGraph callers/impact query (repeatable) |
 | `--output`, `--out` | No | `""` | Write the pack here instead of stdout |
+| `--json` | No | `false` | — |
+
+## `mq-agent context prepare`
+
+Prepare agent context in one repeatable step: rebuild views, export, verify. Runs `agent-views rebuild`, then `context export`, then the agent-views drift check, using the same functions those commands use. Export is skipped when the rebuild reports errors, so repos never receive context cut from a half-rebuilt vault. Re-running it changes nothing. Exits non-zero on any error or if a view is still stale afterwards (CI-friendly).
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | `""` | Repo name to export |
+| `--all` | No | `false` | Export all core MQ repos |
+| `--vault` | No | `""` | mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian) |
+| `--output-root` | No | `""` | Repo root containing `<repo>`/ directories (default: ~) |
+| `--dry-run` | No | `false` | Show what would be written without writing |
 | `--json` | No | `false` | — |
 
 ## `mq-agent dashboard`
