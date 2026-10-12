@@ -48,9 +48,13 @@ mq-agent feedback report --task-class repo-review --since 30d --json
 mq-agent feedback compare <feedback-run-id> --json
 ```
 
-Explicit evidence-producing shadow run:
+Explicit evidence-producing shadow run. The execution run id comes from a real
+`repo-review` run that reported it at run time, never from reading the outcome
+store afterwards:
 
 ```bash
+mq-agent review repo . --json --with-execution
+# use execution.execution_run_id only when execution_outcome_recorded is true
 mq-agent feedback run \
   --task-class repo-review \
   --repo . \

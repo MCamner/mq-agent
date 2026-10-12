@@ -119,7 +119,7 @@ def _execution_outcome(
     *,
     dry_run: bool = False,
     runtime_fingerprint: dict[str, Any] | None = None,
-) -> Iterator[dict[str, str]]:
+) -> Iterator[dict[str, Any]]:
     """Record one `mq.execution-outcome.v1` for a CLI entrypoint.
 
     One execution is one operator action, and the outermost level owns the
@@ -167,7 +167,7 @@ def _execution_outcome(
     # decision taken during the run has to carry it as `execution_run_id` while
     # the run is still going. Generating it at write time would leave the
     # correlation to be reconstructed afterwards, which ADR-010 D3 forbids.
-    record = {
+    record: dict[str, Any] = {
         "result": "PASS",
         "exit_status": "ok",
         "run_id": str(uuid.uuid4()),
@@ -182,8 +182,12 @@ def _execution_outcome(
         record.update(result="FAIL", exit_status="error")
         raise
     finally:
+        # emit_execution_outcome swallows failures and returns None, so a run
+        # id alone does not prove a record exists. Callers that hand the id to
+        # an operator report this alongside it.
+        record["outcome_recorded"] = False
         if not dry_run:
-            emit_execution_outcome(
+            record["outcome_recorded"] = emit_execution_outcome(
                 run_id=record["run_id"],
                 runtime=runtime,
                 task_class=task_class,
@@ -193,7 +197,7 @@ def _execution_outcome(
                 model=record.get("model"),
                 fallback=record.get("fallback"),
                 runtime_fingerprint=fingerprint,
-            )
+            ) is not None
 
 
 def _render_ship(payload: dict[str, Any]) -> None:
@@ -964,6 +968,25 @@ def _render_arch_context(bridge: Any) -> None:
     console.print(Panel(lines, title="[dim]Architecture context (mq-mcp)[/dim]", border_style="dim"))
 
 
+def _echo_review_json(payload: Any, execution: dict[str, Any] | None) -> None:
+    """Print mq-mcp's review payload, enveloped only when execution is asked for.
+
+    The payload is passed through untouched either way: it may be a
+    content-addressed `mq.review-receipt.v1`, which must not gain fields.
+    """
+    if execution is not None:
+        payload = {"execution": execution, "review": payload}
+    typer.echo(json.dumps(payload, indent=2, default=str))
+
+
+def _execution_correlation(record: dict[str, Any], task_class: str) -> dict[str, Any]:
+    return {
+        "execution_run_id": record["run_id"],
+        "task_class": task_class,
+        "execution_outcome_recorded": bool(record.get("outcome_recorded")),
+    }
+
+
 def _run_review(
     command: str,
     result: Any,
@@ -971,6 +994,7 @@ def _run_review(
     bridge: Any = None,
     *,
     persist_receipt: bool = False,
+    execution: dict[str, Any] | None = None,
 ) -> None:
     receipt_path: Path | None = None
 
@@ -991,7 +1015,7 @@ def _run_review(
                 ),
             }
             if json_out:
-                typer.echo(json.dumps(error, indent=2))
+                _echo_review_json(error, execution)
             else:
                 _render_review_result(command, error)
             raise typer.Exit(1)
@@ -1005,7 +1029,7 @@ def _run_review(
                 ),
             }
             if json_out:
-                typer.echo(json.dumps(error, indent=2))
+                _echo_review_json(error, execution)
             else:
                 _render_review_result(command, error)
             raise typer.Exit(1)
@@ -1019,7 +1043,7 @@ def _run_review(
                     "error": f"review receipt could not be stored: {exc}",
                 }
                 if json_out:
-                    typer.echo(json.dumps(error, indent=2))
+                    _echo_review_json(error, execution)
                 else:
                     _render_review_result(command, error)
                 raise typer.Exit(1) from exc
@@ -1027,12 +1051,17 @@ def _run_review(
     if json_out:
         # Keep mq-mcp's receipt JSON unchanged for consumers. Persistence is a
         # local side effect keyed by receipt_id, not a mutation of the contract.
-        typer.echo(json.dumps(result, indent=2, default=str))
+        _echo_review_json(result, execution)
         if _is_error_result(result) or _receipt_refused(result):
             raise typer.Exit(1)
         return
 
     _render_review_result(command, result)
+    if execution is not None:
+        recorded = "recorded" if execution["execution_outcome_recorded"] else "NOT recorded"
+        console.print(
+            f"[dim]Execution run: {execution['execution_run_id']} ({recorded})[/dim]"
+        )
     if receipt_path is not None:
         console.print(f"[dim]Stored receipt: {receipt_path}[/dim]")
     if _receipt_refused(result):
@@ -1125,9 +1154,20 @@ def review_repo_cmd(
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
     receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
+    with_execution: Annotated[
+        bool,
+        typer.Option(
+            "--with-execution",
+            help="Report the execution run id and whether its outcome was recorded; with --json, wrap the unchanged payload as {execution, review}",
+        ),
+    ] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be called, no execution")] = False,
 ):
-    """Review a repo through mq-mcp. mq-agent renders mq-mcp output only."""
+    """Review a repo through mq-mcp. mq-agent renders mq-mcp output only.
+
+    Each non-dry run records one `mq.execution-outcome.v1` with task class
+    `repo-review`, so feedback evidence can correlate to its exact run id.
+    """
     if dry_run:
         enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
@@ -1137,14 +1177,26 @@ def review_repo_cmd(
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
+    fingerprint = _require_recordable_runtime()
     bridge = MultiMCPBridge()
-    flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
+    with _execution_outcome("repo-review", runtime_fingerprint=fingerprint) as record:
+        flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
+        result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
+        if _is_error_result(result) or _receipt_refused(result):
+            record.update(result="FAIL", exit_status="error")
+    execution = (
+        _execution_correlation(record, "repo-review") if with_execution else None
+    )
     if _is_error_result(flags):
-        _run_review("review repo", flags, json_out)
+        _run_review("review repo", flags, json_out, execution=execution)
         return
-    result = bridge.review_repo(path, flags)
     _run_review(
-        "review repo", result, json_out, bridge=bridge, persist_receipt=receipt
+        "review repo",
+        result,
+        json_out,
+        bridge=bridge,
+        persist_receipt=receipt,
+        execution=execution,
     )
     if brain and not _is_error_result(result):
         _brain_record_review(bridge, path, _review_payload(result))

@@ -11,6 +11,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `review repo` records one `mq.execution-outcome.v1` with the new task class
+  `repo-review` (vendored from mqobsidian; not mapped onto `audit`).
+  `--with-execution` reports the run id minted before the review and whether
+  its outcome was actually recorded; with `--json` it wraps mq-mcp's unchanged
+  payload as `{execution, review}`. Default `--json` output is unchanged.
 - Separate promotion approval. `feedback promotion-approve` issues
   `mq.feedback-promotion-approval.v1` only for a PASS Canary v2 RESULT, bound to
   the exact candidate, canary, RESULT fingerprint, strategy pair and policy

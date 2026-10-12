@@ -2576,7 +2576,7 @@ Pass-through mq-mcp review orchestration.
 | [`mq-agent review diff`](#mq-agent-review-diff) | Review the current diff through mq-mcp. Findings are passed through. |
 | [`mq-agent review file`](#mq-agent-review-file) | Review one file through mq-mcp. mq-agent does not implement review logic. |
 | [`mq-agent review perception`](#mq-agent-review-perception) | Produce perception.v1, review it through mq-mcp, and optionally bind a receipt. mq-image-analyze owns visual extraction. mq-mcp owns risk/architecture review and the mq.perception-review.v1 contract. mq-agent only orchestrates, validates the returned contracts and renders them. |
-| [`mq-agent review repo`](#mq-agent-review-repo) | Review a repo through mq-mcp. mq-agent renders mq-mcp output only. |
+| [`mq-agent review repo`](#mq-agent-review-repo) | Review a repo through mq-mcp. mq-agent renders mq-mcp output only. Each non-dry run records one `mq.execution-outcome.v1` with task class `repo-review`, so feedback evidence can correlate to its exact run id. |
 
 ## `mq-agent review diff`
 
@@ -2645,7 +2645,7 @@ Produce perception.v1, review it through mq-mcp, and optionally bind a receipt. 
 
 ## `mq-agent review repo`
 
-Review a repo through mq-mcp. mq-agent renders mq-mcp output only.
+Review a repo through mq-mcp. mq-agent renders mq-mcp output only. Each non-dry run records one `mq.execution-outcome.v1` with task class `repo-review`, so feedback evidence can correlate to its exact run id.
 
 ### Arguments
 
@@ -2665,6 +2665,7 @@ Review a repo through mq-mcp. mq-agent renders mq-mcp output only.
 | `--brain` | No | `false` | Record review result to mqobsidian second brain |
 | `--receipt` | No | `false` | Require and save mq-mcp exact-code review receipt |
 | `--json` | No | `false` | — |
+| `--with-execution` | No | `false` | Report the execution run id and whether its outcome was recorded; with --json, wrap the unchanged payload as {execution, review} |
 | `--dry-run` | No | `false` | Show what would be called, no execution |
 
 ## `mq-agent route`
