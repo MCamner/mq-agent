@@ -76,6 +76,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Broaden operator-authored repo-review retrieval evidence before automatic agent integration",
+  "next_focus": "Prove the Post-v1.30 controlled activation gate end to end on real repo-review evidence",
   "release_mode": "pull_request"
 }
