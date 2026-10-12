@@ -11,7 +11,10 @@ from mq_agent.feedback import (
     read_experiment_history,
     run_context_experiment,
 )
-from mq_agent.feedback.engine import FeedbackExperimentError
+from mq_agent.feedback.engine import (
+    FeedbackExperimentError,
+    _drop_redundant_constructor_refs,
+)
 from mq_agent.tools.execution_outcome import build_execution_outcome, record_execution_outcome
 
 
@@ -355,3 +358,62 @@ def test_f2_correlated_execution_latency_is_persisted_as_neutral_baseline(
     assert baseline["shadow"] == 8000.0
     assert baseline["material"] is False
     assert "execution-outcome:real-review-latency" in comparison["evidence_refs"]
+
+
+def test_f2_drops_only_redundant_bare_constructor_ref() -> None:
+    refs = [
+        {"namespace": "codegraph", "reference": "mq_agent/agents/release_agent.py#ReleaseAgent"},
+        {"namespace": "codegraph", "reference": "mq_agent/agents/release_agent.py#create_plan"},
+        {"namespace": "codegraph", "reference": "mq_agent/agents/release_agent.py#__init__"},
+        {"namespace": "codegraph", "reference": "mq_agent/config.py#__post_init__"},
+        {"namespace": "codegraph", "reference": "mq_agent/only_constructor.py#__init__"},
+    ]
+
+    result = _drop_redundant_constructor_refs(refs)
+
+    assert {item["reference"] for item in result} == {
+        "mq_agent/agents/release_agent.py#ReleaseAgent",
+        "mq_agent/agents/release_agent.py#create_plan",
+        "mq_agent/config.py#__post_init__",
+        "mq_agent/only_constructor.py#__init__",
+    }
+
+
+def test_f2_shadow_suppresses_redundant_constructor_but_keeps_stronger_refs(
+    tmp_path, monkeypatch
+) -> None:
+    repo = _repo(tmp_path)
+    vault = _vault(tmp_path)
+    state = tmp_path / "state"
+
+    monkeypatch.setattr(
+        "mq_agent.feedback.engine.build_task_pack",
+        lambda *args, codegraph, **kwargs: _pack(
+            codegraph=codegraph,
+            codegraph_applied=codegraph != "off",
+        ),
+    )
+    monkeypatch.setattr(
+        "mq_agent.memory.codegraph_runtime.search_codegraph",
+        lambda query, root: {
+            "results": [
+                {"path": "mq_agent/agents/release_agent.py", "symbol": "ReleaseAgent"},
+                {"path": "mq_agent/agents/release_agent.py", "symbol": "create_plan"},
+                {"path": "mq_agent/agents/release_agent.py", "symbol": "__init__"},
+                {"path": "mq_agent/config.py", "symbol": "__post_init__"},
+            ]
+        },
+    )
+
+    result = run_context_experiment(
+        "review mq-agent repository",
+        repo,
+        vault=vault,
+        state_root=state,
+    )
+
+    shadow = result["comparison"]["sources"]["shadow"]
+    assert "codegraph:mq_agent/agents/release_agent.py#ReleaseAgent" in shadow
+    assert "codegraph:mq_agent/agents/release_agent.py#create_plan" in shadow
+    assert "codegraph:mq_agent/agents/release_agent.py#__init__" not in shadow
+    assert "codegraph:mq_agent/config.py#__post_init__" in shadow
