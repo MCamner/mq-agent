@@ -12,6 +12,7 @@ from mq_agent.feedback import (
     run_context_experiment,
 )
 from mq_agent.feedback.engine import FeedbackExperimentError
+from mq_agent.tools.execution_outcome import build_execution_outcome, record_execution_outcome
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -311,3 +312,46 @@ def test_f2_shadow_without_codegraph_refs_cannot_claim_quality_gain(
         for source in comparison["sources"]["shadow"]
     )
     assert len(read_comparison_history(state).records) == 1
+
+
+
+def test_f2_correlated_execution_latency_is_persisted_as_neutral_baseline(
+    tmp_path, monkeypatch
+) -> None:
+    repo = _repo(tmp_path)
+    vault = _vault(tmp_path)
+    state = tmp_path / "state"
+    outcome_path = tmp_path / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(outcome_path))
+    record_execution_outcome(
+        build_execution_outcome(
+            runtime="agent",
+            task_class="repo-review",
+            result="PASS",
+            exit_status="ok",
+            latency_ms=8000,
+            run_id="real-review-latency",
+        ),
+        outcome_path,
+    )
+    monkeypatch.setattr(
+        "mq_agent.feedback.engine.build_task_pack",
+        lambda *args, codegraph, **kwargs: _pack(codegraph=codegraph),
+    )
+
+    result = run_context_experiment(
+        "review repo",
+        repo,
+        vault=vault,
+        state_root=state,
+        execution_run_id="real-review-latency",
+    )
+
+    comparison = result["comparison"]
+    baseline = comparison["metrics"]["execution_latency_ms"]
+    assert baseline["status"] == "comparable"
+    assert baseline["direction"] == "neutral"
+    assert baseline["active"] == 8000.0
+    assert baseline["shadow"] == 8000.0
+    assert baseline["material"] is False
+    assert "execution-outcome:real-review-latency" in comparison["evidence_refs"]
