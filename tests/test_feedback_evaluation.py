@@ -335,3 +335,59 @@ def test_f3_large_context_growth_remains_material() -> None:
     assert metric_pair("context_lines", 44, 60)["material"] is True
     assert metric_pair("context_bytes", 1253, 2500)["material"] is True
     assert metric_pair("context_tokens", 500, 800)["material"] is True
+
+
+
+def test_f3_retrieval_latency_materiality_uses_real_execution_latency() -> None:
+    experiment = _experiment("fb-task-latency")
+    active, shadow = _metrics(active_latency=93.161, shadow_latency=591.092)
+    active["execution_latency_ms"] = 10000
+    shadow["execution_latency_ms"] = 10000
+
+    comparison = build_operational_comparison(
+        experiment,
+        active_metrics=active,
+        shadow_metrics=shadow,
+        active_sources=["repo-context:repo-card.md"],
+        shadow_sources=["repo-context:repo-card.md"],
+    )
+
+    latency = comparison["metrics"]["retrieval_latency_ms"]
+    task_latency = comparison["metrics"]["execution_latency_ms"]
+    assert latency["delta"] == pytest.approx(497.931)
+    assert latency["material"] is False
+    assert task_latency["active"] == 10000.0
+    assert task_latency["shadow"] == 10000.0
+    assert task_latency["direction"] == "neutral"
+
+
+def test_f3_retrieval_latency_remains_material_for_short_real_task() -> None:
+    experiment = _experiment("fb-short-task-latency")
+    active, shadow = _metrics(active_latency=93.161, shadow_latency=591.092)
+    active["execution_latency_ms"] = 2000
+    shadow["execution_latency_ms"] = 2000
+
+    comparison = build_operational_comparison(
+        experiment,
+        active_metrics=active,
+        shadow_metrics=shadow,
+        active_sources=["repo-context:repo-card.md"],
+        shadow_sources=["repo-context:repo-card.md"],
+    )
+
+    assert comparison["metrics"]["retrieval_latency_ms"]["material"] is True
+
+
+def test_f3_latency_falls_back_to_context_baseline_without_real_execution() -> None:
+    experiment = _experiment("fb-no-task-latency")
+    active, shadow = _metrics(active_latency=93.161, shadow_latency=591.092)
+
+    comparison = build_operational_comparison(
+        experiment,
+        active_metrics=active,
+        shadow_metrics=shadow,
+        active_sources=["repo-context:repo-card.md"],
+        shadow_sources=["repo-context:repo-card.md"],
+    )
+
+    assert comparison["metrics"]["retrieval_latency_ms"]["material"] is True

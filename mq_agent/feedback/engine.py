@@ -240,6 +240,7 @@ def run_context_experiment(
         raise ValueError("task must not be empty")
     if max_context_bytes <= 0 or max_sources <= 0:
         raise ValueError("feedback budgets must be positive")
+    execution_latency_ms: int | None = None
     if execution_run_id is not None:
         outcomes, issues = read_execution_outcomes()
         if issues:
@@ -253,6 +254,7 @@ def run_context_experiment(
             raise ValueError(
                 "execution_run_id must resolve to exactly one mq.execution-outcome.v1"
             )
+        execution_latency_ms = int(matches[0]["latency_ms"])
 
     repo_root = Path(repo_path).expanduser().resolve()
     repo = Repo(repo_root)
@@ -356,6 +358,13 @@ def run_context_experiment(
             "status": "BLOCKED",
             "reason": str(exc),
         }
+
+    if execution_latency_ms is not None:
+        # The exact correlated real run is the materiality baseline for retrieval
+        # overhead. Active and shadow carry the same observed task runtime; this
+        # does not claim that the shadow task itself executed.
+        active_metrics["execution_latency_ms"] = execution_latency_ms
+        shadow_metrics["execution_latency_ms"] = execution_latency_ms
 
     experiment = build_feedback_experiment(
         task_class=task_class,

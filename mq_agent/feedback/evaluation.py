@@ -20,6 +20,7 @@ DIRECTIONS: dict[str, str] = {
     "context_bytes": "lower_is_better",
     "context_tokens": "lower_is_better",
     "retrieval_latency_ms": "lower_is_better",
+    "execution_latency_ms": "neutral",
     "source_count": "neutral",
     "deduplicated_source_count": "neutral",
     "provenance_coverage": "higher_is_better",
@@ -36,6 +37,7 @@ UNITS: dict[str, str] = {
     "context_bytes": "bytes",
     "context_tokens": "tokens",
     "retrieval_latency_ms": "ms",
+    "execution_latency_ms": "ms",
     "source_count": "sources",
     "deduplicated_source_count": "sources",
     "provenance_coverage": "ratio",
@@ -83,12 +85,24 @@ def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _material(name: str, active: float, shadow: float) -> bool:
+def _material(
+    name: str,
+    active: float,
+    shadow: float,
+    *,
+    execution_latency_ms: float | None = None,
+) -> bool:
     delta = shadow - active
     if delta == 0:
         return False
     if name == "retrieval_latency_ms":
-        baseline = max(abs(active), 1.0)
+        # Prefer the exact correlated task runtime when available. This preserves
+        # the existing 10% materiality rule while applying it to the real
+        # repo-review cost rather than only the much smaller context-pack substep.
+        baseline = max(
+            abs(execution_latency_ms) if execution_latency_ms is not None else abs(active),
+            1.0,
+        )
         return abs(delta) >= 5.0 and abs(delta) / baseline >= 0.10
     if name in _CONTEXT_ABSOLUTE_MATERIALITY:
         baseline = max(abs(active), 1.0)
@@ -110,6 +124,8 @@ def metric_pair(
     name: str,
     active: float | int | None,
     shadow: float | int | None,
+    *,
+    execution_latency_ms: float | None = None,
 ) -> dict[str, Any]:
     direction = DIRECTIONS[name]
     unit = UNITS[name]
@@ -135,7 +151,12 @@ def metric_pair(
         "material": (
             False
             if direction == "neutral"
-            else _material(name, active_value, shadow_value)
+            else _material(
+                name,
+                active_value,
+                shadow_value,
+                execution_latency_ms=execution_latency_ms,
+            )
         ),
     }
 
@@ -157,8 +178,24 @@ def _base_metrics(
     shadow_metrics: dict[str, float | int | None],
 ) -> dict[str, dict[str, Any]]:
     names = list(DIRECTIONS)
+    active_execution = active_metrics.get("execution_latency_ms")
+    shadow_execution = shadow_metrics.get("execution_latency_ms")
+    execution_latency_ms = (
+        float(active_execution)
+        if isinstance(active_execution, (int, float))
+        and isinstance(shadow_execution, (int, float))
+        and float(active_execution) == float(shadow_execution)
+        else None
+    )
     return {
-        name: metric_pair(name, active_metrics.get(name), shadow_metrics.get(name))
+        name: metric_pair(
+            name,
+            active_metrics.get(name),
+            shadow_metrics.get(name),
+            execution_latency_ms=(
+                execution_latency_ms if name == "retrieval_latency_ms" else None
+            ),
+        )
         for name in names
         if name in active_metrics or name in shadow_metrics
     }
@@ -175,6 +212,11 @@ def build_operational_comparison(
     """Build the F2 comparison. No relevance labels means no better verdict."""
     evidence_refs = [
         f"experiment:{experiment['feedback_run_id']}",
+        *(
+            [f"execution-outcome:{experiment['execution_run_id']}"]
+            if isinstance(experiment.get("execution_run_id"), str)
+            else []
+        ),
         *(f"active-source:{item}" for item in active_sources),
         *(f"shadow-source:{item}" for item in shadow_sources),
     ]
