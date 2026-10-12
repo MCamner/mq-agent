@@ -3,23 +3,37 @@
 Released: v1.27.0 — Execution instrumentation and evidence integrity.
 Released: v1.28.0 — Runtime Provenance.
 Released: v1.29.0 — NotebookLM Knowledge Pipeline.
-Next: v1.30.0 — Evidence-Grounded Feedback Engine (Observe, Compare, Propose).
-Deferred: controlled activation/rollback and MCP tool contract checking — future scope, no version assigned.
+Released: v1.30.0 — Evidence-Grounded Feedback Engine (Observe, Compare, Propose).
+Released: v1.31.0 — Evidence-Gated Activation and Recovery.
+Released: v1.32.0 — Canary v2.
+Released: v1.33.0 — Policy Registry v2.
+Next: prove the Post-v1.30 controlled activation gate end to end on real
+`repo-review` evidence. This is evidence collection, not new code; no version
+assigned.
+Deferred: MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
 
-All release phases complete through v1.29.0. The NotebookLM archive now has a
-deterministic corpus contract, quota-aware Drive inventory, lexical and local
-semantic retrieval, bounded evidence reads, cross-notebook research, interaction
-gap analysis, SHA-256-backed incremental sync, and an Atlas-safe evidence
-handoff. The post-v1.28 `signal --brain` provenance work is also included.
+All release phases are complete through v1.33.0. v1.30.0 added the
+evidence-grounded feedback engine (`OBSERVE -> COMPARE -> PROPOSE`), v1.31.0 the
+human-gated, task-class-scoped activation and recovery path, v1.32.0 the
+bounded Canary v2 PLAN/RESULT lifecycle, and v1.33.0 content-fingerprinted
+policy snapshots with rollback addressed by exact activation event.
 
-The next release is now scoped as v1.30.0: an evidence-grounded feedback engine
-that observes real executions, compares the active context/retrieval path with a
-zero-effect shadow candidate, and produces reviewable improvement candidates.
-v1.30.0 deliberately stops at `OBSERVE -> COMPARE -> PROPOSE`: it does not
-activate routing, retrieval, memory, or tool policy automatically. Controlled
-activation/rollback and MCP tool contract checking remain deferred.
+Since v1.33.0 the control plane has been hardened on `main`:
+
+* approval v2 with repo/commit binding, plus `approval-status` and
+  `approval-revoke`
+* read-only `canary-preflight`
+* a separate promotion approval, so that `activate` needs both the canary
+  and the promotion receipt
+* `review repo` correlation to `mq.execution-outcome.v1` through task class
+  `repo-review`
+
+The code for the gate is complete. What remains is proving it once end to end
+on real evidence: readiness, approval, canary, promotion, activation,
+post-activation check and rollback. Nothing activates routing, retrieval,
+memory or tool policy automatically.
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -47,12 +61,15 @@ activation/rollback and MCP tool contract checking remain deferred.
 | v1.27.0 | Execution instrumentation and evidence integrity | Released v1.27.0 |
 | v1.28.0 | Runtime Provenance | Released v1.28.0 |
 | v1.29.0 | NotebookLM Knowledge Pipeline | Released v1.29.0 |
-| v1.30.0 | Evidence-Grounded Feedback Engine | Planned |
+| v1.30.0 | Evidence-Grounded Feedback Engine | Released v1.30.0 |
+| v1.31.0 | Evidence-Gated Activation and Recovery | Released v1.31.0 |
+| v1.32.0 | Canary v2 | Released v1.32.0 |
+| v1.33.0 | Policy Registry v2 | Released v1.33.0 |
 
-## Planned — v1.30.0 Evidence-Grounded Feedback Engine
+## Released — v1.30.0 Evidence-Grounded Feedback Engine
 
-* **Status:** Planned.
-* **Priority:** P1 — next stack-level capability.
+* **Status:** Released v1.30.0 (2026-10-06).
+* **Priority:** P1 — stack-level capability.
 * **Owner:** `mq-agent`.
 * **Primary consumers:** `mq-mcp`, `mq-hal`, `mqlaunch`, Codex/Claude through MCP.
 * **Evidence sources:** `mq.execution-outcome.v1`, repo/context provenance,
@@ -184,8 +201,11 @@ Planned mq-agent-owned runtime contracts:
   and CI consumers.
 * [x] Register shipped contracts in `.mq/repo-contract.json`, package schemas
   in the wheel, and add positive/negative schema tests.
-* [ ] Preserve backwards readability if a later contract version is introduced;
-  never rewrite old evidence into the newest shape.
+* [x] Preserve backwards readability if a later contract version is introduced;
+  never rewrite old evidence into the newest shape. Done for every later
+  version so far: `mq.feedback-approval.v2` and `mq.feedback-policy-event.v2`
+  are written new while v1 records stay readable through schema dispatch, and
+  no v1 record is rewritten.
 
 `mqobsidian` remains the owner of durable memory/promotion contracts. v1.30
 must not invent a second durable-memory schema merely to store a feedback
@@ -1736,9 +1756,10 @@ After the release, this is answerable mechanically: are the source checkout,
 the installed runtime, the running runtime and the release identity the same
 code — and if not, which two layers differ and what is the next action?
 
-## Deferred — v1.29.0 MCP tool contract checking
+## Deferred — MCP tool contract checking (no version assigned)
 
-* **Status:** Deferred, not started. The only compatibility work v1.26.0
+* **Status:** Deferred, not started. Originally pencilled in as v1.29.0; that
+  version shipped the NotebookLM Knowledge Pipeline instead. The only compatibility work v1.26.0
   deferred that `mq-agent` owns: checking MCP tool names, safety classes and
   schema signatures across the stack. Every check that shipped reads declared
   files; this one has to read `mq-mcp`'s live tool registry, which is a
@@ -1986,8 +2007,8 @@ The gate reads and enforces the block. Declaring it in `mq-mcp` and
 * [x] Detect producer schema changes without corresponding consumer updates.
   `MQC018_CONTRACT_VERSION_SKEW` — delivered with Phase 6, since it needed the
   contract matching that phase added.
-* [ ] Check MCP tool names, safety classes, and schema signatures. **Deferred
-  to v1.29.** Every other check reads declared files; this one has to read
+* [ ] Check MCP tool names, safety classes, and schema signatures. **Deferred,
+  no version assigned** (see "Deferred — MCP tool contract checking"). Every other check reads declared files; this one has to read
   mq-mcp's live tool registry, which is a different class of work and a
   different ownership boundary.
 * [x] Present relationships as evidence, not only a summary status.
