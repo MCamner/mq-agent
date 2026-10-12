@@ -229,15 +229,28 @@ def activate(
     candidate_id: str,
     *,
     approval_id: str,
+    promotion_approval_id: str,
     canary_id: str,
     reason: str,
     root: Path | None = None,
 ) -> dict[str, Any]:
-    """Activate one task class and bind the event to immutable policy snapshots."""
+    """Activate one task class and bind the event to immutable policy snapshots.
+
+    The canary approval only permitted testing; activation also requires a
+    separate promotion approval bound to the exact PASS Canary v2 RESULT.
+    """
     if not reason.strip():
         raise ValueError("activation requires a reason")
     from .canary import require_passing_canary
+    from .promotion import require_valid_promotion
 
+    require_valid_promotion(
+        promotion_approval_id,
+        candidate_id=candidate_id,
+        canary_id=canary_id,
+        canary_approval_id=approval_id,
+        root=root,
+    )
     candidate = candidate_detail(candidate_id, root)["candidate"]
     canary = require_passing_canary(
         canary_id,
@@ -270,14 +283,15 @@ def activate(
         source_event_id=event_id,
     )
     record = {
-        "schema": "mq.feedback-policy-event.v1",
+        "schema": "mq.feedback-policy-event.v2",
         "event_id": event_id,
         "event_type": "ACTIVATION",
         "task_class": task_class,
         "from_strategy": current,
         "to_strategy": candidate["proposed_strategy"],
         "candidate_id": candidate_id,
-        "approval_id": approval_id,
+        "canary_approval_id": approval_id,
+        "promotion_approval_id": promotion_approval_id,
         "canary_id": canary_id,
         "canary_comparison_id": (
             canary["comparison_ids"][-1] if canary["comparison_ids"] else None
@@ -352,14 +366,15 @@ def rollback(
         source_event_id=event_id,
     )
     record = {
-        "schema": "mq.feedback-policy-event.v1",
+        "schema": "mq.feedback-policy-event.v2",
         "event_id": event_id,
         "event_type": "ROLLBACK",
         "task_class": task_class,
         "from_strategy": current,
         "to_strategy": rollback_target["effective_strategy"],
         "candidate_id": None,
-        "approval_id": None,
+        "canary_approval_id": None,
+        "promotion_approval_id": None,
         "canary_id": None,
         "canary_comparison_id": None,
         "before_snapshot_id": active_snapshot["snapshot_id"],

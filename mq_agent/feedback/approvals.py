@@ -24,6 +24,11 @@ from .store import (
     read_approval_revocation_history,
 )
 
+# Promotion approvals share the revocation contract and store; the prefix keeps
+# them distinct from canary approvals, whose ids are approval-<uuid4>.
+PROMOTION_APPROVAL_PREFIX = "approval-promotion-"
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -210,10 +215,18 @@ def revoke_approval(
     reason: str,
     root: Path | None = None,
 ) -> dict[str, Any]:
-    """Append one revocation. The approval record itself is never modified."""
+    """Append one revocation for a canary or promotion approval.
+
+    The approval record itself is never modified.
+    """
     if not reason.strip():
         raise ValueError("revocation requires a reason")
-    _resolve(approval_id, root)
+    if approval_id.startswith(PROMOTION_APPROVAL_PREFIX):
+        from .promotion import resolve_promotion
+
+        resolve_promotion(approval_id, root)
+    else:
+        _resolve(approval_id, root)
     if _revocation(approval_id, root) is not None:
         raise ValueError("approval is already revoked")
     record = {

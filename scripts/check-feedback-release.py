@@ -25,6 +25,8 @@ SCHEMAS = {
     "mq.feedback-approval.v2": "feedback_approval_v2.schema.json",
     "mq.feedback-approval-revocation.v1": "feedback_approval_revocation.schema.json",
     "mq.feedback-policy-event.v1": "feedback_policy_event.schema.json",
+    "mq.feedback-policy-event.v2": "feedback_policy_event_v2.schema.json",
+    "mq.feedback-promotion-approval.v1": "feedback_promotion_approval.schema.json",
     "mq.feedback-canary.v1": "feedback_canary.schema.json",
     "mq.feedback-policy-snapshot.v1": "feedback_policy_snapshot.schema.json",
 }
@@ -56,6 +58,8 @@ CONTROLLED_ACTIVATION_COMMANDS = {
     "canary-run",
     "canary-status",
     "canary-check",
+    "promotion-approve",
+    "promotion-status",
     "activate",
     "rollback",
     "post-activation-check",

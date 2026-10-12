@@ -465,7 +465,7 @@ Run and inspect evidence-grounded feedback experiments.
 
 | Subcommand | Description |
 |---|---|
-| [`mq-agent feedback activate`](#mq-agent-feedback-activate) | Activate one task-class strategy after approval and a passing Canary v2 result. |
+| [`mq-agent feedback activate`](#mq-agent-feedback-activate) | Activate one task-class strategy after canary and promotion approval. |
 | [`mq-agent feedback activation-readiness`](#mq-agent-feedback-activation-readiness) | Check evidence readiness for human activation approval; never activates. |
 | [`mq-agent feedback approval-revoke`](#mq-agent-feedback-approval-revoke) | Append a revocation for one approval; the approval record is never modified. |
 | [`mq-agent feedback approval-status`](#mq-agent-feedback-approval-status) | Show whether one approval is still valid; read-only. |
@@ -483,6 +483,8 @@ Run and inspect evidence-grounded feedback experiments.
 | [`mq-agent feedback inspect`](#mq-agent-feedback-inspect) | Explain one immutable experiment, comparison and candidate chain. |
 | [`mq-agent feedback policy`](#mq-agent-feedback-policy) | Show the effective feedback-controlled task-class policy. |
 | [`mq-agent feedback post-activation-check`](#mq-agent-feedback-post-activation-check) | Surface material regressions against the measured shadow baseline. |
+| [`mq-agent feedback promotion-approve`](#mq-agent-feedback-promotion-approve) | Issue a promotion approval bound to one exact PASS Canary v2 RESULT. |
+| [`mq-agent feedback promotion-status`](#mq-agent-feedback-promotion-status) | Show whether one promotion approval may still activate; read-only. |
 | [`mq-agent feedback purge`](#mq-agent-feedback-purge) | Delete local runtime feedback evidence; production behavior is unchanged. |
 | [`mq-agent feedback recent`](#mq-agent-feedback-recent) | List retained feedback experiments newest first. |
 | [`mq-agent feedback report`](#mq-agent-feedback-report) | Aggregate feedback evidence without recomputing a verdict. |
@@ -492,7 +494,7 @@ Run and inspect evidence-grounded feedback experiments.
 
 ## `mq-agent feedback activate`
 
-Activate one task-class strategy after approval and a passing Canary v2 result.
+Activate one task-class strategy after canary and promotion approval.
 
 ### Arguments
 
@@ -504,7 +506,8 @@ Activate one task-class strategy after approval and a passing Canary v2 result.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| `--approval-id` | Yes | — | — |
+| `--approval-id` | Yes | — | Canary approval (permission to test) |
+| `--promotion-approval-id` | Yes | — | Promotion approval (permission to activate) |
 | `--canary-id` | Yes | — | Passing Canary v2 identifier |
 | `--reason` | Yes | — | — |
 | `--approve` | No | `false` | Required: change one task-class policy |
@@ -798,6 +801,42 @@ Surface material regressions against the measured shadow baseline.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--comparison-id` | Yes | — | — |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback promotion-approve`
+
+Issue a promotion approval bound to one exact PASS Canary v2 RESULT.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `CANDIDATE_ID` | Yes | — | Feedback candidate identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--canary-id` | Yes | — | Passing Canary v2 identifier |
+| `--reason` | Yes | — | Human promotion reason |
+| `--expires-hours` | No | `24` | — |
+| `--approve` | No | `false` | Required: issue promotion approval |
+| `--json` | No | `false` | — |
+
+## `mq-agent feedback promotion-status`
+
+Show whether one promotion approval may still activate; read-only.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `PROMOTION_APPROVAL_ID` | Yes | — | Promotion approval identifier |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
 | `--json` | No | `false` | — |
 
 ## `mq-agent feedback purge`

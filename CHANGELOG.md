@@ -11,6 +11,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Separate promotion approval. `feedback promotion-approve` issues
+  `mq.feedback-promotion-approval.v1` only for a PASS Canary v2 RESULT, bound to
+  the exact candidate, canary, RESULT fingerprint, strategy pair and policy
+  snapshot. `feedback promotion-status` is read-only, and `feedback
+  approval-revoke` revokes either kind of approval.
 - `feedback canary-preflight <canary-id>` checks a planned Canary v2 without
   running it: plan hash, no existing RESULT, shared approval status, plan to
   candidate binding, policy snapshot, bounded budget and rollback target. It
@@ -132,6 +137,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   risk/architecture review to mq-mcp, validates `mq.perception-review.v1`, and
   can require `mq.perception-review-receipt.v1` bound to the exact perception,
   review, reviewer runtime and optional repository commit.
+
+### Changed
+
+- `feedback activate` now requires `--promotion-approval-id` in addition to the
+  canary `--approval-id`; a canary approval alone can no longer activate.
+  Activation and rollback events are written as `mq.feedback-policy-event.v2`
+  with `canary_approval_id` and `promotion_approval_id`; v1 events stay readable.
 
 ### Fixed
 

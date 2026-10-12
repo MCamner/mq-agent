@@ -59,6 +59,8 @@ The control plane is fail-closed.
 - Canary v2 requires one immutable PLAN and at most one RESULT.
 - PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic; an LLM cannot decide it.
 - Activation must re-verify the Canary v2 evidence references.
+- Canary approval permits testing; promotion approval permits activation. They
+  are separate receipts and activation requires both.
 - Activation is scoped to one task class.
 - Activation and rollback are append-only policy events.
 - New policy events are bound to immutable content-fingerprinted policy snapshots.
@@ -81,6 +83,9 @@ The control plane is fail-closed.
 - `schemas/feedback_approval_v2.schema.json`
 - `schemas/feedback_approval_revocation.schema.json`
 - `mq_agent/feedback/approvals.py`
+- `mq_agent/feedback/promotion.py`
+- `schemas/feedback_promotion_approval.schema.json`
+- `schemas/feedback_policy_event_v2.schema.json`
 - `schemas/feedback_policy_event.schema.json`
 - `docs/FEEDBACK_ENGINE.md`
 - `tests/test_feedback_control.py`
@@ -132,11 +137,21 @@ mq-agent feedback canary-run <canary-id> \
 mq-agent feedback canary-status <canary-id> --json
 ```
 
-Activate only the approved candidate and exact passing Canary v2:
+Issue a separate promotion approval for the exact PASS result, then activate
+with both receipts:
 
 ```bash
+mq-agent feedback promotion-approve <candidate-id> \
+  --canary-id <canary-id> \
+  --reason "reviewed the PASS result" \
+  --approve \
+  --json
+
+mq-agent feedback promotion-status <promotion-approval-id> --json
+
 mq-agent feedback activate <candidate-id> \
   --approval-id <approval-id> \
+  --promotion-approval-id <promotion-approval-id> \
   --canary-id <canary-id> \
   --reason "bounded Canary v2 passed" \
   --approve \
