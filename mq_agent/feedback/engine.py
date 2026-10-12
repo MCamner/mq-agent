@@ -118,14 +118,13 @@ def _logical_sources(pack: dict[str, Any]) -> list[str]:
 
 
 def _codegraph_sources(task: str, repo_root: Path) -> list[str]:
-    """Execute the candidate's read-only CodeGraph lookup and keep stable refs only."""
+    """Return stable refs from a real read-only CodeGraph lookup, or none."""
     from mq_agent.memory.codegraph_runtime import search_codegraph
     from mq_agent.memory.hybrid_retrieval import _codegraph_refs, _failure_reason
 
     raw = search_codegraph(task, repo_root)
-    failure = _failure_reason(raw)
-    if failure:
-        raise ValueError(f"codegraph-evidence-unavailable:{failure}")
+    if _failure_reason(raw):
+        return []
 
     refs = [
         item
@@ -133,7 +132,7 @@ def _codegraph_sources(task: str, repo_root: Path) -> list[str]:
         if not str(item.get("reference", "")).startswith("sha256:")
     ]
     if not refs:
-        raise ValueError("codegraph-evidence-unavailable:no-stable-source-refs")
+        return []
     return list(
         dict.fromkeys(
             f"codegraph:{item['reference']}"

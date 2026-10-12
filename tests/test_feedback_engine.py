@@ -275,7 +275,7 @@ def test_f2_shadow_records_real_codegraph_refs_without_persisting_raw_output(
     assert "do-not-persist-this-payload" not in persisted
 
 
-def test_f2_shadow_blocks_when_codegraph_cannot_supply_stable_evidence(
+def test_f2_shadow_without_codegraph_refs_cannot_claim_quality_gain(
     tmp_path, monkeypatch
 ) -> None:
     repo = _repo(tmp_path)
@@ -301,7 +301,13 @@ def test_f2_shadow_blocks_when_codegraph_cannot_supply_stable_evidence(
         state_root=state,
     )
 
-    assert result["status"] == "BLOCKED"
-    assert result["reason"] == "codegraph-evidence-unavailable:index unavailable"
-    assert result["experiment"]["state"] == "blocked"
-    assert read_comparison_history(state).records == []
+    assert result["status"] == "PASS"
+    assert result["experiment"]["state"] == "completed"
+    comparison = result["comparison"]
+    assert comparison["verdict"] == "INSUFFICIENT_EVIDENCE"
+    assert comparison["sources"]["shadow"] == comparison["sources"]["active"]
+    assert not any(
+        source.startswith("codegraph:")
+        for source in comparison["sources"]["shadow"]
+    )
+    assert len(read_comparison_history(state).records) == 1
