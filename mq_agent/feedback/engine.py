@@ -117,6 +117,31 @@ def _logical_sources(pack: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(refs))
 
 
+def _drop_redundant_constructor_refs(
+    refs: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Drop generic constructors only when the same file has stronger symbols.
+
+    A bare __init__ identifies setup but says little about reviewed behavior.
+    If the same file already has a class or method ref, the constructor adds no
+    distinct location. A constructor that is the only ref for its file is kept.
+    """
+    stronger_paths = {
+        str(item.get("reference", "")).split("#", 1)[0]
+        for item in refs
+        if "#" in str(item.get("reference", ""))
+        and not str(item.get("reference", "")).endswith("#__init__")
+    }
+    return [
+        item
+        for item in refs
+        if not (
+            str(item.get("reference", "")).endswith("#__init__")
+            and str(item.get("reference", "")).split("#", 1)[0] in stronger_paths
+        )
+    ]
+
+
 def _codegraph_sources(task: str, repo_root: Path) -> list[str]:
     """Return stable refs from a real read-only CodeGraph lookup, or none."""
     from mq_agent.memory.codegraph_runtime import search_codegraph
@@ -126,11 +151,13 @@ def _codegraph_sources(task: str, repo_root: Path) -> list[str]:
     if _failure_reason(raw):
         return []
 
-    refs = [
-        item
-        for item in _codegraph_refs(raw)
-        if not str(item.get("reference", "")).startswith("sha256:")
-    ]
+    refs = _drop_redundant_constructor_refs(
+        [
+            item
+            for item in _codegraph_refs(raw)
+            if not str(item.get("reference", "")).startswith("sha256:")
+        ]
+    )
     if not refs:
         return []
     return list(
@@ -139,7 +166,6 @@ def _codegraph_sources(task: str, repo_root: Path) -> list[str]:
             for item in refs
         )
     )
-
 
 def _measurement(
     pack: dict[str, Any],
