@@ -366,7 +366,10 @@ as `{"execution": {...}, "review": ...}`, where `execution` carries
 `execution_run_id`, `task_class` and `execution_outcome_recorded`. That last
 field is `false` when telemetry is off or the write failed, and a run id whose
 outcome was not recorded is not correlatable evidence. Without the flag the
-JSON payload is exactly what mq-mcp returned.
+JSON payload is exactly what mq-mcp returned. The repo argument is resolved to
+an absolute directory before delegation, because mq-mcp would read a relative
+path against its own working directory; a target that is not a directory fails
+before mq-mcp is called or an outcome is recorded.
 
 ### Built-in swarm configs
 

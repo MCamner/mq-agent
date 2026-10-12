@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
 
@@ -156,7 +157,7 @@ def test_review_repo_json_invokes_mcp_bridge():
 
     assert result.exit_code == 0
     assert bridge.calls == [
-        ("review_repo", ".", {"security": False, "architecture": False, "risk": False, "fast": False})
+        ("review_repo", str(Path(".").resolve()), {"security": False, "architecture": False, "risk": False, "fast": False})
     ]
 
 
