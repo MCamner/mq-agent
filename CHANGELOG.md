@@ -152,6 +152,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `review repo` resolves its repo argument to an absolute directory before
+  delegating to mq-mcp. A relative path such as `.` was read against mq-mcp's
+  own working directory and reviewed the mq-mcp checkout instead of the
+  caller's repo. A target that is not a directory now fails before mq-mcp is
+  called or an execution outcome is recorded.
 - D8 semantic builds now fail closed when provider reads produce no usable chunks:
   the CLI does not overwrite the existing local index, and Hybrid Retrieval v2
   treats an empty Notebook vector index as unavailable instead of a successful

@@ -1168,6 +1168,19 @@ def review_repo_cmd(
     Each non-dry run records one `mq.execution-outcome.v1` with task class
     `repo-review`, so feedback evidence can correlate to its exact run id.
     """
+    # mq-mcp resolves a relative path against its own working directory, so
+    # "." would name mq-mcp's repo rather than the caller's. Resolve here and
+    # refuse a target that is not a directory before anything is delegated or
+    # recorded: an operator typo is not an execution.
+    target = Path(path).expanduser().resolve()
+    if not target.is_dir():
+        error = {"ok": False, "error": f"review target is not a directory: {target}"}
+        if json_out:
+            typer.echo(json.dumps(error, indent=2))
+        else:
+            console.print(f"[bold red]{error['error']}[/bold red]")
+        raise typer.Exit(1)
+    path = str(target)
     if dry_run:
         enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)

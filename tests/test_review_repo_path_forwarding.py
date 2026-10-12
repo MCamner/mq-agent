@@ -78,22 +78,24 @@ def test_mcpbridge_review_repo_self_review_when_no_path():
 
 
 # C. Dry-run shows the target repo path.
-def test_review_repo_dry_run_shows_target_path():
-    result = runner.invoke(app, ["review", "repo", "/tmp/repo-signal", "--dry-run"])
+def test_review_repo_dry_run_shows_target_path(tmp_path):
+    target = tmp_path / "repo-signal"
+    target.mkdir()
+    result = runner.invoke(app, ["review", "repo", str(target), "--dry-run"])
     assert result.exit_code == 0
     assert "review_repo" in result.output
-    assert "/tmp/repo-signal" in result.output
+    assert str(target.resolve()) in result.output.replace("\n", "")
 
 
 # D. mq-mcp path-validation error is surfaced, not masked, and not recorded.
-def test_review_repo_surfaces_failed_error_and_skips_brain():
+def test_review_repo_surfaces_failed_error_and_skips_brain(tmp_path):
     err = "review_repo failed: repo_path outside MQ_MCP_ALLOWED_PATHS: /tmp/foo"
     # _is_error_result must recognize the mq-mcp failure string.
     assert _is_error_result(err) is True
 
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge") as MockBridge:
         MockBridge.return_value.review_repo.return_value = err
-        result = runner.invoke(app, ["review", "repo", "/tmp/foo", "--brain", "--json"])
+        result = runner.invoke(app, ["review", "repo", str(tmp_path), "--brain", "--json"])
 
     assert result.exit_code == 1
     assert "review_repo failed" in result.output

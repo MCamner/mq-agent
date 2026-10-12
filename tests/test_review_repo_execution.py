@@ -153,3 +153,77 @@ def test_an_older_schema_rejects_a_repo_review_record(monkeypatch) -> None:
 
     assert len(execution) == 1
     assert invalid == 1
+
+
+# --- the review target is resolved before delegation ---------------------
+#
+# mq-mcp runs in its own working directory, so a relative path sent to it
+# names a repo relative to mq-mcp, not to the operator. `review repo .` once
+# reviewed mq-mcp itself.
+
+
+def test_dot_is_resolved_to_the_callers_directory(
+    outcomes: Path, tmp_path: Path, monkeypatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.chdir(repo)
+    bridge = FakeReviewBridge()
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", ".", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert bridge.calls[0][1] == str(repo.resolve())
+
+
+def test_absolute_path_stays_the_target(outcomes: Path, tmp_path: Path) -> None:
+    repo = tmp_path / "other"
+    repo.mkdir()
+    bridge = FakeReviewBridge()
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", str(repo), "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert bridge.calls[0][1] == str(repo.resolve())
+
+
+def test_missing_path_fails_without_delegating_or_recording(
+    outcomes: Path, tmp_path: Path
+) -> None:
+    bridge = FakeReviewBridge()
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(
+            app,
+            ["review", "repo", str(tmp_path / "absent"), "--json", "--with-execution"],
+        )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["ok"] is False
+    assert "not a directory" in data["error"]
+    assert bridge.calls == []
+    assert _records(outcomes) == []
+
+
+def test_file_path_is_not_a_repo_target(outcomes: Path, tmp_path: Path) -> None:
+    target = tmp_path / "file.txt"
+    target.write_text("x", encoding="utf-8")
+    bridge = FakeReviewBridge()
+
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", str(target)])
+
+    assert result.exit_code == 1
+    assert bridge.calls == []
+
+
+def test_dry_run_shows_the_resolved_target(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["review", "repo", ".", "--dry-run"])
+
+    assert result.exit_code == 0
+    assert str(tmp_path.resolve()) in result.output.replace("\n", "")
