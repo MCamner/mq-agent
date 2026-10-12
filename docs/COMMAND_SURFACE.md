@@ -359,6 +359,15 @@ records; a swarm or task-runner dry run executes nothing and records nothing.
 The result says whether the run could be carried out, not whether the repo is
 healthy — an audit that finds problems records `PASS`.
 
+`review repo` records one outcome with task class `repo-review`; it is not an
+`audit`. The run id is minted before the review starts. `--with-execution`
+hands it to the operator: with `--json` the unchanged mq-mcp payload is wrapped
+as `{"execution": {...}, "review": ...}`, where `execution` carries
+`execution_run_id`, `task_class` and `execution_outcome_recorded`. That last
+field is `false` when telemetry is off or the write failed, and a run id whose
+outcome was not recorded is not correlatable evidence. Without the flag the
+JSON payload is exactly what mq-mcp returned.
+
 ### Built-in swarm configs
 
 | Config | Agents | Approve needed? |

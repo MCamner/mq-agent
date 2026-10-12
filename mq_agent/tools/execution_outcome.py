@@ -30,7 +30,7 @@ SCHEMA_FILE = "execution_outcome.schema.json"
 # anything, and a run must not fail because the enum has not caught up, so an
 # unrecognized class is recorded as `unclassified` rather than dropped.
 KNOWN_TASK_CLASSES = frozenset(
-    {"audit", "ci", "docs", "release", "release-check", "signal", "task"}
+    {"audit", "ci", "docs", "release", "release-check", "repo-review", "signal", "task"}
 )
 UNCLASSIFIED = "unclassified"
 
