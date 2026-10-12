@@ -180,6 +180,7 @@ OpenAI, Ollama or mq-mcp.
 | `mq-agent memory store <key> <value> --approve` | yes | Store item in mq-mcp semantic memory (Class C write) |
 | `mq-agent memory store <key> <value> --dry-run` | no | Preview without writing |
 | `mq-agent context export --repo <repo> --output-root <dir>` | no | Export compact `.mq/context/` snapshot from mqobsidian context cards |
+| `mq-agent context prepare --all [--dry-run] [--json]` | yes | One repeatable prepare step: `agent-views rebuild`, then `context export`, then the drift check; skips export if the rebuild errors and exits non-zero on any error or stale view |
 
 ## Obsidian Inbox Commands
 

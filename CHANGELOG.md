@@ -11,6 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `context prepare` runs `agent-views rebuild`, `context export` and the
+  agent-views drift check as one repeatable step, for agent runs and CI. Export
+  is skipped if the rebuild reports errors. A second run changes nothing, and
+  the command exits non-zero on any error or on a view that is still stale.
 - `review repo` records one `mq.execution-outcome.v1` with the new task class
   `repo-review` (vendored from mqobsidian; not mapped onto `audit`).
   `--with-execution` reports the run id minted before the review and whether
