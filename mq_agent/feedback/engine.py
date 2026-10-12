@@ -284,14 +284,7 @@ def run_context_experiment(
     fingerprint = _evidence_fingerprint(vault_root, repo_name)
 
     def record_terminal(state: str) -> dict[str, Any]:
-        if execution_latency_ms is not None:
-        # The exact correlated real run is the materiality baseline for retrieval
-        # overhead. The active and shadow values are equal because this is context,
-        # not a claim that the shadow task itself executed.
-        active_metrics["execution_latency_ms"] = execution_latency_ms
-        shadow_metrics["execution_latency_ms"] = execution_latency_ms
-
-    experiment = build_feedback_experiment(
+        experiment = build_feedback_experiment(
             task_class=task_class,
             repository=repository,
             active_strategy=active_strategy,
@@ -365,6 +358,13 @@ def run_context_experiment(
             "status": "BLOCKED",
             "reason": str(exc),
         }
+
+    if execution_latency_ms is not None:
+        # The exact correlated real run is the materiality baseline for retrieval
+        # overhead. Active and shadow carry the same observed task runtime; this
+        # does not claim that the shadow task itself executed.
+        active_metrics["execution_latency_ms"] = execution_latency_ms
+        shadow_metrics["execution_latency_ms"] = execution_latency_ms
 
     experiment = build_feedback_experiment(
         task_class=task_class,
