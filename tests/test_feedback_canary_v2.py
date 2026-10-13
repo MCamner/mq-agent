@@ -26,9 +26,9 @@ from mq_agent.tools.execution_outcome import (
 BASELINE = "context-pack-v1"
 CANDIDATE = "context-pack-v1+codegraph-guidance"
 CANARY_EXECUTION_IDS = [
-    "exec-canary-1",
-    "exec-canary-2",
-    "exec-canary-3",
+    "exec-cmp-a",
+    "exec-cmp-b",
+    "exec-cmp-c",
 ]
 
 
@@ -94,7 +94,7 @@ def _seed_real_run(
     append_experiment(experiment, root)
     outcome = build_execution_outcome(
         runtime="agent",
-        task_class="audit",
+        task_class="repo-review",
         result="PASS",
         exit_status="ok",
         latency_ms=10,
@@ -135,17 +135,6 @@ def _ready_candidate(root: Path, monkeypatch) -> str:
         recorded_at="2026-10-04T10:00:00Z",
         commit="e" * 40,
     )
-    for index, run_id in enumerate(CANARY_EXECUTION_IDS, start=5):
-        outcome = build_execution_outcome(
-            runtime="agent",
-            task_class="repo-review",
-            result="PASS",
-            exit_status="ok",
-            latency_ms=10_000,
-            run_id=run_id,
-        )
-        outcome["recorded_at"] = f"2026-10-{index:02d}T10:00:00Z"
-        record_execution_outcome(outcome, outcome_path)
     return candidate_id
 
 
@@ -476,7 +465,7 @@ def test_canary_v2_refuses_duplicate_execution_ids(
         )
 
 
-def test_canary_v2_refuses_execution_from_another_task_class(
+def test_canary_v2_refuses_execution_outside_approved_readiness(
     tmp_path: Path, monkeypatch
 ) -> None:
     candidate_id = _ready_candidate(tmp_path, monkeypatch)
@@ -489,7 +478,10 @@ def test_canary_v2_refuses_execution_from_another_task_class(
         root=tmp_path,
     )
 
-    with pytest.raises(ValueError, match="execution_run_id task class mismatch"):
+    with pytest.raises(
+        ValueError,
+        match="execution_run_id is outside approved readiness evidence",
+    ):
         run_canary(
             plan["canary_id"],
             task="review release boundaries",
