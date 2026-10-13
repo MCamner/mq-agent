@@ -594,8 +594,11 @@ def require_passing_canary(
         raise ValueError("canary is bound to another candidate")
     if plan["approval_id"] != approval_id or result["approval_id"] != approval_id:
         raise ValueError("canary is bound to another approval")
-    candidate, _approval_record = _validate_candidate_approval(
+    candidate, approval_record = _validate_candidate_approval(
         candidate_id, approval_id, root
+    )
+    approved_execution_run_ids = _approved_execution_run_ids(
+        candidate_id, approval_record, root
     )
     if result["candidate_fingerprint"] != candidate["fingerprint"]:
         raise ValueError("canary candidate fingerprint is stale")
