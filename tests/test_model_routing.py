@@ -1207,6 +1207,52 @@ def test_route_readiness_reports_each_threshold_without_enabling_routing(tmp_pat
     assert readiness["grants_eligibility"] is False
 
 
+def test_route_readiness_calibration_derives_the_total_floor(tmp_path) -> None:
+    thresholds = model_routing.READINESS_THRESHOLDS
+    assert thresholds["minimum_observations"] == (
+        thresholds["minimum_candidate_routes"]
+        * thresholds["minimum_samples_per_route"]
+    )
+    assert thresholds == {
+        "minimum_observations": 20,
+        "minimum_candidate_routes": 2,
+        "minimum_window_days": 14,
+        "minimum_samples_per_route": 10,
+    }
+
+    source = tmp_path / "route-outcomes.jsonl"
+    days = [1, 2, 3, 4, 5, 6, 7, 8, 9, 15]
+    records = []
+    for day in days:
+        records.append(
+            _applied_observation(
+                route="local-shadow",
+                recorded_at=f"2026-08-{day:02d}T12:00:00Z",
+            )
+        )
+        records.append(
+            _applied_observation(
+                route="deterministic-local",
+                recorded_at=f"2026-08-{day:02d}T13:00:00Z",
+            )
+        )
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+
+    readiness = model_routing.route_readiness(source)
+    docs = readiness["task_classes"]["docs-review"]
+
+    assert docs["actual"] == {
+        "observations": 20,
+        "candidate_routes": 2,
+        "window_days": 14.042,
+        "minimum_samples_per_route": 10,
+    }
+    assert all(docs["gates"].values())
+    assert docs["recommendation"] == "AWAITING_OPERATOR_APPROVAL"
+    assert readiness["grants_eligibility"] is False
+    assert readiness["automatic_routing_enabled"] is False
+
+
 def test_readiness_counts_applied_observations_only(tmp_path) -> None:
     source = tmp_path / "route-outcomes.jsonl"
     records = [
