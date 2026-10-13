@@ -13,6 +13,10 @@ Design contract (see docs/AGENT_VIEW_CONTRACT.md):
     index.md produces no view (the gate — no source, no card).
   * Cards are short (≈120–180 words) with a stable heading structure.
   * Output is confined to ``<vault>/memory/learn/agent/`` (safety guard).
+  * ``agent_view: versioned`` in a system's ``hot.md`` or ``index.md`` marks a committed view:
+    it is built from hot/index only, never from local lessons.
+  * ``generated`` is the newest source ``updated:`` date, so a rebuild is a
+    pure function of the sources.
 
 Vault path follows the standard mq-agent contract: ``MQ_OBSIDIAN_DIR`` env var,
 else ``~/mqobsidian`` (same as tools/vault_structure.py).
@@ -50,6 +54,30 @@ def _strip_frontmatter(text: str) -> str:
             nl = text.find("\n", end + 1)
             return text[nl + 1 :] if nl != -1 else ""
     return text
+
+
+def _frontmatter_value(text: str, key: str) -> str:
+    """Value of a top-level ``key:`` in the leading frontmatter, or ""."""
+    if not text.startswith("---"):
+        return ""
+    end = text.find("\n---", 3)
+    if end == -1:
+        return ""
+    m = re.search(rf"^{re.escape(key)}:\s*(.*?)\s*$", text[3:end], re.MULTILINE)
+    return m.group(1).strip("'\"") if m else ""
+
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _source_date(raw_sources: list[str]) -> str:
+    """Newest ``updated:`` date across the sources, else today.
+
+    Dating the view from its sources keeps it a pure function of them: the
+    same notes rebuild to the same bytes on any day, in any checkout.
+    """
+    dates = [d for d in (_frontmatter_value(t, "updated") for t in raw_sources) if _DATE_RE.match(d)]
+    return max(dates) if dates else datetime.date.today().isoformat()
 
 
 def _section(text: str, header: str) -> str:
@@ -151,12 +179,19 @@ def _body_word_count(state: str, priorities: list[str], blockers: list[str], les
     return sum(len(c.split()) for c in chunks)
 
 
-def _render(vault: Path, system: str, sources: dict[str, str]) -> str | None:
+def _render(
+    vault: Path,
+    system: str,
+    sources: dict[str, str],
+    *,
+    generated: str,
+    use_local_lessons: bool,
+) -> str | None:
     hot, index = sources.get("hot", ""), sources.get("index", "")
     state = _state(hot, index)
     priorities = _priorities(hot, index)
     blockers = _blockers(hot, index)
-    lessons = _lessons(vault, system)
+    lessons = _lessons(vault, system) if use_local_lessons else []
     if not state and not priorities:
         return None  # nothing meaningful to compress
 
@@ -167,15 +202,14 @@ def _render(vault: Path, system: str, sources: dict[str, str]) -> str | None:
         priorities.pop()
 
     src_list = [f"systems/{system}/{k}.md" for k in sources]
-    if (vault / "memory" / "learn" / "repos" / f"{system}.md").exists():
+    if use_local_lessons and (vault / "memory" / "learn" / "repos" / f"{system}.md").exists():
         src_list.append(f"memory/learn/repos/{system}.md")
 
-    today = datetime.date.today().isoformat()
     lines = [
         "---",
         "type: agent-view",
         f"system: {system}",
-        f"generated: {today}",
+        f"generated: {generated}",
         "generator: mq-agent agent-views rebuild",
         f"sources: [{', '.join(src_list)}]",
         "---",
@@ -201,14 +235,24 @@ def _render(vault: Path, system: str, sources: dict[str, str]) -> str | None:
 
 def _build_view(vault: Path, system: str) -> str | None:
     sysdir = vault / "systems" / system
-    sources: dict[str, str] = {}
+    raw: dict[str, str] = {}
     for kind in ("hot", "index"):
         p = sysdir / f"{kind}.md"
         if p.exists():
-            sources[kind] = _strip_frontmatter(p.read_text(encoding="utf-8"))
-    if not sources:
+            raw[kind] = p.read_text(encoding="utf-8")
+    if not raw:
         return None
-    return _render(vault, system, sources)
+    # A versioned view is committed, so it may only quote committed sources.
+    # memory/learn/repos/ is local to each vault and absent from a clean clone.
+    versioned = any(_frontmatter_value(text, "agent_view") == "versioned" for text in raw.values())
+    sources = {kind: _strip_frontmatter(text) for kind, text in raw.items()}
+    return _render(
+        vault,
+        system,
+        sources,
+        generated=_source_date(list(raw.values())),
+        use_local_lessons=not versioned,
+    )
 
 
 # ── orchestration ────────────────────────────────────────────────────────────
