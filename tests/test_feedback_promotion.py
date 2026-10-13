@@ -20,6 +20,7 @@ from mq_agent.feedback.promotion import promotion_approve, promotion_status
 from mq_agent.main import app
 from tests.test_feedback_canary_v2 import (
     BASELINE,
+    CANARY_EXECUTION_IDS,
     CANDIDATE,
     _mock_execution,
     _ready_candidate,
@@ -43,6 +44,7 @@ def _canary(root: Path, monkeypatch, verdicts: list[str] | None = None):
             plan["canary_id"],
             task="review release boundaries",
             fixture_path=root / "fixture.json",
+            execution_run_ids=CANARY_EXECUTION_IDS,
             root=root,
         )
     else:
