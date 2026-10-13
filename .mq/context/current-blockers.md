@@ -2,7 +2,7 @@
 
 ## Known Blockers
 
-* No code blockers. Controlled activation/rollback proof is complete. Learned/evidence-based automatic routing remains intentionally blocked until `route_readiness` thresholds are calibrated on real applied routing-decision evidence; telemetry alone grants no execution right.
+* No code blockers. Learned-routing readiness calibration is complete. Automatic routing remains intentionally blocked while current-era applied `docs-review` evidence is below the calibrated gate: 2 routes, 10 samples per route, at least 14 days. Telemetry alone grants no execution right.
 
 ## Check Before Acting
 
