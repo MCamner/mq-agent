@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from mq_agent.tools.execution_outcome import read_execution_outcomes
+
 from .approvals import require_valid_approval
 from .contracts import validate_canary_record
 from .engine import (
@@ -321,11 +323,52 @@ def _mean_delta(
     return round(sum(values) / len(values), 6)
 
 
+def _validate_execution_run_ids(
+    execution_run_ids: list[str],
+    *,
+    execution_budget: int,
+    task_class: str,
+) -> list[str]:
+    """Resolve one distinct successful real execution for each canary iteration."""
+    if len(execution_run_ids) != execution_budget:
+        raise ValueError(
+            "execution_run_id count must equal canary execution budget"
+        )
+    if len(set(execution_run_ids)) != len(execution_run_ids):
+        raise ValueError("execution_run_id values must be unique")
+
+    outcomes, issues = read_execution_outcomes()
+    if issues:
+        raise ValueError("execution outcome store contains invalid records")
+
+    for run_id in execution_run_ids:
+        matches = [
+            outcome for outcome in outcomes
+            if outcome.get("run_id") == run_id
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"execution_run_id must resolve exactly once: {run_id}"
+            )
+        outcome = matches[0]
+        if outcome.get("task_class") != task_class:
+            raise ValueError(
+                f"execution_run_id task class mismatch: {run_id}"
+            )
+        if outcome.get("result") != "PASS" or outcome.get("exit_status") != "ok":
+            raise ValueError(
+                f"execution_run_id is not a successful run: {run_id}"
+            )
+
+    return list(execution_run_ids)
+
+
 def run_canary(
     canary_id: str,
     *,
     task: str,
     fixture_path: Path,
+    execution_run_ids: list[str],
     repo: Path = Path("."),
     vault: Path | None = None,
     timeout_ms: int = DEFAULT_TIMEOUT_MS,
@@ -354,6 +397,11 @@ def run_canary(
     min_executions = int(budget["min_executions"])
     max_duration = float(budget["max_duration_seconds"])
     max_failure_rate = float(budget["max_failure_rate"])
+    correlated_run_ids = _validate_execution_run_ids(
+        execution_run_ids,
+        execution_budget=execution_budget,
+        task_class=plan["task_class"],
+    )
 
     started_wall = _now()
     started = time.perf_counter()
@@ -367,7 +415,7 @@ def run_canary(
     inconclusive = 0
     completed = 0
 
-    for _index in range(execution_budget):
+    for index in range(execution_budget):
         elapsed = time.perf_counter() - started
         remaining = max_duration - elapsed
         if remaining <= 0:
@@ -384,6 +432,7 @@ def run_canary(
             task,
             repo,
             task_class=plan["task_class"],
+            execution_run_id=correlated_run_ids[index],
             vault=vault,
             state_root=root,
             timeout_ms=bounded_timeout_ms,
@@ -549,6 +598,7 @@ def require_passing_canary(
 
     if result["executions_completed"] != len(result["feedback_run_ids"]):
         raise ValueError("canary execution count does not match feedback_run_ids")
+    execution_run_ids: list[str] = []
     for feedback_run_id in result["feedback_run_ids"]:
         matches = experiment_by_id.get(feedback_run_id, [])
         if len(matches) != 1:
@@ -560,6 +610,16 @@ def require_passing_canary(
             raise ValueError("canary feedback run active strategy mismatch")
         if experiment["shadow_strategy"] != plan["proposed_strategy"]:
             raise ValueError("canary feedback run shadow strategy mismatch")
+        execution_run_id = experiment.get("execution_run_id")
+        if not isinstance(execution_run_id, str) or not execution_run_id:
+            raise ValueError("canary feedback run missing execution correlation")
+        execution_run_ids.append(execution_run_id)
+
+    _validate_execution_run_ids(
+        execution_run_ids,
+        execution_budget=result["executions_completed"],
+        task_class=plan["task_class"],
+    )
 
     better = 0
     for comparison_id in result["comparison_ids"]:
