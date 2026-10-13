@@ -100,8 +100,11 @@ def create_canary_plan(
     if not 0.0 <= max_failure_rate <= 1.0:
         raise ValueError("max_failure_rate must be between 0 and 1")
 
-    candidate, _approval_record = _validate_candidate_approval(
+    candidate, approval_record = _validate_candidate_approval(
         candidate_id, approval_id, root
+    )
+    approved_execution_run_ids = _approved_execution_run_ids(
+        candidate_id, approval_record, root
     )
     policy = _policy_snapshot(candidate["task_class"], root)
     if policy["effective_strategy"] != candidate["current_strategy"]:
@@ -323,13 +326,31 @@ def _mean_delta(
     return round(sum(values) / len(values), 6)
 
 
+def _approved_execution_run_ids(
+    candidate_id: str,
+    approval_record: dict[str, Any],
+    root: Path | None,
+) -> set[str]:
+    """Return real outcomes already bound into the approval's readiness evidence."""
+    from .readiness import activation_readiness
+
+    readiness = activation_readiness(candidate_id, root)
+    if readiness["status"] != "READY_FOR_HUMAN_APPROVAL":
+        raise ValueError("approved readiness is no longer activation-ready")
+    if readiness["evidence_fingerprint"] != approval_record["readiness_fingerprint"]:
+        raise ValueError("approved readiness fingerprint no longer matches")
+    values = readiness["evidence"]["real_outcomes"]["linked_execution_run_ids"]
+    return {str(value) for value in values}
+
+
 def _validate_execution_run_ids(
     execution_run_ids: list[str],
     *,
     execution_budget: int,
     task_class: str,
+    approved_execution_run_ids: set[str],
 ) -> list[str]:
-    """Resolve one distinct successful real execution for each canary iteration."""
+    """Resolve one approved distinct successful real execution per iteration."""
     if len(execution_run_ids) != execution_budget:
         raise ValueError(
             "execution_run_id count must equal canary execution budget"
@@ -342,6 +363,10 @@ def _validate_execution_run_ids(
         raise ValueError("execution outcome store contains invalid records")
 
     for run_id in execution_run_ids:
+        if run_id not in approved_execution_run_ids:
+            raise ValueError(
+                f"execution_run_id is outside approved readiness evidence: {run_id}"
+            )
         matches = [
             outcome for outcome in outcomes
             if outcome.get("run_id") == run_id
@@ -383,8 +408,11 @@ def run_canary(
     if existing is not None:
         raise ValueError("canary already has a RESULT")
 
-    candidate, _approval_record = _validate_candidate_approval(
+    candidate, approval_record = _validate_candidate_approval(
         plan["candidate_id"], plan["approval_id"], root
+    )
+    approved_execution_run_ids = _approved_execution_run_ids(
+        plan["candidate_id"], approval_record, root
     )
     if candidate["fingerprint"] != plan["candidate_fingerprint"]:
         raise ValueError("canary plan candidate fingerprint is stale")
@@ -401,6 +429,7 @@ def run_canary(
         execution_run_ids,
         execution_budget=execution_budget,
         task_class=plan["task_class"],
+        approved_execution_run_ids=approved_execution_run_ids,
     )
 
     started_wall = _now()
@@ -619,6 +648,7 @@ def require_passing_canary(
         execution_run_ids,
         execution_budget=result["executions_completed"],
         task_class=plan["task_class"],
+        approved_execution_run_ids=approved_execution_run_ids,
     )
 
     better = 0
