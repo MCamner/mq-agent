@@ -12,7 +12,7 @@ publishability: public-safe
 
 ## Current blockers
 
-* No code blockers. Controlled activation/rollback is proven and learned-routing readiness has been calibrated. Automatic routing remains disabled. The next evidence gate is 10 current-era applied `docs-review` observations per allowlisted route across at least 14 days, followed by explicit operator promotion review.
+* No code blockers. Controlled activation/rollback is proven and learned-routing readiness is calibrated. Automatic routing stays disabled until current-era applied `docs-review` evidence meets the gate (2 routes, 10 samples per route, at least 14 days), followed by explicit operator promotion review. Telemetry alone grants no execution right.
 
 ## Owns
 
