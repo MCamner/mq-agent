@@ -7,9 +7,11 @@ Released: v1.30.0 — Evidence-Grounded Feedback Engine (Observe, Compare, Propo
 Released: v1.31.0 — Evidence-Gated Activation and Recovery.
 Released: v1.32.0 — Canary v2.
 Released: v1.33.0 — Policy Registry v2.
-Next: prove the Post-v1.30 controlled activation gate end to end on real
-`repo-review` evidence. This is evidence collection, not new code; no version
-assigned.
+Completed: the Post-v1.30 controlled activation gate has been proven end to end
+on real `repo-review` evidence, including approval, Canary v2, promotion,
+activation, post-activation verification and exact rollback.
+Evidence: [docs/feedback-controlled-activation-e2e-evidence.md](docs/feedback-controlled-activation-e2e-evidence.md).
+Next: select the next post-v1.33 capability; no scope is committed.
 Deferred: MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
@@ -30,10 +32,14 @@ Since v1.33.0 the control plane has been hardened on `main`:
 * `review repo` correlation to `mq.execution-outcome.v1` through task class
   `repo-review`
 
-The code for the gate is complete. What remains is proving it once end to end
-on real evidence: readiness, approval, canary, promotion, activation,
-post-activation check and rollback. Nothing activates routing, retrieval,
-memory or tool policy automatically.
+The controlled gate has now also been proven once end to end on real
+`repo-review` evidence: readiness, approval, Canary v2, promotion, activation,
+fresh post-activation verification and exact rollback all completed
+successfully. The evidence receipt is recorded in
+[docs/feedback-controlled-activation-e2e-evidence.md](docs/feedback-controlled-activation-e2e-evidence.md).
+The final effective policy was restored to the baseline
+`context-pack-v1`. Nothing activates routing, retrieval, memory or tool policy
+automatically.
 
 | Version | Theme | Status |
 | --- | --- | --- |
