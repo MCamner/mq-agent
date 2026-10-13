@@ -59,8 +59,12 @@ def test_review_repo_records_one_repo_review_outcome(outcomes: Path) -> None:
     assert len(records) == 1
     assert records[0]["task_class"] == "repo-review"
     assert records[0]["runtime"] == "agent"
-    assert records[0]["result"] == "PASS"
-    assert records[0]["exit_status"] == "ok"
+    assert records[0]["result"] == "FAIL"
+    assert records[0]["exit_status"] == "error"
+    assert records[0]["completeness"] == {
+        "status": "partial",
+        "steps": [{"step": 1, "status": "unmeasured"}],
+    }
 
 
 def test_review_repo_json_payload_is_unchanged_by_default(outcomes: Path) -> None:
@@ -111,6 +115,10 @@ def test_failed_review_records_fail_and_still_correlates(outcomes: Path) -> None
     assert records[0]["exit_status"] == "error"
     assert data["execution"]["execution_run_id"] == records[0]["run_id"]
     assert data["review"]["ok"] is False
+    assert records[0]["completeness"] == {
+        "status": "partial",
+        "steps": [{"step": 1, "status": "failed"}],
+    }
 
 
 def test_dry_run_records_nothing(outcomes: Path) -> None:
