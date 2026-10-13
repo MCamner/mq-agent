@@ -18,13 +18,13 @@ The current routing implementation keeps authorization and evidence separate.
 `route_readiness()`:
 
 - considers only observations with `application == "applied"`;
-- reports the existing thresholds as:
-  - 30 observations;
+- reports the calibrated thresholds as:
+  - 20 observations, derived from 2 routes x 10 samples per route;
   - 2 candidate routes;
   - 14 days of coverage;
   - 10 samples per route;
-- explicitly says those numbers were carried over from a per-execution
-  population and are **unreviewed** for a population of routing decisions;
+- records that the calibration was reviewed against the repository-documented
+  real applied `docs-review` history;
 - returns `grants_eligibility: false`;
 - returns `automatic_routing_enabled: false`;
 - returns `operator_approval_required: true`.
@@ -64,24 +64,26 @@ It does not answer:
 
 Those are separate evidence questions.
 
+## Calibration result
+
+The calibration review is complete and recorded in
+[learned-routing-readiness-calibration.md](learned-routing-readiness-calibration.md).
+
+The old 30-observation floor had no independent effect once the gate also
+required two routes with ten samples each. It is now derived as 20. The
+two-route, ten-per-route and 14-day requirements remain unchanged.
+
+The last repository-documented real applied population reached only 14
+observations, two routes, 3.502 days and five samples on the smaller route.
+That evidence can justify removing redundancy; it cannot justify lowering the
+per-route or temporal requirements.
+
 ## Next focus
 
-Calibrate the learned-routing readiness gate using real applied
-`docs-review` observations from both allowlisted routes.
-
-The existing numeric thresholds may be used as observation targets while data
-is collected, but they must not be treated as validated promotion policy until
-the calibration review is complete.
-
-The calibration review should establish:
-
-1. whether routing-decision observations are independent enough for the current
-   sample counts to be meaningful;
-2. whether 14 days captures useful temporal variation for local route quality;
-3. whether the 10-per-route floor prevents materially imbalanced comparisons;
-4. which measured quality, latency, grounding and escalation signals may support
-   a recommendation;
-5. which signals are advisory only and must never authorize a route.
+Collect current-era real applied `docs-review` evidence until both allowlisted
+routes reach ten samples across at least 14 days. A passing readiness report
+then permits an explicit operator promotion review; it still does not authorize
+automatic routing.
 
 ## Non-goals
 
@@ -90,7 +92,7 @@ This step does not:
 - enable automatic routing;
 - add a learned-routing activation command;
 - expand the applied-route allowlist;
-- change the existing readiness thresholds;
+- lower the per-route or temporal readiness thresholds to fit the existing data;
 - infer eligibility from execution outcomes;
 - permit routing policy to decide privilege or safety;
 - convert a passing readiness report into authorization.
