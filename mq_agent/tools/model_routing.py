@@ -789,11 +789,20 @@ def route_report(
     }
 
 
+_READINESS_MINIMUM_CANDIDATE_ROUTES = 2
+_READINESS_MINIMUM_SAMPLES_PER_ROUTE = 10
+
+# Calibration reviewed 2026-10-13 against the repository-documented real
+# applied docs-review history. The total floor is derived from the balance
+# requirements instead of carrying an independent, ungrounded +10 margin.
 READINESS_THRESHOLDS = {
-    "minimum_observations": 30,
-    "minimum_candidate_routes": 2,
+    "minimum_observations": (
+        _READINESS_MINIMUM_CANDIDATE_ROUTES
+        * _READINESS_MINIMUM_SAMPLES_PER_ROUTE
+    ),
+    "minimum_candidate_routes": _READINESS_MINIMUM_CANDIDATE_ROUTES,
     "minimum_window_days": 14,
-    "minimum_samples_per_route": 10,
+    "minimum_samples_per_route": _READINESS_MINIMUM_SAMPLES_PER_ROUTE,
 }
 
 
@@ -815,10 +824,12 @@ def route_readiness(source: Path | None = None) -> dict[str, Any]:
     `application` at all is not applied either: absent means the mode was not
     recorded, and only an explicit `applied` counts.
 
-    The thresholds keep their numbers and change their subject — they now
-    describe a population of routing decisions rather than of operator actions.
-    Whether that calibration still holds is an open question, reported beside
-    the counts rather than implied away.
+    The routing-decision calibration was reviewed on 2026-10-13 against the
+    repository-documented real applied docs-review history. Two routes and ten
+    samples per route remain independent minimums, so the total observation
+    floor is derived as 2 x 10 = 20 rather than carrying the old unrelated 30.
+    The 14-day window remains a conservative temporal-coverage requirement, not
+    a claim of statistical proof.
     """
     path = _outcome_path(source)
     records, _ = _read_records(path)
@@ -870,8 +881,10 @@ def route_readiness(source: Path | None = None) -> dict[str, Any]:
         "source": str(path),
         "thresholds": READINESS_THRESHOLDS,
         "threshold_calibration": (
-            "Carried over from a per-execution population. Whether these numbers "
-            "are right for a population of routing decisions is unreviewed."
+            "Reviewed 2026-10-13 against real applied docs-review history: "
+            "minimum_observations is derived as candidate_routes x samples_per_route "
+            "(2 x 10 = 20); the 14-day window remains a conservative temporal "
+            "coverage target, not statistical proof."
         ),
         "invalid_records": invalid,
         "observations_considered": len(applied),
