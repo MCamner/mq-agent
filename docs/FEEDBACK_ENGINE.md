@@ -158,10 +158,14 @@ they predate the repo/commit binding.
 
 Canary v2 execution correlation is explicit: `canary-run` requires one
 distinct successful `mq.execution-outcome.v1` id for each planned canary
-execution. Each id must belong to the same task class as the plan. The id is
-forwarded to the corresponding zero-effect feedback experiment, so retrieval
-latency materiality uses the same measured real-task baseline as readiness.
-No execution outcome is synthesized or rewritten.
+execution. Every id must already be one of the candidate-linked real outcomes
+bound into the approval's readiness evidence, and it must belong to the same
+task class as the plan. Reusing those approved baselines means the
+post-approval zero-effect canary does not expand the calibration population
+and invalidate its own approval. Each id is forwarded to the corresponding
+feedback experiment, so retrieval latency materiality uses the same measured
+real-task baseline as readiness. No execution outcome is synthesized or
+rewritten.
 
 Canary approval and promotion approval are separate receipts. The canary
 approval only permits testing. `feedback promotion-approve` issues an
