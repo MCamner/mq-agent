@@ -2,7 +2,7 @@
 
 ## Known Blockers
 
-* No repo-specific blocker exported in this Phase 4 seed.
+* No code blockers. Remaining work is operational proof of the Post-v1.30 controlled activation gate: Evidence #3 on a second UTC day, followed by approval, canary, promotion, activation, post-activation verification, and deterministic rollback.
 
 ## Check Before Acting
 
