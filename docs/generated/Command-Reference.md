@@ -668,6 +668,7 @@ Execute one bounded Canary v2 plan and append one immutable RESULT.
 |---|---:|---|---|
 | `--task` | Yes | — | Task used only for zero-effect context selection |
 | `--fixture` | Yes | — | Deterministic relevance fixture JSON |
+| `--execution-run-id` | Yes | — | Successful repo-review execution id; repeat once per planned canary execution |
 | `--repo` | No | `.` | Clean Git repository to evaluate |
 | `--vault` | No | — | mqobsidian vault override |
 | `--timeout-ms` | No | `2000` | — |
