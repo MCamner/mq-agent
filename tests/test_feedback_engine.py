@@ -137,6 +137,45 @@ def test_f2_execution_correlation_must_resolve_before_shadow_collection(
     assert called is False
 
 
+def test_f2_refuses_unmeasured_historical_execution_before_shadow_collection(
+    tmp_path, monkeypatch
+) -> None:
+    outcome_path = tmp_path / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(outcome_path))
+    record_execution_outcome(
+        build_execution_outcome(
+            runtime="agent",
+            task_class="repo-review",
+            result="PASS",
+            exit_status="ok",
+            latency_ms=10,
+            run_id="historical-unmeasured",
+        ),
+        outcome_path,
+    )
+    called = False
+
+    def build(*args, **kwargs):
+        nonlocal called
+        called = True
+        return _pack(codegraph="off")
+
+    monkeypatch.setattr("mq_agent.feedback.engine.build_task_pack", build)
+
+    with pytest.raises(
+        ValueError,
+        match="measured complete successful mq.execution-outcome.v1",
+    ):
+        run_context_experiment(
+            "review repo",
+            tmp_path / "not-even-a-repo",
+            execution_run_id="historical-unmeasured",
+            state_root=tmp_path / "state",
+        )
+
+    assert called is False
+
+
 def test_f2_refuses_dirty_repo_before_collecting_context(tmp_path, monkeypatch) -> None:
     repo = _repo(tmp_path)
     vault = _vault(tmp_path)
@@ -334,6 +373,7 @@ def test_f2_correlated_execution_latency_is_persisted_as_neutral_baseline(
             exit_status="ok",
             latency_ms=8000,
             run_id="real-review-latency",
+            completeness={"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
         ),
         outcome_path,
     )
