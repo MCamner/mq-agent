@@ -11,9 +11,13 @@ Completed: the Post-v1.30 controlled activation gate has been proven end to end
 on real `repo-review` evidence, including approval, Canary v2, promotion,
 activation, post-activation verification and exact rollback.
 Evidence: [docs/feedback-controlled-activation-e2e-evidence.md](docs/feedback-controlled-activation-e2e-evidence.md).
-Next: calibrate learned-routing readiness thresholds on real applied `docs-review`
-evidence. Evidence-based automatic routing remains disabled until that calibration
-is reviewed; no activation version is assigned.
+Completed: learned-routing readiness thresholds were calibrated against the
+repository-documented real applied `docs-review` history. The total floor is now
+derived as 2 routes x 10 samples = 20; 14 days and 10/route remain conservative
+requirements. Automatic routing remains disabled.
+Next: collect current-era applied `docs-review` evidence until both allowlisted
+routes reach 10 samples across at least 14 days, then perform an explicit
+operator promotion review; no activation version is assigned.
 Deferred: MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
@@ -594,10 +598,17 @@ justify an activation design.
   historical evidence.
 * [x] Only after this gate is proven may evidence-based routing activation be
   reconsidered. Reconsidered 2026-10-13 after the real `repo-review` E2E proof:
-  automatic learned routing remains disabled. `route_readiness()` still labels
-  its carried-over decision-population thresholds as unreviewed, grants no
-  eligibility, and requires operator approval. The next step is threshold
-  calibration on real applied routing evidence, not activation.
+  automatic learned routing remains disabled and operator approval remains
+  mandatory.
+* [x] Calibrate learned-routing readiness thresholds against real applied
+  `docs-review` history. The documented progression reached 14 observations,
+  2 routes, 3.502 days and 5/route without becoming eligible. Calibration removes
+  only the redundant 30-total floor: with 2 routes and 10/route, the total floor
+  is derived as 20. The 10/route and 14-day gates remain conservative because
+  the real history did not reach them. See
+  [docs/learned-routing-readiness-calibration.md](docs/learned-routing-readiness-calibration.md).
+  Passing readiness still permits only operator review; it never authorizes or
+  enables routing automatically.
 
 ### v1.33.0 Policy Registry v2 checkpoint
 
