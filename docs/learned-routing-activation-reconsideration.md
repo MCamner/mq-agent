@@ -49,8 +49,9 @@ Privilege and safety routing remain outside learned-routing authority.
 The roadmap condition at the end of the Post-v1.30 activation gate is now
 satisfied: evidence-based routing activation has been reconsidered.
 
-The result of that reconsideration is **BLOCKED pending calibration**, not an
-activation design.
+The result of that reconsideration was **BLOCKED pending calibration**, not an
+activation design. The calibration is now complete; automatic routing remains
+blocked pending sufficient current-era evidence and an explicit operator review.
 
 The control-plane E2E proof answers:
 
