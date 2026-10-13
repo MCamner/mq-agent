@@ -2,7 +2,7 @@
 
 ## Known Blockers
 
-* No code blockers. The Post-v1.30 controlled activation gate proof is complete, including PASS Canary v2, promotion, activation, post-activation PASS and deterministic rollback to `context-pack-v1`. No next post-v1.33 capability is committed.
+* No code blockers. Controlled activation/rollback proof is complete. Learned/evidence-based automatic routing remains intentionally blocked until `route_readiness` thresholds are calibrated on real applied routing-decision evidence; telemetry alone grants no execution right.
 
 ## Check Before Acting
 
