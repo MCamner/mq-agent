@@ -220,3 +220,40 @@ def test_feedback_inspect_missing_run_is_nonzero_without_creating_store(
 
     assert result.exit_code != 0
     assert not missing.exists()
+
+
+def test_feedback_canary_run_forwards_repeated_execution_run_ids(
+    isolated_feedback_root, monkeypatch, tmp_path
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(canary_id, **kwargs):
+        captured["canary_id"] = canary_id
+        captured.update(kwargs)
+        return {
+            "canary_id": canary_id,
+            "verdict": "PASS",
+        }
+
+    monkeypatch.setattr("mq_agent.feedback.cli.run_canary", fake_run)
+
+    result = runner.invoke(
+        app,
+        [
+            "feedback",
+            "canary-run",
+            "canary-test-12345678",
+            "--task",
+            "review release boundaries",
+            "--fixture",
+            str(tmp_path / "fixture.json"),
+            "--execution-run-id",
+            "exec-real-1",
+            "--execution-run-id",
+            "exec-real-2",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["execution_run_ids"] == ["exec-real-1", "exec-real-2"]
