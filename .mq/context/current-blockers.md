@@ -2,7 +2,7 @@
 
 ## Known Blockers
 
-* No code blockers. Learned-routing readiness calibration is complete. Automatic routing remains intentionally blocked while current-era applied `docs-review` evidence is below the calibrated gate: 2 routes, 10 samples per route, at least 14 days. Telemetry alone grants no execution right.
+* Quality collection is paused pending execution-completeness integration and a verified post-fix era boundary. Applied-routing history remains valid. Partial audit execution must not count as complete quality evidence. Automatic routing stays disabled.
 
 ## Check Before Acting
 

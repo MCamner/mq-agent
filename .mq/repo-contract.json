@@ -76,6 +76,6 @@
       "mq.perception-review-receipt.v1"
     ]
   },
-  "next_focus": "Collect current-era applied docs-review evidence until both allowlisted routes reach 10 samples across at least 14 days, then perform explicit operator promotion review; automatic routing remains disabled",
+  "next_focus": "Integrate execution-completeness reporting and open a verified post-fix quality era, then collect complete successful docs-review evidence: 10 per route over at least 14 days before explicit operator review; automatic routing remains disabled",
   "release_mode": "pull_request"
 }

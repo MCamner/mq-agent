@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from ..core.executor import Executor
+from ..core.executor import Executor, execution_completeness
 from ..core.planner import Planner
 from ..core.safety import SafetyGate
 from ..core.state import AgentState, SafetyMode, StepStatus
@@ -125,7 +125,10 @@ class DocsAgent:
             for s in state.plan
         ]
 
-        result: dict = {"steps": steps, "verification": verification}
+        result: dict = {
+            "steps": steps, "verification": verification,
+            "completeness": execution_completeness(state.plan),
+        }
 
         # One routing decision inside this execution: who reviews the evidence
         # the read-only steps just gathered. Per ADR-010 D1 the route governs

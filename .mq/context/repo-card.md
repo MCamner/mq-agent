@@ -12,7 +12,7 @@ publishability: public-safe
 
 ## Current blockers
 
-* No code blockers. Controlled activation/rollback is proven and learned-routing readiness has been calibrated. Automatic routing remains disabled. The next evidence gate is 10 current-era applied `docs-review` observations per allowlisted route across at least 14 days, followed by explicit operator promotion review.
+* Quality collection is paused pending execution-completeness integration and a verified post-fix era boundary. Applied-routing history remains valid. Automatic routing stays disabled.
 
 ## Owns
 

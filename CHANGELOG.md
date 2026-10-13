@@ -161,6 +161,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `docs-audit` propagates measured executor completeness to its execution
+  outcome. Partial fan-out cannot become execution `PASS`, even when routing
+  verification passes. Historical evidence remains unchanged. Route quality
+  excludes executions without complete successful measured coverage; readiness
+  retains actual applied-routing history.
 - `review repo` resolves its repo argument to an absolute directory before
   delegating to mq-mcp. A relative path such as `.` was read against mq-mcp's
   own working directory and reviewed the mq-mcp checkout instead of the

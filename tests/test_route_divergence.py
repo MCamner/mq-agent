@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from mq_agent.tools import route_divergence as divergence_module
+from tests.test_route_quality import execution
 from mq_agent.tools.analysis_cohort import current_era
 from mq_agent.tools.route_divergence import (
     MINIMUM_ROUTES,
@@ -75,6 +76,13 @@ def _every_key(value: object) -> set[str]:
 
 
 def _store(tmp_path: Path, records: list[dict]) -> Path:
+    records = [dict(record) for record in records]
+    linked = []
+    for index, record in enumerate(records):
+        identity = f"execution-{index}"
+        record["execution_run_id"] = identity
+        linked.append(execution(identity))
+    records += linked
     path = tmp_path / "route-outcomes.jsonl"
     path.write_text(
         "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8"

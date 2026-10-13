@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from mq_agent.tools.analysis_cohort import Era, era_named, select_cohort
+from mq_agent.tools.route_quality import complete_execution_quality
 
 #: Below this, a route's numbers are noise dressed as a rate.
 #:
@@ -152,13 +153,21 @@ def route_divergence(
     chosen: Era | None = era_named(era) if era else None
     cohort = select_cohort(observations, era=chosen, task_class=task_class)
 
+    quality, quality_exclusions, execution_path = complete_execution_quality(
+        cohort.included, source
+    )
     by_route: dict[str, list[Any]] = {}
-    for record in cohort.included:
+    for record in quality:
         route = record.get("selected_route")
         if route:
             by_route.setdefault(str(route), []).append(record)
 
     routes = {name: _route_summary(items) for name, items in sorted(by_route.items())}
+    behavioral: dict[str, list[Any]] = {}
+    for record in cohort.included:
+        route = record.get("selected_route")
+        if route:
+            behavioral.setdefault(str(route), []).append(record)
     comparable = sorted(name for name, item in routes.items() if item["sufficient"])
 
     reasons: list[str] = []
@@ -201,10 +210,21 @@ def route_divergence(
             "excluded_other_task_class": cohort.excluded_other_task_class,
             "excluded_undated": cohort.excluded_undated,
         },
+        "quality_population": {
+            "included": len(quality),
+            "excluded": sum(quality_exclusions.values()),
+            "exclusion_reasons": quality_exclusions,
+            "execution_source": str(execution_path),
+        },
         "minimum_samples_per_route": MINIMUM_SAMPLES_PER_ROUTE,
         "status": "OK" if pairs else "INSUFFICIENT_EVIDENCE",
         "insufficient_reasons": reasons,
         "routes": routes,
+        # Failures remain visible as applied behavior, even when the execution
+        # cannot establish complete-audit quality. Never silently filter safety.
+        "behavioral_routes": {
+            name: _route_summary(items) for name, items in sorted(behavioral.items())
+        },
         "comparable_routes": comparable,
         "divergence": pairs,
         # This report describes what two routes did. It does not rank them,

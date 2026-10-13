@@ -155,6 +155,7 @@ def build_execution_outcome(
     cost: float | None = None,
     events: list[dict[str, str]] | None = None,
     runtime_fingerprint: dict[str, Any] | None = None,
+    completeness: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build and validate one execution outcome without persisting it."""
     outcome: dict[str, Any] = {
@@ -184,10 +185,19 @@ def build_execution_outcome(
         "cost": cost,
         "events": events,
         "runtime_fingerprint": runtime_fingerprint,
+        "completeness": completeness,
     }
     outcome.update({key: value for key, value in optional.items() if value is not None})
 
     _validator().validate(outcome)
+    if completeness is not None:
+        for step in completeness["steps"]:
+            if (
+                step["status"] == "complete"
+                and "source_item_count" in step
+                and step["source_item_count"] != step["executed_call_count"]
+            ):
+                raise ValueError("Complete steps require equal measured fan-out counts")
     return outcome
 
 
