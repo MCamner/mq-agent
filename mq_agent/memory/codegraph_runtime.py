@@ -80,11 +80,12 @@ def search_codegraph(query: str, root: Path | None = None) -> Any:
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
     bridge = MultiMCPBridge()
-    names = {spec.name for spec in bridge.list_tool_specs()}
-    if CODEGRAPH_TOOL in names:
-        args: dict[str, Any] = {"query": query}
-        if root is not None:
-            args["projectPath"] = str(_resolved_root(root))
-        return bridge.call_tool(CODEGRAPH_TOOL, args)
+    args: dict[str, Any] = {"query": query}
+    if root is not None:
+        args["projectPath"] = str(_resolved_root(root))
+
+    found, result = bridge.call_tool_if_available(CODEGRAPH_TOOL, args)
+    if found:
+        return result
 
     return _cli_search(query, root)
