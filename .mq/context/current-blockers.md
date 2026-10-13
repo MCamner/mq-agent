@@ -2,7 +2,7 @@
 
 ## Known Blockers
 
-* No code blockers. Remaining work is operational proof of the Post-v1.30 controlled activation gate: Evidence #3 on a second UTC day, followed by approval, canary, promotion, activation, post-activation verification, and deterministic rollback.
+* No code blockers. The Post-v1.30 controlled activation gate proof is complete, including PASS Canary v2, promotion, activation, post-activation PASS and deterministic rollback to `context-pack-v1`. No next post-v1.33 capability is committed.
 
 ## Check Before Acting
 

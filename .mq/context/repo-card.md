@@ -12,7 +12,7 @@ publishability: public-safe
 
 ## Current blockers
 
-* No code blockers. Remaining work is operational proof of the Post-v1.30 controlled activation gate: Evidence #3 on a second UTC day, followed by approval, canary, promotion, activation, post-activation verification, and deterministic rollback.
+* No code blockers. The Post-v1.30 controlled activation gate has been proven end to end on real `repo-review` evidence and rolled back exactly to the baseline policy. No next post-v1.33 capability is committed.
 
 ## Owns
 
