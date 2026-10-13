@@ -99,6 +99,7 @@ def _seed_real_run(
         exit_status="ok",
         latency_ms=10,
         run_id=execution_run_id,
+        completeness={"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
     )
     outcome["recorded_at"] = recorded_at
     record_execution_outcome(outcome, outcome_path)
@@ -408,6 +409,42 @@ def test_canary_v2_refuses_stale_policy_snapshot(tmp_path: Path, monkeypatch) ->
             task="review release boundaries",
             fixture_path=tmp_path / "fixture.json",
             execution_run_ids=CANARY_EXECUTION_IDS,
+            root=tmp_path,
+        )
+
+
+def test_canary_v2_refuses_historical_unmeasured_execution(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    plan = create_canary_plan(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        execution_budget=1,
+        min_executions=1,
+        root=tmp_path,
+    )
+    outcome_path = tmp_path / "execution-outcomes.jsonl"
+    records = outcome_path.read_text(encoding="utf-8").splitlines()
+    target_id = CANARY_EXECUTION_IDS[0]
+    rewritten = []
+    for raw in records:
+        record = json.loads(raw)
+        if record.get("run_id") == target_id:
+            record.pop("completeness", None)
+        rewritten.append(json.dumps(record))
+    outcome_path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="execution_run_id is not a measured complete successful run",
+    ):
+        run_canary(
+            plan["canary_id"],
+            task="review release boundaries",
+            fixture_path=tmp_path / "fixture.json",
+            execution_run_ids=[target_id],
             root=tmp_path,
         )
 
