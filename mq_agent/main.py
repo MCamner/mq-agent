@@ -197,6 +197,7 @@ def _execution_outcome(
                 model=record.get("model"),
                 fallback=record.get("fallback"),
                 runtime_fingerprint=fingerprint,
+                completeness=record.get("completeness"),
             ) is not None
 
 
@@ -1196,6 +1197,23 @@ def review_repo_cmd(
         flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
         result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
         if _is_error_result(result) or _receipt_refused(result):
+            record["completeness"] = {
+                "status": "partial",
+                "steps": [{"step": 1, "status": "failed"}],
+            }
+            record.update(result="FAIL", exit_status="error")
+        else:
+            # mq-mcp's current review_repo contract reports reviewed files but
+            # does not expose the total source population, executed fan-out
+            # count, or a completion flag. The canonical execution contract
+            # forbids inferring complete coverage from that text. Until the
+            # producer exposes measured coverage, fail closed: the review
+            # payload is still returned to the operator, but this execution is
+            # not quality evidence.
+            record["completeness"] = {
+                "status": "partial",
+                "steps": [{"step": 1, "status": "unmeasured"}],
+            }
             record.update(result="FAIL", exit_status="error")
     execution = (
         _execution_correlation(record, "repo-review") if with_execution else None
