@@ -149,6 +149,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Learned-routing readiness calibration now derives the total observation floor
+  from the independent balance requirements: 2 applied routes x 10 samples per
+  route = 20 observations, replacing the redundant 30-total threshold. The
+  10-per-route and 14-day gates remain unchanged, and a passing readiness report
+  still grants no eligibility or automatic routing.
 - `feedback activate` now requires `--promotion-approval-id` in addition to the
   canary `--approval-id`; a canary approval alone can no longer activate.
   Activation and rollback events are written as `mq.feedback-policy-event.v2`

@@ -11,9 +11,13 @@ Completed: the Post-v1.30 controlled activation gate has been proven end to end
 on real `repo-review` evidence, including approval, Canary v2, promotion,
 activation, post-activation verification and exact rollback.
 Evidence: [docs/feedback-controlled-activation-e2e-evidence.md](docs/feedback-controlled-activation-e2e-evidence.md).
-Next: calibrate learned-routing readiness thresholds on real applied `docs-review`
-evidence. Evidence-based automatic routing remains disabled until that calibration
-is reviewed; no activation version is assigned.
+Completed: learned-routing readiness thresholds were calibrated against the
+repository-documented real applied `docs-review` history. The total floor is now
+derived as 2 routes x 10 samples = 20; 14 days and 10/route remain conservative
+requirements. Automatic routing remains disabled.
+Next: collect current-era applied `docs-review` evidence until both allowlisted
+routes reach 10 samples across at least 14 days, then perform an explicit
+operator promotion review; no activation version is assigned.
 Deferred: MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
@@ -45,8 +49,9 @@ automatically.
 
 Evidence-based routing activation has now been reconsidered as permitted by the
 completed control-plane gate. The decision is **not to enable it yet**: current
-`route_readiness()` thresholds were carried over from per-execution evidence and
-are explicitly unreviewed for populations of applied routing decisions. The
+`route_readiness()` thresholds are now calibrated for applied routing decisions:
+20 total observations derived from 2 routes x 10/route, with the 14-day temporal
+gate retained conservatively. The
 reconsideration record is in
 [docs/learned-routing-activation-reconsideration.md](docs/learned-routing-activation-reconsideration.md).
 
@@ -594,10 +599,17 @@ justify an activation design.
   historical evidence.
 * [x] Only after this gate is proven may evidence-based routing activation be
   reconsidered. Reconsidered 2026-10-13 after the real `repo-review` E2E proof:
-  automatic learned routing remains disabled. `route_readiness()` still labels
-  its carried-over decision-population thresholds as unreviewed, grants no
-  eligibility, and requires operator approval. The next step is threshold
-  calibration on real applied routing evidence, not activation.
+  automatic learned routing remains disabled and operator approval remains
+  mandatory.
+* [x] Calibrate learned-routing readiness thresholds against real applied
+  `docs-review` history. The documented progression reached 14 observations,
+  2 routes, 3.502 days and 5/route without becoming eligible. Calibration removes
+  only the redundant 30-total floor: with 2 routes and 10/route, the total floor
+  is derived as 20. The 10/route and 14-day gates remain conservative because
+  the real history did not reach them. See
+  [docs/learned-routing-readiness-calibration.md](docs/learned-routing-readiness-calibration.md).
+  Passing readiness still permits only operator review; it never authorizes or
+  enables routing automatically.
 
 ### v1.33.0 Policy Registry v2 checkpoint
 
@@ -1363,7 +1375,7 @@ until the data can support them. The gate is explicit and machine-checked:
 
 ```yaml
 eligibility:
-  minimum_observations: 30       # total records for the task class
+  minimum_observations: 20       # derived: 2 routes x 10 samples per route
   minimum_candidate_routes: 2    # distinct routes observed
   minimum_window_days: 14        # so one afternoon's batch cannot qualify
   minimum_samples_per_route: 10  # each compared route, not just the winner
@@ -1373,7 +1385,7 @@ The fourth gate is what makes the other three mean anything. Without it,
 28 Codex runs and 2 Claude runs pass a 30/2/14 check and the comparison is
 still noise.
 
-These are eligibility thresholds, not statistical proof. Thirty observations do
+These are eligibility thresholds, not statistical proof. Twenty observations do
 not make a conclusion safe; they make the system allowed to open its mouth.
 Nothing in the implementation or the documentation may present a passing gate
 as evidence that a difference is real.
@@ -1382,7 +1394,7 @@ Larger consequences take stricter gates:
 
 | Decision | observations | routes | window | per route |
 | --- | --- | --- | --- | --- |
-| Model selection | 30 | 2 | 14 days | 10 |
+| Model selection | 20 | 2 | 14 days | 10 |
 | Agent selection | 50 | 2 | 21 days | 15 |
 | Tool policy | 100 | 2 | 30 days | 25 |
 | Privilege and safety | learned routing must not decide | | | |
@@ -1392,8 +1404,9 @@ it may change routing on its own.** Passing every gate still yields a proposal
 that a person promotes.
 
 `mq-agent route readiness` reports how far each task class is from its
-thresholds. Until a class passes, `route learn` refuses and says which gate is
-missing rather than training on what happens to be there.
+thresholds and names every failing gate. No `route learn` command exists; a
+future promotion surface must remain a separate explicitly approved capability
+rather than training on whatever evidence happens to be present.
 
 Applied to the current file, every class fails every gate: one class, one
 route, two days, and nothing to compare against.
