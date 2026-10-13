@@ -2,28 +2,23 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 from mq_agent.memory.codegraph_runtime import search_codegraph
 
 
 class _NoCodeGraphBridge:
-    def list_tool_specs(self):
-        return []
-
-    def call_tool(self, tool_name, args):  # pragma: no cover - must never run
-        raise AssertionError((tool_name, args))
+    def call_tool_if_available(self, tool_name, args):
+        return False, None
 
 
 def test_prefers_connected_codegraph_mcp(monkeypatch, tmp_path: Path) -> None:
     calls = []
 
     class FakeBridge:
-        def list_tool_specs(self):
-            return [SimpleNamespace(name="codegraph_explore")]
-
-        def call_tool(self, tool_name, args):
+        def call_tool_if_available(self, tool_name, args):
             calls.append((tool_name, args))
-            return {"results": [{"path": "mq_agent/main.py", "symbol": "app"}]}
+            return True, {"results": [{"path": "mq_agent/main.py", "symbol": "app"}]}
 
     monkeypatch.setattr(
         "mq_agent.tools.mcp_bridge.MultiMCPBridge",
@@ -42,6 +37,40 @@ def test_prefers_connected_codegraph_mcp(monkeypatch, tmp_path: Path) -> None:
             },
         )
     ]
+
+
+def test_multi_bridge_discovers_tool_once_before_call() -> None:
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    class FakeServerBridge:
+        def __init__(self):
+            self.list_calls = 0
+            self.tool_calls = 0
+
+        def list_tools(self):
+            self.list_calls += 1
+            return ["codegraph_explore"]
+
+        def call_tool(self, tool_name, args):
+            self.tool_calls += 1
+            return {"tool": tool_name, "args": args}
+
+    server = FakeServerBridge()
+    bridge = object.__new__(MultiMCPBridge)
+    bridge.bridges = {"mq-mcp": cast(Any, server)}
+
+    found, result = bridge.call_tool_if_available(
+        "codegraph_explore",
+        {"query": "review repo"},
+    )
+
+    assert found is True
+    assert result == {
+        "tool": "codegraph_explore",
+        "args": {"query": "review repo"},
+    }
+    assert server.list_calls == 1
+    assert server.tool_calls == 1
 
 
 def test_falls_back_to_local_cli_for_indexed_repo(monkeypatch, tmp_path: Path) -> None:
