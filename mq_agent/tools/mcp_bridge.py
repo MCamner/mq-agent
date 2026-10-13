@@ -279,11 +279,20 @@ class MultiMCPBridge:
         spec.source = _infer_default_tool_source(name, spec.source)
         return spec
 
+    def call_tool_if_available(
+        self, tool_name: str, args: dict
+    ) -> tuple[bool, Any]:
+        """Discover a tool once, then call it on the bridge that exposed it."""
+        for bridge in self.bridges.values():
+            if tool_name in bridge.list_tools():
+                return True, bridge.call_tool(tool_name, args)
+        return False, None
+
     def call_tool(self, tool_name: str, args: dict) -> Any:
         """Route tool call to the first bridge that has the tool."""
-        for name, bridge in self.bridges.items():
-            if tool_name in bridge.list_tools():
-                return bridge.call_tool(tool_name, args)
+        found, result = self.call_tool_if_available(tool_name, args)
+        if found:
+            return result
         return f"Tool '{tool_name}' not found on any connected MCP server."
 
     def _unreachable_error(self, tool_name: str) -> dict[str, Any] | None:
