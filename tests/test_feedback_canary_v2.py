@@ -25,6 +25,11 @@ from mq_agent.tools.execution_outcome import (
 
 BASELINE = "context-pack-v1"
 CANDIDATE = "context-pack-v1+codegraph-guidance"
+CANARY_EXECUTION_IDS = [
+    "exec-cmp-a",
+    "exec-cmp-b",
+    "exec-cmp-c",
+]
 
 
 def _comparison(
@@ -89,7 +94,7 @@ def _seed_real_run(
     append_experiment(experiment, root)
     outcome = build_execution_outcome(
         runtime="agent",
-        task_class="audit",
+        task_class="repo-review",
         result="PASS",
         exit_status="ok",
         latency_ms=10,
@@ -131,13 +136,17 @@ def _ready_candidate(root: Path, monkeypatch) -> str:
         commit="e" * 40,
     )
     return candidate_id
-def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
+
+
+def _mock_execution(monkeypatch, verdicts: list[str]) -> list[str | None]:
     counter = {"value": 0}
+    seen_execution_run_ids: list[str | None] = []
 
     def fake_run(*_args, **kwargs):
         counter["value"] += 1
         index = counter["value"]
         feedback_run_id = f"fb-canary-{index}"
+        seen_execution_run_ids.append(kwargs.get("execution_run_id"))
         snapshot = {
             "kind": "git",
             "ref": "main",
@@ -152,6 +161,7 @@ def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
             snapshot_commit=snapshot["commit"],
             evidence_sources=["repo-context"],
             state="completed",
+            execution_run_id=kwargs.get("execution_run_id"),
             feedback_run_id=feedback_run_id,
         )
         append_experiment(experiment, kwargs.get("state_root"))
@@ -203,6 +213,7 @@ def _mock_execution(monkeypatch, verdicts: list[str]) -> None:
 
     monkeypatch.setattr("mq_agent.feedback.canary.run_context_experiment", fake_run)
     monkeypatch.setattr("mq_agent.feedback.canary.compare_feedback_run", fake_compare)
+    return seen_execution_run_ids
 
 
 def test_canary_v2_plan_run_status_and_activation(tmp_path: Path, monkeypatch) -> None:
@@ -223,11 +234,14 @@ def test_canary_v2_plan_run_status_and_activation(tmp_path: Path, monkeypatch) -
         root=tmp_path,
     )
 
-    _mock_execution(monkeypatch, ["CANDIDATE_BETTER"] * 3)
+    seen_execution_run_ids = _mock_execution(
+        monkeypatch, ["CANDIDATE_BETTER"] * 3
+    )
     result = run_canary(
         plan["canary_id"],
         task="review release boundaries",
         fixture_path=tmp_path / "fixture.json",
+        execution_run_ids=CANARY_EXECUTION_IDS,
         root=tmp_path,
     )
 
@@ -237,6 +251,7 @@ def test_canary_v2_plan_run_status_and_activation(tmp_path: Path, monkeypatch) -
     assert result["failures"] == 0
     assert result["inconclusive"] == 0
     assert result["failure_rate"] == 0.0
+    assert seen_execution_run_ids == CANARY_EXECUTION_IDS
     assert result["metrics"]["latency_delta_ms"] == -2.0
     assert result["metrics"]["grounding_delta"] == 0.3
     assert result["metrics"]["context_delta_bytes"] == -100.0
@@ -283,6 +298,7 @@ def test_canary_v2_fail_blocks_activation(tmp_path: Path, monkeypatch) -> None:
         plan["canary_id"],
         task="review release boundaries",
         fixture_path=tmp_path / "fixture.json",
+        execution_run_ids=CANARY_EXECUTION_IDS,
         root=tmp_path,
     )
 
@@ -321,6 +337,7 @@ def test_canary_v2_inconclusive_is_not_activation_evidence(
         plan["canary_id"],
         task="review release boundaries",
         fixture_path=tmp_path / "fixture.json",
+        execution_run_ids=CANARY_EXECUTION_IDS[:2],
         root=tmp_path,
     )
 
@@ -353,6 +370,7 @@ def test_canary_v2_refuses_duplicate_result(tmp_path: Path, monkeypatch) -> None
         plan["canary_id"],
         task="review release boundaries",
         fixture_path=tmp_path / "fixture.json",
+        execution_run_ids=CANARY_EXECUTION_IDS[:1],
         root=tmp_path,
     )
 
@@ -361,6 +379,7 @@ def test_canary_v2_refuses_duplicate_result(tmp_path: Path, monkeypatch) -> None
             plan["canary_id"],
             task="review release boundaries",
             fixture_path=tmp_path / "fixture.json",
+            execution_run_ids=CANARY_EXECUTION_IDS[:1],
             root=tmp_path,
         )
 
@@ -388,5 +407,85 @@ def test_canary_v2_refuses_stale_policy_snapshot(tmp_path: Path, monkeypatch) ->
             plan["canary_id"],
             task="review release boundaries",
             fixture_path=tmp_path / "fixture.json",
+            execution_run_ids=CANARY_EXECUTION_IDS,
+            root=tmp_path,
+        )
+
+
+def test_canary_v2_requires_one_execution_id_per_iteration(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    plan = create_canary_plan(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        execution_budget=3,
+        min_executions=3,
+        root=tmp_path,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="execution_run_id count must equal canary execution budget",
+    ):
+        run_canary(
+            plan["canary_id"],
+            task="review release boundaries",
+            fixture_path=tmp_path / "fixture.json",
+            execution_run_ids=CANARY_EXECUTION_IDS[:2],
+            root=tmp_path,
+        )
+
+
+def test_canary_v2_refuses_duplicate_execution_ids(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    plan = create_canary_plan(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        execution_budget=3,
+        min_executions=3,
+        root=tmp_path,
+    )
+
+    with pytest.raises(ValueError, match="execution_run_id values must be unique"):
+        run_canary(
+            plan["canary_id"],
+            task="review release boundaries",
+            fixture_path=tmp_path / "fixture.json",
+            execution_run_ids=[
+                CANARY_EXECUTION_IDS[0],
+                CANARY_EXECUTION_IDS[0],
+                CANARY_EXECUTION_IDS[1],
+            ],
+            root=tmp_path,
+        )
+
+
+def test_canary_v2_refuses_execution_outside_approved_readiness(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_id = _ready_candidate(tmp_path, monkeypatch)
+    approval = approval_receipt(candidate_id, reason="approved", root=tmp_path)
+    plan = create_canary_plan(
+        candidate_id,
+        approval_id=approval["approval_id"],
+        execution_budget=1,
+        min_executions=1,
+        root=tmp_path,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="execution_run_id is outside approved readiness evidence",
+    ):
+        run_canary(
+            plan["canary_id"],
+            task="review release boundaries",
+            fixture_path=tmp_path / "fixture.json",
+            execution_run_ids=["exec-calibration-extra"],
             root=tmp_path,
         )

@@ -27,6 +27,7 @@ from mq_agent.feedback.readiness import activation_readiness
 from mq_agent.main import app
 from tests.test_feedback_canary_v2 import (
     BASELINE,
+    CANARY_EXECUTION_IDS,
     CANDIDATE,
     _comparison,
     _mock_execution,
@@ -266,6 +267,7 @@ def test_revoked_approval_cannot_activate(tmp_path: Path, monkeypatch) -> None:
         plan["canary_id"],
         task="review release boundaries",
         fixture_path=tmp_path / "fixture.json",
+        execution_run_ids=CANARY_EXECUTION_IDS,
         root=tmp_path,
     )
     assert result["verdict"] == "PASS"

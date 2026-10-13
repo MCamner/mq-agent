@@ -16,7 +16,12 @@ from mq_agent.feedback.canary import (
 )
 from mq_agent.feedback.control import approval_receipt
 from mq_agent.main import app
-from tests.test_feedback_canary_v2 import CANDIDATE, _mock_execution, _ready_candidate
+from tests.test_feedback_canary_v2 import (
+    CANARY_EXECUTION_IDS,
+    CANDIDATE,
+    _mock_execution,
+    _ready_candidate,
+)
 
 runner = CliRunner()
 
@@ -78,6 +83,7 @@ def test_preflight_blocks_completed_canary(tmp_path: Path, monkeypatch) -> None:
         plan["canary_id"],
         task="review release boundaries",
         fixture_path=tmp_path / "fixture.json",
+        execution_run_ids=CANARY_EXECUTION_IDS,
         root=tmp_path,
     )
 

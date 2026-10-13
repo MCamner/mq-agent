@@ -683,6 +683,13 @@ def feedback_canary_run_cmd(
     canary_id: Annotated[str, typer.Argument(help="Canary v2 identifier")],
     task: Annotated[str, typer.Option("--task", help="Task used only for zero-effect context selection")],
     fixture: Annotated[Path, typer.Option("--fixture", help="Deterministic relevance fixture JSON")],
+    execution_run_ids: Annotated[
+        list[str],
+        typer.Option(
+            "--execution-run-id",
+            help="Successful repo-review execution id; repeat once per planned canary execution",
+        ),
+    ],
     repo: Annotated[Path, typer.Option("--repo", help="Clean Git repository to evaluate")] = Path("."),
     vault: Annotated[Path | None, typer.Option("--vault", help="mqobsidian vault override")] = None,
     timeout_ms: Annotated[int, typer.Option("--timeout-ms", min=1)] = DEFAULT_TIMEOUT_MS,
@@ -696,6 +703,7 @@ def feedback_canary_run_cmd(
             canary_id,
             task=task,
             fixture_path=fixture,
+            execution_run_ids=execution_run_ids,
             repo=repo,
             vault=vault,
             timeout_ms=timeout_ms,
