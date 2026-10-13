@@ -12,7 +12,7 @@ publishability: public-safe
 
 ## Current blockers
 
-* No code blockers. The Post-v1.30 controlled activation gate has been proven end to end on real `repo-review` evidence and rolled back exactly to the baseline policy. No next post-v1.33 capability is committed.
+* No code blockers. Controlled activation/rollback is proven. Evidence-based routing activation has been reconsidered and remains disabled; the next focus is calibrating `route_readiness` thresholds against real applied `docs-review` routing evidence.
 
 ## Owns
 
