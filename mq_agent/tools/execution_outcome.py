@@ -53,6 +53,28 @@ def outcome_path(destination: Path | None = None) -> Path:
     ).expanduser()
 
 
+def execution_is_complete(record: dict[str, Any]) -> bool:
+    """Return whether measured execution coverage is explicitly complete.
+
+    Historical records without `completeness` remain schema-valid, but absence
+    means unmeasured and must never be upgraded to complete by a consumer.
+    """
+    completeness = record.get("completeness")
+    return (
+        isinstance(completeness, dict)
+        and completeness.get("status") == "complete"
+    )
+
+
+def execution_is_complete_success(record: dict[str, Any]) -> bool:
+    """Return whether one outcome is usable as complete quality evidence."""
+    return (
+        execution_is_complete(record)
+        and record.get("result") == "PASS"
+        and record.get("exit_status") == "ok"
+    )
+
+
 def execution_outcome_fingerprint(record: dict[str, Any]) -> str:
     """Return a content fingerprint for one validated execution outcome."""
     _validator().validate(record)
@@ -155,6 +177,7 @@ def build_execution_outcome(
     cost: float | None = None,
     events: list[dict[str, str]] | None = None,
     runtime_fingerprint: dict[str, Any] | None = None,
+    completeness: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build and validate one execution outcome without persisting it."""
     outcome: dict[str, Any] = {
@@ -184,6 +207,7 @@ def build_execution_outcome(
         "cost": cost,
         "events": events,
         "runtime_fingerprint": runtime_fingerprint,
+        "completeness": completeness,
     }
     outcome.update({key: value for key, value in optional.items() if value is not None})
 
