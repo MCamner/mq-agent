@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 from mq_agent.memory.codegraph_runtime import search_codegraph
 
@@ -56,7 +57,7 @@ def test_multi_bridge_discovers_tool_once_before_call() -> None:
 
     server = FakeServerBridge()
     bridge = object.__new__(MultiMCPBridge)
-    bridge.bridges = {"mq-mcp": server}
+    bridge.bridges = {"mq-mcp": cast(Any, server)}
 
     found, result = bridge.call_tool_if_available(
         "codegraph_explore",
