@@ -91,7 +91,7 @@ def _seed_real_run(
     append_experiment(experiment, root)
     outcome = build_execution_outcome(
         runtime="agent",
-        task_class="audit",
+        task_class="repo-review",
         result="PASS",
         exit_status="ok",
         latency_ms=10,
@@ -157,6 +157,7 @@ def _passing_canary(
         snapshot_commit=snapshot["commit"],
         evidence_sources=["repo-context"],
         state="completed",
+        execution_run_id="exec-cmp-a",
         feedback_run_id=feedback_run_id,
     )
     append_experiment(experiment, root)
