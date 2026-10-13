@@ -861,10 +861,22 @@ def route_readiness(source: Path | None = None) -> dict[str, Any]:
             "minimum_samples_per_route": min(routes.values()) if routes else 0,
         }
         gates = {
-            "minimum_observations": actual["observations"] >= 30,
-            "minimum_candidate_routes": actual["candidate_routes"] >= 2,
-            "minimum_window_days": actual["window_days"] >= 14,
-            "minimum_samples_per_route": actual["minimum_samples_per_route"] >= 10,
+            "minimum_observations": (
+                actual["observations"]
+                >= READINESS_THRESHOLDS["minimum_observations"]
+            ),
+            "minimum_candidate_routes": (
+                actual["candidate_routes"]
+                >= READINESS_THRESHOLDS["minimum_candidate_routes"]
+            ),
+            "minimum_window_days": (
+                actual["window_days"]
+                >= READINESS_THRESHOLDS["minimum_window_days"]
+            ),
+            "minimum_samples_per_route": (
+                actual["minimum_samples_per_route"]
+                >= READINESS_THRESHOLDS["minimum_samples_per_route"]
+            ),
         }
         eligible = all(gates.values())
         task_classes[task_class] = {
