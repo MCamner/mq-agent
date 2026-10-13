@@ -11,7 +11,9 @@ Completed: the Post-v1.30 controlled activation gate has been proven end to end
 on real `repo-review` evidence, including approval, Canary v2, promotion,
 activation, post-activation verification and exact rollback.
 Evidence: [docs/feedback-controlled-activation-e2e-evidence.md](docs/feedback-controlled-activation-e2e-evidence.md).
-Next: select the next post-v1.33 capability; no scope is committed.
+Next: calibrate learned-routing readiness thresholds on real applied `docs-review`
+evidence. Evidence-based automatic routing remains disabled until that calibration
+is reviewed; no activation version is assigned.
 Deferred: MCP tool contract checking — future scope, no version assigned.
 
 ## Current status
@@ -40,6 +42,13 @@ successfully. The evidence receipt is recorded in
 The final effective policy was restored to the baseline
 `context-pack-v1`. Nothing activates routing, retrieval, memory or tool policy
 automatically.
+
+Evidence-based routing activation has now been reconsidered as permitted by the
+completed control-plane gate. The decision is **not to enable it yet**: current
+`route_readiness()` thresholds were carried over from per-execution evidence and
+are explicitly unreviewed for populations of applied routing decisions. The
+reconsideration record is in
+[docs/learned-routing-activation-reconsideration.md](docs/learned-routing-activation-reconsideration.md).
 
 | Version | Theme | Status |
 | --- | --- | --- |
@@ -583,8 +592,12 @@ justify an activation design.
   surface material regressions.
 * [x] Keep a kill switch that restores pre-feedback behavior without deleting
   historical evidence.
-* [ ] Only after this gate is proven may evidence-based routing activation be
-  reconsidered.
+* [x] Only after this gate is proven may evidence-based routing activation be
+  reconsidered. Reconsidered 2026-10-13 after the real `repo-review` E2E proof:
+  automatic learned routing remains disabled. `route_readiness()` still labels
+  its carried-over decision-population thresholds as unreviewed, grants no
+  eligibility, and requires operator approval. The next step is threshold
+  calibration on real applied routing evidence, not activation.
 
 ### v1.33.0 Policy Registry v2 checkpoint
 
