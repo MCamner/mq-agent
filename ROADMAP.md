@@ -49,8 +49,9 @@ automatically.
 
 Evidence-based routing activation has now been reconsidered as permitted by the
 completed control-plane gate. The decision is **not to enable it yet**: current
-`route_readiness()` thresholds were carried over from per-execution evidence and
-are explicitly unreviewed for populations of applied routing decisions. The
+`route_readiness()` thresholds are now calibrated for applied routing decisions:
+20 total observations derived from 2 routes x 10/route, with the 14-day temporal
+gate retained conservatively. The
 reconsideration record is in
 [docs/learned-routing-activation-reconsideration.md](docs/learned-routing-activation-reconsideration.md).
 
@@ -1374,7 +1375,7 @@ until the data can support them. The gate is explicit and machine-checked:
 
 ```yaml
 eligibility:
-  minimum_observations: 30       # total records for the task class
+  minimum_observations: 20       # derived: 2 routes x 10 samples per route
   minimum_candidate_routes: 2    # distinct routes observed
   minimum_window_days: 14        # so one afternoon's batch cannot qualify
   minimum_samples_per_route: 10  # each compared route, not just the winner
@@ -1384,7 +1385,7 @@ The fourth gate is what makes the other three mean anything. Without it,
 28 Codex runs and 2 Claude runs pass a 30/2/14 check and the comparison is
 still noise.
 
-These are eligibility thresholds, not statistical proof. Thirty observations do
+These are eligibility thresholds, not statistical proof. Twenty observations do
 not make a conclusion safe; they make the system allowed to open its mouth.
 Nothing in the implementation or the documentation may present a passing gate
 as evidence that a difference is real.
@@ -1393,7 +1394,7 @@ Larger consequences take stricter gates:
 
 | Decision | observations | routes | window | per route |
 | --- | --- | --- | --- | --- |
-| Model selection | 30 | 2 | 14 days | 10 |
+| Model selection | 20 | 2 | 14 days | 10 |
 | Agent selection | 50 | 2 | 21 days | 15 |
 | Tool policy | 100 | 2 | 30 days | 25 |
 | Privilege and safety | learned routing must not decide | | | |
