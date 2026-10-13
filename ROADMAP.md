@@ -1404,8 +1404,9 @@ it may change routing on its own.** Passing every gate still yields a proposal
 that a person promotes.
 
 `mq-agent route readiness` reports how far each task class is from its
-thresholds. Until a class passes, `route learn` refuses and says which gate is
-missing rather than training on what happens to be there.
+thresholds and names every failing gate. No `route learn` command exists; a
+future promotion surface must remain a separate explicitly approved capability
+rather than training on whatever evidence happens to be present.
 
 Applied to the current file, every class fails every gate: one class, one
 route, two days, and nothing to compare against.
