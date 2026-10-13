@@ -108,7 +108,10 @@ mq-agent feedback canary-plan <candidate-id> \
   --max-failure-rate 0
 mq-agent feedback canary-run <canary-id> \
   --task "review release boundaries" \
-  --fixture path/to/relevance-fixture.json
+  --fixture path/to/relevance-fixture.json \
+  --execution-run-id <repo-review-run-1> \
+  --execution-run-id <repo-review-run-2> \
+  --execution-run-id <repo-review-run-3>
 mq-agent feedback canary-status <canary-id>
 mq-agent feedback promotion-approve <candidate-id> \
   --canary-id <canary-id> \
@@ -152,6 +155,13 @@ otherwise. Revocation appends one `mq.feedback-approval-revocation.v1` record
 and never modifies the approval; a second revocation of the same approval is
 refused. Historical v1 approvals stay readable but report `INVALID` because
 they predate the repo/commit binding.
+
+Canary v2 execution correlation is explicit: `canary-run` requires one
+distinct successful `mq.execution-outcome.v1` id for each planned canary
+execution. Each id must belong to the same task class as the plan. The id is
+forwarded to the corresponding zero-effect feedback experiment, so retrieval
+latency materiality uses the same measured real-task baseline as readiness.
+No execution outcome is synthesized or rewritten.
 
 Canary approval and promotion approval are separate receipts. The canary
 approval only permits testing. `feedback promotion-approve` issues an
