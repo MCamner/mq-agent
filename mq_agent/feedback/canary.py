@@ -100,11 +100,8 @@ def create_canary_plan(
     if not 0.0 <= max_failure_rate <= 1.0:
         raise ValueError("max_failure_rate must be between 0 and 1")
 
-    candidate, approval_record = _validate_candidate_approval(
+    candidate, _approval_record = _validate_candidate_approval(
         candidate_id, approval_id, root
-    )
-    approved_execution_run_ids = _approved_execution_run_ids(
-        candidate_id, approval_record, root
     )
     policy = _policy_snapshot(candidate["task_class"], root)
     if policy["effective_strategy"] != candidate["current_strategy"]:
