@@ -14,7 +14,7 @@ the result and stays a pure memory layer.
 ```text
 source:  <vault>/systems/<system>/hot.md
          <vault>/systems/<system>/index.md
-         <vault>/memory/learn/repos/<system>.md   (lessons, optional)
+         <vault>/memory/learn/repos/<system>.md   (lessons, optional, local views only)
 output:  <vault>/memory/learn/agent/<system>.md
 ```
 
@@ -33,7 +33,12 @@ Vault path: `MQ_OBSIDIAN_DIR` env var, else `~/mqobsidian`.
    content differs.
 5. **Confined output.** Only write inside `<vault>/memory/learn/agent/`. Any path
    escaping that directory is refused and reported as an error.
-6. **Short.** Target ≈120–180 words of body. No raw logs, no long quote blocks,
+6. **Reproducible when versioned.** A system whose `hot.md` or `index.md`
+   frontmatter has `agent_view: versioned` has a committed view. That view is built from
+   `hot.md` + `index.md` only and never quotes `memory/learn/repos/`, which is
+   local to each vault and absent from a clean clone. Local lessons stay in
+   local views.
+7. **Short.** Target ≈120–180 words of body. No raw logs, no long quote blocks,
    no full validation text. When over budget, shed lowest-value content first
    (lessons, then the priorities tail) — never the source.
 
@@ -43,7 +48,7 @@ Vault path: `MQ_OBSIDIAN_DIR` env var, else `~/mqobsidian`.
 ---
 type: agent-view
 system: <system>
-generated: <YYYY-MM-DD>
+generated: <YYYY-MM-DD>   # newest `updated:` of the sources; today only if none has one
 generator: mq-agent agent-views rebuild
 sources: [systems/<system>/hot.md, systems/<system>/index.md, ...]
 ---
@@ -60,7 +65,7 @@ One compact paragraph (hot mission/status first, index state as fallback).
 - hot blockers + index risks, or "none"
 
 ## Relevant lessons
-- up to 3 short lesson references (from memory/learn/repos/<system>.md; omitted if absent)
+- up to 3 short lesson references (from memory/learn/repos/<system>.md; omitted if absent or the view is versioned)
 
 ## Read next
 - [[systems/<system>/hot]]
