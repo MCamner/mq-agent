@@ -1160,8 +1160,14 @@ def build_report(
     }
     tool_relationships, tool_findings = tool_contract_findings(producer_roots)
     relationships.extend(tool_relationships)
-    relationship_findings = relationship_findings + tool_findings
     findings.extend(relationship_findings)
+    findings.extend(tool_findings)
+    # A producer that publishes no tool surface yet is reported, but it is a
+    # rollout state, not a verdict on the stack: it must not turn a clean PASS
+    # into SKIPPED or move the next action onto it.
+    relationship_findings = relationship_findings + [
+        f for f in tool_findings if f["severity"] != "SKIPPED"
+    ]
 
     fresh_findings: list[dict[str, Any]] = []
     if fresh_resolve:

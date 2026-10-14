@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator
 
 from mq_agent.tools import mcp_tool_contracts as mtc
 from mq_agent.tools.stack_compatibility import build_report, release_blockers
+from tests.test_stack_compatibility import DECLARED_MCP_1X, _make_repo
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -200,11 +201,14 @@ def test_report_carries_tool_findings_and_validates(tmp_path: Path, monkeypatch)
 def test_report_status_is_unchanged_when_no_producer_publishes(tmp_path: Path, monkeypatch) -> None:
     """The masking trap: a SKIPPED pair must not lift a clean stack to a
     non-zero exit."""
-    root = tmp_path / "mq-mcp"
-    root.mkdir()
+    entry = _make_repo(tmp_path, "mq-mcp", compat=DECLARED_MCP_1X)
     monkeypatch.setattr(mtc, "load_requirements", lambda: {"tools": [_need("x")]})
 
-    report = build_report(repos=[{"name": "mq-mcp", "path": str(root)}], tracked=())
+    with_check = build_report(repos=[entry], slice_only=False)
+    monkeypatch.setattr(mtc, "load_requirements", lambda: {"tools": []})
+    without_check = build_report(repos=[entry], slice_only=False)
 
-    assert report["status"] in {"PASS", "SKIPPED", "UNAVAILABLE"}
-    assert all(f["severity"] != "FAIL" for f in report["findings"])
+    assert without_check["status"] == "PASS"
+    assert with_check["status"] == without_check["status"]
+    assert with_check["next_action"] == without_check["next_action"]
+    assert ("MQC023_TOOL_SURFACE_UNAVAILABLE", "SKIPPED") in _codes(with_check["findings"])
