@@ -9,7 +9,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.34.0] — 2026-10-14
+
+Theme: controlled activation proof and evidence integrity. The Post-v1.30
+activation gate is proven end to end on real `repo-review` evidence, and the
+evidence feeding it is now measured rather than inferred: execution
+completeness, Canary v2 correlation, calibrated routing readiness and
+reproducible agent views. Also includes evidence-gated Hybrid Retrieval, Session
+Checkpoints, State Recovery v2 and Perception Review v2.
+
 ### Added
+
+- `feedback canary-run` binds every canary execution to a real, successful
+  `repo-review` execution with `--execution-run-id` (repeat once per planned
+  execution). Materiality baselines come from the execution evidence the
+  approval's readiness already bound, so the canary judges latency by the same
+  rule that qualified the candidate instead of a stricter retrieval-only one.
 
 - `context prepare` runs `agent-views rebuild`, `context export` and the
   agent-views drift check as one repeatable step, for agent runs and CI. Export
@@ -160,6 +175,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   with `canary_approval_id` and `promotion_approval_id`; v1 events stay readable.
 
 ### Fixed
+
+- `agent-views rebuild` makes committed views reproducible. A system that
+  declares `agent_view: versioned` in its `hot.md` or `index.md` gets a view
+  built from those two files only, never from gitignored local lessons, and
+  every view dates itself from its sources' newest `updated:` instead of the
+  rebuild day. `agent-views check` no longer reports a view stale the day after
+  it was built (mqobsidian DEC-007).
 
 - `docs-audit` now projects the executor's measured step coverage into
   `mq.execution-outcome.v1.completeness`. A capped fan-out such as 25/133 is
