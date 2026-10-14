@@ -89,6 +89,48 @@ def test_built_outcome_is_schema_valid_and_carries_a_run_id() -> None:
     assert outcome["route"]["selected"] == "swarm"
 
 
+def test_complete_quality_evidence_requires_measured_complete_pass() -> None:
+    historical = _outcome()
+    complete = execution_outcome.build_execution_outcome(
+        runtime="agent",
+        task_class="repo-review",
+        result="PASS",
+        exit_status="ok",
+        latency_ms=1,
+        completeness={"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
+    )
+    failed = execution_outcome.build_execution_outcome(
+        runtime="agent",
+        task_class="repo-review",
+        result="FAIL",
+        exit_status="error",
+        latency_ms=1,
+        completeness={"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
+    )
+
+    assert execution_outcome.execution_is_complete(historical) is False
+    assert execution_outcome.execution_is_complete_success(historical) is False
+    assert execution_outcome.execution_is_complete(complete) is True
+    assert execution_outcome.execution_is_complete_success(complete) is True
+    assert execution_outcome.execution_is_complete(failed) is True
+    assert execution_outcome.execution_is_complete_success(failed) is False
+
+
+def test_partial_execution_cannot_be_built_as_pass() -> None:
+    with pytest.raises(ValidationError):
+        execution_outcome.build_execution_outcome(
+            runtime="agent",
+            task_class="repo-review",
+            result="PASS",
+            exit_status="ok",
+            latency_ms=1,
+            completeness={
+                "status": "partial",
+                "steps": [{"step": 1, "status": "unmeasured"}],
+            },
+        )
+
+
 # `route` is deprecated as routing truth (ADR-010 D6) but not removed: records
 # written before that decision still carry it and must stay valid. Deprecating a
 # field and invalidating the data already stored under it are different things.

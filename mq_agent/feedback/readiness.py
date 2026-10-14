@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any
 
 from mq_agent.tools.execution_outcome import (
+    execution_is_complete,
+    execution_is_complete_success,
     execution_outcome_fingerprint,
     read_execution_outcomes,
 )
@@ -144,7 +146,10 @@ def _task_class_evidence(
         matches = outcome_by_run.get(execution_run_id, [])
         if len(matches) != 1:
             continue
-        population_by_run.setdefault(execution_run_id, matches[0])
+        outcome = matches[0]
+        if not execution_is_complete(outcome):
+            continue
+        population_by_run.setdefault(execution_run_id, outcome)
         population_experiments.append(str(experiment["feedback_run_id"]))
 
     population = list(population_by_run.values())
@@ -172,6 +177,9 @@ def _task_class_evidence(
             unresolved_feedback_runs.append(feedback_run_id)
             continue
         outcome = outcome_matches[0]
+        if not execution_is_complete_success(outcome):
+            unresolved_feedback_runs.append(feedback_run_id)
+            continue
         linked_by_run.setdefault(execution_run_id, outcome)
         linked_refs.append(
             {

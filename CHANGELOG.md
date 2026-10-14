@@ -161,6 +161,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Repo-review execution telemetry now fails closed on unmeasured coverage: the
+  current mq-mcp text-only `review_repo` response is recorded as partial /
+  unmeasured and cannot become execution `PASS`. Feedback experiments,
+  activation readiness and Canary v2 additionally require an exact linked
+  execution with measured complete coverage and `PASS/ok`, so historical
+  records remain untouched but cannot be reused as complete quality evidence.
 - `review repo` resolves its repo argument to an absolute directory before
   delegating to mq-mcp. A relative path such as `.` was read against mq-mcp's
   own working directory and reviewed the mq-mcp checkout instead of the

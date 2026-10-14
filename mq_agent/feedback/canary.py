@@ -9,7 +9,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from mq_agent.tools.execution_outcome import read_execution_outcomes
+from mq_agent.tools.execution_outcome import (
+    execution_is_complete_success,
+    read_execution_outcomes,
+)
 
 from .approvals import require_valid_approval
 from .contracts import validate_canary_record
@@ -377,9 +380,9 @@ def _validate_execution_run_ids(
             raise ValueError(
                 f"execution_run_id task class mismatch: {run_id}"
             )
-        if outcome.get("result") != "PASS" or outcome.get("exit_status") != "ok":
+        if not execution_is_complete_success(outcome):
             raise ValueError(
-                f"execution_run_id is not a successful run: {run_id}"
+                f"execution_run_id is not a measured complete successful run: {run_id}"
             )
 
     return list(execution_run_ids)
