@@ -12,7 +12,12 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from mq_agent.main import _is_error_result, app
-from mq_agent.tools.mcp_bridge import MCPBridge, _review_repo_args
+from mq_agent.tools.mcp_bridge import (
+    MCPBridge,
+    MultiMCPBridge,
+    _review_repo_args,
+)
+from mq_agent.tools.mcp_registry import MCPToolSpec
 
 runner = CliRunner()
 
@@ -75,6 +80,84 @@ def test_mcpbridge_review_repo_self_review_when_no_path():
     bridge.review_repo(".", {"mode": "comment"})
 
     assert "repo_path" not in captured["args"]
+
+
+def test_mcpbridge_requests_structured_repo_coverage_when_advertised(tmp_path):
+    target = tmp_path / "mq-agent"
+    target.mkdir()
+    bridge = MCPBridge()
+    bridge.describe_tool = lambda _name: MCPToolSpec.from_dict(  # type: ignore[method-assign]
+        {
+            "name": "review_repo",
+            "input_schema": {
+                "type": "object",
+                "properties": {"structured": {"type": "boolean"}},
+            },
+        }
+    )
+    captured: dict[str, Any] = {}
+    bridge.call_tool = lambda tool, args: captured.update(  # type: ignore[method-assign]
+        {"tool": tool, "args": args}
+    ) or {"ok": True}
+
+    bridge.review_repo(str(target), {"mode": "comment"})
+
+    assert captured["args"]["structured"] is True
+
+
+def test_multibridge_keeps_legacy_repo_review_unstructured(tmp_path):
+    target = tmp_path / "legacy"
+    target.mkdir()
+    bridge = MultiMCPBridge()
+    legacy = type("LegacyBridge", (), {})()
+    legacy.list_tools = lambda: ["review_repo"]
+    legacy.describe_tool = lambda _name: MCPToolSpec.from_dict(
+        {
+            "name": "review_repo",
+            "input_schema": {
+                "type": "object",
+                "properties": {"mode": {"type": "string"}},
+            },
+        }
+    )
+    captured: dict[str, Any] = {}
+    legacy.call_tool = lambda tool, args: captured.update(
+        {"tool": tool, "args": args}
+    ) or {"ok": True}
+    bridge.bridges = {"mq-mcp": legacy}
+
+    bridge.review_repo(str(target), {"mode": "comment"})
+
+    assert "structured" not in captured["args"]
+
+
+def test_multibridge_requests_structured_repo_coverage_when_advertised(tmp_path):
+    target = tmp_path / "new"
+    target.mkdir()
+    bridge = MultiMCPBridge()
+    current = type("CurrentBridge", (), {})()
+    current.list_tools = lambda: ["review_repo"]
+    current.describe_tool = lambda _name: MCPToolSpec.from_dict(
+        {
+            "name": "review_repo",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "mode": {"type": "string"},
+                    "structured": {"type": "boolean"},
+                },
+            },
+        }
+    )
+    captured: dict[str, Any] = {}
+    current.call_tool = lambda tool, args: captured.update(
+        {"tool": tool, "args": args}
+    ) or {"ok": True}
+    bridge.bridges = {"mq-mcp": current}
+
+    bridge.review_repo(str(target), {"mode": "comment"})
+
+    assert captured["args"]["structured"] is True
 
 
 # C. Dry-run shows the target repo path.
