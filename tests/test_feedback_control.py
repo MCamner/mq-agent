@@ -96,6 +96,10 @@ def _seed_real_run(
         exit_status="ok",
         latency_ms=10,
         run_id=execution_run_id,
+        completeness={
+            "status": "complete",
+            "steps": [{"step": 1, "status": "complete"}],
+        },
     )
     outcome["recorded_at"] = recorded_at
     record_execution_outcome(outcome, outcome_path)
