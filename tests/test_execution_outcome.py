@@ -595,14 +595,6 @@ def test_a_missing_api_key_records_no_signal_execution(
     assert _records(store_without_credentials) == []
 
 
-@pytest.mark.parametrize(
-    ("argv", "task_class"),
-    [
-        (["docs-audit", ".", "--json"], "docs"),
-        (["release-check", ".", "--json", "--dry-run"], "release"),
-        (["fix-ci", ".", "--json", "--dry-run"], "ci"),
-    ],
-)
 def test_docs_audit_records_partial_when_executor_fan_out_is_capped(
     store, monkeypatch
 ) -> None:
@@ -661,6 +653,14 @@ def test_docs_audit_records_complete_when_every_planned_call_ran(
     assert record["completeness"] == payload["completeness"]
 
 
+@pytest.mark.parametrize(
+    ("argv", "task_class"),
+    [
+        (["docs-audit", ".", "--json"], "docs"),
+        (["release-check", ".", "--json", "--dry-run"], "release"),
+        (["fix-ci", ".", "--json", "--dry-run"], "ci"),
+    ],
+)
 def test_each_entrypoint_names_its_own_task_class(store, monkeypatch, argv, task_class) -> None:
     monkeypatch.setattr(
         "mq_agent.agents.docs_agent.DocsAgent.audit",
