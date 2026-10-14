@@ -161,6 +161,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `review repo` now consumes mq-mcp's measured structured coverage when the
+  server advertises the optional `structured` input. Complete coverage can
+  produce execution `PASS/ok`; capped coverage stays `partial -> FAIL/error`.
+  Older mq-mcp servers keep working but remain `unmeasured -> FAIL/error`.
+  The operator-facing review payload is unchanged.
+- Route-quality analysis opens a new `execution-completeness` era at
+  mq-agent #396 (`de36d326`, 2026-10-14T00:54:27Z). Earlier applied routing
+  observations remain readiness/history evidence but are excluded from the
+  current quality-divergence cohort.
+
 - Repo-review execution telemetry now fails closed on unmeasured coverage: the
   current mq-mcp text-only `review_repo` response is recorded as partial /
   unmeasured and cannot become execution `PASS`. Feedback experiments,

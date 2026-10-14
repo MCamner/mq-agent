@@ -106,6 +106,20 @@ The following remain authority boundaries rather than evidence signals:
 
 Telemetry cannot modify any of them.
 
+## Current quality era
+
+Current route-quality analysis begins at the `execution-completeness` era
+opened by mq-agent #396 (`de36d326`, 2026-10-14T00:54:27Z).
+
+Applied routing observations before that boundary remain immutable routing
+history and still count for readiness where appropriate. They do not enter the
+current quality-divergence cohort because repo-review execution coverage was not
+yet a measured quality precondition.
+
+New audit-quality evidence must correlate to an execution outcome with measured
+`completeness.status=complete`, `result=PASS` and `exit_status=ok`.
+Partial or unmeasured whole-repo audits are not quality evidence.
+
 ## Next evidence gate
 
 Collect current-era applied `docs-review` observations from both allowlisted
