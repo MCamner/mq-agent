@@ -988,6 +988,18 @@ def _execution_correlation(record: dict[str, Any], task_class: str) -> dict[str,
     }
 
 
+def _repo_review_payload_and_completeness(
+    result: Any,
+) -> tuple[Any, dict[str, Any] | None]:
+    """Unwrap mq-mcp structured repo coverage without changing review output."""
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        return result, None
+    completeness = result.get("completeness")
+    if "review" not in result or not isinstance(completeness, dict):
+        return result, None
+    return result["review"], completeness
+
+
 def _run_review(
     command: str,
     result: Any,
@@ -1195,21 +1207,22 @@ def review_repo_cmd(
     bridge = MultiMCPBridge()
     with _execution_outcome("repo-review", runtime_fingerprint=fingerprint) as record:
         flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
-        result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
-        if _is_error_result(result) or _receipt_refused(result):
+        raw_result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
+        result, measured_completeness = _repo_review_payload_and_completeness(raw_result)
+        if _is_error_result(raw_result) or _receipt_refused(raw_result):
             record["completeness"] = {
                 "status": "partial",
                 "steps": [{"step": 1, "status": "failed"}],
             }
             record.update(result="FAIL", exit_status="error")
+        elif measured_completeness is not None:
+            record["completeness"] = measured_completeness
+            if measured_completeness.get("status") != "complete":
+                record.update(result="FAIL", exit_status="error")
         else:
-            # mq-mcp's current review_repo contract reports reviewed files but
-            # does not expose the total source population, executed fan-out
-            # count, or a completion flag. The canonical execution contract
-            # forbids inferring complete coverage from that text. Until the
-            # producer exposes measured coverage, fail closed: the review
-            # payload is still returned to the operator, but this execution is
-            # not quality evidence.
+            # Older mq-mcp servers expose only review text. Absence of measured
+            # coverage is never inferred as complete: the operator still gets
+            # the review payload, while execution quality fails closed.
             record["completeness"] = {
                 "status": "partial",
                 "steps": [{"step": 1, "status": "unmeasured"}],
