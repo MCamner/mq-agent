@@ -68,7 +68,7 @@ optional and existing contracts stay valid without it.
   "compatibility": {
     "protocols": { "mcp_api": "1.x-fastmcp" },
     "dependencies": { "mcp": ">=1.27.1,<2" },
-    "produces": ["mq-mcp.tools.v1"],
+    "produces": ["mq-mcp.tool-surface.v1"],
     "consumes": ["mq.feedback.v1"]
   }
 }
@@ -218,10 +218,33 @@ mask the repos whose check genuinely did not run.
 | `MQC016_IMPORT_PROBE_FAILED` | FAIL | Yes |
 | `MQC017_RESOLVE_CONFLICT` | FAIL | Yes |
 | `MQC018_CONTRACT_VERSION_SKEW` | FAIL | Yes |
+| `MQC019_TOOL_NOT_PRODUCED` | FAIL, or WARN for an optional tool | Only as FAIL |
+| `MQC020_TOOL_SAFETY_ESCALATED` | FAIL | Yes |
+| `MQC021_TOOL_ARGUMENT_UNDECLARED` | FAIL, or WARN for an optional argument | Only as FAIL |
+| `MQC022_TOOL_REQUIRED_ARGUMENT_UNSENT` | FAIL | Yes |
+| `MQC023_TOOL_SURFACE_UNAVAILABLE` | SKIPPED when absent, FAIL when invalid | Only as FAIL |
 | `MQC004_DEPENDENCY_SOURCE_MISSING` | SKIPPED | No |
 | `MQC001`, `MQC010`, `MQC014` | UNAVAILABLE | No, but never green |
 
 Finding codes are append-only within `mq.stack-compatibility.v1`.
+
+### MCP tool contracts (MQC019–MQC023)
+
+mq-agent declares the MCP tools it calls in `schemas/mcp_tool_requirements.json`.
+The file ships in the wheel. Each entry gives the tool's producer, the highest
+ADR-003 class the calling flow accepts, and the arguments it sends.
+`tests/test_mcp_tool_requirements.py` holds the file to the code. It reads every
+literal tool name passed to a bridge call and every workflow-template step, and
+it records what each bridge helper actually sends.
+
+Each inventoried producer publishes `contracts/tool_surface.v1.json`
+(`mq-mcp.tool-surface.v1`), generated from its in-process registry. The gate
+compares the two files and never asks a running server, because a running
+server can lag `main`. A producer that publishes no surface yet is `SKIPPED`:
+nothing to assess, and it cannot lift a clean stack to a non-zero exit.
+Arguments the workflow runner adds to every step (`repo_path`, `repo_name`) are
+`context_arguments`. They count as sent for required parameters and are never
+reported as undeclared, because FastMCP ignores arguments a tool does not take.
 
 ## Where the gate runs
 
