@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -109,9 +109,9 @@ def test_multibridge_keeps_legacy_repo_review_unstructured(tmp_path):
     target = tmp_path / "legacy"
     target.mkdir()
     bridge = MultiMCPBridge()
-    legacy = type("LegacyBridge", (), {})()
-    legacy.list_tools = lambda: ["review_repo"]
-    legacy.describe_tool = lambda _name: MCPToolSpec.from_dict(
+    legacy = MagicMock()
+    legacy.list_tools.return_value = ["review_repo"]
+    legacy.describe_tool.return_value = MCPToolSpec.from_dict(
         {
             "name": "review_repo",
             "input_schema": {
@@ -121,7 +121,7 @@ def test_multibridge_keeps_legacy_repo_review_unstructured(tmp_path):
         }
     )
     captured: dict[str, Any] = {}
-    legacy.call_tool = lambda tool, args: captured.update(
+    legacy.call_tool.side_effect = lambda tool, args: captured.update(
         {"tool": tool, "args": args}
     ) or {"ok": True}
     bridge.bridges = {"mq-mcp": legacy}
@@ -135,9 +135,9 @@ def test_multibridge_requests_structured_repo_coverage_when_advertised(tmp_path)
     target = tmp_path / "new"
     target.mkdir()
     bridge = MultiMCPBridge()
-    current = type("CurrentBridge", (), {})()
-    current.list_tools = lambda: ["review_repo"]
-    current.describe_tool = lambda _name: MCPToolSpec.from_dict(
+    current = MagicMock()
+    current.list_tools.return_value = ["review_repo"]
+    current.describe_tool.return_value = MCPToolSpec.from_dict(
         {
             "name": "review_repo",
             "input_schema": {
@@ -150,7 +150,7 @@ def test_multibridge_requests_structured_repo_coverage_when_advertised(tmp_path)
         }
     )
     captured: dict[str, Any] = {}
-    current.call_tool = lambda tool, args: captured.update(
+    current.call_tool.side_effect = lambda tool, args: captured.update(
         {"tool": tool, "args": args}
     ) or {"ok": True}
     bridge.bridges = {"mq-mcp": current}
