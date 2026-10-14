@@ -10,7 +10,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from mq_agent.main import _contract_status_ok, app
-from mq_agent.tools.mcp_bridge import MultiMCPBridge
+from mq_agent.tools.mcp_bridge import MCPBridge, MultiMCPBridge
 
 runner = CliRunner()
 
@@ -210,8 +210,15 @@ def test_review_mcp_error_string_exits_nonzero():
 
 
 def test_mcp_bridge_review_helpers_call_expected_tools():
+    # Discovery is pinned to "nothing advertised". Since #398, review_repo calls
+    # a bridge that lists the tool directly, so a running local mq-mcp turned
+    # this into a real review and the assertions below into an IndexError.
     bridge = MultiMCPBridge()
-    with patch.object(bridge, "_call_required_tool", return_value={"ok": True}) as call:
+    with (
+        patch.object(MCPBridge, "list_tools", return_value=[]),
+        patch.object(MCPBridge, "call_tool") as live,
+        patch.object(bridge, "_call_required_tool", return_value={"ok": True}) as call,
+    ):
         bridge.review_file("README.md", {"security": False, "architecture": False, "risk": False})
         bridge.review_diff({"security": True, "architecture": False, "risk": False})
         bridge.review_repo(".", {"security": False, "architecture": True, "risk": False})
@@ -228,6 +235,7 @@ def test_mcp_bridge_review_helpers_call_expected_tools():
         "review_repo",
         {"mode": "architecture"},
     )
+    live.assert_not_called()
 
 
 def _receipt(status: str = "ISSUED") -> dict[str, Any]:
