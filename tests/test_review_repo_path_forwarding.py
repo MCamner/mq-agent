@@ -82,23 +82,32 @@ def test_mcpbridge_review_repo_self_review_when_no_path():
     assert "repo_path" not in captured["args"]
 
 
-def test_mcpbridge_requests_structured_repo_coverage_when_advertised(tmp_path):
+def test_mcpbridge_requests_structured_repo_coverage_when_advertised(
+    tmp_path, monkeypatch
+):
     target = tmp_path / "mq-agent"
     target.mkdir()
     bridge = MCPBridge()
-    bridge.describe_tool = lambda _name: MCPToolSpec.from_dict(  # type: ignore[method-assign]
-        {
-            "name": "review_repo",
-            "input_schema": {
-                "type": "object",
-                "properties": {"structured": {"type": "boolean"}},
-            },
-        }
+    monkeypatch.setattr(
+        bridge,
+        "describe_tool",
+        lambda _name: MCPToolSpec.from_dict(
+            {
+                "name": "review_repo",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"structured": {"type": "boolean"}},
+                },
+            }
+        ),
     )
     captured: dict[str, Any] = {}
-    bridge.call_tool = lambda tool, args: captured.update(  # type: ignore[method-assign]
-        {"tool": tool, "args": args}
-    ) or {"ok": True}
+    monkeypatch.setattr(
+        bridge,
+        "call_tool",
+        lambda tool, args: captured.update({"tool": tool, "args": args})
+        or {"ok": True},
+    )
 
     bridge.review_repo(str(target), {"mode": "comment"})
 
