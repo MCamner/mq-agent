@@ -2329,6 +2329,7 @@ def docs_audit(
     # operator choice, made per run and visible in the command, never an
     # automatic selection the system makes for itself.
     from mq_agent.agents.docs_agent import DocsAgent
+    from mq_agent.tools.execution_outcome import execution_completeness_from_steps
 
     fingerprint = _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
@@ -2339,13 +2340,20 @@ def docs_audit(
         with _execution_outcome("docs", runtime_fingerprint=fingerprint) as record:
             record["model"] = agent.planner.model
             result = agent.audit(path, execution_run_id=record["run_id"], route=route)
+            completeness = execution_completeness_from_steps(result["steps"])
+            result["completeness"] = completeness
+            record["completeness"] = completeness
+            if completeness["status"] != "complete":
+                record.update(result="FAIL", exit_status="error")
 
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
         return
 
     print_steps(console, result["steps"], title="Docs Audit")
-    if result["verification"]["all_passed"]:
+    if result["completeness"]["status"] != "complete":
+        console.print("\n[bold red]✗ Docs audit incomplete[/bold red]")
+    elif result["verification"]["all_passed"]:
         console.print("\n[bold green]✓ Docs audit passed[/bold green]")
     else:
         console.print("\n[bold red]✗ Docs audit found issues[/bold red]")

@@ -131,6 +131,70 @@ def test_partial_execution_cannot_be_built_as_pass() -> None:
         )
 
 
+def test_execution_completeness_projects_full_fan_out_as_complete() -> None:
+    completeness = execution_outcome.execution_completeness_from_steps(
+        [
+            {
+                "status": "success",
+                "source_item_count": 3,
+                "executed_call_count": 3,
+                "fan_out_complete": True,
+            },
+            {
+                "status": "success",
+                "source_item_count": None,
+                "executed_call_count": None,
+                "fan_out_complete": None,
+            },
+        ]
+    )
+
+    assert completeness == {
+        "status": "complete",
+        "steps": [
+            {
+                "step": 1,
+                "status": "complete",
+                "source_item_count": 3,
+                "executed_call_count": 3,
+            },
+            {"step": 2, "status": "complete"},
+        ],
+    }
+
+
+def test_execution_completeness_projects_capped_fan_out_as_partial() -> None:
+    completeness = execution_outcome.execution_completeness_from_steps(
+        [
+            {
+                "status": "success",
+                "source_item_count": 133,
+                "executed_call_count": 25,
+                "fan_out_complete": False,
+            }
+        ]
+    )
+
+    assert completeness == {
+        "status": "partial",
+        "steps": [
+            {
+                "step": 1,
+                "status": "partial",
+                "source_item_count": 133,
+                "executed_call_count": 25,
+            }
+        ],
+    }
+
+
+def test_execution_completeness_empty_plan_is_partial() -> None:
+    assert execution_outcome.execution_completeness_from_steps([]) == {
+        "status": "partial",
+        "steps": [],
+    }
+
+
 # `route` is deprecated as routing truth (ADR-010 D6) but not removed: records
 # written before that decision still carry it and must stay valid. Deprecating a
 # field and invalidating the data already stored under it are different things.
@@ -529,6 +593,64 @@ def test_a_missing_api_key_records_no_signal_execution(
 
     assert result.exit_code == 1
     assert _records(store_without_credentials) == []
+
+
+def test_docs_audit_records_partial_when_executor_fan_out_is_capped(
+    store, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "mq_agent.agents.docs_agent.DocsAgent.audit",
+        lambda *a, **k: {
+            "steps": [
+                {
+                    "status": "success",
+                    "source_item_count": 133,
+                    "executed_call_count": 25,
+                    "fan_out_complete": False,
+                }
+            ],
+            "verification": {"all_passed": True, "failures": []},
+        },
+    )
+
+    result = cli.invoke(app, ["docs-audit", ".", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["completeness"]["status"] == "partial"
+    record = _records(store)[0]
+    assert record["result"] == "FAIL"
+    assert record["exit_status"] == "error"
+    assert record["completeness"] == payload["completeness"]
+
+
+def test_docs_audit_records_complete_when_every_planned_call_ran(
+    store, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        "mq_agent.agents.docs_agent.DocsAgent.audit",
+        lambda *a, **k: {
+            "steps": [
+                {
+                    "status": "success",
+                    "source_item_count": 2,
+                    "executed_call_count": 2,
+                    "fan_out_complete": True,
+                }
+            ],
+            "verification": {"all_passed": True, "failures": []},
+        },
+    )
+
+    result = cli.invoke(app, ["docs-audit", ".", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["completeness"]["status"] == "complete"
+    record = _records(store)[0]
+    assert record["result"] == "PASS"
+    assert record["exit_status"] == "ok"
+    assert record["completeness"] == payload["completeness"]
 
 
 @pytest.mark.parametrize(

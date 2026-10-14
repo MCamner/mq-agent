@@ -161,6 +161,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `docs-audit` now projects the executor's measured step coverage into
+  `mq.execution-outcome.v1.completeness`. A capped fan-out such as 25/133 is
+  recorded as `partial -> FAIL/error` even when verification of the material
+  that did run passes. A fully executed plan records `complete` and may remain
+  `PASS/ok`. Applied route observations are still recorded unchanged, so
+  routing history remains intact while incomplete whole-audit runs stop being
+  usable as execution-quality evidence.
 - `review repo` now consumes mq-mcp's measured structured coverage when the
   server advertises the optional `structured` input. Complete coverage can
   produce execution `PASS/ok`; capped coverage stays `partial -> FAIL/error`.

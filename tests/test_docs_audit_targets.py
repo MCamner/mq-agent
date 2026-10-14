@@ -216,6 +216,40 @@ def test_docs_collection_declares_its_discovery_and_cardinality(tmp_path) -> Non
     assert docs["min_items"] == 1
 
 
+def test_docs_audit_output_exposes_executor_fan_out_measurement(tmp_path) -> None:
+    source = _repo(tmp_path, "a.py", "b.py")
+    discovery = PlanStep(
+        index=0,
+        description="find sources",
+        tool="find_files",
+        args={"path": str(source), "pattern": "*.py"},
+        min_items=1,
+    )
+    reads = PlanStep(
+        index=1,
+        description="read sources",
+        tool="read_file",
+        args={},
+        for_each={"step": 0, "as": "path"},
+    )
+    agent = DocsAgent.__new__(DocsAgent)
+    agent.planner = cast(
+        Any, SimpleNamespace(create_plan=lambda state, tools: [discovery, reads])
+    )
+    agent.verifier = cast(
+        Any, SimpleNamespace(
+            verify_plan=lambda plan: {"all_passed": True, "failures": []}
+        )
+    )
+
+    result = agent.audit(str(tmp_path))
+
+    fan_out = result["steps"][1]
+    assert fan_out["source_item_count"] == 2
+    assert fan_out["executed_call_count"] == 2
+    assert fan_out["fan_out_complete"] is True
+
+
 def test_docs_audit_output_shows_the_executed_call(tmp_path) -> None:
     readme = _repo(tmp_path, "README.md") / "README.md"
     step = PlanStep(
