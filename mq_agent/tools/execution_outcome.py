@@ -53,6 +53,94 @@ def outcome_path(destination: Path | None = None) -> Path:
     ).expanduser()
 
 
+def execution_is_complete(record: dict[str, Any]) -> bool:
+    """Return whether measured execution coverage is explicitly complete.
+
+    Historical records without `completeness` remain schema-valid, but absence
+    means unmeasured and must never be upgraded to complete by a consumer.
+    """
+    completeness = record.get("completeness")
+    return (
+        isinstance(completeness, dict)
+        and completeness.get("status") == "complete"
+    )
+
+
+def execution_is_complete_success(record: dict[str, Any]) -> bool:
+    """Return whether one outcome is usable as complete quality evidence."""
+    return (
+        execution_is_complete(record)
+        and record.get("result") == "PASS"
+        and record.get("exit_status") == "ok"
+    )
+
+
+def execution_completeness_from_steps(
+    steps: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Project executor step facts into canonical execution completeness.
+
+    The projection is deliberately strict. A successful ordinary step is
+    complete. A successful fan-out step is complete only when both measured
+    counts exist, match, and the executor explicitly marked the fan-out
+    complete. Failed, skipped, unexecuted or unmeasured work makes the whole
+    execution partial. An empty plan is partial rather than vacuously complete.
+    """
+    projected: list[dict[str, Any]] = []
+    all_complete = bool(steps)
+
+    for position, step in enumerate(steps, 1):
+        raw_status = str(step.get("status") or "")
+        source_count = step.get("source_item_count")
+        executed_count = step.get("executed_call_count")
+        fan_out_complete = step.get("fan_out_complete")
+
+        item: dict[str, Any] = {"step": position}
+        counts_measured = (
+            isinstance(source_count, int)
+            and not isinstance(source_count, bool)
+            and isinstance(executed_count, int)
+            and not isinstance(executed_count, bool)
+        )
+        fan_out_measured = (
+            source_count is not None
+            or executed_count is not None
+            or fan_out_complete is not None
+        )
+
+        if raw_status == "success":
+            if not fan_out_measured:
+                status = "complete"
+            elif counts_measured:
+                item["source_item_count"] = source_count
+                item["executed_call_count"] = executed_count
+                status = (
+                    "complete"
+                    if fan_out_complete is True
+                    and executed_count == source_count
+                    else "partial"
+                )
+            else:
+                status = "unmeasured"
+        elif raw_status == "failed":
+            status = "failed"
+        elif raw_status == "skipped":
+            status = "skipped"
+        elif raw_status in {"pending", "running"}:
+            status = "not-executed"
+        else:
+            status = "unmeasured"
+
+        item["status"] = status
+        projected.append(item)
+        all_complete = all_complete and status == "complete"
+
+    return {
+        "status": "complete" if all_complete else "partial",
+        "steps": projected,
+    }
+
+
 def execution_outcome_fingerprint(record: dict[str, Any]) -> str:
     """Return a content fingerprint for one validated execution outcome."""
     _validator().validate(record)
@@ -155,6 +243,7 @@ def build_execution_outcome(
     cost: float | None = None,
     events: list[dict[str, str]] | None = None,
     runtime_fingerprint: dict[str, Any] | None = None,
+    completeness: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build and validate one execution outcome without persisting it."""
     outcome: dict[str, Any] = {
@@ -184,6 +273,7 @@ def build_execution_outcome(
         "cost": cost,
         "events": events,
         "runtime_fingerprint": runtime_fingerprint,
+        "completeness": completeness,
     }
     outcome.update({key: value for key, value in optional.items() if value is not None})
 

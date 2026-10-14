@@ -161,6 +161,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `docs-audit` now projects the executor's measured step coverage into
+  `mq.execution-outcome.v1.completeness`. A capped fan-out such as 25/133 is
+  recorded as `partial -> FAIL/error` even when verification of the material
+  that did run passes. A fully executed plan records `complete` and may remain
+  `PASS/ok`. Applied route observations are still recorded unchanged, so
+  routing history remains intact while incomplete whole-audit runs stop being
+  usable as execution-quality evidence.
+- `review repo` now consumes mq-mcp's measured structured coverage when the
+  server advertises the optional `structured` input. Complete coverage can
+  produce execution `PASS/ok`; capped coverage stays `partial -> FAIL/error`.
+  Older mq-mcp servers keep working but remain `unmeasured -> FAIL/error`.
+  The operator-facing review payload is unchanged.
+- Route-quality analysis opens a new `execution-completeness` era at
+  mq-agent #396 (`de36d326`, 2026-10-14T00:54:27Z). Earlier applied routing
+  observations remain readiness/history evidence but are excluded from the
+  current quality-divergence cohort.
+
+- Repo-review execution telemetry now fails closed on unmeasured coverage: the
+  current mq-mcp text-only `review_repo` response is recorded as partial /
+  unmeasured and cannot become execution `PASS`. Feedback experiments,
+  activation readiness and Canary v2 additionally require an exact linked
+  execution with measured complete coverage and `PASS/ok`, so historical
+  records remain untouched but cannot be reused as complete quality evidence.
 - `review repo` resolves its repo argument to an absolute directory before
   delegating to mq-mcp. A relative path such as `.` was read against mq-mcp's
   own working directory and reviewed the mq-mcp checkout instead of the

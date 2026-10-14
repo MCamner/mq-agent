@@ -22,7 +22,10 @@ from git import Repo
 
 from mq_agent.tools.context_export import default_vault
 from mq_agent.tools.context_pack import build_task_pack
-from mq_agent.tools.execution_outcome import read_execution_outcomes
+from mq_agent.tools.execution_outcome import (
+    execution_is_complete_success,
+    read_execution_outcomes,
+)
 
 from .evaluation import build_operational_comparison
 from .models import build_feedback_experiment
@@ -280,7 +283,13 @@ def run_context_experiment(
             raise ValueError(
                 "execution_run_id must resolve to exactly one mq.execution-outcome.v1"
             )
-        execution_latency_ms = int(matches[0]["latency_ms"])
+        outcome = matches[0]
+        if not execution_is_complete_success(outcome):
+            raise ValueError(
+                "execution_run_id must resolve to measured complete successful "
+                "mq.execution-outcome.v1"
+            )
+        execution_latency_ms = int(outcome["latency_ms"])
 
     repo_root = Path(repo_path).expanduser().resolve()
     repo = Repo(repo_root)

@@ -29,6 +29,7 @@ ERA_C4 = "secret-safe-discovery"
 ERA_C5 = "declared-targets"
 ERA_C6 = "collection-integrity"
 ERA_C7 = "evidence-integrity"
+ERA_C8 = "execution-completeness"
 
 
 def _observation(recorded_at: str, **changes) -> dict:
@@ -51,7 +52,7 @@ HISTORICAL = [
     _observation("2026-09-01T00:39:28.048877Z", selected_route="deterministic-local"),
     _observation("2026-09-01T00:40:03.214758Z", selected_route="deterministic-local"),
 ]
-CURRENT = _observation("2026-09-04T21:50:05Z")
+CURRENT = _observation("2026-10-14T00:54:27Z")
 
 #: The one real quality observation from the declared-targets era. It exposed
 #: #247 and remains historical evidence; a boundary excludes it, never edits it.
@@ -111,14 +112,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C7)
+    era = era_named(ERA_C8)
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C7)
+    era = era_named(ERA_C8)
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
@@ -136,7 +137,7 @@ def test_eras_are_ordered_and_each_names_the_merge_that_opened_it() -> None:
 
 def test_the_current_era_is_the_last_one() -> None:
     assert current_era() is ERAS[-1]
-    assert current_era().name == ERA_C7
+    assert current_era().name == ERA_C8
 
 
 def test_an_earlier_era_can_still_be_selected_deliberately() -> None:
@@ -281,6 +282,8 @@ def test_each_boundary_names_the_merge_that_opened_it() -> None:
     assert era_named(ERA_C6).starts_at == datetime(2026, 9, 4, 8, 25, 46, tzinfo=UTC)
     assert era_named(ERA_C7).commit == "6d9dd36"
     assert era_named(ERA_C7).starts_at == datetime(2026, 9, 4, 21, 50, 5, tzinfo=UTC)
+    assert era_named(ERA_C8).commit == "de36d326"
+    assert era_named(ERA_C8).starts_at == datetime(2026, 10, 14, 0, 54, 27, tzinfo=UTC)
 
 
 def test_declared_targets_keeps_its_one_historical_observation() -> None:

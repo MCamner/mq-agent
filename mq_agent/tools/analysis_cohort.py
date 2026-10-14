@@ -163,6 +163,20 @@ ERAS: tuple[Era, ...] = (
             "evidence for the runtime that exists now."
         ),
     ),
+    Era(
+        name="execution-completeness",
+        starts_at=datetime(2026, 10, 14, 0, 54, 27, tzinfo=UTC),
+        commit="de36d326",
+        why=(
+            "mq-agent #396 made measured execution completeness a requirement "
+            "for repo-review quality evidence. Two real applied docs-review "
+            "observations collected before this boundary were later shown to be "
+            "file-limited whole-repo audits even though legacy execution "
+            "telemetry said PASS. They remain routing history and are never "
+            "rewritten, but they are not a baseline for a runtime where "
+            "unmeasured or partial coverage fails closed."
+        ),
+    ),
 )
 
 
