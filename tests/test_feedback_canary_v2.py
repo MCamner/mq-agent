@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json
 import pytest
 
 from mq_agent.feedback import append_comparison
