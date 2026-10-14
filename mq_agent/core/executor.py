@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Any
 
 from .safety import SafetyGate
 from .state import AgentState, PlanStep, StepStatus
@@ -16,53 +15,6 @@ __all__ = ["Executor", "invalid_arguments"]
 #: than applied quietly, because a review of 25 of 200 files that says it read
 #: everything is the failure this whole line of work exists to prevent.
 MAX_FAN_OUT = 25
-
-
-def execution_completeness(plan: list[PlanStep]) -> dict[str, Any]:
-    """Measure executed coverage; step numbers are one-based plan positions.
-
-    Verification cannot fill missing executor measurements. A successful
-    fan-out is complete only when both counts and its flag agree.
-    """
-    steps: list[dict[str, Any]] = []
-    for position, step in enumerate(plan, start=1):
-        measured = (
-            type(step.source_item_count) is int
-            and type(step.executed_call_count) is int
-            and step.source_item_count >= 0
-            and step.executed_call_count >= 0
-        )
-        if step.status == StepStatus.FAILED:
-            status = "failed"
-        elif step.status == StepStatus.SKIPPED:
-            status = "skipped"
-        elif step.status != StepStatus.SUCCESS:
-            status = "not-executed"
-        elif step.for_each is not None:
-            if not measured or step.fan_out_complete is None:
-                status = "unmeasured"
-            elif (
-                step.fan_out_complete is True
-                and step.source_item_count == step.executed_call_count
-            ):
-                status = "complete"
-            else:
-                status = "partial"
-        else:
-            status = "complete"
-        item: dict[str, Any] = {"step": position, "status": status}
-        if measured:
-            item.update(
-                source_item_count=step.source_item_count,
-                executed_call_count=step.executed_call_count,
-            )
-        steps.append(item)
-    return {
-        "status": "complete" if steps and all(
-            item["status"] == "complete" for item in steps
-        ) else "partial",
-        "steps": steps,
-    }
 
 
 def resolve_dependency(

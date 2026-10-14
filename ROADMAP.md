@@ -15,8 +15,9 @@ Completed: learned-routing readiness thresholds were calibrated against the
 repository-documented real applied `docs-review` history. The total floor is now
 derived as 2 routes x 10 samples = 20; 14 days and 10/route remain conservative
 requirements. Automatic routing remains disabled.
-Next: integrate execution-completeness reporting, open a quality era at that
-fix's verified merge boundary, then collect complete successful `docs-review`
+Next: integrate complete-success docs-audit reporting and exact execution
+linkage for route quality, open a new quality era at the verified merge
+boundary, then collect complete successful `docs-review`
 executions on both allowlisted routes: 10 samples per route across at least
 14 days before explicit operator promotion review. Quality collection is paused
 until integration; no activation version is assigned. See

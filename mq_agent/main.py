@@ -988,6 +988,18 @@ def _execution_correlation(record: dict[str, Any], task_class: str) -> dict[str,
     }
 
 
+def _repo_review_payload_and_completeness(
+    result: Any,
+) -> tuple[Any, dict[str, Any] | None]:
+    """Unwrap mq-mcp structured repo coverage without changing review output."""
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        return result, None
+    completeness = result.get("completeness")
+    if "review" not in result or not isinstance(completeness, dict):
+        return result, None
+    return result["review"], completeness
+
+
 def _run_review(
     command: str,
     result: Any,
@@ -1195,8 +1207,26 @@ def review_repo_cmd(
     bridge = MultiMCPBridge()
     with _execution_outcome("repo-review", runtime_fingerprint=fingerprint) as record:
         flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
-        result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
-        if _is_error_result(result) or _receipt_refused(result):
+        raw_result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
+        result, measured_completeness = _repo_review_payload_and_completeness(raw_result)
+        if _is_error_result(raw_result) or _receipt_refused(raw_result):
+            record["completeness"] = {
+                "status": "partial",
+                "steps": [{"step": 1, "status": "failed"}],
+            }
+            record.update(result="FAIL", exit_status="error")
+        elif measured_completeness is not None:
+            record["completeness"] = measured_completeness
+            if measured_completeness.get("status") != "complete":
+                record.update(result="FAIL", exit_status="error")
+        else:
+            # Older mq-mcp servers expose only review text. Absence of measured
+            # coverage is never inferred as complete: the operator still gets
+            # the review payload, while execution quality fails closed.
+            record["completeness"] = {
+                "status": "partial",
+                "steps": [{"step": 1, "status": "unmeasured"}],
+            }
             record.update(result="FAIL", exit_status="error")
     execution = (
         _execution_correlation(record, "repo-review") if with_execution else None
@@ -2299,6 +2329,7 @@ def docs_audit(
     # operator choice, made per run and visible in the command, never an
     # automatic selection the system makes for itself.
     from mq_agent.agents.docs_agent import DocsAgent
+    from mq_agent.tools.execution_outcome import execution_completeness_from_steps
 
     fingerprint = _require_recordable_runtime()
     # Credentials are what the run needs to start, so they are resolved before
@@ -2309,14 +2340,13 @@ def docs_audit(
         with _execution_outcome("docs", runtime_fingerprint=fingerprint) as record:
             record["model"] = agent.planner.model
             result = agent.audit(path, execution_run_id=record["run_id"], route=route)
-            completeness = result.get("completeness")
+            completeness = execution_completeness_from_steps(result["steps"])
+            result["completeness"] = completeness
             passed = (
-                isinstance(completeness, dict)
-                and completeness.get("status") == "complete"
+                completeness["status"] == "complete"
                 and result.get("verification", {}).get("all_passed") is True
             )
-            if completeness is not None:
-                record["completeness"] = completeness
+            record["completeness"] = completeness
             if not passed:
                 record.update(result="FAIL", exit_status="error")
 

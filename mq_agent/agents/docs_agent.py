@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from ..core.executor import Executor, execution_completeness
+from ..core.executor import Executor
 from ..core.planner import Planner
 from ..core.safety import SafetyGate
 from ..core.state import AgentState, SafetyMode, StepStatus
@@ -10,6 +10,7 @@ from ..core.verification import Verifier
 from ..tools import TOOL_REGISTRY
 from ..tools.applied_routing import DEFAULT_ROUTE
 from ..tools.material_selection import select_material
+from ..tools.execution_outcome import execution_completeness_from_steps
 from ..tools.repo_tools import find_files
 
 
@@ -127,7 +128,7 @@ class DocsAgent:
 
         result: dict = {
             "steps": steps, "verification": verification,
-            "completeness": execution_completeness(state.plan),
+            "completeness": execution_completeness_from_steps(steps),
         }
 
         # One routing decision inside this execution: who reviews the evidence

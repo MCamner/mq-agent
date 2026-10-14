@@ -59,14 +59,87 @@ def test_review_repo_records_one_repo_review_outcome(outcomes: Path) -> None:
     assert len(records) == 1
     assert records[0]["task_class"] == "repo-review"
     assert records[0]["runtime"] == "agent"
-    assert records[0]["result"] == "PASS"
-    assert records[0]["exit_status"] == "ok"
+    assert records[0]["result"] == "FAIL"
+    assert records[0]["exit_status"] == "error"
+    assert records[0]["completeness"] == {
+        "status": "partial",
+        "steps": [{"step": 1, "status": "unmeasured"}],
+    }
 
 
 def test_review_repo_json_payload_is_unchanged_by_default(outcomes: Path) -> None:
     result = _invoke(["--json"], FakeReviewBridge())
 
     assert json.loads(result.output) == {"ok": True, "findings": []}
+
+
+def test_structured_complete_review_records_pass_without_changing_payload(
+    outcomes: Path,
+) -> None:
+    class StructuredBridge(FakeReviewBridge):
+        def review_repo(self, path: str, flags: dict[str, Any]) -> dict[str, Any]:
+            self.calls.append(("repo", path, flags))
+            return {
+                "ok": True,
+                "review": {"ok": True, "findings": []},
+                "completeness": {
+                    "status": "complete",
+                    "steps": [
+                        {
+                            "step": 1,
+                            "status": "complete",
+                            "source_item_count": 2,
+                            "executed_call_count": 2,
+                        }
+                    ],
+                },
+            }
+
+    result = _invoke(["--json", "--with-execution"], StructuredBridge())
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["review"] == {"ok": True, "findings": []}
+    record = _records(outcomes)[0]
+    assert record["result"] == "PASS"
+    assert record["exit_status"] == "ok"
+    assert record["completeness"]["status"] == "complete"
+    assert record["completeness"]["steps"][0]["source_item_count"] == 2
+    assert record["completeness"]["steps"][0]["executed_call_count"] == 2
+
+
+def test_structured_partial_review_records_fail_and_preserves_measured_counts(
+    outcomes: Path,
+) -> None:
+    class StructuredPartialBridge(FakeReviewBridge):
+        def review_repo(self, path: str, flags: dict[str, Any]) -> dict[str, Any]:
+            self.calls.append(("repo", path, flags))
+            return {
+                "ok": True,
+                "review": {"ok": True, "findings": []},
+                "completeness": {
+                    "status": "partial",
+                    "steps": [
+                        {
+                            "step": 1,
+                            "status": "partial",
+                            "source_item_count": 12,
+                            "executed_call_count": 9,
+                        }
+                    ],
+                },
+            }
+
+    result = _invoke(["--json"], StructuredPartialBridge())
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == {"ok": True, "findings": []}
+    record = _records(outcomes)[0]
+    assert record["result"] == "FAIL"
+    assert record["exit_status"] == "error"
+    assert record["completeness"]["status"] == "partial"
+    assert record["completeness"]["steps"][0]["source_item_count"] == 12
+    assert record["completeness"]["steps"][0]["executed_call_count"] == 9
 
 
 def test_with_execution_reports_the_exact_recorded_run_id(outcomes: Path) -> None:
@@ -111,6 +184,10 @@ def test_failed_review_records_fail_and_still_correlates(outcomes: Path) -> None
     assert records[0]["exit_status"] == "error"
     assert data["execution"]["execution_run_id"] == records[0]["run_id"]
     assert data["review"]["ok"] is False
+    assert records[0]["completeness"] == {
+        "status": "partial",
+        "steps": [{"step": 1, "status": "failed"}],
+    }
 
 
 def test_dry_run_records_nothing(outcomes: Path) -> None:

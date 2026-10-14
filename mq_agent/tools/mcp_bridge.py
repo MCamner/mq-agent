@@ -32,6 +32,26 @@ def _review_repo_args(path: str | None, flags: dict[str, Any]) -> dict[str, Any]
     return _add_repo_path(dict(flags), path)
 
 
+def _tool_supports_input(
+    bridge: "MCPBridge", tool_name: str, parameter: str
+) -> bool:
+    """Return whether one advertised MCP input schema contains a parameter.
+
+    Missing metadata means unsupported. This lets mq-agent use new optional
+    producer evidence without breaking an older mq-mcp: legacy servers still
+    run the review, but execution completeness remains unmeasured and therefore
+    fails closed.
+    """
+    try:
+        schema = bridge.describe_tool(tool_name).input_schema
+    except Exception:
+        return False
+    if not isinstance(schema, dict):
+        return False
+    properties = schema.get("properties")
+    return isinstance(properties, dict) and parameter in properties
+
+
 _AGENT_REVIEW_FLAGS = {"security", "architecture", "risk", "fast", "receipt"}
 
 
@@ -224,7 +244,13 @@ class MCPBridge:
         return self.call_tool("review_diff", flags)
 
     def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
-        return self.call_tool("review_repo", _review_repo_args(path, flags))
+        args = _review_repo_args(path, flags)
+        if (
+            not flags.get("receipt")
+            and _tool_supports_input(self, "review_repo", "structured")
+        ):
+            args["structured"] = True
+        return self.call_tool("review_repo", args)
 
 
 class MultiMCPBridge:
@@ -378,10 +404,18 @@ class MultiMCPBridge:
         selected = self._select_review_tool("review_repo", "risk_review_repo", bool(flags.get("risk")))
         if isinstance(selected, dict):
             return selected
-        return self._call_required_tool(
-            selected,
-            _review_repo_args(path, _mq_mcp_review_args(flags)),
-        )
+        args = _review_repo_args(path, _mq_mcp_review_args(flags))
+        for bridge in self.bridges.values():
+            if selected not in bridge.list_tools():
+                continue
+            if (
+                selected == "review_repo"
+                and not flags.get("receipt")
+                and _tool_supports_input(bridge, selected, "structured")
+            ):
+                args["structured"] = True
+            return bridge.call_tool(selected, args)
+        return self._call_required_tool(selected, args)
 
     def image_perception(
         self,

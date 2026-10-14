@@ -2,7 +2,7 @@
 
 ## Known Blockers
 
-* Quality collection is paused pending execution-completeness integration and a verified post-fix era boundary. Applied-routing history remains valid. Partial audit execution must not count as complete quality evidence. Automatic routing stays disabled.
+* No code blockers. Controlled activation/rollback is proven and learned-routing readiness is calibrated. Automatic routing stays disabled until current-era applied `docs-review` evidence meets the gate (2 routes, 10 samples per route, at least 14 days), followed by explicit operator promotion review. Telemetry alone grants no execution right.
 
 ## Check Before Acting
 

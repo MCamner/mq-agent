@@ -44,11 +44,14 @@ execution `PASS` labels do not prove complete audit quality.
 
 ## Integration and collection
 
-Quality collection is paused. After this consumer fix merges, open the
-`execution-completeness` quality era with that fix's actual merge commit and
-timestamp in `mq_agent/tools/analysis_cohort.py`. The owner schema merge does
-not define the producer's boundary. Do not predeclare a future merge identity
-or move production observation timestamps.
+The existing `execution-completeness` era starts at merged mq-agent #396
+(`de36d326`, 2026-10-14T00:54:27Z). That boundary is preserved. This change
+additionally strengthens docs-audit PASS to require successful verification and
+nonzero failure exits, and links route quality to exact complete executions.
+Quality collection stays paused until integration. After this fix merges, open
+a `docs-audit-complete-success` era using its actual merge commit and timestamp
+in `mq_agent/tools/analysis_cohort.py`. Do not predeclare a future merge identity,
+move an existing era boundary or change production observation timestamps.
 
 Then use real audits of a declared scope that can complete: at least ten complete
 successful executions for each of `deterministic-local` and `local-shadow`,

@@ -95,6 +95,7 @@ def _real_run(
         exit_status=exit_status,
         latency_ms=10,
         run_id=execution_run_id,
+        completeness={"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
     )
     outcome["recorded_at"] = recorded_at
     record_execution_outcome(outcome, outcome_path)
@@ -212,6 +213,50 @@ def test_outcome_derived_criteria_are_ready_without_snapshot_count_gate(
     assert result["next_action"] == "request-human-approval"
 
 
+def test_historical_pass_without_completeness_is_not_quality_evidence(
+    tmp_path: Path, monkeypatch
+) -> None:
+    outcomes = tmp_path / "execution-outcomes.jsonl"
+    monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(outcomes))
+    comparison = _comparison("cmp-legacy")
+    experiment = build_feedback_experiment(
+        task_class="repo-review",
+        repository="MCamner/mq-agent",
+        active_strategy="context-pack-v1",
+        shadow_strategy="context-pack-v1+codegraph-guidance",
+        snapshot_ref="main",
+        snapshot_commit="a" * 40,
+        evidence_sources=["repo-context"],
+        state="completed",
+        execution_run_id="exec-legacy",
+        feedback_run_id=comparison["feedback_run_id"],
+    )
+    append_experiment(experiment, tmp_path)
+    record_execution_outcome(
+        build_execution_outcome(
+            runtime="agent",
+            task_class="repo-review",
+            result="PASS",
+            exit_status="ok",
+            latency_ms=10,
+            run_id="exec-legacy",
+        ),
+        outcomes,
+    )
+    append_comparison(comparison, tmp_path)
+    candidate, _ = maybe_create_candidate(comparison, state_root=tmp_path)
+    assert candidate is not None
+
+    result = activation_readiness(candidate["candidate_id"], tmp_path)
+
+    assert result["promotion_criteria"]["calibration_outcomes"] == 0
+    assert result["evidence"]["real_outcomes"]["linked_outcome_count"] == 0
+    assert result["evidence"]["real_outcomes"]["unresolved_feedback_run_ids"] == [
+        comparison["feedback_run_id"]
+    ]
+    assert result["status"] == "INSUFFICIENT_EVIDENCE"
+
+
 def test_missing_execution_correlation_is_insufficient_not_fabricated(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -238,7 +283,7 @@ def test_missing_execution_correlation_is_insufficient_not_fabricated(
     ) == ["fb-cmp-1", "fb-cmp-2", "fb-cmp-3"]
 
 
-def test_task_class_success_baseline_is_derived_from_real_outcomes(
+def test_failed_linked_executions_are_not_complete_quality_evidence(
     tmp_path: Path, monkeypatch
 ) -> None:
     outcomes = tmp_path / "execution-outcomes.jsonl"
@@ -276,8 +321,6 @@ def test_task_class_success_baseline_is_derived_from_real_outcomes(
         assert candidate is not None
         candidate_id = candidate["candidate_id"]
 
-    # Extra successful population run makes the task-class baseline 0.5 while
-    # the linked candidate evidence remains 1/3.
     _real_run(
         tmp_path,
         outcomes,
@@ -287,16 +330,16 @@ def test_task_class_success_baseline_is_derived_from_real_outcomes(
     )
 
     result = activation_readiness(candidate_id, tmp_path)
+    evidence = result["evidence"]["real_outcomes"]
 
     assert result["promotion_criteria"]["required_success_rate"] == 0.5
-    assert result["evidence"]["real_outcomes"]["linked_success_rate"] == round(1 / 3, 6)
+    assert evidence["linked_outcome_count"] == 1
+    assert evidence["linked_success_rate"] == 1.0
+    assert sorted(evidence["unresolved_feedback_run_ids"]) == [
+        "fb-cmp-2",
+        "fb-cmp-3",
+    ]
     assert result["status"] == "INSUFFICIENT_EVIDENCE"
-    gate = next(
-        item
-        for item in result["requirements"]
-        if item["id"] == "task-class-success-baseline"
-    )
-    assert gate["status"] == "FAIL"
 
 
 def test_material_regression_still_blocks_readiness(
