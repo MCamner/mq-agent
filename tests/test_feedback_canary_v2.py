@@ -414,7 +414,7 @@ def test_canary_v2_refuses_stale_policy_snapshot(tmp_path: Path, monkeypatch) ->
         )
 
 
-def test_canary_v2_refuses_historical_unmeasured_execution(
+def test_canary_v2_invalidates_approval_when_execution_becomes_unmeasured(
     tmp_path: Path, monkeypatch
 ) -> None:
     candidate_id = _ready_candidate(tmp_path, monkeypatch)
@@ -439,7 +439,7 @@ def test_canary_v2_refuses_historical_unmeasured_execution(
 
     with pytest.raises(
         ValueError,
-        match="execution_run_id is not a measured complete successful run",
+        match="approval expired because candidate readiness/state changed: INSUFFICIENT_EVIDENCE",
     ):
         run_canary(
             plan["canary_id"],
