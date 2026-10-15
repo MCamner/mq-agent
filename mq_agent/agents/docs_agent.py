@@ -10,6 +10,7 @@ from ..core.verification import Verifier
 from ..tools import TOOL_REGISTRY
 from ..tools.applied_routing import DEFAULT_ROUTE
 from ..tools.material_selection import select_material
+from ..tools.execution_outcome import execution_completeness_from_steps
 from ..tools.repo_tools import find_files
 
 
@@ -125,7 +126,10 @@ class DocsAgent:
             for s in state.plan
         ]
 
-        result: dict = {"steps": steps, "verification": verification}
+        result: dict = {
+            "steps": steps, "verification": verification,
+            "completeness": execution_completeness_from_steps(steps),
+        }
 
         # One routing decision inside this execution: who reviews the evidence
         # the read-only steps just gathered. Per ADR-010 D1 the route governs

@@ -330,7 +330,10 @@ def test_a_docs_audit_correlates_its_routing_observation(stores, monkeypatch) ->
     def _audit(self, path=".", execution_run_id=None, route=applied_routing.DEFAULT_ROUTE):
         captured["run_id"] = execution_run_id
         steps = [{"description": "read README", "status": "success", "result": "README"}]
-        result = {"steps": steps, "verification": {"all_passed": True}}
+        result = {
+            "steps": steps, "verification": {"all_passed": True},
+            "completeness": {"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
+        }
         routed = type(self)._routed_docs_review(
             steps, execution_run_id, SafetyMode.READ_ONLY, route
         )
@@ -387,7 +390,10 @@ def test_readiness_counts_the_real_applied_route(stores, monkeypatch) -> None:
 
     def _audit(self, path=".", execution_run_id=None, route=applied_routing.DEFAULT_ROUTE):
         steps = [{"description": "d", "status": "success", "result": "r"}]
-        result = {"steps": steps, "verification": {"all_passed": True}}
+        result = {
+            "steps": steps, "verification": {"all_passed": True},
+            "completeness": {"status": "complete", "steps": [{"step": 1, "status": "complete"}]},
+        }
         routed = type(self)._routed_docs_review(
             steps, execution_run_id, SafetyMode.READ_ONLY, route
         )
