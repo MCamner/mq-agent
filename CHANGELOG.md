@@ -9,15 +9,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.35.0] — 2026-10-15
+
+Theme: MCP tool contracts and evidence-gate hardening. The stack compatibility gate now checks every MCP call mq-agent makes against each producer's committed tool surface, and optionally against the running server. `learn store` stores one explicitly chosen candidate. MCP tool classes are never guessed from names for MQ producers. The route-quality gate holds the new era to its fourteen-day window.
+
 ### Added
 
 - MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
 - `stack compatibility --live` also compares each running MCP server with its committed tool surface. It reads `/tools` and `/runtime-identity` and reports MQC024 with both commits for tools that are not running, running tools that are not committed, and class or parameter differences. This catches a server started from a stale checkout. Drift is WARN. A server that does not answer is listed as UNAVAILABLE and changes no status. `--live` never blocks a release.
+- `stack compatibility --repo-path NAME=PATH` (repeatable) points the gate at another checkout of a stack repo, such as a worktree on `main` when the usual checkout is on a feature branch. The same paths feed the static check and `--live`. Unknown names, duplicates and non-directories are refused.
 
 ### Changed
 
 - `learn store` takes an explicit candidate ID: `mq-agent learn store <candidate-id> --validation "<how you verified it>" --approve`. It reads the candidate's draft from mq-mcp's `learn_inbox_draft`, stores it with `record_learning` together with the operator's validation, and then removes it from the inbox with `learn_inbox_drop`. The command never stores "the last" candidate. A path or a missing ID aborts before anything is called. The draft's `MANUAL VALIDATION REQUIRED` text is never sent as validation. Until now `learn store` sent `record_learning` a `relative_path` it does not take (MQC021/MQC022). Requires mq-mcp with `candidate_id` (mq-mcp #104).
-
 - `learn extract <path> --approve` queues a candidate from the file's last review in mq-mcp's learn inbox and prints its ID. `learn list` shows pending candidates. `learn extract-review` remains the read-only preview.
 
 ### Fixed
@@ -27,12 +31,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - `review repo --risk` calls mq-mcp's `risk_review_repo` (mq-mcp #105) with `mode=risk`, or `security`/`architecture` when that flag is given. Before mq-mcp #105 the tool did not exist; the earlier path would also have sent the plain-review default `mode=comment`, which the risk tool refuses. A server without the tool gets a clear error and nothing is called. `risk_review_repo` is declared in `schemas/mcp_tool_requirements.json` again, as class A.
 - `stack compatibility --live` now detects class drift on servers that send the ADR-003 letter as `class` (mq-image-analyze) instead of a `safety_class` label. The letter is compared directly, because A and B share the `read-only` label and an A → B change was invisible. Found live: a running mq-image-analyze still serving class A for `analyze_image`, `reverse_prompt` and `compare_images`, which main declares B, produced no MQC024.
 - `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
-
 - `docs-audit` now requires measured complete coverage and successful verification
   for execution PASS and exits nonzero on partial or failed audits. It reports
   the actual execution id and recording confirmation. Docs-review quality
   resolves exact successful complete executions, with explicit exclusions,
   independent safety evidence and unchanged applied-routing readiness.
+- mq-agent now sends the parameter names mq-mcp declares: `get_architecture_decision` sends `adr_id` (it sent `id`, which live mq-mcp answered with a 500), and `store_semantic_memory` sends `content` (it sent `value`). The MCP tool contract check found both.
+- Route quality opens the `docs-audit-complete-success` era at the verified #401 merge (`f8f92df`, 2026-10-15T09:51:13Z). Only complete, successfully verified `docs-audit` executions from that boundary count as quality evidence; stored evidence is not rewritten.
+- `stack status` verifies mq-agent's `main` HEAD against the full-stack gate (`Contract and release gates`) that pushes to `main` run, instead of the PR-only CI-mode check. Pull-request branch protection is unchanged.
 
 ## [v1.34.0] — 2026-10-14
 

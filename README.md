@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.34.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.35.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -427,6 +427,24 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.35.0 status
+
+v1.35.0 checks every MCP call mq-agent makes against what the producers
+publish, and hardens the gates around evidence.
+
+- [x] `stack compatibility` checks MCP tool names, classes and arguments against
+  each producer's committed tool surface (MQC019–MQC023), without a server
+- [x] `--live` compares the running servers with their committed surface
+  (MQC024, WARN only); `--repo-path NAME=PATH` points the gate at another checkout
+- [x] `learn store <candidate-id> --validation …` stores one explicitly chosen
+  inbox candidate; `learn extract` and `learn list` feed and show the inbox
+- [x] mq-mcp and mq-image-analyze tools without a declared class are blocked,
+  never classified by name
+- [x] `review repo --risk` uses mq-mcp's `risk_review_repo`; a failed review
+  exits 1
+- [x] `route divergence` holds the new era to ten complete successful runs per
+  route across fourteen days; automatic routing stays disabled
 
 ## v1.34.0 status
 
