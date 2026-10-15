@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.33.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.34.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -427,6 +427,24 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.34.0 status
+
+v1.34.0 consolidates the work landed since Policy Registry v2: the controlled
+activation gate proven end to end, evidence-gated Hybrid Retrieval, Session
+Checkpoints, State Recovery v2, Perception Review v2 and measured execution
+completeness.
+
+- [x] controlled activation proven on real `repo-review` evidence: approval,
+  Canary v2, promotion, activation, post-activation check and exact rollback
+- [x] Canary v2 correlates with real repo-review executions
+- [x] separate promotion approval; `feedback activate` needs both receipts
+- [x] `review repo` records `repo-review` execution outcomes, fails closed on
+  unmeasured coverage
+- [x] learned-routing readiness thresholds calibrated; automatic routing stays
+  disabled
+- [x] committed agent views are reproducible from committed sources
+- [x] `context prepare` rebuilds views, exports context and verifies in one step
 
 ## v1.33.0 status
 

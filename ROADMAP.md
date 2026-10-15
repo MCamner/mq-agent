@@ -7,6 +7,7 @@ Released: v1.30.0 — Evidence-Grounded Feedback Engine (Observe, Compare, Propo
 Released: v1.31.0 — Evidence-Gated Activation and Recovery.
 Released: v1.32.0 — Canary v2.
 Released: v1.33.0 — Policy Registry v2.
+Released: v1.34.0 — Controlled activation proof and evidence integrity.
 Completed: the Post-v1.30 controlled activation gate has been proven end to end
 on real `repo-review` evidence, including approval, Canary v2, promotion,
 activation, post-activation verification and exact rollback.
