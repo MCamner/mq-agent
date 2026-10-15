@@ -16,7 +16,7 @@ Current project phase:
 Released: v1.28.0 — Runtime Provenance
 Released: v1.29.0 — NotebookLM Knowledge Pipeline
 Next:     undecided — no scope is committed
-Deferred: MCP tool contract checking — future scope
+In progress: MCP tool contract checking
 ```
 
 Completed foundation:

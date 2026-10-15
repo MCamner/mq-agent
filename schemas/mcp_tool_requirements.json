@@ -1,0 +1,320 @@
+{
+  "schema": "mq-agent.mcp-tool-requirements.v1",
+  "consumer": "mq-agent",
+  "tools": [
+    {
+      "name": "brain_promote_learning",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "slug"
+      ]
+    },
+    {
+      "name": "brain_record_decision",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "title",
+        "context",
+        "decision",
+        "rationale",
+        "consequences",
+        "tags"
+      ]
+    },
+    {
+      "name": "brain_record_learning",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "pattern_name",
+        "pattern_type",
+        "summary",
+        "evidence",
+        "recommended_action",
+        "confidence"
+      ]
+    },
+    {
+      "name": "brain_record_review",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "source",
+        "finding_count",
+        "top_risks",
+        "suggested_next_steps",
+        "confidence",
+        "raw_summary",
+        "producer",
+        "receiver_observation"
+      ]
+    },
+    {
+      "name": "explain_learned_pattern",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "id"
+      ]
+    },
+    {
+      "name": "get_architecture_decision",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "adr_id"
+      ]
+    },
+    {
+      "name": "git_diff",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "git_status",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "image_perception",
+      "producer": "mq-image-analyze",
+      "max_safety_class": "B",
+      "arguments": [
+        "image_path",
+        "producer",
+        "source_type"
+      ]
+    },
+    {
+      "name": "learn_extract_from_last_review",
+      "producer": "mq-mcp",
+      "max_safety_class": "B",
+      "arguments": [
+        "relative_path",
+        "repo_path"
+      ]
+    },
+    {
+      "name": "learn_from_diff",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "task",
+        "lesson",
+        "risk",
+        "validation"
+      ]
+    },
+    {
+      "name": "learn_from_review",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "relative_path",
+        "task",
+        "risk",
+        "repo_path"
+      ]
+    },
+    {
+      "name": "learn_status",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": []
+    },
+    {
+      "name": "list_semantic_memory",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": []
+    },
+    {
+      "name": "observe_architecture",
+      "producer": "mq-image-analyze",
+      "max_safety_class": "B",
+      "arguments": [
+        "image_path"
+      ]
+    },
+    {
+      "name": "record_learning",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "relative_path"
+      ]
+    },
+    {
+      "name": "repo_signal_status",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "review_diff",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "mode",
+        "receipt"
+      ],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "review_file",
+      "producer": "mq-mcp",
+      "max_safety_class": "B",
+      "arguments": [
+        "relative_path",
+        "mode",
+        "receipt",
+        "repo_path"
+      ]
+    },
+    {
+      "name": "review_perception",
+      "producer": "mq-mcp",
+      "max_safety_class": "B",
+      "arguments": [
+        "perception",
+        "producer",
+        "mode",
+        "receipt",
+        "repo_path"
+      ]
+    },
+    {
+      "name": "review_repo",
+      "producer": "mq-mcp",
+      "max_safety_class": "B",
+      "arguments": [
+        "mode",
+        "receipt",
+        "repo_path"
+      ],
+      "optional_arguments": [
+        "structured"
+      ]
+    },
+    {
+      "name": "risk_review_diff",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "mode",
+        "receipt"
+      ]
+    },
+    {
+      "name": "risk_review_file",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "relative_path",
+        "mode",
+        "receipt"
+      ]
+    },
+    {
+      "name": "risk_review_repo",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "mode",
+        "receipt",
+        "repo_path"
+      ],
+      "optional_tool": true
+    },
+    {
+      "name": "run_mqlaunch_doctor",
+      "producer": "mq-mcp",
+      "max_safety_class": "D",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "run_mqlaunch_release_check",
+      "producer": "mq-mcp",
+      "max_safety_class": "D",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "run_mqlaunch_selftest",
+      "producer": "mq-mcp",
+      "max_safety_class": "D",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "run_tests",
+      "producer": "mq-mcp",
+      "max_safety_class": "D",
+      "arguments": [],
+      "context_arguments": [
+        "repo_path",
+        "repo_name"
+      ]
+    },
+    {
+      "name": "search_learned_patterns",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "query"
+      ]
+    },
+    {
+      "name": "search_semantic_memory",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "query"
+      ]
+    },
+    {
+      "name": "store_semantic_memory",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "key",
+        "content"
+      ]
+    },
+    {
+      "name": "validate_orchestration_contract",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": []
+    }
+  ]
+}

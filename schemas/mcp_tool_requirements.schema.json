@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mcamner.github.io/mq-agent/schemas/mcp_tool_requirements.schema.json",
+  "title": "mq-agent.mcp-tool-requirements.v1",
+  "description": "The MCP tools mq-agent calls, as checked by the stack compatibility gate against each producer's mq-mcp.tool-surface.v1. tests/test_mcp_tool_requirements.py holds it to the code: every literal tool call is declared, and nothing is declared that is no longer called.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "consumer", "tools"],
+  "properties": {
+    "schema": { "const": "mq-agent.mcp-tool-requirements.v1" },
+    "consumer": { "const": "mq-agent" },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "producer", "max_safety_class", "arguments"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "producer": { "enum": ["mq-mcp", "mq-image-analyze"] },
+          "max_safety_class": {
+            "description": "Highest ADR-003 class the calling flow is written to accept. A producer class above it blocks the release (MQC020).",
+            "enum": ["A", "B", "C", "D"]
+          },
+          "arguments": {
+            "description": "Arguments mq-agent sends and relies on. Each must be a producer parameter (MQC021 FAIL).",
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "optional_arguments": {
+            "description": "Sent only after a capability probe such as _tool_supports_input. Absence at the producer is a WARN.",
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "context_arguments": {
+            "description": "Best-effort context the workflow runner adds to every step (repo_path, repo_name). Counted as sent for required parameters, never reported as undeclared.",
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "optional_tool": {
+            "description": "mq-agent handles the tool's absence itself (for example --risk on an older mq-mcp). Absence is a WARN.",
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
