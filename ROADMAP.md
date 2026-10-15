@@ -1817,8 +1817,9 @@ code — and if not, which two layers differ and what is the next action?
   tool does not take. Decided: `learn store <candidate-id>` stores one
   explicitly chosen inbox candidate (mq-mcp #104 added `candidate_id`), with
   the operator's `--validation`.
-* [ ] mq-image-analyze publishes the same surface. `image_perception` and
-  `observe_architecture` stay `SKIPPED` until it does.
+* [x] mq-image-analyze publishes the same surface (mq-image-analyze #40).
+  `image_perception` and `observe_architecture` are checked against it and
+  pass.
 * [x] Fail closed instead of guessing a class from the tool name when a
   declared producer gives none. `extract_coding_conventions` is declared C but
   guessed read-only. mq-mcp and mq-image-analyze tools without a class are now
