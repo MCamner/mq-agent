@@ -32,6 +32,12 @@ from mq_agent.tools.stack_tools import MQ_STACK_REPOS, _expand, _git, _last_acti
 STACK_STATUS_SCHEMA = "mq.stack-status.v2"
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 STACK_GITHUB_REPO_ALIASES = {"mqlaunch": "macos-scripts"}
+# Pushes to mq-agent main execute the full-stack gate; PRs run CI mode.
+# Preserve PR branch-protection requirements.
+_MAIN_CHECK_REPLACEMENTS = {
+    "mq-agent": {"Contract and release gates (CI mode)": "Contract and release gates"},
+}
+
 
 _STATUS_PRIORITY = {
     "VERIFIED": 0,
@@ -216,6 +222,12 @@ def repo_verification_entry(
         return _unverified(base, "verification-contract-missing")
 
     required = list(contract_repo.get("required_checks") or [])
+    if base["branch"] == contract.get("branch", "main"):
+        replacements = _MAIN_CHECK_REPLACEMENTS.get(repo_name, {})
+        required = [
+            {**item, "name": replacements.get(item["name"], item["name"])}
+            for item in required
+        ]
     expected_names = [str(item["name"]) for item in required]
     if not required:
         return _unverified(base, "verification-contract-has-no-required-checks")
