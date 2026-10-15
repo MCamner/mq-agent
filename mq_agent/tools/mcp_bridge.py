@@ -91,6 +91,16 @@ def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
     return fallback
 
 
+#: No mq-mcp version registers a whole-repo risk review; risk review exists for
+#: a file and a diff only. Refused outright rather than probed, because the old
+#: "upgrade mq-mcp" answer pointed at an upgrade that does not exist.
+REPO_RISK_UNSUPPORTED: dict[str, Any] = {
+    "ok": False,
+    "error": "--risk is not available for review repo: mq-mcp has no whole-repo risk review.",
+    "hint": "Use review file --risk (risk_review_file) or review diff --risk (risk_review_diff).",
+}
+
+
 class MCPBridge:
     """Routes tool calls to a running mq-mcp server over HTTP."""
 
@@ -415,9 +425,9 @@ class MultiMCPBridge:
         )
 
     def review_repo(self, path: str, flags: dict[str, Any]) -> Any:
-        selected = self._select_review_tool("review_repo", "risk_review_repo", bool(flags.get("risk")))
-        if isinstance(selected, dict):
-            return selected
+        if flags.get("risk"):
+            return dict(REPO_RISK_UNSUPPORTED)
+        selected = "review_repo"
         args = _review_repo_args(path, _mq_mcp_review_args(flags))
         for bridge in self.bridges.values():
             if selected not in bridge.list_tools():

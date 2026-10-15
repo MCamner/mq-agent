@@ -275,17 +275,6 @@
       ]
     },
     {
-      "name": "risk_review_repo",
-      "producer": "mq-mcp",
-      "max_safety_class": "A",
-      "arguments": [
-        "mode",
-        "receipt",
-        "repo_path"
-      ],
-      "optional_tool": true
-    },
-    {
       "name": "run_mqlaunch_doctor",
       "producer": "mq-mcp",
       "max_safety_class": "D",

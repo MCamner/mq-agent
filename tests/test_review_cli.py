@@ -481,14 +481,39 @@ def test_review_diff_dry_run_with_flags():
 def test_review_repo_dry_run_with_flags():
     bridge = FakeReviewBridge()
     with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
-        result = runner.invoke(app, ["review", "repo", ".", "--dry-run", "--architecture", "--risk"])
+        result = runner.invoke(app, ["review", "repo", ".", "--dry-run", "--architecture", "--security"])
 
     assert result.exit_code == 0
     assert "Would call" in result.output
     assert "review_repo" in result.output
     assert "--architecture" in result.output
-    assert "--risk" in result.output
+    assert "--security" in result.output
     assert bridge.calls == []
+
+
+def test_review_repo_risk_is_refused_before_anything_runs():
+    """No mq-mcp version has registered risk_review_repo. --risk used to probe
+    for it and answer "upgrade mq-mcp", which no upgrade could satisfy."""
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge), \
+         patch("mq_agent.main._execution_outcome") as outcome:
+        for extra in ([], ["--dry-run"]):
+            result = runner.invoke(app, ["review", "repo", ".", "--risk", *extra])
+            assert result.exit_code == 1
+            assert "risk_review_file" in result.output
+            assert "risk_review_diff" in result.output
+    assert bridge.calls == []
+    outcome.assert_not_called()
+
+
+def test_bridge_review_repo_risk_returns_unsupported_without_probing():
+    bridge = MultiMCPBridge()
+    with patch.object(bridge, "bridges", {}), patch.object(bridge, "_select_review_tool") as select:
+        result = bridge.review_repo(".", {"risk": True})
+
+    assert result["ok"] is False
+    assert "not available" in result["error"]
+    select.assert_not_called()
 
 
 def test_mcp_bridge_risk_requires_installed_risk_tool():
