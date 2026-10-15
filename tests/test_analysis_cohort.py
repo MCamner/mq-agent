@@ -113,14 +113,14 @@ def test_an_undated_record_is_excluded_not_assumed() -> None:
 
 def test_an_observation_at_the_boundary_belongs_to_the_new_era() -> None:
     # The merge is the moment the runtime changed.
-    era = era_named(ERA_C8)
+    era = current_era()
     at_boundary = _observation(era.starts_at.isoformat().replace("+00:00", "Z"))
 
     assert select_cohort([at_boundary]).included == [at_boundary]
 
 
 def test_one_second_before_the_boundary_is_the_previous_era() -> None:
-    era = era_named(ERA_C8)
+    era = current_era()
     just_before = era.starts_at.timestamp() - 1
     record = _observation(
         datetime.fromtimestamp(just_before, tz=UTC).isoformat().replace("+00:00", "Z")
