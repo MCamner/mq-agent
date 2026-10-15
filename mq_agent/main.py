@@ -8615,6 +8615,7 @@ def stack_compatibility_cmd(
     all_repos: Annotated[bool, typer.Option("--all", help="Inventory the whole stack instead of the MCP slice")] = False,
     fresh_resolve: Annotated[bool, typer.Option("--fresh-resolve", help="Also resolve declared ranges in a temporary directory and probe critical imports (needs uv and network)")] = False,
     strict: Annotated[bool, typer.Option("--strict", help="Exit 1 on WARN instead of 0")] = False,
+    live: Annotated[bool, typer.Option("--live", help="Also compare running MCP servers with their committed tool surface (WARN only)")] = False,
 ):
     """Assess dependency compatibility across MQ repositories (read-only).
 
@@ -8626,6 +8627,10 @@ def stack_compatibility_cmd(
     --fresh-resolve answers what a new installation would select today. It
     resolves outside every working tree, never reads or writes a lockfile, and
     reports an unreachable registry as UNAVAILABLE rather than incompatibility.
+
+    --live compares each running MCP server with its committed tool surface and
+    reports drift (MQC024) as WARN. A server that is not running is listed but
+    changes no status, and --live never blocks a release.
 
     Exit codes: 0 PASS or WARN, 1 WARN under --strict, 2 FAIL, 3 UNAVAILABLE,
     130 interrupted.
@@ -8639,7 +8644,7 @@ def stack_compatibility_cmd(
     )
     try:
         with console.status(label):
-            raw = _check(slice_only=not all_repos, fresh_resolve=fresh_resolve)
+            raw = _check(slice_only=not all_repos, fresh_resolve=fresh_resolve, live=live)
     except KeyboardInterrupt:
         # A fresh resolution shells out; Ctrl-C must not read as a verdict.
         console.print("\n[dim]Interrupted — no verdict was reached.[/dim]")

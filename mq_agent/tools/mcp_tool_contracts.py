@@ -198,3 +198,109 @@ def tool_contract_findings(
             }
         )
     return relationships, findings
+
+
+# --- optional live comparison (--live) ----------------------------------------
+
+LIVE_DRIFT = "MQC024_TOOL_SURFACE_LIVE_DRIFT"
+_LIVE_LABEL = {"A": "read-only", "B": "read-only", "C": "write-capable", "D": "subprocess"}
+_LIVE_EXAMPLES = 5
+
+
+def fetch_json(url: str) -> Any:
+    """GET a JSON document, or None when the server does not answer with one."""
+    try:
+        import httpx
+
+        response = httpx.get(url, timeout=5)
+        return response.json() if response.status_code == 200 else None
+    except Exception:
+        return None
+
+
+def _checkout_commit(root: Path) -> str:
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _shape_committed(tool: dict[str, Any]) -> tuple[str, dict[str, bool]]:
+    return _LIVE_LABEL[tool["safety_class"]], {p["name"]: p["required"] for p in tool["parameters"]}
+
+
+def _shape_live(tool: dict[str, Any]) -> tuple[str, dict[str, bool]]:
+    schema = tool.get("inputSchema") or {}
+    required = set(schema.get("required") or [])
+    return str(tool.get("safety_class") or ""), {name: name in required for name in schema.get("properties") or {}}
+
+
+def _sample(names: list[str]) -> str:
+    shown = ", ".join(names[:_LIVE_EXAMPLES])
+    return shown + (f" (+{len(names) - _LIVE_EXAMPLES} more)" if len(names) > _LIVE_EXAMPLES else "")
+
+
+def live_surface_findings(
+    producer_roots: dict[str, Path],
+    endpoints: dict[str, str],
+    fetch: Any = fetch_json,
+) -> list[dict[str, Any]]:
+    """MQC024 for each producer whose running server differs from its committed surface.
+
+    Optional evidence, never a gate: drift is WARN, a server that does not
+    answer is UNAVAILABLE, and neither blocks a release. Only producers with a
+    valid committed surface and a known endpoint are compared.
+    """
+    findings: list[dict[str, Any]] = []
+    for producer in sorted(producer_roots):
+        url = endpoints.get(producer)
+        surface, _problem = _load_surface(producer_roots[producer])
+        if not url or surface is None:
+            continue
+        listing = fetch(f"{url.rstrip('/')}/tools")
+        if not isinstance(listing, dict) or not isinstance(listing.get("tools"), list):
+            findings.append(
+                _finding(
+                    LIVE_DRIFT, "UNAVAILABLE", producer,
+                    f"{producer} is not answering at {url}; its running tool surface was not compared",
+                )
+            )
+            continue
+        identity = fetch(f"{url.rstrip('/')}/runtime-identity")
+        live_commit = str((identity or {}).get("commit") or "unknown") if isinstance(identity, dict) else "unknown"
+
+        committed = {t["name"]: _shape_committed(t) for t in surface["tools"]}
+        live = {str(t.get("name")): _shape_live(t) for t in listing["tools"] if isinstance(t, dict)}
+        not_running = sorted(set(committed) - set(live))
+        not_committed = sorted(set(live) - set(committed))
+        shared = sorted(set(committed) & set(live))
+        class_drift = [n for n in shared if live[n][0] and live[n][0] != committed[n][0]]
+        param_drift = [n for n in shared if live[n][1] != committed[n][1]]
+        if not (not_running or not_committed or class_drift or param_drift):
+            continue
+
+        parts = [
+            f"{label}: {_sample(names)}"
+            for label, names in (
+                ("not running", not_running),
+                ("running but not committed", not_committed),
+                ("class differs", class_drift),
+                ("parameters differ", param_drift),
+            )
+            if names
+        ]
+        committed_commit = _checkout_commit(producer_roots[producer]) or "unknown"
+        findings.append(
+            _finding(
+                LIVE_DRIFT, "WARN", producer,
+                f"{producer} running at {live_commit[:12]} differs from its committed surface "
+                f"at {committed_commit[:12]}: " + "; ".join(parts) + ". Restart it from the checkout.",
+                evidence=f"live commit {live_commit}, committed checkout {committed_commit}",
+            )
+        )
+    return findings

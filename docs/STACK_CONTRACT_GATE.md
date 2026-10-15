@@ -223,6 +223,7 @@ mask the repos whose check genuinely did not run.
 | `MQC021_TOOL_ARGUMENT_UNDECLARED` | FAIL, or WARN for an optional argument | Only as FAIL |
 | `MQC022_TOOL_REQUIRED_ARGUMENT_UNSENT` | FAIL | Yes |
 | `MQC023_TOOL_SURFACE_UNAVAILABLE` | SKIPPED when absent, FAIL when invalid | Only as FAIL |
+| `MQC024_TOOL_SURFACE_LIVE_DRIFT` | `--live` only: WARN on drift, UNAVAILABLE when the server does not answer | No |
 | `MQC004_DEPENDENCY_SOURCE_MISSING` | SKIPPED | No |
 | `MQC001`, `MQC010`, `MQC014` | UNAVAILABLE | No, but never green |
 
@@ -246,6 +247,14 @@ Arguments the workflow runner adds to every step (`repo_path`, `repo_name`) are
 `context_arguments`. They count as sent for required parameters and are never
 reported as undeclared, because FastMCP ignores arguments a tool does not take.
 
+`--live` adds one optional comparison (MQC024). For each producer that has a
+committed surface, it reads the running server's `/tools` and
+`/runtime-identity`. It reports tools that are not running, running tools that
+are not committed, and class or parameter differences, together with both
+commits. This catches a server started from a stale checkout. Drift is WARN. A
+server that does not answer is listed as UNAVAILABLE but changes no status.
+Neither blocks a release, and the committed files remain the source of truth.
+
 ## Where the gate runs
 
 * **Pull requests** — not run. Only the mq-agent checkout exists there, so
@@ -258,6 +267,7 @@ reported as undeclared, because FastMCP ignores arguments a tool does not take.
 mq-agent stack compatibility                  # declared and locked versions
 mq-agent stack compatibility --fresh-resolve  # what a new install would select
 mq-agent stack compatibility --strict         # WARN exits 1
+mq-agent stack compatibility --live           # also compare running MCP servers (WARN only)
 mq-agent stack compatibility --all            # whole stack, not just the MCP slice
 ```
 

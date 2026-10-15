@@ -1823,8 +1823,10 @@ code — and if not, which two layers differ and what is the next action?
   declared producer gives none. `extract_coding_conventions` is declared C but
   guessed read-only. mq-mcp and mq-image-analyze tools without a class are now
   `unknown`, and `run-tool` blocks them. Third-party servers keep name guessing.
-* [ ] Optional `--live` comparison of a running server with its committed
-  surface (WARN only, never a release gate).
+* [x] Optional `--live` comparison of a running server with its committed
+  surface (WARN only, never a release gate). `stack compatibility --live`
+  reports MQC024 with both commits. A server that does not answer is
+  UNAVAILABLE and leaves the status alone.
 
 Still open in other repos: the `mq-hal` read-only compatibility surface and the
 `mqlaunch` delegation. Neither may reimplement the assessment.
