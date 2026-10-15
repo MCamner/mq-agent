@@ -19,6 +19,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - `learn extract <path> --approve` queues a candidate from the file's last review in mq-mcp's learn inbox and prints its ID. `learn list` shows pending candidates. `learn extract-review` remains the read-only preview.
 
+### Fixed
+
+- `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
+
 ## [v1.34.0] — 2026-10-14
 
 Theme: controlled activation proof and evidence integrity. The Post-v1.30
