@@ -2709,7 +2709,7 @@ Review a repo through mq-mcp. mq-agent renders mq-mcp output only. Each non-dry 
 | `--security` | No | `false` | Ask mq-mcp for security review mode |
 | `--architecture` | No | `false` | Ask mq-mcp for architecture review mode |
 | `--architecture-image`, `--visual` | No | — | Image path to observe via mq-image-analyze and pass as architecture context |
-| `--risk` | No | `false` | Not available for a whole repo; use review file/diff --risk |
+| `--risk` | No | `false` | Use mq-mcp risk_review_repo (bounded, allowlisted) |
 | `--fast` | No | `false` | Prefer fast Class A tools over deep AI review |
 | `--brain` | No | `false` | Record review result to mqobsidian second brain |
 | `--receipt` | No | `false` | Require and save mq-mcp exact-code review receipt |

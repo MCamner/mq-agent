@@ -154,12 +154,13 @@ mq-agent review diff --json
 ```
 
 Risk review is used only when the installed mq-mcp exposes the matching
-`risk_review_*` tool. mq-mcp has risk review for a file and a diff, not for a
-whole repo, so `review repo --risk` is refused:
+`risk_review_*` tool. `review repo --risk` calls `risk_review_repo`, which is
+bounded and allowlisted (mq-mcp #105):
 
 ```bash
 mq-agent review diff --risk
 mq-agent review file mq_agent/main.py --risk
+mq-agent review repo . --risk
 ```
 
 Preview what would be called without contacting mq-mcp:
