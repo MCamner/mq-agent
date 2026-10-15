@@ -1814,9 +1814,10 @@ code — and if not, which two layers differ and what is the next action?
   this needs a decision, not a rename. The gate reports it as FAIL until then.
 * [ ] mq-image-analyze publishes the same surface. `image_perception` and
   `observe_architecture` stay `SKIPPED` until it does.
-* [ ] Fail closed instead of guessing a class from the tool name when a
+* [x] Fail closed instead of guessing a class from the tool name when a
   declared producer gives none. `extract_coding_conventions` is declared C but
-  guessed read-only.
+  guessed read-only. mq-mcp and mq-image-analyze tools without a class are now
+  `unknown`, and `run-tool` blocks them. Third-party servers keep name guessing.
 * [x] Optional `--live` comparison of a running server with its committed
   surface (WARN only, never a release gate). `stack compatibility --live`
   reports MQC024 with both commits. A server that does not answer is

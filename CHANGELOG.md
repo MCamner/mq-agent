@@ -14,6 +14,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
 - `stack compatibility --live` also compares each running MCP server with its committed tool surface. It reads `/tools` and `/runtime-identity` and reports MQC024 with both commits for tools that are not running, running tools that are not committed, and class or parameter differences. This catches a server started from a stale checkout. Drift is WARN. A server that does not answer is listed as UNAVAILABLE and changes no status. `--live` never blocks a release.
 
+### Fixed
+
+- `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
+
 ## [v1.34.0] — 2026-10-14
 
 Theme: controlled activation proof and evidence integrity. The Post-v1.30

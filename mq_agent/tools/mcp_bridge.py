@@ -94,8 +94,13 @@ def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
 class MCPBridge:
     """Routes tool calls to a running mq-mcp server over HTTP."""
 
-    def __init__(self, endpoint: str = "http://localhost:8765"):
+    def __init__(self, endpoint: str = "http://localhost:8765", source: str = "mq-mcp"):
+        from .mcp_registry import DECLARED_PRODUCERS
+
         self.endpoint = endpoint.rstrip("/")
+        self.source = source
+        # A declared producer's missing class is missing metadata, not a name to read.
+        self._guess = source not in DECLARED_PRODUCERS
         self._available: list[str] | None = None
         self._contract_specs: dict[str, dict] | None = None
 
@@ -154,10 +159,10 @@ class MCPBridge:
             if isinstance(item, dict):
                 contract = contracts.get(str(item.get("name", "")), {})
                 item = {**contract, **item}
-                spec = MCPToolSpec.from_dict(item)
+                spec = MCPToolSpec.from_dict(item, guess=self._guess)
             else:
                 name = str(item)
-                spec = MCPToolSpec.from_dict({"name": name, **contracts.get(name, {})})
+                spec = MCPToolSpec.from_dict({"name": name, **contracts.get(name, {})}, guess=self._guess)
             spec.source = source
             specs.append(spec)
         return specs
@@ -188,7 +193,7 @@ class MCPBridge:
         """Return an MCPToolSpec for a tool using server metadata before name heuristics."""
         from .mcp_registry import MCPToolSpec
         if not _HAS_HTTPX:
-            return MCPToolSpec.from_name(name)
+            return MCPToolSpec.from_name(name, guess=self._guess)
         import httpx
         try:
             response = httpx.get(f"{self.endpoint}/tools/{name}", timeout=5)
@@ -197,18 +202,26 @@ class MCPBridge:
                 if isinstance(data, dict) and "name" in data:
                     contract_data = self._fetch_contract_specs().get(name, {})
                     data = {**contract_data, **data}
-                    return MCPToolSpec.from_dict(data)
+                    return MCPToolSpec.from_dict(data, guess=self._guess)
             # 404 or unexpected shape — fall through to name classification
         except Exception:
             pass
         maybe_contract_data = self._fetch_contract_specs().get(name)
         if maybe_contract_data:
-            return MCPToolSpec.from_dict(maybe_contract_data)
+            return MCPToolSpec.from_dict(maybe_contract_data, guess=self._guess)
+        # Servers without a per-tool endpoint declare the class in /tools.
+        listed = next(
+            (item for item in self._fetch_tools_raw() if isinstance(item, dict) and item.get("name") == name),
+            None,
+        )
+        if listed:
+            return MCPToolSpec.from_dict(listed, guess=self._guess)
         tools = self._available or self.list_tools()
         if name in tools:
-            return MCPToolSpec.from_name(name)
-        # Server is down or tool unknown — still return a classification
-        return MCPToolSpec.from_name(name)
+            return MCPToolSpec.from_name(name, guess=self._guess)
+        # Server is down or tool unknown. A declared producer's tool stays
+        # unknown; a third-party name is still classified.
+        return MCPToolSpec.from_name(name, guess=self._guess)
 
     # ── tool execution ─────────────────────────────────────────────────────
 
@@ -270,7 +283,7 @@ class MultiMCPBridge:
             self.servers["mq-mcp"] = target.base_url
         else:
             self.servers.pop("mq-mcp", None)
-        self.bridges = {name: MCPBridge(url) for name, url in self.servers.items()}
+        self.bridges = {name: MCPBridge(url, source=name) for name, url in self.servers.items()}
 
     def is_available(self) -> bool:
         """Returns True if ANY registered server is reachable."""
@@ -299,10 +312,11 @@ class MultiMCPBridge:
             if spec.safety_class != MCPSafetyClass.UNKNOWN:
                 spec.source = _infer_default_tool_source(name, server_name)
                 return spec
-        # Fallback to default classification
-        from .mcp_registry import MCPToolSpec
-        spec = MCPToolSpec.from_name(name)
-        spec.source = _infer_default_tool_source(name, spec.source)
+        # No server lists it or declares a class for it.
+        from .mcp_registry import DECLARED_PRODUCERS, MCPToolSpec
+        source = _infer_default_tool_source(name, "mq-mcp")
+        spec = MCPToolSpec.from_name(name, guess=source not in DECLARED_PRODUCERS)
+        spec.source = source
         return spec
 
     def call_tool_if_available(
