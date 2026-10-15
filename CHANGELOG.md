@@ -13,6 +13,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
 
+### Changed
+
+- `learn store` takes an explicit candidate ID: `mq-agent learn store <candidate-id> --validation "<how you verified it>" --approve`. It reads the candidate's draft from mq-mcp's `learn_inbox_draft`, stores it with `record_learning` together with the operator's validation, and then removes it from the inbox with `learn_inbox_drop`. The command never stores "the last" candidate. A path or a missing ID aborts before anything is called. The draft's `MANUAL VALIDATION REQUIRED` text is never sent as validation. Until now `learn store` sent `record_learning` a `relative_path` it does not take (MQC021/MQC022). Requires mq-mcp with `candidate_id` (mq-mcp #104).
+
+- `learn extract <path> --approve` queues a candidate from the file's last review in mq-mcp's learn inbox and prints its ID. `learn list` shows pending candidates. `learn extract-review` remains the read-only preview.
+
 ### Fixed
 
 - `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
