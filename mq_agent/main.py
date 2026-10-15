@@ -879,6 +879,40 @@ def _is_error_result(result: Any) -> bool:
     return False
 
 
+_REVIEW_TOOLS = (
+    "review_file",
+    "risk_review_file",
+    "review_diff",
+    "risk_review_diff",
+    "review_repo",
+    "risk_review_repo",
+)
+#: How mq-mcp's review tools report a failure: as text, never as an error.
+#: "review_diff: no changed files …" is not here — nothing to review is a
+#: result, not a failure.
+_REVIEW_FAILURE_PREFIXES = (
+    *(f"{tool} failed" for tool in _REVIEW_TOOLS),
+    *(f"{tool} blocked:" for tool in _REVIEW_TOOLS),
+    *(f"{tool} requires " for tool in _REVIEW_TOOLS),
+    "File not found:",
+    "Could not read file:",
+    "No review contract found",
+)
+
+
+def _review_failed(result: Any) -> bool:
+    """True when a review result is a failure, including mq-mcp's text form.
+
+    `_is_error_result` knows `{"ok": False}` and bare strings. mq-mcp returns
+    its failures as text inside the MCP wrapper, which it cannot see, so a
+    blocked or missing file exited 0.
+    """
+    if _is_error_result(result):
+        return True
+    text = result if isinstance(result, str) else _extract_mcp_text_result(result)
+    return isinstance(text, str) and text.startswith(_REVIEW_FAILURE_PREFIXES)
+
+
 def _iter_review_findings(value: Any) -> list[dict[str, Any]]:
     """Extract findings for display without changing their labels or meaning."""
     receipt = _review_receipt(value)
@@ -1065,7 +1099,7 @@ def _run_review(
         # Keep mq-mcp's receipt JSON unchanged for consumers. Persistence is a
         # local side effect keyed by receipt_id, not a mutation of the contract.
         _echo_review_json(result, execution)
-        if _is_error_result(result) or _receipt_refused(result):
+        if _review_failed(result) or _receipt_refused(result):
             raise typer.Exit(1)
         return
 
@@ -1077,7 +1111,7 @@ def _run_review(
         )
     if receipt_path is not None:
         console.print(f"[dim]Stored receipt: {receipt_path}[/dim]")
-    if _receipt_refused(result):
+    if _review_failed(result) or _receipt_refused(result):
         raise typer.Exit(1)
     if bridge is not None:
         _render_arch_context(bridge)
@@ -1209,7 +1243,7 @@ def review_repo_cmd(
         flags = _review_flags_with_visual_context(bridge, security, architecture, risk, fast, architecture_image, receipt=receipt)
         raw_result = flags if _is_error_result(flags) else bridge.review_repo(path, flags)
         result, measured_completeness = _repo_review_payload_and_completeness(raw_result)
-        if _is_error_result(raw_result) or _receipt_refused(raw_result):
+        if _review_failed(raw_result) or _receipt_refused(raw_result):
             record["completeness"] = {
                 "status": "partial",
                 "steps": [{"step": 1, "status": "failed"}],
