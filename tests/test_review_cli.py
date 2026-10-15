@@ -648,3 +648,58 @@ def test_review_file_brain_skips_on_error():
 
     assert result.exit_code == 1
     MockBridge.return_value.call_tool.assert_not_called()
+
+
+# ── a failed review must not exit 0 ────────────────────────────────────────
+#
+# mq-mcp reports a review failure as text inside the MCP wrapper
+# ("review_file failed: Blocked path outside allowed roots …", "File not
+# found: …"). _is_error_result only knows bare strings and {"ok": False}, so
+# `review file --json` printed the failure and exited 0, and so did the
+# rendered form. `mqlaunch review` passes the exit code through unchanged.
+
+
+def _wrapped(text: str) -> list:
+    return [[{"type": "text", "text": text}], {"result": text}]
+
+
+class _FailingReviewBridge(FakeReviewBridge):
+    def __init__(self, text: str) -> None:
+        super().__init__()
+        self.text = text
+
+    def review_file(self, path: str, flags: dict[str, Any], repo_path: str | None = None) -> Any:
+        self.calls.append(("review_file", path, flags))
+        return _wrapped(self.text)
+
+    def review_diff(self, flags: dict[str, Any]) -> Any:
+        self.calls.append(("review_diff", None, flags))
+        return _wrapped(self.text)
+
+
+def _invoke(text: str, *args: str):
+    bridge = _FailingReviewBridge(text)
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        return runner.invoke(app, ["review", *args])
+
+
+def test_review_file_failure_exits_non_zero_in_json_and_text():
+    blocked = "review_file failed: Blocked path outside allowed roots: /tmp/x. Allowed: /a"
+    for extra in (["--json"], []):
+        result = _invoke(blocked, "file", "x.py", *extra)
+        assert result.exit_code == 1, extra
+        assert "Blocked path" in result.output
+
+
+def test_review_file_missing_file_exits_non_zero():
+    assert _invoke("File not found: nope.py", "file", "nope.py", "--json").exit_code == 1
+
+
+def test_risk_review_failure_exits_non_zero():
+    text = "risk_review_diff failed: mode must be one of ['risk'], got 'comment'"
+    assert _invoke(text, "diff", "--risk", "--json").exit_code == 1
+
+
+def test_nothing_to_review_is_not_a_failure():
+    text = "review_diff: no changed files found in working tree or staging area."
+    assert _invoke(text, "diff", "--json").exit_code == 0
