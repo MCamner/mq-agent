@@ -1030,12 +1030,21 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
 
     path = _outcome_path(source)
     records, total = _read_records(path)
-    validator = _validator("model_route_outcome.schema.json")
-    valid = [record for record in records if not list(validator.iter_errors(record))]
+    valid, _, invalid = _split_contracts(records)
     outcomes = [record for record in valid if record["task_class"] == task_class]
+    from mq_agent.tools.route_quality import current_docs_quality
+
+    quality_era = None
+    if task_class == "docs-review":
+        quality, quality_exclusions, execution_path, quality_era = current_docs_quality(
+            outcomes, source
+        )
+    else:
+        # Other advisory task classes have no declared complete-audit producer.
+        quality, quality_exclusions, execution_path = outcomes, {}, path
     attempted = sum(int(item["attempted"]) for item in outcomes)
-    responded = sum(int(item["model_output_received"]) for item in outcomes)
-    verified = sum(int(item["verification"]["status"] == "PASS") for item in outcomes)
+    responded = sum(int(item["model_output_received"]) for item in quality)
+    verified = sum(int(item["verification"]["status"] == "PASS") for item in quality)
     # Attempts the model never answered are Ollama availability, not model quality,
     # so they belong in attempted_outcomes but not in the success-rate denominator.
     verification_rate = round(verified / responded, 3) if responded else 0.0
@@ -1062,7 +1071,7 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
     accepted = sum(
         int(item["accepted_by_agent"] or item["accepted_by_operator"]) for item in outcomes
     )
-    passing = [item for item in outcomes if item["verification"]["status"] == "PASS"]
+    passing = [item for item in quality if item["verification"]["status"] == "PASS"]
     distinct_verified = len({str(item["decision_id"]) for item in passing})
     grounded = sum(
         int("evidence-grounded" in item["verification"]["checks"]) for item in passing
@@ -1080,7 +1089,7 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
             ">= 0.9",
             responded == 0,
         ),
-        ("valid-outcome-records", total == len(valid), total - len(valid), "0 invalid", total == 0),
+        ("valid-outcome-records", invalid == 0, invalid, "0 invalid", total == 0),
         (
             "zero-unauthorized-writes",
             unauthorized_writes == 0,
@@ -1130,7 +1139,7 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
     # the field, so it must not drag the rate toward zero.
     measured = [
         item["verification"]["grounding"]
-        for item in outcomes
+        for item in quality
         if "grounding" in item["verification"]
     ]
     grounded_items = sum(int(item["grounded_items"]) for item in measured)
@@ -1143,6 +1152,14 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         "automatic_routing_enabled": False,
         "operator_approval_required": True,
         "valid_outcomes": len(outcomes),
+        "quality_population": {
+            "kind": "complete-docs-audit" if task_class == "docs-review" else "advisory",
+            "era": quality_era,
+            "included": len(quality),
+            "excluded": sum(quality_exclusions.values()),
+            "exclusion_reasons": quality_exclusions,
+            "execution_source": str(execution_path),
+        },
         "verified_outcomes": verified,
         "distinct_verified_tasks": distinct_verified,
         "grounded_verified_outcomes": grounded,

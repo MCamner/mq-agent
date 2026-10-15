@@ -2466,23 +2466,32 @@ def docs_audit(
             result = agent.audit(path, execution_run_id=record["run_id"], route=route)
             completeness = execution_completeness_from_steps(result["steps"])
             result["completeness"] = completeness
+            passed = (
+                completeness["status"] == "complete"
+                and result.get("verification", {}).get("all_passed") is True
+            )
             record["completeness"] = completeness
-            if completeness["status"] != "complete":
+            if not passed:
                 record.update(result="FAIL", exit_status="error")
 
+    result.update(
+        execution_run_id=record["run_id"],
+        execution_outcome_recorded=bool(record["outcome_recorded"]),
+    )
     if json_out:
         typer.echo(json.dumps(result, indent=2, default=str))
-        return
-
-    print_steps(console, result["steps"], title="Docs Audit")
-    if result["completeness"]["status"] != "complete":
-        console.print("\n[bold red]✗ Docs audit incomplete[/bold red]")
-    elif result["verification"]["all_passed"]:
-        console.print("\n[bold green]✓ Docs audit passed[/bold green]")
     else:
-        console.print("\n[bold red]✗ Docs audit found issues[/bold red]")
-        for f in result["verification"].get("failures", []):
-            console.print(f"  [red]•[/red] {f['step']}: {f['note']}")
+        print_steps(console, result["steps"], title="Docs Audit")
+        recorded = "recorded" if result["execution_outcome_recorded"] else "NOT recorded"
+        console.print(f"[dim]Execution: {result['execution_run_id']} ({recorded})[/dim]")
+        if passed:
+            console.print("\n[bold green]✓ Docs audit complete and passed[/bold green]")
+        else:
+            console.print("\n[bold red]✗ Docs audit incomplete or verification failed[/bold red]")
+            for failure in result["verification"].get("failures", []):
+                console.print(f"  [red]•[/red] {failure['step']}: {failure['note']}")
+    if not passed:
+        raise typer.Exit(1)
 
 
 # ── tui ────────────────────────────────────────────────────────────────────
