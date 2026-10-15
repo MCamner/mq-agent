@@ -1820,8 +1820,9 @@ code — and if not, which two layers differ and what is the next action?
 * [ ] Optional `--live` comparison of a running server with its committed
   surface (WARN only, never a release gate).
 
-Still open in other repos: the `mq-hal` read-only compatibility surface and the
-`mqlaunch` delegation. Neither may reimplement the assessment.
+Delivered in other repos: the `mq-hal` read-only compatibility surface
+(mq-hal #59) and the `mqlaunch` delegation (macos-scripts #276). Neither
+reimplements the assessment.
 
 ## Completed — verifier excerpt integrity
 
@@ -2122,9 +2123,12 @@ that have not declared theirs.
 
 * [x] Add `stack compatibility`, `--json`, and `--fresh-resolve`.
 * [x] Show the summary in `mq-agent dashboard`.
-* [ ] Expose the result read-only through `mq-hal`. Owned by `mq-hal`.
-* [ ] Delegate from `mqlaunch` without duplicated logic. Owned by
-  `macos-scripts`.
+* [x] Expose the result read-only through `mq-hal`. Owned by `mq-hal`
+  (`mq-hal compatibility`, mq-hal #59): it runs `mq-agent stack compatibility
+  --json`, renders the report as given and passes the exit code through.
+* [x] Delegate from `mqlaunch` without duplicated logic. Owned by
+  `macos-scripts` (`mqlaunch hal compatibility` and the mq-hal menu,
+  macos-scripts #276): both call `mq-hal compatibility`.
 * [x] Run static checks in relevant PR and release workflows. Deliberately not
   on pull requests: only the checkout exists there, so every sibling reports
   `UNAVAILABLE` and the gate says nothing. It runs on push to `main`.
@@ -2230,8 +2234,9 @@ The first version will not:
 * [x] Every assessment contains evidence and `next_action`.
 * [x] Human, JSON and dashboard results are semantically identical. The `mq-hal`
   surface is owned by `mq-hal` and is not part of this repo's release.
-* [ ] `mqlaunch` and `mq-hal` duplicate no compatibility logic. Owned by
-  `macos-scripts` and `mq-hal`; both delegate or do not present it yet.
+* [x] `mqlaunch` and `mq-hal` duplicate no compatibility logic. `mq-hal` has
+  no code-to-severity map or blocking rule of its own, and `mqlaunch` only
+  calls `mq-hal`. Verified end to end on `main`: exit 0 on PASS, 2 on FAIL.
 * [x] The MCP regression case remains permanently tested.
 * [x] Documentation, command references, and architecture maps are updated.
 * [x] The full `mq-agent` suite and relevant stack contracts are green.
