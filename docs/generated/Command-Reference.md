@@ -3097,6 +3097,7 @@ Assess dependency compatibility across MQ repositories (read-only). A repo can b
 | `--fresh-resolve` | No | `false` | Also resolve declared ranges in a temporary directory and probe critical imports (needs uv and network) |
 | `--strict` | No | `false` | Exit 1 on WARN instead of 0 |
 | `--live` | No | `false` | Also compare running MCP servers with their committed tool surface (WARN only) |
+| `--repo-path` | No | — | Override repository checkout with NAME=PATH (repeatable) |
 
 ## `mq-agent stack contract-check`
 
