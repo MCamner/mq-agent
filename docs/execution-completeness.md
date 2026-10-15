@@ -48,10 +48,13 @@ The existing `execution-completeness` era starts at merged mq-agent #396
 (`de36d326`, 2026-10-14T00:54:27Z). That boundary is preserved. This change
 additionally strengthens docs-audit PASS to require successful verification and
 nonzero failure exits, and links route quality to exact complete executions.
-Quality collection stays paused until integration. After this fix merges, open
-a `docs-audit-complete-success` era using its actual merge commit and timestamp
-in `mq_agent/tools/analysis_cohort.py`. Do not predeclare a future merge identity,
-move an existing era boundary or change production observation timestamps.
+Integration merged in mq-agent #401 as
+`f8f92df0b3e6722d9fb307870b72148ec65187c8`
+(2026-10-15T09:51:13Z). The `docs-audit-complete-success` era starts at
+that exact boundary in `mq_agent/tools/analysis_cohort.py`. The preceding
+`execution-completeness` boundary is unchanged; stored evidence is not rewritten.
+Only newly measured complete, successfully verified executions may count as
+quality evidence. The era boundary alone does not establish readiness.
 
 Then use real audits of a declared scope that can complete: at least ten complete
 successful executions for each of `deterministic-local` and `local-shadow`,

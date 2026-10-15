@@ -177,6 +177,17 @@ ERAS: tuple[Era, ...] = (
             "unmeasured or partial coverage fails closed."
         ),
     ),
+    Era(
+        name="docs-audit-complete-success",
+        starts_at=datetime(2026, 10, 15, 9, 51, 13, tzinfo=UTC),
+        commit="f8f92df0b3e6722d9fb307870b72148ec65187c8",
+        why=(
+            "mq-agent #401 requires measured complete docs-audit execution and "
+            "successful verification for PASS. Docs-review quality links to "
+            "one exact successful complete execution; earlier applied runs "
+            "remain readiness history, not quality evidence."
+        ),
+    ),
 )
 
 
