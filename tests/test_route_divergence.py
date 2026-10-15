@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import json
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from mq_agent.tools.analysis_cohort import current_era
 from mq_agent.tools.route_divergence import (
     MINIMUM_ROUTES,
     MINIMUM_SAMPLES_PER_ROUTE,
+    MINIMUM_WINDOW_DAYS,
     route_divergence,
 )
 
@@ -58,8 +60,7 @@ def _observation(
         "escalated": escalated,
         "escalation_reason": escalation_reason,
         "application": "applied",
-        "recorded_at": ERA_C_START.replace(day=ERA_C_START.day)
-        .replace(microsecond=day)
+        "recorded_at": (ERA_C_START + timedelta(days=day))
         .isoformat()
         .replace("+00:00", "Z"),
     }
@@ -90,9 +91,10 @@ def _store(tmp_path: Path, records: list[dict]) -> Path:
     return path
 
 
-def _enough(route: str, **changes) -> list[dict]:
+def _enough(route: str, *, spacing_days: int = 2, **changes) -> list[dict]:
+    # Spread over real days: a comparison also needs MINIMUM_WINDOW_DAYS.
     return [
-        _observation(route, day=index, **changes)
+        _observation(route, day=index * spacing_days, **changes)
         for index in range(MINIMUM_SAMPLES_PER_ROUTE)
     ]
 
@@ -326,3 +328,30 @@ def test_readiness_is_unaffected_by_the_divergence_gate() -> None:
 
     # They agree today by calibration, not derivation.
     assert READINESS_THRESHOLDS["minimum_samples_per_route"] == MINIMUM_SAMPLES_PER_ROUTE
+
+
+def test_enough_samples_inside_a_short_window_are_not_compared(tmp_path) -> None:
+    """docs/execution-completeness.md requires ten complete successful runs per
+    route spanning at least fourteen days in the new era. Readiness measures
+    its window over all history, so only this gate can hold the era to it."""
+    store = _store(
+        tmp_path,
+        _enough("local-shadow", spacing_days=1) + _enough("deterministic-local", spacing_days=1),
+    )
+
+    report = route_divergence(store)
+
+    assert report["status"] == "INSUFFICIENT_EVIDENCE"
+    assert report["divergence"] == []
+    assert report["window_days"] == 9.0
+    assert report["minimum_window_days"] == MINIMUM_WINDOW_DAYS == 14
+    assert any("14" in reason and "day" in reason for reason in report["insufficient_reasons"])
+
+
+def test_the_window_is_reported_when_the_comparison_is_made(tmp_path) -> None:
+    store = _store(tmp_path, _enough("local-shadow") + _enough("deterministic-local"))
+
+    report = route_divergence(store)
+
+    assert report["status"] == "OK"
+    assert report["window_days"] == 18.0

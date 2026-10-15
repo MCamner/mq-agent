@@ -66,3 +66,9 @@ Read the structured payload and recording confirmation for every run. A zero
 shell exit or a stored run id alone is insufficient. Review measured route
 divergence only after the sample and time requirements are met, followed by
 explicit operator promotion review. Automatic routing remains disabled.
+
+`mq-agent route divergence` (and `mqlaunch route divergence`) holds both
+requirements for the era: it compares nothing until each route has ten complete
+successful runs *and* those runs span fourteen days in the current era, and
+names whichever is missing. `route readiness` deliberately counts all history,
+including its 14-day window, so it cannot show the era requirement.

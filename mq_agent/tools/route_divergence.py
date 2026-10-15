@@ -32,7 +32,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mq_agent.tools.analysis_cohort import Era, era_named, select_cohort
+from mq_agent.tools.analysis_cohort import Era, _recorded_at, era_named, select_cohort
 from mq_agent.tools.route_quality import complete_execution_quality
 
 #: Below this, a route's numbers are noise dressed as a rate.
@@ -46,6 +46,12 @@ MINIMUM_SAMPLES_PER_ROUTE = 10
 
 #: A comparison needs two things to compare.
 MINIMUM_ROUTES = 2
+
+#: docs/execution-completeness.md: the complete successful runs must span at
+#: least this many days in the era. Readiness measures its window over all
+#: history by design, so the era span is held here. Not borrowed from
+#: READINESS_THRESHOLDS: the two gates move independently.
+MINIMUM_WINDOW_DAYS = 14
 
 
 def _rate(part: int, whole: int) -> float | None:
@@ -184,11 +190,19 @@ def route_divergence(
     if len(comparable) < MINIMUM_ROUTES and not reasons:
         reasons.append("not enough routes reach the minimum sample size")
 
+    stamps = sorted(when for when in (_recorded_at(record) for record in quality) if when)
+    window_days = round((stamps[-1] - stamps[0]).total_seconds() / 86400, 3) if stamps else 0.0
+    if window_days < MINIMUM_WINDOW_DAYS:
+        reasons.append(
+            f"complete successful runs span {window_days} day(s) in this era; "
+            f"{MINIMUM_WINDOW_DAYS} needed to compare"
+        )
+
     pairs = [
         _pair(comparable[i], routes[comparable[i]], comparable[j], routes[comparable[j]])
         for i in range(len(comparable))
         for j in range(i + 1, len(comparable))
-    ]
+    ] if window_days >= MINIMUM_WINDOW_DAYS else []
 
     return {
         "schema": "mq.route-divergence.v1",
@@ -217,6 +231,8 @@ def route_divergence(
             "execution_source": str(execution_path),
         },
         "minimum_samples_per_route": MINIMUM_SAMPLES_PER_ROUTE,
+        "window_days": window_days,
+        "minimum_window_days": MINIMUM_WINDOW_DAYS,
         "status": "OK" if pairs else "INSUFFICIENT_EVIDENCE",
         "insufficient_reasons": reasons,
         "routes": routes,
