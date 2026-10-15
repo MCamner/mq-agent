@@ -8624,6 +8624,7 @@ def stack_compatibility_cmd(
     fresh_resolve: Annotated[bool, typer.Option("--fresh-resolve", help="Also resolve declared ranges in a temporary directory and probe critical imports (needs uv and network)")] = False,
     strict: Annotated[bool, typer.Option("--strict", help="Exit 1 on WARN instead of 0")] = False,
     live: Annotated[bool, typer.Option("--live", help="Also compare running MCP servers with their committed tool surface (WARN only)")] = False,
+    repo_path: Annotated[list[str] | None, typer.Option("--repo-path", help="Override repository checkout with NAME=PATH (repeatable)")] = None,
 ):
     """Assess dependency compatibility across MQ repositories (read-only).
 
@@ -8643,7 +8644,12 @@ def stack_compatibility_cmd(
     Exit codes: 0 PASS or WARN, 1 WARN under --strict, 2 FAIL, 3 UNAVAILABLE,
     130 interrupted.
     """
-    from mq_agent.tools.stack_compatibility import stack_compatibility as _check
+    from mq_agent.tools.stack_compatibility import override_repo_paths, stack_compatibility as _check
+
+    try:
+        repos = override_repo_paths(repo_path)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--repo-path") from exc
 
     label = (
         "[cyan]Resolving dependencies in a temporary environment...[/cyan]"
@@ -8652,7 +8658,7 @@ def stack_compatibility_cmd(
     )
     try:
         with console.status(label):
-            raw = _check(slice_only=not all_repos, fresh_resolve=fresh_resolve, live=live)
+            raw = _check(repos=repos, slice_only=not all_repos, fresh_resolve=fresh_resolve, live=live)
     except KeyboardInterrupt:
         # A fresh resolution shells out; Ctrl-C must not read as a verdict.
         console.print("\n[dim]Interrupted — no verdict was reached.[/dim]")
