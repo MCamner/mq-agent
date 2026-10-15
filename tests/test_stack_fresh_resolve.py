@@ -506,8 +506,9 @@ def test_cli_flag_reaches_the_resolver(monkeypatch) -> None:
 
     seen: dict[str, Any] = {}
 
-    def _fake(repos=None, tracked=("mcp",), slice_only=True, fresh_resolve=False):
+    def _fake(repos=None, tracked=("mcp",), slice_only=True, fresh_resolve=False, live=False):
         seen["fresh_resolve"] = fresh_resolve
+        seen["live"] = live
         return json.dumps(
             {
                 "schema": "mq.stack-compatibility.v1",
@@ -526,4 +527,9 @@ def test_cli_flag_reaches_the_resolver(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert seen["fresh_resolve"] is True
+    assert seen["live"] is False
     assert json.loads(result.stdout)["mode"] == "fresh-resolve"
+
+    result = CliRunner().invoke(app, ["stack", "compatibility", "--live", "--json"])
+    assert result.exit_code == 0
+    assert seen["live"] is True

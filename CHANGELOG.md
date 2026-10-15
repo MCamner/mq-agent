@@ -12,6 +12,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
+- `stack compatibility --live` also compares each running MCP server with its committed tool surface. It reads `/tools` and `/runtime-identity` and reports MQC024 with both commits for tools that are not running, running tools that are not committed, and class or parameter differences. This catches a server started from a stale checkout. Drift is WARN. A server that does not answer is listed as UNAVAILABLE and changes no status. `--live` never blocks a release.
+
+### Changed
+
+- `learn store` takes an explicit candidate ID: `mq-agent learn store <candidate-id> --validation "<how you verified it>" --approve`. It reads the candidate's draft from mq-mcp's `learn_inbox_draft`, stores it with `record_learning` together with the operator's validation, and then removes it from the inbox with `learn_inbox_drop`. The command never stores "the last" candidate. A path or a missing ID aborts before anything is called. The draft's `MANUAL VALIDATION REQUIRED` text is never sent as validation. Until now `learn store` sent `record_learning` a `relative_path` it does not take (MQC021/MQC022). Requires mq-mcp with `candidate_id` (mq-mcp #104).
+
+- `learn extract <path> --approve` queues a candidate from the file's last review in mq-mcp's learn inbox and prints its ID. `learn list` shows pending candidates. `learn extract-review` remains the read-only preview.
 
 ### Fixed
 
