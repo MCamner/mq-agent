@@ -329,7 +329,15 @@ def build_stack_status_v2(
     """Collect exact-head verification evidence for the configured stack."""
     client = gh or GhReadOnly()
     declared = contract or load_contract()
-    inventory = repos or MQ_STACK_REPOS
+    inventory = repos if repos is not None else MQ_STACK_REPOS
+    # The local launchd MCP server may use a separate checkout from ~/mq-mcp.
+    # Opt in explicitly; never silently switch repositories when both exist.
+    mcp_path = os.environ.get("MQ_STACK_MCP_REPO_PATH", "").strip()
+    if mcp_path and repos is None:
+        inventory = [
+            {**entry, "path": mcp_path} if entry["name"] == "mq-mcp" else entry
+            for entry in inventory
+        ]
     checked_at = (now or datetime.now(UTC)).astimezone(UTC)
     freshness = max_age_seconds or _configured_max_age_seconds()
 
