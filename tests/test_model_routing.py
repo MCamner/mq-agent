@@ -803,6 +803,15 @@ def test_evidence_review_requires_operator_after_all_technical_gates(tmp_path) -
             escalation_reason="model-unavailable",
         )
     )
+    from tests.test_route_quality import execution
+
+    executions = []
+    for index, outcome in enumerate(outcomes[:-1]):
+        identity = f"execution-{index}"
+        outcome["application"] = "applied"
+        outcome["execution_run_id"] = identity
+        executions.append(execution(identity))
+    outcomes += executions
     source = tmp_path / "outcomes.jsonl"
     source.write_text(
         "\n".join(json.dumps(outcome) for outcome in outcomes) + "\n",

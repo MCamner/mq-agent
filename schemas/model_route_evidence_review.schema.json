@@ -170,6 +170,50 @@
       ],
       "minimum": 0,
       "maximum": 1
+    },
+    "quality_population": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "included",
+        "excluded",
+        "exclusion_reasons",
+        "execution_source"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "complete-docs-audit",
+            "advisory"
+          ]
+        },
+        "included": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excluded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exclusion_reasons": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "execution_source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "era": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   }
 }

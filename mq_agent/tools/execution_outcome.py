@@ -99,11 +99,14 @@ def execution_completeness_from_steps(
         counts_measured = (
             isinstance(source_count, int)
             and not isinstance(source_count, bool)
+            and source_count >= 0
             and isinstance(executed_count, int)
             and not isinstance(executed_count, bool)
+            and executed_count >= 0
         )
         fan_out_measured = (
-            source_count is not None
+            step.get("for_each") is not None
+            or source_count is not None
             or executed_count is not None
             or fan_out_complete is not None
         )
@@ -111,7 +114,7 @@ def execution_completeness_from_steps(
         if raw_status == "success":
             if not fan_out_measured:
                 status = "complete"
-            elif counts_measured:
+            elif counts_measured and isinstance(fan_out_complete, bool):
                 item["source_item_count"] = source_count
                 item["executed_call_count"] = executed_count
                 status = (
@@ -278,6 +281,14 @@ def build_execution_outcome(
     outcome.update({key: value for key, value in optional.items() if value is not None})
 
     _validator().validate(outcome)
+    if completeness is not None:
+        for step in completeness["steps"]:
+            if (
+                step["status"] == "complete"
+                and "source_item_count" in step
+                and step["source_item_count"] != step["executed_call_count"]
+            ):
+                raise ValueError("Complete steps require equal measured fan-out counts")
     return outcome
 
 
