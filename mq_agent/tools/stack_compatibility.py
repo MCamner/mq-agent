@@ -1105,6 +1105,41 @@ def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
     return ""
 
 
+def override_repo_paths(
+    overrides: list[str] | None,
+    inventory: list[dict[str, str]] | None = None,
+) -> list[dict[str, str]] | None:
+    """Return a copied inventory with explicit checkout overrides.
+
+    None preserves the existing default-inventory behavior. No repository or
+    worktree is changed; both static and live checks receive the same paths.
+    """
+    if not overrides:
+        return None
+
+    source = inventory if inventory is not None else MQ_STACK_REPOS
+    entries = [dict(entry) for entry in source]
+    names = {entry["name"] for entry in entries}
+    seen: set[str] = set()
+    for item in overrides:
+        name, separator, raw_path = item.partition("=")
+        if not separator or not name or not raw_path.strip():
+            raise ValueError(f"Expected NAME=PATH for --repo-path, got {item!r}")
+        if name not in names:
+            raise ValueError(f"Unknown repository {name!r}; expected one of: {', '.join(sorted(names))}")
+        if name in seen:
+            raise ValueError(f"Duplicate --repo-path for {name!r}")
+        seen.add(name)
+        path = _expand(raw_path).resolve()
+        if not path.is_dir():
+            raise ValueError(f"Repository path for {name!r} is not a directory: {path}")
+        for entry in entries:
+            if entry["name"] == name:
+                entry["path"] = str(path)
+                break
+    return entries
+
+
 def build_report(
     repos: list[dict[str, str]] | None = None,
     tracked: tuple[str, ...] | None = None,
