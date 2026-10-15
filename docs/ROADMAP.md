@@ -167,10 +167,10 @@ Delivery order:
 Status: steps 1–6 are delivered in `mq-agent`. The gate assesses every repo in
 the stack against the dependencies they actually share and against their
 versioned JSON contracts, and the MCP incident is preserved as a permanent
-regression fixture. Remaining work sits in other repos: the `mq-hal` read-only
-surface and the `mqlaunch` delegation. Checking MCP tool names, safety classes
-and schema signatures is deferred to v1.29 — it reads a live tool registry
-rather than declared files.
+regression fixture. `mq-hal compatibility` presents the report read-only and
+`mqlaunch hal compatibility` delegates to it. Checking MCP tool names, safety
+classes and arguments against each producer's committed tool surface is in
+progress (MQC019–MQC023).
 
 `mq-agent` owns aggregation and assessment. Each repository owns dependency
 declarations and compatibility metadata. `mq-hal` may present results and

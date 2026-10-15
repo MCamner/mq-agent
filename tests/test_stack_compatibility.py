@@ -22,6 +22,7 @@ from mq_agent.tools.stack_compatibility import (
     _is_bounded,
     _ranges_overlap,
     build_report,
+    override_repo_paths,
     release_blockers,
     repo_verdict,
     stack_compatibility,
@@ -1641,3 +1642,63 @@ def test_this_repo_declares_the_provenance_contract_it_produces() -> None:
     contract, _ = _read_contract(Path(__file__).resolve().parents[1])
 
     assert SCHEMA_ID in _declared_compatibility(contract)["produces"]
+
+
+def test_repo_path_override_uses_copied_inventory(tmp_path: Path) -> None:
+    producer = tmp_path / "mq-mcp"
+    producer.mkdir()
+    inventory = [
+        {"name": "mq-mcp", "path": "/original/mq-mcp"},
+        {"name": "mq-image-analyze", "path": "/original/mq-image-analyze"},
+    ]
+    changed = override_repo_paths([f"mq-mcp={producer}"], inventory)
+    assert changed is not None
+    assert changed[0]["path"] == str(producer.resolve())
+    assert changed[1] == inventory[1]
+    assert inventory[0]["path"] == "/original/mq-mcp"
+    assert override_repo_paths(None, inventory) is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected"),
+    [
+        (["not-a-repo=/tmp"], "Unknown repository"),
+        (["mq-mcp"], "Expected NAME=PATH"),
+        (["mq-mcp="], "Expected NAME=PATH"),
+        (["=foo"], "Expected NAME=PATH"),
+        (["mq-mcp=/not/a/real/mq-test-repository"], "not a directory"),
+    ],
+)
+def test_repo_path_override_rejects_invalid_input(
+    overrides: list[str], expected: str
+) -> None:
+    inventory = [{"name": "mq-mcp", "path": "/original"}]
+    with pytest.raises(ValueError, match=expected):
+        override_repo_paths(overrides, inventory)
+
+
+def test_repo_path_override_rejects_duplicates(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Duplicate"):
+        override_repo_paths(
+            [f"mq-mcp={tmp_path}", f"mq-mcp={tmp_path}"],
+            [{"name": "mq-mcp", "path": "/original"}],
+        )
+
+
+def test_repo_path_override_supports_multiple_paths(tmp_path: Path) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    inventory = [
+        {"name": "mq-mcp", "path": "/a"},
+        {"name": "mq-image-analyze", "path": "/b"},
+    ]
+    result = override_repo_paths(
+        [f"mq-mcp={first}", f"mq-image-analyze={second}"], inventory
+    )
+    assert result is not None
+    assert [entry["path"] for entry in result] == [
+        str(first.resolve()),
+        str(second.resolve()),
+    ]

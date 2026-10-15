@@ -34,6 +34,7 @@ import json
 import re
 import tomllib
 from collections import Counter
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -1104,6 +1105,41 @@ def _next_action(status: str, findings: list[dict[str, Any]]) -> str:
     return ""
 
 
+def override_repo_paths(
+    overrides: list[str] | None,
+    inventory: list[dict[str, str]] | None = None,
+) -> list[dict[str, str]] | None:
+    """Return a copied inventory with explicit checkout overrides.
+
+    None preserves the existing default-inventory behavior. No repository or
+    worktree is changed; both static and live checks receive the same paths.
+    """
+    if not overrides:
+        return None
+
+    source = inventory if inventory is not None else MQ_STACK_REPOS
+    entries = [dict(entry) for entry in source]
+    names = {entry["name"] for entry in entries}
+    seen: set[str] = set()
+    for item in overrides:
+        name, separator, raw_path = item.partition("=")
+        if not separator or not name or not raw_path.strip():
+            raise ValueError(f"Expected NAME=PATH for --repo-path, got {item!r}")
+        if name not in names:
+            raise ValueError(f"Unknown repository {name!r}; expected one of: {', '.join(sorted(names))}")
+        if name in seen:
+            raise ValueError(f"Duplicate --repo-path for {name!r}")
+        seen.add(name)
+        path = _expand(raw_path).resolve()
+        if not path.is_dir():
+            raise ValueError(f"Repository path for {name!r} is not a directory: {path}")
+        for entry in entries:
+            if entry["name"] == name:
+                entry["path"] = str(path)
+                break
+    return entries
+
+
 def build_report(
     repos: list[dict[str, str]] | None = None,
     tracked: tuple[str, ...] | None = None,
@@ -1111,6 +1147,9 @@ def build_report(
     fresh_resolve: bool = False,
     runner: Runner | None = None,
     uv_path: str | None = AUTO_UV,
+    live: bool = False,
+    live_fetch: Callable[[str], Any] | None = None,
+    live_endpoints: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Assemble an `mq.stack-compatibility.v1` report.
 
@@ -1126,6 +1165,11 @@ def build_report(
     directory and probes the declared critical imports. It shells out to `uv`
     and needs a registry, so it runs only when explicitly requested. `runner`
     and `uv_path` exist so that can be driven deterministically in tests.
+
+    `live` additionally compares each running producer server with its
+    committed tool surface (MQC024). It is optional evidence: drift is WARN, a
+    server that does not answer is reported but leaves the status alone, and
+    neither blocks a release. `live_fetch` and `live_endpoints` exist for tests.
     """
     entries = repos if repos is not None else MQ_STACK_REPOS
     if slice_only:
@@ -1168,6 +1212,20 @@ def build_report(
     relationship_findings = relationship_findings + [
         f for f in tool_findings if f["severity"] != "SKIPPED"
     ]
+
+    if live:
+        from .mcp_tool_contracts import fetch_json, live_surface_findings
+
+        if live_endpoints is None:
+            from .mcp_bridge import MultiMCPBridge
+
+            live_endpoints = dict(MultiMCPBridge().servers)
+        live_findings = live_surface_findings(producer_roots, live_endpoints, live_fetch or fetch_json)
+        findings.extend(live_findings)
+        # A server that is not running is absent optional evidence, not a verdict.
+        relationship_findings = relationship_findings + [
+            f for f in live_findings if f["severity"] == "WARN"
+        ]
 
     fresh_findings: list[dict[str, Any]] = []
     if fresh_resolve:
@@ -1253,8 +1311,9 @@ def stack_compatibility(
     tracked: tuple[str, ...] | None = None,
     slice_only: bool = True,
     fresh_resolve: bool = False,
+    live: bool = False,
 ) -> str:
     """Return the compatibility report as indented JSON."""
     return json.dumps(
-        build_report(repos, tracked, slice_only, fresh_resolve), indent=2
+        build_report(repos, tracked, slice_only, fresh_resolve, live=live), indent=2
     )

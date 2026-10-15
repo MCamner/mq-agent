@@ -987,3 +987,17 @@ delegation surface.
 ## Notes
 
 Do not commit API keys, local secrets, or private environment files.
+
+### Explicit checkout paths for compatibility checks
+
+When multiple Git worktrees exist, pass a repeatable `--repo-path NAME=PATH`
+option to `mq-agent stack compatibility` to select the checkout used for both
+committed tool-contract validation and optional `--live` comparison:
+
+```bash
+mq-agent stack compatibility --repo-path "mq-mcp=$HOME/mq-mcp-main" --live
+```
+
+Unknown repository names, duplicate overrides and missing directories are
+rejected. Without this option, repository discovery is unchanged. The option
+only reads the selected worktrees and does not switch branches or modify them.

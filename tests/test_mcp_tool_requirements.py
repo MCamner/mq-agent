@@ -101,7 +101,11 @@ def _sent_by_helpers() -> list[tuple[str, dict[str, Any]]]:
         bridge.search_learned_patterns("q")
         bridge.explain_learned_pattern("p")
         bridge.learn_extract_from_last_review("f.py", repo_path="/tmp/x")
-        bridge.learn_record("f.py")
+        bridge.learn_queue_from_last_review("f.py", repo_path="/tmp/x")
+        bridge.learn_inbox()
+        bridge.learn_inbox_draft("cand-0123456789ab")
+        bridge.learn_inbox_drop("cand-0123456789ab", apply=True)
+        bridge.record_learning(task="t", lesson="l", validation="v", source="s", repo="r", risk="low", tags="a")
         bridge.learn_from_review("f.py", task="t", repo_path="/tmp/x")
         bridge.learn_from_diff("t", "l")
     return recorder.sent

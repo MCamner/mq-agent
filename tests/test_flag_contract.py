@@ -55,6 +55,7 @@ class TestStructuralRules:
     def test_known_write_commands_require_approve(self):
         write_commands = {
             "mq-agent learn store",
+            "mq-agent learn extract",
             "mq-agent learn promote",
             "mq-agent learn from-review",
             "mq-agent learn from-diff",

@@ -1813,20 +1813,25 @@ code — and if not, which two layers differ and what is the next action?
 * [x] Two consumer defects the check found are fixed:
   `get_architecture_decision` and `store_semantic_memory` sent parameter
   names mq-mcp does not declare (#404).
-* [ ] `learn store` calls `record_learning` with `relative_path`, which that
-  tool does not take. No mq-mcp tool stores "the last extracted candidate", so
-  this needs a decision, not a rename. The gate reports it as FAIL until then.
-* [ ] mq-image-analyze publishes the same surface. `image_perception` and
-  `observe_architecture` stay `SKIPPED` until it does.
+* [x] `learn store` called `record_learning` with `relative_path`, which that
+  tool does not take. Decided: `learn store <candidate-id>` stores one
+  explicitly chosen inbox candidate (mq-mcp #104 added `candidate_id`), with
+  the operator's `--validation`.
+* [x] mq-image-analyze publishes the same surface (mq-image-analyze #40).
+  `image_perception` and `observe_architecture` are checked against it and
+  pass.
 * [x] Fail closed instead of guessing a class from the tool name when a
   declared producer gives none. `extract_coding_conventions` is declared C but
   guessed read-only. mq-mcp and mq-image-analyze tools without a class are now
   `unknown`, and `run-tool` blocks them. Third-party servers keep name guessing.
-* [ ] Optional `--live` comparison of a running server with its committed
-  surface (WARN only, never a release gate).
+* [x] Optional `--live` comparison of a running server with its committed
+  surface (WARN only, never a release gate). `stack compatibility --live`
+  reports MQC024 with both commits. A server that does not answer is
+  UNAVAILABLE and leaves the status alone.
 
-Still open in other repos: the `mq-hal` read-only compatibility surface and the
-`mqlaunch` delegation. Neither may reimplement the assessment.
+Delivered in other repos: the `mq-hal` read-only compatibility surface
+(mq-hal #59) and the `mqlaunch` delegation (macos-scripts #276). Neither
+reimplements the assessment.
 
 ## Completed — verifier excerpt integrity
 
@@ -2127,9 +2132,12 @@ that have not declared theirs.
 
 * [x] Add `stack compatibility`, `--json`, and `--fresh-resolve`.
 * [x] Show the summary in `mq-agent dashboard`.
-* [ ] Expose the result read-only through `mq-hal`. Owned by `mq-hal`.
-* [ ] Delegate from `mqlaunch` without duplicated logic. Owned by
-  `macos-scripts`.
+* [x] Expose the result read-only through `mq-hal`. Owned by `mq-hal`
+  (`mq-hal compatibility`, mq-hal #59): it runs `mq-agent stack compatibility
+  --json`, renders the report as given and passes the exit code through.
+* [x] Delegate from `mqlaunch` without duplicated logic. Owned by
+  `macos-scripts` (`mqlaunch hal compatibility` and the mq-hal menu,
+  macos-scripts #276): both call `mq-hal compatibility`.
 * [x] Run static checks in relevant PR and release workflows. Deliberately not
   on pull requests: only the checkout exists there, so every sibling reports
   `UNAVAILABLE` and the gate says nothing. It runs on push to `main`.
@@ -2235,8 +2243,9 @@ The first version will not:
 * [x] Every assessment contains evidence and `next_action`.
 * [x] Human, JSON and dashboard results are semantically identical. The `mq-hal`
   surface is owned by `mq-hal` and is not part of this repo's release.
-* [ ] `mqlaunch` and `mq-hal` duplicate no compatibility logic. Owned by
-  `macos-scripts` and `mq-hal`; both delegate or do not present it yet.
+* [x] `mqlaunch` and `mq-hal` duplicate no compatibility logic. `mq-hal` has
+  no code-to-severity map or blocking rule of its own, and `mqlaunch` only
+  calls `mq-hal`. Verified end to end on `main`: exit 0 on PASS, 2 on FAIL.
 * [x] The MCP regression case remains permanently tested.
 * [x] Documentation, command references, and architecture maps are updated.
 * [x] The full `mq-agent` suite and relevant stack contracts are green.
