@@ -1001,4 +1001,3 @@ mq-agent stack compatibility --repo-path "mq-mcp=$HOME/mq-mcp-main" --live
 Unknown repository names, duplicate overrides and missing directories are
 rejected. Without this option, repository discovery is unchanged. The option
 only reads the selected worktrees and does not switch branches or modify them.
-
