@@ -44,6 +44,14 @@ _PREFIX_MAP: list[tuple[str, str]] = [
 ]
 
 
+#: MQ producers that declare an ADR-003 class for every tool they register.
+#: Their tools are never classified by name: a missing class means the
+#: metadata is missing, and the tool is ``unknown`` (blocked) rather than
+#: guessed. ``extract_coding_conventions`` is declared C but reads as
+#: read-only by prefix. Name guessing remains for third-party servers.
+DECLARED_PRODUCERS = frozenset({"mq-mcp", "mq-image-analyze"})
+
+
 def normalize_safety_class(value: object) -> str:
     """Normalize mq-mcp safety metadata into mq-agent's safety labels."""
     normalized = str(value or "").strip().lower()
@@ -74,7 +82,8 @@ class MCPToolSpec:
     """Normalized MCP tool metadata used by mq-agent safety routing.
 
     Explicit ``safety_class`` metadata wins over legacy ``class`` metadata;
-    otherwise the class is inferred conservatively from the tool name.
+    otherwise the class is inferred conservatively from the tool name, unless
+    ``guess`` is False, when it stays ``unknown``.
     """
 
     name: str
@@ -89,8 +98,8 @@ class MCPToolSpec:
     source: str = "mq-mcp"
 
     @classmethod
-    def from_name(cls, name: str, description: str = "") -> MCPToolSpec:
-        safety = classify_tool_name(name)
+    def from_name(cls, name: str, description: str = "", guess: bool = True) -> MCPToolSpec:
+        safety = classify_tool_name(name) if guess else MCPSafetyClass.UNKNOWN
         return cls(
             name=name,
             description=description,
@@ -102,12 +111,12 @@ class MCPToolSpec:
         )
 
     @classmethod
-    def from_dict(cls, data: dict) -> MCPToolSpec:
+    def from_dict(cls, data: dict, guess: bool = True) -> MCPToolSpec:
         name = data.get("name", "")
         safety = (
             normalize_safety_class(data.get("safety_class"))
             or normalize_safety_class(data.get("class"))
-            or classify_tool_name(name)
+            or (classify_tool_name(name) if guess else MCPSafetyClass.UNKNOWN)
         )
         return cls(
             name=name,
