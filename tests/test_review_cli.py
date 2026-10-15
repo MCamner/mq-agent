@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Any, cast
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -491,29 +491,60 @@ def test_review_repo_dry_run_with_flags():
     assert bridge.calls == []
 
 
-def test_review_repo_risk_is_refused_before_anything_runs():
-    """No mq-mcp version has registered risk_review_repo. --risk used to probe
-    for it and answer "upgrade mq-mcp", which no upgrade could satisfy."""
-    bridge = FakeReviewBridge()
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge), \
-         patch("mq_agent.main._execution_outcome") as outcome:
-        for extra in ([], ["--dry-run"]):
-            result = runner.invoke(app, ["review", "repo", ".", "--risk", *extra])
-            assert result.exit_code == 1
-            assert "risk_review_file" in result.output
-            assert "risk_review_diff" in result.output
-    assert bridge.calls == []
-    outcome.assert_not_called()
+def _repo_bridge(tools: list[str]) -> MagicMock:
+    fake = MagicMock()
+    fake.list_tools.return_value = tools
+    fake.is_available.return_value = True
+    fake.endpoint = "http://localhost:8765"
+    fake.call_tool.return_value = {"ok": True}
+    return fake
 
 
-def test_bridge_review_repo_risk_returns_unsupported_without_probing():
+def test_review_repo_risk_calls_risk_review_repo_in_risk_mode():
+    """mq-mcp #105 registers risk_review_repo, which accepts security, risk and
+    architecture. --risk must send mode=risk: the plain-review default
+    "comment" is refused by the risk tool."""
+    server = _repo_bridge(["review_repo", "risk_review_repo"])
     bridge = MultiMCPBridge()
-    with patch.object(bridge, "bridges", {}), patch.object(bridge, "_select_review_tool") as select:
-        result = bridge.review_repo(".", {"risk": True})
+    with patch.object(bridge, "bridges", {"mq-mcp": server}):
+        bridge.review_repo("/tmp/x", {"risk": True})
+
+    server.call_tool.assert_called_once()
+    tool, args = server.call_tool.call_args.args
+    assert tool == "risk_review_repo"
+    assert args["mode"] == "risk"
+    assert args["repo_path"] == str(Path("/tmp/x").resolve())
+    assert "structured" not in args
+
+
+def test_review_repo_risk_keeps_an_explicit_mode():
+    server = _repo_bridge(["review_repo", "risk_review_repo"])
+    bridge = MultiMCPBridge()
+    with patch.object(bridge, "bridges", {"mq-mcp": server}):
+        bridge.review_repo("/tmp/x", {"risk": True, "security": True})
+
+    assert server.call_tool.call_args.args[1]["mode"] == "security"
+
+
+def test_review_repo_risk_reports_a_server_without_the_tool():
+    server = _repo_bridge(["review_repo"])
+    bridge = MultiMCPBridge()
+    with patch.object(bridge, "bridges", {"mq-mcp": server}):
+        result = bridge.review_repo("/tmp/x", {"risk": True})
 
     assert result["ok"] is False
-    assert "not available" in result["error"]
-    select.assert_not_called()
+    assert "risk_review_repo" in result["error"]
+    server.call_tool.assert_not_called()
+
+
+def test_review_repo_dry_run_with_risk():
+    bridge = FakeReviewBridge()
+    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+        result = runner.invoke(app, ["review", "repo", ".", "--dry-run", "--risk"])
+
+    assert result.exit_code == 0
+    assert "--risk" in result.output
+    assert bridge.calls == []
 
 
 def test_mcp_bridge_risk_requires_installed_risk_tool():

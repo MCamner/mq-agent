@@ -1162,7 +1162,7 @@ def review_repo_cmd(
     security: Annotated[bool, typer.Option("--security", help="Ask mq-mcp for security review mode")] = False,
     architecture: Annotated[bool, typer.Option("--architecture", help="Ask mq-mcp for architecture review mode")] = False,
     architecture_image: Annotated[str | None, typer.Option("--architecture-image", "--visual", help="Image path to observe via mq-image-analyze and pass as architecture context")] = None,
-    risk: Annotated[bool, typer.Option("--risk", help="Not available for a whole repo; use review file/diff --risk")] = False,
+    risk: Annotated[bool, typer.Option("--risk", help="Use mq-mcp risk_review_repo (bounded, allowlisted)")] = False,
     fast: Annotated[bool, typer.Option("--fast", help="Prefer fast Class A tools over deep AI review")] = False,
     brain: Annotated[bool, typer.Option("--brain", help="Record review result to mqobsidian second brain")] = False,
     receipt: Annotated[bool, typer.Option("--receipt", help="Require and save mq-mcp exact-code review receipt")] = False,
@@ -1194,14 +1194,6 @@ def review_repo_cmd(
             console.print(f"[bold red]{error['error']}[/bold red]")
         raise typer.Exit(1)
     path = str(target)
-    if risk:
-        from mq_agent.tools.mcp_bridge import REPO_RISK_UNSUPPORTED
-
-        if json_out:
-            typer.echo(json.dumps(REPO_RISK_UNSUPPORTED, indent=2))
-        else:
-            console.print(f"[bold red]{REPO_RISK_UNSUPPORTED['error']}[/bold red]\n{REPO_RISK_UNSUPPORTED['hint']}")
-        raise typer.Exit(1)
     if dry_run:
         enabled_flags = [f for f, v in _review_flags(security, architecture or bool(architecture_image), risk, fast, receipt=receipt).items() if v]
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
