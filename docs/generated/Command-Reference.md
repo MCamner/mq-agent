@@ -3478,8 +3478,10 @@ Bounded multi-step workflow templates (list/show/plan). Read-only in v1.
 |---|---|
 | [`mq-agent workflow cancel`](#mq-agent-workflow-cancel) | Cancel a run. |
 | [`mq-agent workflow checkpoint`](#mq-agent-workflow-checkpoint) | Create, inspect, and resume bounded workflow session checkpoints. |
+| [`mq-agent workflow do`](#mq-agent-workflow-do) | Select one approved template deterministically, then use its policy gates. |
 | [`mq-agent workflow list`](#mq-agent-workflow-list) | List the available workflow templates. |
 | [`mq-agent workflow plan`](#mq-agent-workflow-plan) | Build and print a validated plan for REPO. Does not run or persist it. |
+| [`mq-agent workflow receipt`](#mq-agent-workflow-receipt) | Read the current measured receipt; does not execute workflow tools. |
 | [`mq-agent workflow resume`](#mq-agent-workflow-resume) | Resume a paused or failed run from where it stopped. |
 | [`mq-agent workflow run`](#mq-agent-workflow-run) | Instantiate, persist and execute a workflow against REPO (read-only). |
 | [`mq-agent workflow show`](#mq-agent-workflow-show) | Show a template's raw definition as JSON. |
@@ -3561,6 +3563,25 @@ Verify checkpoint integrity, expiry, run identity, and template identity.
 | `--owner` | Yes | — | Expected checkpoint owner label. |
 | `--json` | No | `false` | — |
 
+## `mq-agent workflow do`
+
+Select one approved template deterministically, then use its policy gates.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK` | Yes | — | Explicit supported task, e.g. granska ändringarna. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | Yes | — | — |
+| `--plan` | No | `false` | Show selection and plan without execution or writes. |
+| `--json` | No | `false` | — |
+| `--yes`, `-y` | No | `false` | — |
+
 ## `mq-agent workflow list`
 
 List the available workflow templates.
@@ -3586,6 +3607,22 @@ Build and print a validated plan for REPO. Does not run or persist it.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--repo` | Yes | — | Target repository path. |
+
+## `mq-agent workflow receipt`
+
+Read the current measured receipt; does not execute workflow tools.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `RUN_ID` | Yes | — | — |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | — |
 
 ## `mq-agent workflow resume`
 

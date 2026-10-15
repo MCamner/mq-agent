@@ -57,8 +57,10 @@ def build_observation(
     run: WorkflowRun, *, duration_ms: float | None = None, approval_count: int = 0
 ) -> dict[str, Any]:
     """Build a ``workflow-observation.v1`` record from a finished run (pure)."""
+    from .receipt import build_receipt
+    receipt = build_receipt(run)
     plan = run.plan
-    ran = [s for s in plan.steps if s.status in _RAN]
+    ran = [s for s in plan.steps if s.status in _RAN and s.attempt > 0]
     record: dict[str, Any] = {
         "schema": "workflow-observation.v1",
         "id": f"wfo-{run.run_id}",
@@ -70,9 +72,15 @@ def build_observation(
         "template": plan.template,
         "task_type": _TASK_TYPE.get(plan.template, plan.template),
         "tool_sequence": [s.tool for s in ran],
-        "outcome": _OUTCOME.get(plan.status, "failed"),
+        "outcome": "cancelled" if plan.status is WorkflowStatus.CANCELLED else "completed" if receipt["ok"] else "failed",
         "approval_count": int(approval_count),
     }
+    record["tags"] = ["completeness:" + receipt["completeness"]["status"], "verification:" + receipt["verification"]["status"], "receipt:" + run.run_id]
+    if run.execution_run_id:
+        record["tags"].append("execution:" + run.execution_run_id)
+        record["tags"].append("execution-recorded:" + str(run.recording.get("execution_outcome")).lower())
+    if run.repo_identity:
+        record["metadata"] = {"commit": run.repo_identity["commit"]}
     if duration_ms is not None:
         record["duration_ms"] = round(float(duration_ms))
     if record["outcome"] == "failed":

@@ -9,14 +9,16 @@ shape the workflow state records::
 ``code`` is one of: PASS, FAIL, TIMEOUT, ERROR, DONE.
 Only a bounded, secret-sanitized subset of the raw output is kept under ``data``.
 """
+
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
 from .state import sanitize_result
 
-_PASS_WORDS = {"pass", "passed", "ok", "success", "succeeded", "green"}
+_PASS_WORDS = {"pass", "passed", "ok", "success", "succeeded", "green", "completed"}
 _FAIL_WORDS = {"fail", "failed", "error", "errored", "red"}
 _MAX_SUMMARY_LEN = 280
 _MAX_TEXT_LEN = 2000
@@ -44,19 +46,32 @@ def _extract_mcp_text(raw: list) -> str:
 def _normalize_text(text: str) -> dict[str, Any]:
     """Derive ok/summary/code from free-text tool output."""
     if not text:
-        return {"ok": True, "summary": "(no output)", "code": "DONE", "data": {}}
+        return {
+            "ok": False,
+            "summary": "no measured result",
+            "code": "ERROR",
+            "data": {"verification": "unknown"},
+        }
     match = _EXIT_RE.search(text)
     if match is not None:
         ok = match.group(1) == "0"
     else:
         low = text.lower()
-        ok = not any(w in low for w in _FAIL_WORDS)
+        words = set(re.findall(r"[a-z]+", low))
+        ok = bool(words & _PASS_WORDS) and not bool(words & _FAIL_WORDS)
     summary = text.splitlines()[0][:_MAX_SUMMARY_LEN]
     return {
         "ok": ok,
         "summary": summary,
         "code": "PASS" if ok else "FAIL",
-        "data": {"text": text[:_MAX_TEXT_LEN]},
+        "data": {
+            "text": text[:_MAX_TEXT_LEN],
+            **(
+                {"verification": "unknown"}
+                if match is None and not (words & (_PASS_WORDS | _FAIL_WORDS))
+                else {}
+            ),
+        },
     }
 
 
@@ -76,13 +91,18 @@ def normalize_result(
 ) -> dict[str, Any]:
     """Normalize a raw tool result (or failure) into the workflow result shape."""
     if timed_out:
-        return {"ok": False, "summary": "step timed out", "code": "TIMEOUT", "data": {}}
+        return {
+            "ok": False,
+            "summary": "step timed out",
+            "code": "TIMEOUT",
+            "data": {"verification": "unknown"},
+        }
     if error is not None:
         return {
             "ok": False,
             "summary": f"tool raised: {error}"[:_MAX_SUMMARY_LEN],
             "code": "ERROR",
-            "data": {},
+            "data": {"verification": "unknown"},
         }
 
     # mq-mcp's bridge returns a plain string on transport/HTTP errors.
@@ -91,19 +111,26 @@ def normalize_result(
             "ok": False,
             "summary": raw[:_MAX_SUMMARY_LEN],
             "code": "ERROR",
-            "data": {},
+            "data": {"verification": "unknown"},
         }
 
     # mq-mcp tool results arrive as MCP content blocks (possibly nested lists).
     if isinstance(raw, list):
-        return _normalize_text(_extract_mcp_text(raw))
+        text = _extract_mcp_text(raw)
+        try:
+            parsed = json.loads(text)
+        except (ValueError, TypeError):
+            return _normalize_text(text)
+        if isinstance(parsed, dict):
+            return normalize_result(parsed)
+        return _normalize_text(text)
 
     if not isinstance(raw, dict):
         return {
-            "ok": True,
+            "ok": False,
             "summary": str(raw)[:_MAX_SUMMARY_LEN],
             "code": "DONE",
-            "data": {},
+            "data": {"verification": "unknown"},
         }
 
     data = sanitize_result(raw)
@@ -115,7 +142,10 @@ def normalize_result(
         ok = False
     elif raw.get("returncode") == 0 or raw.get("exit_code") == 0:
         ok = True
-    elif raw.get("returncode") not in (None, 0) or raw.get("exit_code") not in (None, 0):
+    elif raw.get("returncode") not in (None, 0) or raw.get("exit_code") not in (
+        None,
+        0,
+    ):
         ok = False
     else:
         status_word = str(raw.get("status") or raw.get("code") or "").lower()
@@ -124,8 +154,22 @@ def normalize_result(
         elif status_word in _FAIL_WORDS:
             ok = False
         else:
-            ok = True  # best-effort: a structured result without a failure signal
+            ok = False  # unknown output is not verified success
+            data["verification"] = "unknown"
 
+    completeness = raw.get("completeness")
+    if isinstance(completeness, dict) and completeness.get("status") != "complete":
+        ok = False
+    coverage = raw.get("coverage")
+    if isinstance(coverage, dict) and coverage.get("complete") is not True:
+        ok = False
+    if str(raw.get("status", "")).lower() in _FAIL_WORDS | {
+        "limited",
+        "partial",
+        "blocked",
+        "unavailable",
+    }:
+        ok = False
     code = "PASS" if ok else "FAIL"
     summary = _coerce_summary(raw, "passed" if ok else "failed")
     return {"ok": ok, "summary": summary, "code": code, "data": data}

@@ -271,7 +271,8 @@ def test_runner_applies_one_safe_move(store):
     ex = FakeExecutor()
     runner = Runner(store, ex, policy_provider=_provider("git_status"), replanner=DefaultReplanner())
     runner.run(run)
-    assert run.plan.status is WorkflowStatus.COMPLETED
+    assert run.plan.status is WorkflowStatus.FAILED
+    assert run.summary["ok"] is False
     assert ex.calls == ["git_status"]  # second git_status was skipped, not run
     assert run.plan.steps[1].status is StepStatus.SKIPPED
     assert run.replans_used == 1

@@ -1,18 +1,11 @@
-"""MCPBridgeExecutor argument injection.
-
-The runner speaks repo paths, but some mq-mcp tools (e.g. run_tests) key off the
-registered repo NAME. mq-mcp registers repos by directory basename, so the
-executor injects repo_name = basename(repo) alongside repo_path. Caller-supplied
-args always win (setdefault).
-"""
-from __future__ import annotations
+"""Real target arguments fail closed; no server-cwd or registry-name fallback."""
 
 from typing import Any, cast
-
+import pytest
 from mq_agent.workflows.runner import MCPBridgeExecutor
 
 
-class _RecordingBridge:
+class RecordingBridge:
     def __init__(self):
         self.calls = []
 
@@ -21,30 +14,32 @@ class _RecordingBridge:
         return {"ok": True}
 
 
-def _executor():
-    ex = MCPBridgeExecutor.__new__(MCPBridgeExecutor)  # skip real bridge construction
-    ex._bridge = cast(Any, _RecordingBridge())
+def executor(monkeypatch):
+    monkeypatch.setattr(
+        "mq_agent.workflows.target.resolve_target",
+        lambda repo: {"root": "/target/a", "commit": "a" * 40},
+    )
+    ex = MCPBridgeExecutor.__new__(MCPBridgeExecutor)
+    ex._bridge = cast(Any, RecordingBridge())
     return ex
 
 
-def test_injects_repo_path_and_repo_name():
-    ex = _executor()
-    ex("run_tests", {}, "/Users/mansys/macos-scripts")
-    _, payload = ex._bridge.calls[0]
-    assert payload["repo_path"] == "/Users/mansys/macos-scripts"
-    assert payload["repo_name"] == "macos-scripts"  # basename == registry key
+def test_only_supported_target_argument_is_sent(monkeypatch):
+    ex = executor(monkeypatch)
+    ex("run_tests", {}, "/target/a/sub")
+    assert ex._bridge.calls == [("run_tests", {"repo_path": "/target/a"})]
 
 
-def test_caller_args_are_not_overridden():
-    ex = _executor()
-    ex("run_tests", {"repo_name": "explicit", "repo_path": "/x"}, "/Users/mansys/mq-mcp")
-    _, payload = ex._bridge.calls[0]
-    assert payload["repo_name"] == "explicit"
-    assert payload["repo_path"] == "/x"
+def test_caller_cannot_override_target(monkeypatch):
+    ex = executor(monkeypatch)
+    with pytest.raises(ValueError, match="conflicts"):
+        ex("git_diff", {"repo_path": "/other"}, "/target/a")
+    with pytest.raises(ValueError, match="overrides"):
+        ex("run_tests", {"repo_name": "other"}, "/target/a")
+    assert ex._bridge.calls == []
 
 
-def test_repo_name_is_basename_for_nested_path():
-    ex = _executor()
-    ex("git_status", {}, "/a/b/c/mq-mcp")
-    _, payload = ex._bridge.calls[0]
-    assert payload["repo_name"] == "mq-mcp"
+def test_launcher_service_tools_get_no_invented_arguments(monkeypatch):
+    ex = executor(monkeypatch)
+    ex("run_mqlaunch_doctor", {}, "/target/a")
+    assert ex._bridge.calls == [("run_mqlaunch_doctor", {})]

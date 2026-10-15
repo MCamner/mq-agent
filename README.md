@@ -106,6 +106,8 @@ Most AI coding tools either wrap a model around shell commands or hide execution
 
 mq-agent is different: it treats agent work as a controlled terminal workflow with explicit planning, tool routing, verification, memory and safety gates. Every action is traceable, every operation is gated, and the model never runs unsupervised.
 
+See [bounded task workflows and receipts](docs/launch-workflow-automation.md) for the `mqlaunch do` entrypoint, target binding and verification limits.
+
 ## Use cases
 
 mq-agent is useful when you want to:

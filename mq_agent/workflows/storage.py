@@ -119,9 +119,16 @@ class WorkflowStore:
         """Sanitize, stamp ``updated_at`` and atomically persist ``run``."""
         _state.sanitize_run(run)
         _state.touch(run)
+        # True is committed only in the payload whose atomic write succeeds;
+        # on failure the caller gets an exception and an explicit false flag.
+        run.recording["workflow_state"] = True
         payload = run.model_dump(mode="json", by_alias=True)
-        _atomic_write_json(self._run_path(run.run_id), payload)
-        _atomic_write_json(self._latest_path(), {"run_id": run.run_id})
+        try:
+            _atomic_write_json(self._run_path(run.run_id), payload)
+            _atomic_write_json(self._latest_path(), {"run_id": run.run_id})
+        except OSError:
+            run.recording["workflow_state"] = False
+            raise
         return run
 
     # -- read -----------------------------------------------------------

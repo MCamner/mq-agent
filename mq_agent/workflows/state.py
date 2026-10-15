@@ -22,7 +22,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .models import (
     StepApproval,
@@ -77,6 +77,12 @@ class WorkflowRun(BaseModel):
     #: replan budget can never be reset by resuming.
     replans_used: int = 0
     plan: WorkflowPlan
+    repo_identity: dict[str, str] | None = None
+    runtime_identity: dict[str, Any] | None = None
+    context_sources: list[dict[str, Any]] = Field(default_factory=list)
+    selection: dict[str, str] | None = None
+    recording: dict[str, bool | None] = Field(default_factory=dict)
+    execution_run_id: str | None = None
 
     # Convenience pass-throughs --------------------------------------------
 

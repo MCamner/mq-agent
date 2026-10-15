@@ -51,7 +51,7 @@ def _step(step_id, tool, *, depends_on=None, condition="always", status="pending
     return {
         "id": step_id, "name": f"Step {step_id}", "tool": tool, "args": {},
         "depends_on": depends_on or [], "condition": condition, "approval": "plan",
-        "status": status, "attempt": 0, "result": None, "error": None,
+        "status": status, "attempt": 1 if status in {"passed", "failed"} else 0, "result": None, "error": None,
     }
 
 

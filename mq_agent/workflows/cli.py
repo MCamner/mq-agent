@@ -5,10 +5,12 @@ prints a validated plan for a repo but **does not persist or execute** it — th
 runner arrives in Phase 4. This module imports only the workflows package and
 typer (no TUI), so it stays importable and testable on its own.
 """
+
 from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 import typer
 
@@ -18,6 +20,8 @@ from .state import WorkflowStateError, new_run
 from .state import resume as resume_state
 from .storage import WorkflowStore
 from .templates import TemplateError, instantiate, list_templates, load_template
+from .target import bind_target
+from .receipt import build_receipt
 
 workflow_app = typer.Typer(
     help="Bounded multi-step workflow templates (list/show/plan). Read-only in v1."
@@ -67,14 +71,26 @@ def plan_cmd(
     except TemplateError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
-    typer.echo(json.dumps(plan.model_dump(mode="json", by_alias=True), indent=2))
+    run = new_run(plan)
+    try:
+        bind_target(run)
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(json.dumps(run.plan.model_dump(mode="json", by_alias=True), indent=2))
 
 
 def _print_summary(run, json_output: bool) -> None:
     if json_output:
-        typer.echo(json.dumps(run.summary or {}, indent=2))
+        report = dict(run.summary or {})
+        report["run_id"] = run.run_id
+        report["receipt"] = build_receipt(run)
+        typer.echo(json.dumps(report, indent=2))
         return
     summary = run.summary or {}
+    receipt = build_receipt(run)
+    typer.echo(
+        f"Coverage: {receipt['completeness']['completed']}/{receipt['completeness']['planned']}; verification: {receipt['verification']['status']}; state recorded: {receipt['recording']['workflow_state']}"
+    )
     typer.echo(f"\nRun {run.run_id}: {summary.get('status', run.status.value)}")
     for s in summary.get("steps", []):
         mark = {"passed": "PASS", "failed": "FAIL", "skipped": "SKIP"}.get(
@@ -94,47 +110,75 @@ def _default_observer():
         return None
 
     def _observe(run, meta) -> None:
-        emit_observation(
-            run,
-            duration_ms=meta.get("duration_ms"),
-            approval_count=meta.get("approval_count", 0),
+        import uuid
+        from mq_agent.tools.execution_outcome import (
+            emit_execution_outcome,
+            execution_completeness_from_steps,
         )
 
-        # The workflow policy provider has one real runtime fallback today:
-        # mq-mcp tool policy -> static read-only allowlist. Record it as a
-        # structured execution fact, not a guessed zero/non-zero counter.
-        from mq_agent.tools.execution_outcome import emit_execution_outcome
-
-        summary = run.summary or {}
-        policy = summary.get("policy") if isinstance(summary, dict) else {}
+        receipt = build_receipt(run)
+        if not any(step.attempt > 0 for step in run.plan.steps):
+            run.recording.update(observation=False, execution_outcome=False)
+            return
+        # Generated now and passed directly to the producer; never infer links
+        # by scanning an outcome store or matching timestamps.
+        run.execution_run_id = str(uuid.uuid4())
         fallback = None
-        fallbacks = None
-        if isinstance(policy, dict) and policy.get("source") == "fallback":
+        if receipt["fallback"]:
             fallback = {
                 "from": "mq-mcp-tool-policy",
-                "to": "static-read-only-allowlist",
+                "to": receipt["fallback"],
                 "reason": "policy-unavailable-or-invalid",
                 "stage": "workflow-policy",
                 "source": "measured",
             }
-            fallbacks = 1
+        projected = []
+        for step in run.plan.steps:
+            data = (step.result or {}).get("data") or {}
+            status = {
+                "passed": "success",
+                "failed": "failed",
+                "skipped": "skipped",
+            }.get(step.status.value, "pending")
+            coverage = data.get("coverage")
+            item: dict[str, Any] = {"status": status}
+            if isinstance(coverage, dict):
+                item.update(
+                    source_item_count=coverage.get("changed_files"),
+                    executed_call_count=coverage.get("reviewed_files"),
+                    fan_out_complete=coverage.get("complete"),
+                )
+            projected.append(item)
+        import contextlib
+        import sys
 
-        duration = meta.get("duration_ms")
-        emit_execution_outcome(
-            runtime="task-runner",
-            task_class="task",
-            result="PASS" if summary.get("ok") else "FAIL",
-            exit_status="ok" if summary.get("ok") else "error",
-            latency_ms=max(0, int(duration or 0)),
-            fallbacks=fallbacks,
-            fallback=fallback,
+        with contextlib.redirect_stdout(sys.stderr):
+            written = emit_execution_outcome(
+                run_id=run.execution_run_id,
+                runtime="task-runner",
+                task_class="task",
+                result="PASS" if receipt["ok"] else "FAIL",
+                exit_status="ok" if receipt["ok"] else "error",
+                latency_ms=max(0, int(meta.get("duration_ms") or 0)),
+                tool_calls=sum(step.attempt > 0 for step in run.plan.steps),
+                fallbacks=1 if fallback else None,
+                fallback=fallback,
+                completeness=execution_completeness_from_steps(projected),
+            )
+        run.recording["execution_outcome"] = written is not None
+        observed = emit_observation(
+            run,
+            duration_ms=meta.get("duration_ms"),
+            approval_count=meta.get("approval_count", 0),
         )
+        run.recording["observation"] = observed is not None
 
     return _observe
 
 
 def _make_plan_approver(json_output: bool, yes: bool):
     """Return a plan-approval callback that prompts unless --yes was given."""
+
     def _approve(summary: str) -> bool:
         if yes:
             return True
@@ -151,7 +195,9 @@ def run_cmd(
     template: str = typer.Argument(..., help="Template name, e.g. repo-preflight."),
     repo: str = typer.Option(..., "--repo", help="Target repository path."),
     json_output: bool = typer.Option(False, "--json", help="Emit the summary as JSON."),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Approve the plan without prompting."),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Approve the plan without prompting."
+    ),
 ) -> None:
     """Instantiate, persist and execute a workflow against REPO (read-only)."""
     store = WorkflowStore()
@@ -163,20 +209,36 @@ def run_cmd(
         raise typer.Exit(1)
 
     run = new_run(plan)
-    store.save_run(run)
+    try:
+        bind_target(run)
+    except (ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    try:
+        store.save_run(run)
+    except OSError as exc:
+        run.recording["workflow_state"] = False
+        run.summary = {"ok": False, "status": "storage_failed", "error": str(exc)}
+        _print_summary(run, json_output)
+        raise typer.Exit(1)
     total = len(plan.steps)
 
     def _progress(step) -> None:
         typer.echo(f"[{step.attempt}] {step.id} — running {step.tool} …")
 
     if not json_output:
-        typer.echo(f"Workflow: {template}  repo: {repo}  ({total} steps)  run: {run_id}")
-    Runner(
-        store,
-        plan_approver=_make_plan_approver(json_output, yes),
-        on_step=_progress if not json_output else None,
-        observer=_default_observer(),
-    ).run(run)
+        typer.echo(
+            f"Workflow: {template}  repo: {repo}  ({total} steps)  run: {run_id}"
+        )
+    try:
+        Runner(
+            store,
+            plan_approver=_make_plan_approver(json_output, yes),
+            on_step=_progress if not json_output else None,
+            observer=_default_observer(),
+        ).run(run)
+    except OSError as exc:
+        run.recording["workflow_state"] = False
+        run.summary = {"ok": False, "status": "storage_failed", "error": str(exc)}
     _print_summary(run, json_output)
     raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
 
@@ -197,8 +259,11 @@ def status_cmd(
         run.summary = {
             "status": run.status.value,
             "steps": [
-                {"id": s.id, "status": s.status.value,
-                 "summary": (s.result or {}).get("summary") or s.error}
+                {
+                    "id": s.id,
+                    "status": s.status.value,
+                    "summary": (s.result or {}).get("summary") or s.error,
+                }
                 for s in run.plan.steps
             ],
         }
@@ -209,7 +274,9 @@ def status_cmd(
 def resume_cmd(
     run_id: str = typer.Argument(..., help="Run id of a paused or failed run."),
     json_output: bool = typer.Option(False, "--json"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Approve the plan without prompting."),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Approve the plan without prompting."
+    ),
 ) -> None:
     """Resume a paused or failed run from where it stopped."""
     store = WorkflowStore()
@@ -219,8 +286,16 @@ def resume_cmd(
     except WorkflowStateError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
-    store.save_run(run)
-    Runner(store, plan_approver=_make_plan_approver(json_output, yes)).run(run)
+    try:
+        store.save_run(run)
+        Runner(
+            store,
+            plan_approver=_make_plan_approver(json_output, yes),
+            observer=_default_observer(),
+        ).run(run)
+    except OSError as exc:
+        run.recording["workflow_state"] = False
+        run.summary = {"ok": False, "status": "storage_failed", "error": str(exc)}
     _print_summary(run, json_output)
     raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
 
@@ -233,12 +308,8 @@ def _print_checkpoint_status(report: dict, json_output: bool) -> None:
         f"Checkpoint {report['checkpoint_id']}: {report['status']}  "
         f"run={report['run_id']}  expires={report['expires_at']}"
     )
-    typer.echo(
-        "  passed: " + (", ".join(report["passed_steps"]) or "(none)")
-    )
-    typer.echo(
-        "  resumable: " + (", ".join(report["resumable_steps"]) or "(none)")
-    )
+    typer.echo("  passed: " + (", ".join(report["passed_steps"]) or "(none)"))
+    typer.echo("  resumable: " + (", ".join(report["resumable_steps"]) or "(none)"))
     for error in report.get("errors", []):
         typer.echo(f"  REFUSE: {error}")
 
@@ -370,3 +441,83 @@ def cancel_cmd(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1)
     typer.echo(f"Run {run.run_id}: {run.status.value}")
+
+
+@workflow_app.command("do")
+def do_cmd(
+    task: str = typer.Argument(
+        ..., help="Explicit supported task, e.g. granska ändringarna."
+    ),
+    repo: str = typer.Option(..., "--repo"),
+    plan_only: bool = typer.Option(
+        False, "--plan", help="Show selection and plan without execution or writes."
+    ),
+    json_output: bool = typer.Option(False, "--json"),
+    yes: bool = typer.Option(False, "--yes", "-y"),
+) -> None:
+    """Select one approved template deterministically, then use its policy gates."""
+    from dataclasses import asdict
+    from .selection import select_task, SelectionError
+
+    try:
+        selection = select_task(task)
+        store = WorkflowStore()
+        run = new_run(instantiate(selection.template, repo, store.generate_run_id()))
+        bind_target(run)
+    except (SelectionError, TemplateError, ValueError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    run.selection = asdict(selection)
+    report = {
+        "selection": run.selection,
+        "target": run.repo_identity,
+        "requirements": {
+            "required": ["mq-mcp"]
+            + (
+                ["OpenAI review credential in MCP server"]
+                if selection.template == "review-and-test"
+                else []
+            ),
+            "optional": ["repo-signal", "codegraph"]
+            if selection.template == "review-and-test"
+            else [],
+            "effects": [
+                "workflow state",
+                "sanitized observation",
+                "tests may write caches",
+            ],
+        },
+        "plan": run.plan.model_dump(mode="json", by_alias=True),
+    }
+    if plan_only:
+        typer.echo(json.dumps(report, indent=2))
+        return
+    if not json_output:
+        typer.echo(f"Selected {selection.template}: {selection.reason}")
+    try:
+        store.save_run(run)
+        Runner(
+            store,
+            plan_approver=_make_plan_approver(json_output, yes),
+            observer=_default_observer(),
+        ).run(run)
+    except OSError as exc:
+        run.recording["workflow_state"] = False
+        run.summary = {"ok": False, "status": "storage_failed", "error": str(exc)}
+    _print_summary(run, json_output)
+    raise typer.Exit(0 if (run.summary or {}).get("ok") else 1)
+
+
+@workflow_app.command("receipt")
+def receipt_cmd(
+    run_id: str = typer.Argument(...),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Read the current measured receipt; does not execute workflow tools."""
+    try:
+        run = WorkflowStore().load_run(run_id)
+    except WorkflowStateError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if json_output:
+        typer.echo(json.dumps(build_receipt(run), indent=2))
+    else:
+        _print_summary(run, False)

@@ -27,7 +27,6 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
-from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from . import conditions
@@ -72,14 +71,17 @@ class MCPBridgeExecutor:
         self._bridge = MCPBridge(endpoint) if endpoint else MCPBridge()
 
     def __call__(self, tool: str, args: dict[str, Any], repo: str) -> Any:
+        from .target import resolve_target
+        identity = resolve_target(repo)
         payload = dict(args)
-        # Repo-scoped tools expect a repo_path; harmless for tools that ignore it.
-        payload.setdefault("repo_path", repo)
-        # Some mq-mcp tools (e.g. run_tests) key off the registered repo NAME, not
-        # a path; mq-mcp's known_local_repos() registers repos by directory
-        # basename, so repo_name = basename(repo) resolves exactly. Tools that
-        # don't take repo_name ignore it (same as repo_path above).
-        payload.setdefault("repo_name", Path(repo).name)
+        # Tools without a target argument operate on launcher/service state.
+        targeted = {"git_status", "git_diff", "review_diff", "run_tests", "repo_signal_status"}
+        if tool in targeted:
+            if payload.get("repo_path", identity["root"]) != identity["root"]:
+                raise ValueError("step target conflicts with bound workflow root")
+            if "repo_name" in payload:
+                raise ValueError("repo_name overrides are forbidden in bound workflows")
+            payload["repo_path"] = identity["root"]
         return self._bridge.call_tool(tool, payload)
 
 
@@ -131,6 +133,22 @@ class Runner:
     def run(self, run: WorkflowRun) -> WorkflowRun:
         """Execute the run from its current state. Persists after every change."""
         self._start = time.monotonic()
+        self._context = ""
+        self._context_used = False
+        # Legacy injected executors remain useful in offline tests. Real MCP
+        # execution always binds and checks the target before any remote call.
+        from .target import bind_target, verify_target
+        try:
+            if run.repo_identity is not None:
+                verify_target(run)
+            elif isinstance(self.executor, MCPBridgeExecutor):
+                if any(step.attempt for step in run.plan.steps):
+                    raise ValueError("legacy run has no target identity; start a new run")
+                bind_target(run)
+        except (ValueError, OSError) as exc:
+            self._fail(run, None, str(exc))
+            self._finalize(run)
+            return run
         # 1. Fetch tool policy BEFORE doing anything (deny/allow source of truth).
         current = self.policy_provider.load()
         plan_tools = {s.tool for s in run.plan.steps}
@@ -168,6 +186,13 @@ class Runner:
             # Plan was approved once — record it for the observation metrics.
             self._approval_count = 1
 
+        if run.selection and run.plan.template == "review-and-test" and any(s.tool == "review_diff" and s.status is StepStatus.PENDING for s in run.plan.steps):
+            from .context import collect_context
+            try:
+                self._context, run.context_sources = collect_context(run.plan.repo)
+            except (OSError, ValueError, TimeoutError) as exc:
+                run.context_sources = [{"source": "workflow-context", "status": "unavailable", "reason": type(exc).__name__}]
+
         run.plan.status = WorkflowStatus.RUNNING
         run.pid = os.getpid()
         self.store.save_run(run)
@@ -202,7 +227,7 @@ class Runner:
             self._execute_step(run, step)
             executed += 1
 
-            if step.status is StepStatus.FAILED and self.stop_on_failure:
+            if step.status is StepStatus.FAILED and self.stop_on_failure and not (run.plan.template == "review-and-test" and step.id == "review"):
                 run.plan.status = WorkflowStatus.FAILED
                 self.store.save_run(run)
                 break
@@ -250,14 +275,19 @@ class Runner:
 
     def _finalize(self, run: WorkflowRun) -> None:
         if run.plan.status is WorkflowStatus.RUNNING:
-            failed = any(s.status is StepStatus.FAILED for s in run.plan.steps)
+            failed = any(s.status is not StepStatus.PASSED for s in run.plan.steps)
             run.plan.status = (
                 WorkflowStatus.FAILED if failed else WorkflowStatus.COMPLETED
             )
         run.pid = None
         run.summary = self._summarize(run.plan)
+        from .receipt import build_receipt
+        run.summary["ok"] = build_receipt(run)["ok"]
         self.store.save_run(run)
         self._observe(run)
+        # Observer results (including failed writes) are part of local receipt
+        # state, not a competing overall execution verdict.
+        self.store.save_run(run)
 
     def _observe(self, run: WorkflowRun) -> None:
         """Hand a terminal run to the observer (e.g. emit an observation).
@@ -315,6 +345,16 @@ class Runner:
     def _execute_step(self, run: WorkflowRun, step: WorkflowStep) -> None:
         run.plan.current_step = step.id
         call_args = dict(step.args)  # snapshot before persistence sanitizes
+        if run.repo_identity:
+            from .target import verify_target
+            try:
+                verify_target(run)
+            except (ValueError, OSError) as exc:
+                self._fail(run, step, str(exc))
+                return
+        if step.tool == "review_diff" and self._context:
+            call_args["context"] = self._context
+            self._context_used = True
         step.status = StepStatus.RUNNING
         step.attempt += 1
         self._on_step(step)
@@ -333,6 +373,15 @@ class Runner:
                 error = exc
 
         result = normalize_result(raw, timed_out=timed_out, error=error)
+        if run.repo_identity:
+            try:
+                verify_target(run)
+            except (ValueError, OSError):
+                result = {"ok": False, "code": "ERROR", "summary": "target changed during tool execution", "data": {}}
+        data = result.get("data") or {}
+        if run.repo_identity and step.tool in {"git_status", "git_diff", "review_diff", "run_tests"}:
+            if data.get("repo_path") != run.repo_identity["root"] or data.get("git_commit") != run.repo_identity["commit"]:
+                result = {"ok": False, "code": "ERROR", "summary": "tool did not confirm the bound root and commit", "data": {}}
         step.result = result
         step.error = None if result["ok"] else result["summary"]
         step.status = StepStatus.PASSED if result["ok"] else StepStatus.FAILED
