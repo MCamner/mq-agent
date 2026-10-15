@@ -157,3 +157,22 @@ def test_live_server_down_leaves_a_clean_stack_pass(tmp_path: Path, monkeypatch)
     assert static["status"] == live["status"] == "PASS"
     assert live["next_action"] == static["next_action"]
     assert ("MQC024_TOOL_SURFACE_LIVE_DRIFT", "UNAVAILABLE") in _codes(live["findings"])
+
+
+def test_class_letter_drift_is_reported_when_the_server_sends_class(tmp_path: Path) -> None:
+    """mq-image-analyze's /tools sends the ADR-003 letter as `class`, not a
+    `safety_class` label. A -> B maps to the same label (read-only), so the
+    comparison must be letter to letter when the server gives a letter."""
+    committed = [_tool("analyze_image", "B", (("image_path", True),))]
+    live = {"name": "analyze_image", "class": "A",
+            "inputSchema": {"type": "object", "properties": {"image_path": {"type": "string"}}, "required": ["image_path"]}}
+    findings = _live(tmp_path, committed, _fetch(live))
+
+    assert _codes(findings) == [("MQC024_TOOL_SURFACE_LIVE_DRIFT", "WARN")]
+    assert "class differs: analyze_image" in findings[0]["message"]
+
+
+def test_matching_class_letter_is_not_drift(tmp_path: Path) -> None:
+    committed = [_tool("analyze_image", "B")]
+    live = {"name": "analyze_image", "class": "B", "inputSchema": {"type": "object", "properties": {}}}
+    assert _live(tmp_path, committed, _fetch(live)) == []

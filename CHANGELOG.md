@@ -22,6 +22,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `stack compatibility --live` now detects class drift on servers that send the ADR-003 letter as `class` (mq-image-analyze) instead of a `safety_class` label. The letter is compared directly, because A and B share the `read-only` label and an A → B change was invisible. Found live: a running mq-image-analyze still serving class A for `analyze_image`, `reverse_prompt` and `compare_images`, which main declares B, produced no MQC024.
 - `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
 
 - `docs-audit` now requires measured complete coverage and successful verification

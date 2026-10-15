@@ -231,13 +231,29 @@ def _checkout_commit(root: Path) -> str:
 
 
 def _shape_committed(tool: dict[str, Any]) -> tuple[str, dict[str, bool]]:
-    return _LIVE_LABEL[tool["safety_class"]], {p["name"]: p["required"] for p in tool["parameters"]}
+    return tool["safety_class"], {p["name"]: p["required"] for p in tool["parameters"]}
 
 
 def _shape_live(tool: dict[str, Any]) -> tuple[str, dict[str, bool]]:
+    """The class as the server states it, and its parameters.
+
+    mq-image-analyze sends the ADR-003 letter as `class`; mq-mcp sends a
+    `safety_class` label. A letter is kept as a letter, because A and B share
+    the label read-only and an A -> B change would vanish in the label.
+    """
     schema = tool.get("inputSchema") or {}
     required = set(schema.get("required") or [])
-    return str(tool.get("safety_class") or ""), {name: name in required for name in schema.get("properties") or {}}
+    letter = str(tool.get("class") or "")
+    stated = letter if letter in _LIVE_LABEL else str(tool.get("safety_class") or "")
+    return stated, {name: name in required for name in schema.get("properties") or {}}
+
+
+def _class_differs(stated: str, committed_letter: str) -> bool:
+    if not stated:
+        return False
+    if stated in _LIVE_LABEL:
+        return stated != committed_letter
+    return stated != _LIVE_LABEL[committed_letter]
 
 
 def _sample(names: list[str]) -> str:
@@ -279,7 +295,7 @@ def live_surface_findings(
         not_running = sorted(set(committed) - set(live))
         not_committed = sorted(set(live) - set(committed))
         shared = sorted(set(committed) & set(live))
-        class_drift = [n for n in shared if live[n][0] and live[n][0] != committed[n][0]]
+        class_drift = [n for n in shared if _class_differs(live[n][0], committed[n][0])]
         param_drift = [n for n in shared if live[n][1] != committed[n][1]]
         if not (not_running or not_committed or class_drift or param_drift):
             continue
