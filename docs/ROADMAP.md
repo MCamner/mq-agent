@@ -13,10 +13,9 @@ surface.
 Current project phase:
 
 ```text
-Released: v1.28.0 — Runtime Provenance
-Released: v1.29.0 — NotebookLM Knowledge Pipeline
-Next:     undecided — no scope is committed
-In progress: MCP tool contract checking
+Released: v1.34.0 — Controlled activation proof and evidence integrity
+Released: v1.35.0 — MCP tool contracts and evidence-gate hardening
+Next:     collect docs-review route evidence in the new era (10/route, 14 days)
 ```
 
 Completed foundation:
@@ -169,8 +168,8 @@ the stack against the dependencies they actually share and against their
 versioned JSON contracts, and the MCP incident is preserved as a permanent
 regression fixture. `mq-hal compatibility` presents the report read-only and
 `mqlaunch hal compatibility` delegates to it. Checking MCP tool names, safety
-classes and arguments against each producer's committed tool surface is in
-progress (MQC019–MQC023).
+classes and arguments against each producer's committed tool surface shipped
+in v1.35.0 (MQC019–MQC023), with an optional live comparison (MQC024).
 
 `mq-agent` owns aggregation and assessment. Each repository owns dependency
 declarations and compatibility metadata. `mq-hal` may present results and

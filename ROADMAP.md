@@ -8,6 +8,7 @@ Released: v1.31.0 — Evidence-Gated Activation and Recovery.
 Released: v1.32.0 — Canary v2.
 Released: v1.33.0 — Policy Registry v2.
 Released: v1.34.0 — Controlled activation proof and evidence integrity.
+Released: v1.35.0 — MCP tool contracts and evidence-gate hardening.
 Completed: the Post-v1.30 controlled activation gate has been proven end to end
 on real `repo-review` evidence, including approval, Canary v2, promotion,
 activation, post-activation verification and exact rollback.
@@ -16,15 +17,17 @@ Completed: learned-routing readiness thresholds were calibrated against the
 repository-documented real applied `docs-review` history. The total floor is now
 derived as 2 routes x 10 samples = 20; 14 days and 10/route remain conservative
 requirements. Automatic routing remains disabled.
-Next: integrate complete-success docs-audit reporting and exact execution
-linkage for route quality, open a new quality era at the verified merge
-boundary, then collect complete successful `docs-review`
-executions on both allowlisted routes: 10 samples per route across at least
-14 days before explicit operator promotion review. Quality collection is paused
-until integration; no activation version is assigned. See
+Completed: complete-success docs-audit reporting and exact execution linkage
+(#401); the `docs-audit-complete-success` quality era opened at that merge
+(#410).
+Completed: MCP tool contract checking (v1.35.0) — the gate compares
+mq-agent's declared tool use with each producer's committed tool surface, and
+optionally with the running server.
+Next: collect complete successful `docs-review` executions on both allowlisted
+routes in the new era: 10 samples per route across at least 14 days, which
+`route divergence` enforces, before explicit operator promotion review. No
+activation version is assigned. See
 [docs/execution-completeness.md](docs/execution-completeness.md).
-In progress: MCP tool contract checking — the gate compares mq-agent's declared
-tool use with mq-mcp's published tool surface; no version assigned.
 
 ## Current status
 
