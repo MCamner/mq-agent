@@ -128,7 +128,7 @@ def test_get_architecture_decision_uses_required_tool():
     with patch.object(bridge, "_call_required_tool", return_value={"id": "adr-1", "title": "x"}) as call:
         result = bridge.get_architecture_decision("adr-1")
 
-    call.assert_called_once_with("get_architecture_decision", {"id": "adr-1"})
+    call.assert_called_once_with("get_architecture_decision", {"adr_id": "adr-1"})
     assert result["id"] == "adr-1"
 
 

@@ -190,7 +190,7 @@ def test_mcp_bridge_store_calls_required_tool():
     with patch.object(bridge, "_call_required_tool", return_value={"ok": True}) as call:
         bridge.store_semantic_memory("mykey", "myvalue")
 
-    call.assert_called_once_with("store_semantic_memory", {"key": "mykey", "value": "myvalue"})
+    call.assert_called_once_with("store_semantic_memory", {"key": "mykey", "content": "myvalue"})
 
 
 def test_mcp_bridge_search_returns_error_when_tool_missing():

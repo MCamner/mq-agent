@@ -459,7 +459,7 @@ class MultiMCPBridge:
 
     def store_semantic_memory(self, key: str, value: str) -> Any:
         """Store an item in mq-mcp semantic memory. Class C write tool — requires approval."""
-        return self._call_required_tool("store_semantic_memory", {"key": key, "value": value})
+        return self._call_required_tool("store_semantic_memory", {"key": key, "content": value})
 
     def list_architecture_decisions(self) -> Any:
         """List architecture decisions from mq-mcp. Returns None when tool not available."""
@@ -467,7 +467,7 @@ class MultiMCPBridge:
 
     def get_architecture_decision(self, decision_id: str) -> Any:
         """Fetch a single architecture decision by ID."""
-        return self._call_required_tool("get_architecture_decision", {"id": decision_id})
+        return self._call_required_tool("get_architecture_decision", {"adr_id": decision_id})
 
     def learn_status(self) -> Any:
         """Check availability of the mq-mcp learn system."""
