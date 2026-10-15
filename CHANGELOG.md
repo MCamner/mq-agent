@@ -12,6 +12,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
+- `stack compatibility --live` also compares each running MCP server with its committed tool surface. It reads `/tools` and `/runtime-identity` and reports MQC024 with both commits for tools that are not running, running tools that are not committed, and class or parameter differences. This catches a server started from a stale checkout. Drift is WARN. A server that does not answer is listed as UNAVAILABLE and changes no status. `--live` never blocks a release.
 
 ## [v1.34.0] — 2026-10-14
 
