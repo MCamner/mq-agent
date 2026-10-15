@@ -173,12 +173,20 @@ def test_bridge_call_tool_returns_error_string_when_unavailable():
     assert isinstance(result, str)
     assert "not reachable" in result
 
-def test_bridge_describe_tool_falls_back_to_classification_when_unavailable():
+def test_bridge_describe_tool_is_unknown_when_mq_mcp_unavailable():
+    # mq-mcp declares every class; without it the name is not a stand-in.
     from mq_agent.tools.mcp_bridge import MCPBridge
     bridge = MCPBridge(endpoint="http://localhost:19998")
     spec = bridge.describe_tool("read_repo_file")
     assert spec is not None
     assert spec.name == "read_repo_file"
+    assert spec.safety_class == MCPSafetyClass.UNKNOWN
+
+
+def test_bridge_describe_tool_falls_back_to_classification_for_third_party():
+    from mq_agent.tools.mcp_bridge import MCPBridge
+    bridge = MCPBridge(endpoint="http://localhost:19998", source="third-party")
+    spec = bridge.describe_tool("read_repo_file")
     assert spec.safety_class == MCPSafetyClass.READ_ONLY
 
 def test_bridge_not_reachable_message():
