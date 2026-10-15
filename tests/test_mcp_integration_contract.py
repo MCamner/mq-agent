@@ -87,14 +87,26 @@ def test_bridge_list_tool_specs_uses_server_safety_class():
     assert by_name["read_repo_file"].safety_class == MCPSafetyClass.READ_ONLY
 
 
-def test_bridge_list_tool_specs_falls_back_when_no_safety_class():
-    """list_tool_specs must fall back to name heuristic when server omits safety_class."""
+def test_bridge_list_tool_specs_is_unknown_when_mq_mcp_omits_safety_class():
+    """mq-mcp declares every class, so an omitted one is not guessed from the name."""
     from mq_agent.tools.mcp_bridge import MCPBridge
 
     server_tools = {"tools": [{"name": "list_repo_files"}]}
     with patch("httpx.get", return_value=_make_mock_response(server_tools)):
         bridge = MCPBridge(endpoint="http://localhost:8765")
         specs = bridge.list_tool_specs()
+
+    assert specs[0].safety_class == MCPSafetyClass.UNKNOWN
+
+
+def test_bridge_list_tool_specs_falls_back_for_third_party_without_safety_class():
+    """A third-party server declares nothing, so its names are still classified."""
+    from mq_agent.tools.mcp_bridge import MCPBridge
+
+    server_tools = {"tools": [{"name": "list_repo_files"}]}
+    with patch("httpx.get", return_value=_make_mock_response(server_tools)):
+        bridge = MCPBridge(endpoint="http://localhost:8765", source="third-party")
+        specs = bridge.list_tool_specs(source="third-party")
 
     assert specs[0].safety_class == MCPSafetyClass.READ_ONLY
 
