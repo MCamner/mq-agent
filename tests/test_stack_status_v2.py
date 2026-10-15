@@ -200,3 +200,64 @@ def test_cli_json_returns_v2_document(monkeypatch):
     result = runner.invoke(app, ["stack", "status", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output) == payload
+
+
+def _mq_agent_gate_status(tmp_path, *, branch="main", full="success", ci="skipped"):
+    entry, _ = _repo(tmp_path)
+    entry["name"] = "mq-agent"
+    entry["github_repo"] = "mq-agent"
+    path = Path(entry["path"])
+    if branch != "main":
+        subprocess.run(["git", "checkout", "-b", branch], cwd=path, check=True, capture_output=True)
+    contract = {
+        "owner": "MCamner",
+        "branch": "main",
+        "repos": {
+            "mq-agent": {
+                "required_checks": [
+                    {"name": "test", "app_id": APP},
+                    {"name": "Contract and release gates (CI mode)", "app_id": APP},
+                ]
+            }
+        },
+    }
+    runs = [_run("test")]
+    if full is not None:
+        runs.append(_run("Contract and release gates", conclusion=full))
+    if ci is not None:
+        runs.append(_run("Contract and release gates (CI mode)", conclusion=ci))
+    return build_stack_status_v2(
+        gh=FakeGh({"check_runs": runs}),
+        contract=contract,
+        repos=[entry],
+        now=NOW,
+        max_age_seconds=3600,
+    )["repos"][0]["verification"]
+
+
+def test_main_requires_successful_full_stack_gate_not_skipped_pr_gate(tmp_path):
+    verification = _mq_agent_gate_status(tmp_path)
+    assert verification["status"] == "VERIFIED"
+    assert verification["expected_scopes"] == ["test", "Contract and release gates"]
+    assert verification["verified_count"] == 2
+
+
+def test_main_full_stack_gate_failure_is_fail(tmp_path):
+    assert _mq_agent_gate_status(tmp_path, full="failure")["status"] == "FAIL"
+
+
+def test_main_missing_full_stack_gate_is_unverified(tmp_path):
+    verification = _mq_agent_gate_status(tmp_path, full=None, ci="success")
+    assert verification["status"] == "UNVERIFIED"
+    assert verification["scopes"][1]["status"] == "MISSING"
+
+
+def test_pr_requires_ci_gate_not_full_stack_gate(tmp_path):
+    verification = _mq_agent_gate_status(tmp_path, branch="feature/test", full="skipped", ci="success")
+    assert verification["status"] == "VERIFIED"
+    assert verification["expected_scopes"] == ["test", "Contract and release gates (CI mode)"]
+
+
+def test_pr_skipped_ci_gate_fails_even_when_full_stack_succeeds(tmp_path):
+    verification = _mq_agent_gate_status(tmp_path, branch="feature/test", full="success", ci="skipped")
+    assert verification["status"] == "FAIL"
