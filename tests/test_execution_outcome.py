@@ -615,7 +615,7 @@ def test_docs_audit_records_partial_when_executor_fan_out_is_capped(
 
     result = cli.invoke(app, ["docs-audit", ".", "--json"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     payload = json.loads(result.output)
     assert payload["completeness"]["status"] == "partial"
     record = _records(store)[0]
@@ -664,7 +664,8 @@ def test_docs_audit_records_complete_when_every_planned_call_ran(
 def test_each_entrypoint_names_its_own_task_class(store, monkeypatch, argv, task_class) -> None:
     monkeypatch.setattr(
         "mq_agent.agents.docs_agent.DocsAgent.audit",
-        lambda *a, **k: {"steps": [], "verification": {"all_passed": True}},
+        lambda *a, **k: {"steps": [], "verification": {"all_passed": True},
+         "completeness": {"status": "partial", "steps": []}},
     )
     monkeypatch.setattr(
         "mq_agent.agents.release_agent.ReleaseAgent.run_check",
@@ -833,7 +834,8 @@ AGENT_ENTRYPOINTS = [
     (["audit", ".", "--json"], "mq_agent.agents.audit_agent.AuditAgent.run",
      {"summary": "s", "steps": [], "passed": True, "verification": {}}),
     (["docs-audit", ".", "--json"], "mq_agent.agents.docs_agent.DocsAgent.audit",
-     {"steps": [], "verification": {"all_passed": True}}),
+     {"steps": [], "verification": {"all_passed": True},
+         "completeness": {"status": "partial", "steps": []}}),
     (["release-check", ".", "--json", "--dry-run"],
      "mq_agent.agents.release_agent.ReleaseAgent.run_check",
      {"steps": [], "ready": True, "verification": {}}),
