@@ -7,6 +7,7 @@ Released: v1.30.0 — Evidence-Grounded Feedback Engine (Observe, Compare, Propo
 Released: v1.31.0 — Evidence-Gated Activation and Recovery.
 Released: v1.32.0 — Canary v2.
 Released: v1.33.0 — Policy Registry v2.
+Released: v1.34.0 — Controlled activation proof and evidence integrity.
 Completed: the Post-v1.30 controlled activation gate has been proven end to end
 on real `repo-review` evidence, including approval, Canary v2, promotion,
 activation, post-activation verification and exact rollback.
@@ -22,7 +23,8 @@ executions on both allowlisted routes: 10 samples per route across at least
 14 days before explicit operator promotion review. Quality collection is paused
 until integration; no activation version is assigned. See
 [docs/execution-completeness.md](docs/execution-completeness.md).
-Deferred: MCP tool contract checking — future scope, no version assigned.
+In progress: MCP tool contract checking — the gate compares mq-agent's declared
+tool use with mq-mcp's published tool surface; no version assigned.
 
 ## Current status
 
@@ -1792,22 +1794,38 @@ After the release, this is answerable mechanically: are the source checkout,
 the installed runtime, the running runtime and the release identity the same
 code — and if not, which two layers differ and what is the next action?
 
-## Deferred — MCP tool contract checking (no version assigned)
+## MCP tool contract checking (no version assigned)
 
-* **Status:** Deferred, not started. Originally pencilled in as v1.29.0; that
-  version shipped the NotebookLM Knowledge Pipeline instead. The only compatibility work v1.26.0
-  deferred that `mq-agent` owns: checking MCP tool names, safety classes and
-  schema signatures across the stack. Every check that shipped reads declared
-  files; this one has to read `mq-mcp`'s live tool registry, which is a
-  different class of work and a different ownership boundary. Nothing else is
-  scoped yet.
+* **Status:** Phases 1–2 implemented. Originally pencilled in as v1.29.0;
+  that version shipped the NotebookLM Knowledge Pipeline instead. Plan:
+  [docs/plans/2026-10-14-mcp-tool-contract-checking.md](docs/plans/2026-10-14-mcp-tool-contract-checking.md).
 * **Priority:** P2
-* **Owner:** `mq-agent`
-* **Producer of the registry:** `mq-mcp`
+* **Owner:** `mq-agent` (checker, manifest, MQC codes)
+* **Producer of the surface:** `mq-mcp` (`mq-mcp.tool-surface.v1`)
 
-Still open in other repos, unchanged by v1.26.0: the `mq-hal` read-only
-compatibility surface and the `mqlaunch` delegation. Neither may reimplement
-the assessment.
+* [x] mq-mcp publishes `contracts/tool_surface.v1.json` from its in-process
+  registry: names, ADR-003 classes and parameters. A test fails when it is
+  stale (mq-mcp #103).
+* [x] mq-agent declares the tools it calls in `schemas/mcp_tool_requirements.json`.
+  A test holds the declaration to the code.
+* [x] The compatibility gate reports MQC019–MQC023 and reads committed files
+  only. A producer without a surface is `SKIPPED`.
+* [x] Two consumer defects the check found are fixed:
+  `get_architecture_decision` and `store_semantic_memory` sent parameter
+  names mq-mcp does not declare (#404).
+* [ ] `learn store` calls `record_learning` with `relative_path`, which that
+  tool does not take. No mq-mcp tool stores "the last extracted candidate", so
+  this needs a decision, not a rename. The gate reports it as FAIL until then.
+* [ ] mq-image-analyze publishes the same surface. `image_perception` and
+  `observe_architecture` stay `SKIPPED` until it does.
+* [ ] Fail closed instead of guessing a class from the tool name when a
+  declared producer gives none. `extract_coding_conventions` is declared C but
+  guessed read-only.
+* [ ] Optional `--live` comparison of a running server with its committed
+  surface (WARN only, never a release gate).
+
+Still open in other repos: the `mq-hal` read-only compatibility surface and the
+`mqlaunch` delegation. Neither may reimplement the assessment.
 
 ## Completed — verifier excerpt integrity
 
@@ -2043,10 +2061,10 @@ The gate reads and enforces the block. Declaring it in `mq-mcp` and
 * [x] Detect producer schema changes without corresponding consumer updates.
   `MQC018_CONTRACT_VERSION_SKEW` — delivered with Phase 6, since it needed the
   contract matching that phase added.
-* [ ] Check MCP tool names, safety classes, and schema signatures. **Deferred,
-  no version assigned** (see "Deferred — MCP tool contract checking"). Every other check reads declared files; this one has to read
-  mq-mcp's live tool registry, which is a different class of work and a
-  different ownership boundary.
+* [x] Check MCP tool names, safety classes, and schema signatures. mq-mcp
+  publishes `mq-mcp.tool-surface.v1` from its registry; the gate compares it
+  with mq-agent's declared tool use (MQC019–MQC023). See "MCP tool contract
+  checking".
 * [x] Present relationships as evidence, not only a summary status.
 
 Example finding:

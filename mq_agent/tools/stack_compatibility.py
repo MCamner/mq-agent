@@ -1148,7 +1148,26 @@ def build_report(
     relationships, relationship_findings = _relationships(
         components, complete_view=not slice_only
     )
+    # MCP tool contracts: what mq-agent calls against each inventoried
+    # producer's committed tool surface. A producer checkout that is missing
+    # is already an UNAVAILABLE component and is not assessed twice.
+    from .mcp_tool_contracts import tool_contract_findings
+
+    producer_roots = {
+        entry["name"]: _expand(entry["path"])
+        for entry in entries
+        if _expand(entry["path"]).is_dir()
+    }
+    tool_relationships, tool_findings = tool_contract_findings(producer_roots)
+    relationships.extend(tool_relationships)
     findings.extend(relationship_findings)
+    findings.extend(tool_findings)
+    # A producer that publishes no tool surface yet is reported, but it is a
+    # rollout state, not a verdict on the stack: it must not turn a clean PASS
+    # into SKIPPED or move the next action onto it.
+    relationship_findings = relationship_findings + [
+        f for f in tool_findings if f["severity"] != "SKIPPED"
+    ]
 
     fresh_findings: list[dict[str, Any]] = []
     if fresh_resolve:

@@ -71,8 +71,15 @@ def test_every_force_included_source_exists() -> None:
 # The opposite direction. The wheel test proves the declaration was honoured;
 # this proves the declaration exists at all — which is the half that was missing
 # when execution_outcome.schema.json shipped broken.
+# Schemas mq_agent names but reads from another repository's checkout, never
+# from its own wheel. Packaging them would ship a copy that can silently differ
+# from the producer's. The tool contract check validates mq-mcp's surface
+# against the schema mq-mcp itself publishes next to it.
+READ_FROM_PRODUCER_CHECKOUT = {"tool_surface.v1.schema.json"}
+
+
 def test_every_schema_the_runtime_loads_is_declared() -> None:
-    declared = {Path(dest).name for dest in _force_include().values()}
+    declared = {Path(dest).name for dest in _force_include().values()} | READ_FROM_PRODUCER_CHECKOUT
     loaded = {
         name
         for path in (ROOT / "mq_agent").rglob("*.py")

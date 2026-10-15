@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mcamner.github.io/mq-mcp/contracts/tool_surface.v1.schema.json",
+  "title": "mq-mcp.tool-surface.v1",
+  "description": "The tools mq-mcp registers, with their ADR-003 safety class and the parameters each accepts. Generated from the in-process registry by scripts/export_tool_surface.py; consumers compare their calls against it without a running server. Parameters carry name, JSON types and required only: descriptions and defaults are prose, not the call contract, and never change signature_sha256.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "producer", "tool_count", "tools"],
+  "properties": {
+    "schema": { "const": "mq-mcp.tool-surface.v1" },
+    "producer": { "const": "mq-mcp" },
+    "tool_count": { "type": "integer", "minimum": 0 },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "safety_class", "write", "subprocess", "parameters", "signature_sha256"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "safety_class": {
+            "description": "ADR-003: A read-only repo-scoped, B read-only external, C write-capable, D subprocess/open-app.",
+            "enum": ["A", "B", "C", "D"]
+          },
+          "write": { "type": "boolean" },
+          "subprocess": { "type": "boolean" },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "type", "required"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "type": {
+                  "description": "JSON types the parameter accepts, sorted. Empty when the input schema declares none.",
+                  "type": "array",
+                  "items": { "enum": ["array", "boolean", "integer", "null", "number", "object", "string"] },
+                  "uniqueItems": true
+                },
+                "required": { "type": "boolean" }
+              }
+            }
+          },
+          "signature_sha256": {
+            "description": "sha256 of the canonical JSON of parameters.",
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}
