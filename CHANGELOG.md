@@ -9,6 +9,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
+
 ## [v1.34.0] — 2026-10-14
 
 Theme: controlled activation proof and evidence integrity. The Post-v1.30
