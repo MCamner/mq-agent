@@ -963,15 +963,17 @@ Learn commands — extraction, storage and promotion of review patterns.
 | Subcommand | Description |
 |---|---|
 | [`mq-agent learn explain`](#mq-agent-learn-explain) | Fetch a detailed explanation of a learned pattern from mq-mcp. Read-only. |
+| [`mq-agent learn extract`](#mq-agent-learn-extract) | Queue a learn candidate from a file's last review for later review. Class C — requires --approve. |
 | [`mq-agent learn extract-review`](#mq-agent-learn-extract-review) | Dry-run extraction of a learn candidate from the last review for a file. Read-only. |
 | [`mq-agent learn from-diff`](#mq-agent-learn-from-diff) | Create a learning record with the current git diff as context. Class C write — requires --approve. |
 | [`mq-agent learn from-review`](#mq-agent-learn-from-review) | Create a learning record from the last review for a file. Class C write — requires --approve. |
 | [`mq-agent learn hygiene`](#mq-agent-learn-hygiene) | Show hygiene report for stored learning records. Read-only. |
+| [`mq-agent learn list`](#mq-agent-learn-list) | List pending learn candidates and their candidate IDs. Read-only. |
 | [`mq-agent learn promote`](#mq-agent-learn-promote) | Promote learn/`<slug>`.md to learn/verified/. Class C write — requires --approve. |
 | [`mq-agent learn review-flow`](#mq-agent-learn-review-flow) | Review a file then extract a dry-run learn candidate in one pass. Read-only. |
 | [`mq-agent learn search`](#mq-agent-learn-search) | Search mq-mcp learned review patterns. Read-only. |
 | [`mq-agent learn status`](#mq-agent-learn-status) | Check availability of the mq-mcp learn system. Read-only. |
-| [`mq-agent learn store`](#mq-agent-learn-store) | Store the last extracted learn candidate for a file. Class C write tool — requires --approve. |
+| [`mq-agent learn store`](#mq-agent-learn-store) | Store one explicitly chosen inbox candidate as a lesson. Class C write tool — requires --approve. |
 | [`mq-agent learn summarize`](#mq-agent-learn-summarize) | Summarize stored learning records. Read-only. |
 
 ## `mq-agent learn explain`
@@ -988,6 +990,25 @@ Fetch a detailed explanation of a learned pattern from mq-mcp. Read-only.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent learn extract`
+
+Queue a learn candidate from a file's last review for later review. Class C — requires --approve.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `PATH` | Yes | — | Repo-relative file path whose last review to extract from. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | — | External repo path the file lives in (within mq-mcp allowlist) |
+| `--approve` | No | `false` | Allow write to the mq-mcp learn inbox |
+| `--dry-run` | No | `false` | — |
 | `--json` | No | `false` | — |
 
 ## `mq-agent learn extract-review`
@@ -1056,6 +1077,16 @@ Show hygiene report for stored learning records. Read-only.
 |---|---:|---|---|
 | `--json` | No | `false` | — |
 
+## `mq-agent learn list`
+
+List pending learn candidates and their candidate IDs. Read-only.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--limit` | No | `20` | Max candidates to show, newest first |
+
 ## `mq-agent learn promote`
 
 Promote learn/`<slug>`.md to learn/verified/. Class C write — requires --approve.
@@ -1120,18 +1151,19 @@ Check availability of the mq-mcp learn system. Read-only.
 
 ## `mq-agent learn store`
 
-Store the last extracted learn candidate for a file. Class C write tool — requires --approve.
+Store one explicitly chosen inbox candidate as a lesson. Class C write tool — requires --approve.
 
 ### Arguments
 
 | Argument | Required | Default | Description |
 |---|---:|---|---|
-| `PATH` | Yes | — | Repo-relative file path |
+| `CANDIDATE_ID` | Yes | — | Candidate ID from `mq-agent learn list` (cand-…). |
 
 ### Options
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
+| `--validation` | No | — | How you verified the lesson; stored as its validation. |
 | `--approve` | No | `false` | Allow write to mq-mcp |
 | `--dry-run` | No | `false` | — |
 | `--json` | No | `false` | — |

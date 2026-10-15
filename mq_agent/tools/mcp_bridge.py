@@ -488,9 +488,41 @@ class MultiMCPBridge:
             _add_repo_path({"relative_path": relative_path}, repo_path),
         )
 
-    def learn_record(self, relative_path: str) -> Any:
-        """Store the extracted learn candidate for a file as a learned pattern (Class C write)."""
-        return self._call_required_tool("record_learning", {"relative_path": relative_path})
+    def learn_queue_from_last_review(self, relative_path: str, repo_path: str | None = None) -> Any:
+        """Queue a learn candidate from a file's last review in the mq-mcp inbox (Class C write)."""
+        return self._call_required_tool(
+            "learn_queue_from_last_review",
+            _add_repo_path({"relative_path": relative_path}, repo_path),
+        )
+
+    def learn_inbox(self, limit: int = 20) -> Any:
+        """List pending learn candidates and their candidate IDs (read-only)."""
+        return self._call_required_tool("learn_inbox", {"limit": limit})
+
+    def learn_inbox_draft(self, candidate_id: str) -> Any:
+        """Preview the record_learning draft for one inbox candidate (read-only)."""
+        return self._call_required_tool("learn_inbox_draft", {"candidate_id": candidate_id})
+
+    def learn_inbox_drop(self, candidate_id: str, apply: bool = False) -> Any:
+        """Remove one candidate from the inbox; previews unless apply is True (Class C write)."""
+        return self._call_required_tool("learn_inbox_drop", {"candidate_id": candidate_id, "apply": apply})
+
+    def record_learning(
+        self, *, task: str, lesson: str, validation: str, source: str, repo: str, risk: str, tags: str
+    ) -> Any:
+        """Store a verified lesson in the mq-mcp learn layer (Class C write)."""
+        return self._call_required_tool(
+            "record_learning",
+            {
+                "task": task,
+                "lesson": lesson,
+                "validation": validation,
+                "source": source,
+                "repo": repo,
+                "risk": risk,
+                "tags": tags,
+            },
+        )
 
     def learn_from_review(self, relative_path: str, task: str = "", risk: str = "low", repo_path: str | None = None) -> Any:
         """Create a learning record from the last review findings for a file (Class C write)."""

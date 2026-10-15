@@ -1733,24 +1733,118 @@ def learn_review_flow_cmd(
     console.rule("[dim]Next safe action[/dim]")
     console.print(
         "  [bold]mq-agent learn search <query>[/bold]   ← check if pattern already exists\n"
-        "  [dim]If the candidate is new and correct:[/dim] [bold]mq-agent learn store {path} --approve[/bold]"
+        f"  [dim]If the candidate is new and correct:[/dim] [bold]mq-agent learn extract {path} --approve[/bold]"
     )
 
     if brain:
         _brain_record_learning(bridge, path, extract_result)
 
 
+_CANDIDATE_ID_RE = re.compile(r"^cand-[0-9a-f]{12}$")
+
+
+def _mcp_text(result: Any) -> str:
+    """Tool output as text: the MCP wrapper's text, a plain string, or JSON."""
+    if isinstance(result, str):
+        return result
+    return _extract_mcp_text_result(result) or json.dumps(result, default=str)
+
+
+def _mcp_json(result: Any) -> dict[str, Any] | None:
+    """Parse a tool's JSON text output; None when it answered in prose."""
+    try:
+        data = json.loads(_mcp_text(result))
+    except (TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+@learn_app.command("extract")
+def learn_extract_cmd(
+    path: Annotated[str, typer.Argument(help="Repo-relative file path whose last review to extract from.")],
+    repo: Annotated[str | None, typer.Option("--repo", help="External repo path the file lives in (within mq-mcp allowlist)")] = None,
+    approve: Annotated[bool, typer.Option("--approve", help="Allow write to the mq-mcp learn inbox")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Queue a learn candidate from a file's last review for later review. Class C — requires --approve."""
+    if dry_run:
+        repo_str = f" repo_path={repo}" if repo else ""
+        console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp learn_queue_from_last_review {path}{repo_str}[/bold]")
+        return
+    if not approve:
+        console.print(
+            "[yellow]learn_queue_from_last_review is a Class C write tool (learn inbox only).[/yellow]\n"
+            "Add [bold]--approve[/bold] to execute, or [bold]--dry-run[/bold] to preview."
+        )
+        raise typer.Exit(1)
+
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_queue_from_last_review(path, repo_path=repo)
+    data = _mcp_json(result)
+    queued = data is not None and data.get("status") in ("queued", "duplicate")
+
+    if json_out:
+        typer.echo(json.dumps(data if data is not None else result, indent=2, default=str))
+        if not queued:
+            raise typer.Exit(1)
+        return
+
+    if not queued:
+        reason = (data or {}).get("reason") or _mcp_text(result)
+        console.print(Panel(str(reason), title="[bold red]learn extract: not queued[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+
+    assert data is not None
+    cid = data["candidate_id"]
+    candidate = data.get("candidate") or {}
+    note = " (already queued)" if data["status"] == "duplicate" else ""
+    console.print(Panel(
+        f"candidate: {cid}{note}\npattern:   {candidate.get('pattern_name', '-')}\n"
+        f"summary:   {candidate.get('summary', '-')}",
+        title=f"[bold]Learn candidate queued: {path}[/bold]",
+    ))
+    console.print(f"  Review it, then: [bold]mq-agent learn store {cid} --validation \"<how you verified it>\" --approve[/bold]")
+
+
+@learn_app.command("list")
+def learn_list_cmd(
+    limit: Annotated[int, typer.Option("--limit", help="Max candidates to show, newest first")] = 20,
+):
+    """List pending learn candidates and their candidate IDs. Read-only."""
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+    result = MultiMCPBridge().learn_inbox(limit=limit)
+    if _is_error_result(result):
+        console.print(Panel(str(result.get("error", result)), title="[bold red]learn list unavailable[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+    console.print(Panel(Text(_mcp_text(result)), title="[bold]Learn inbox[/bold]"))
+
+
 @learn_app.command("store")
 def learn_store_cmd(
-    path: Annotated[str, typer.Argument(help="Repo-relative file path")],
+    candidate_id: Annotated[str, typer.Argument(help="Candidate ID from `mq-agent learn list` (cand-…).")],
+    validation: Annotated[str | None, typer.Option("--validation", help="How you verified the lesson; stored as its validation.")] = None,
     approve: Annotated[bool, typer.Option("--approve", help="Allow write to mq-mcp")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """Store the last extracted learn candidate for a file. Class C write tool — requires --approve."""
+    """Store one explicitly chosen inbox candidate as a lesson. Class C write tool — requires --approve."""
+    if not _CANDIDATE_ID_RE.match(candidate_id):
+        console.print(
+            f"[red]{candidate_id!r} is not a candidate ID.[/red] "
+            "learn store takes the ID of one inbox candidate (cand-…); "
+            "run [bold]mq-agent learn list[/bold] to see them, or "
+            "[bold]mq-agent learn extract <path> --approve[/bold] to queue one."
+        )
+        raise typer.Exit(1)
+
     if dry_run:
         console.print(
-            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp record_learning relative_path={path}[/bold]"
+            f"[blue][dry-run][/blue] Would call: [bold]mq-mcp learn_inbox_draft candidate_id={candidate_id}[/bold]\n"
+            "[blue][dry-run][/blue] Then: [bold]mq-mcp record_learning[/bold] with the draft and your --validation\n"
+            f"[blue][dry-run][/blue] Then: [bold]mq-mcp learn_inbox_drop candidate_id={candidate_id} apply=true[/bold]"
         )
         return
 
@@ -1761,30 +1855,60 @@ def learn_store_cmd(
         )
         raise typer.Exit(1)
 
-    from mq_agent.tools.mcp_bridge import MultiMCPBridge
-
-    result = MultiMCPBridge().learn_record(path)
-
-    if json_out:
-        typer.echo(json.dumps(result, indent=2, default=str))
-        if isinstance(result, dict) and result.get("ok") is False:
-            raise typer.Exit(1)
-        return
-
-    if isinstance(result, dict) and result.get("ok") is False:
-        console.print(Panel(
-            str(result.get("error", result)),
-            title="[bold red]learn store failed[/bold red]",
-            border_style="red",
-        ))
+    if not validation or not validation.strip():
+        console.print(
+            "[red]--validation is required.[/red] The draft's validation is a "
+            "MANUAL VALIDATION REQUIRED instruction, not a verification; state how you checked the lesson."
+        )
         raise typer.Exit(1)
 
-    text_result = _extract_mcp_text_result(result)
-    if text_result:
-        console.print(Panel(Text(text_result), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
-        return
+    from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
-    console.print(Panel(json.dumps(result, indent=2, default=str), title=f"[bold green]Pattern stored: {path}[/bold green]", border_style="green"))
+    bridge = MultiMCPBridge()
+    draft_result = bridge.learn_inbox_draft(candidate_id)
+    preview = _mcp_json(draft_result)
+    draft = (preview or {}).get("draft")
+    if not isinstance(draft, dict):
+        console.print(Panel(_mcp_text(draft_result), title="[bold red]learn store: no such candidate[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+
+    tags = draft.get("tags") or []
+    stored = bridge.record_learning(
+        task=str(draft.get("task", "")),
+        lesson=str(draft.get("lesson", "")),
+        validation=validation.strip(),
+        source=str(draft.get("source", "")),
+        repo=str(draft.get("repo", "")),
+        risk=str(draft.get("risk", "")),
+        tags=",".join(str(t) for t in tags) if isinstance(tags, list) else str(tags),
+    )
+    stored_text = _mcp_text(stored)
+    if _is_error_result(stored) or not stored_text.startswith(("Saved lesson", "Duplicate lesson")):
+        if json_out:
+            typer.echo(json.dumps({"candidate_id": candidate_id, "stored": None, "error": stored_text}, indent=2))
+        else:
+            console.print(Panel(stored_text, title="[bold red]learn store failed — candidate kept in inbox[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+
+    dropped_text = _mcp_text(bridge.learn_inbox_drop(candidate_id, apply=True))
+    dropped = dropped_text.startswith("Removed 1 candidate")
+
+    if json_out:
+        typer.echo(json.dumps(
+            {"candidate_id": candidate_id, "draft": draft, "stored": stored_text, "dropped": dropped, "drop_result": dropped_text},
+            indent=2, default=str,
+        ))
+    else:
+        console.print(Panel(Text(stored_text), title=f"[bold green]Lesson stored: {candidate_id}[/bold green]", border_style="green"))
+        if not dropped:
+            console.print(Panel(
+                f"{dropped_text}\nThe lesson is stored, but learn_inbox_drop did not remove {candidate_id}. "
+                "Re-running learn store is safe: record_learning reports a duplicate.",
+                title="[bold yellow]inbox not cleared[/bold yellow]",
+                border_style="yellow",
+            ))
+    if not dropped:
+        raise typer.Exit(1)
 
 
 @learn_app.command("promote")

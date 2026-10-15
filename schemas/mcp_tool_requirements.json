@@ -129,6 +129,40 @@
       ]
     },
     {
+      "name": "learn_inbox",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "limit"
+      ]
+    },
+    {
+      "name": "learn_inbox_draft",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "candidate_id"
+      ]
+    },
+    {
+      "name": "learn_inbox_drop",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "candidate_id",
+        "apply"
+      ]
+    },
+    {
+      "name": "learn_queue_from_last_review",
+      "producer": "mq-mcp",
+      "max_safety_class": "C",
+      "arguments": [
+        "relative_path",
+        "repo_path"
+      ]
+    },
+    {
       "name": "learn_status",
       "producer": "mq-mcp",
       "max_safety_class": "A",
@@ -153,7 +187,13 @@
       "producer": "mq-mcp",
       "max_safety_class": "C",
       "arguments": [
-        "relative_path"
+        "task",
+        "lesson",
+        "validation",
+        "source",
+        "repo",
+        "risk",
+        "tags"
       ]
     },
     {

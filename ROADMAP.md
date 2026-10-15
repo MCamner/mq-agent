@@ -1809,9 +1809,10 @@ code — and if not, which two layers differ and what is the next action?
 * [x] Two consumer defects the check found are fixed:
   `get_architecture_decision` and `store_semantic_memory` sent parameter
   names mq-mcp does not declare (#404).
-* [ ] `learn store` calls `record_learning` with `relative_path`, which that
-  tool does not take. No mq-mcp tool stores "the last extracted candidate", so
-  this needs a decision, not a rename. The gate reports it as FAIL until then.
+* [x] `learn store` called `record_learning` with `relative_path`, which that
+  tool does not take. Decided: `learn store <candidate-id>` stores one
+  explicitly chosen inbox candidate (mq-mcp #104 added `candidate_id`), with
+  the operator's `--validation`.
 * [ ] mq-image-analyze publishes the same surface. `image_perception` and
   `observe_architecture` stay `SKIPPED` until it does.
 * [ ] Fail closed instead of guessing a class from the tool name when a
