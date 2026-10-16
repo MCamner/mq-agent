@@ -1557,3 +1557,59 @@ def test_item_rate_is_null_when_nothing_measured_it(tmp_path) -> None:
     # 0.0 would read as "nothing was grounded" rather than "nothing measured it".
     assert review["grounding_item_rate"] is None
     assert review["grounding_items_measured"] == 0
+
+
+def test_grounded_prompt_states_the_evidence_floor_it_is_judged_by() -> None:
+    # verify_evidence fails any candidate with fewer than _MIN_GROUNDED_EVIDENCE
+    # grounded items. A prompt that never names that number judges the model by a
+    # rule it was not given: on 2026-10-15/16 qwen3 returned two citations on a
+    # small feedback/ audit, and even two grounded ones would have failed.
+    prompt = model_routing._shadow_prompt("audit docs", "docs-review", context="material")
+    floor = model_routing._MIN_GROUNDED_EVIDENCE
+    assert f"at least {floor} entries" in prompt
+
+
+def test_grounded_floor_is_stated_in_the_prompt_not_forced_by_the_grammar() -> None:
+    # A bounded array compiles into a repetition rule the decoder fills (see
+    # _candidate_schema). minItems would force filler, i.e. fabrication.
+    evidence = model_routing._candidate_schema("docs-review")["properties"]["evidence"]
+    assert "minItems" not in evidence
+    assert "maxItems" not in evidence
+
+
+def test_prompt_without_material_does_not_mention_a_floor() -> None:
+    prompt = model_routing._shadow_prompt("audit docs", "docs-review")
+    assert "at least" not in prompt
+
+
+def test_quote_cut_at_the_grammar_cap_is_grounded_without_its_broken_tail() -> None:
+    # Measured 2026-10-16: maxLength cuts a quote mid-word and the decoder fills
+    # the last allowed character with a wrong token ("mismatch" -> "mismn").
+    # The cut is ours, not the model's, so the partial last word is dropped and
+    # what remains is checked verbatim like any other quote.
+    cap = model_routing._EVIDENCE_MAX_LENGTH
+    line = ("word " * 60).strip() + " mismatch blocks all of them"
+    material = f"header\n{line}\nfooter"
+    cut = line[: cap - 1] + "n"
+    assert len(cut) == cap and cut not in material
+    grounded = model_routing.grounded_evidence([cut], material)
+    assert grounded == [cut.rsplit(None, 1)[0]]
+    assert grounded[0] in material
+
+
+def test_quote_below_the_cap_is_never_trimmed() -> None:
+    material = "the approval record itself is never modified"
+    assert model_routing.grounded_evidence(["the approval record itself is never modifiex"], material) == []
+
+
+def test_grammar_cap_and_trim_rule_share_one_constant() -> None:
+    evidence = model_routing._candidate_schema("docs-review")["properties"]["evidence"]
+    assert evidence["items"]["maxLength"] == model_routing._EVIDENCE_MAX_LENGTH
+
+
+def test_line_longer_than_the_cap_is_not_trimmed() -> None:
+    # Only the grammar produces quotes of exactly the cap. A longer quote comes
+    # from somewhere else (the deterministic route quotes whole lines) and is
+    # checked as given.
+    line = "x" * 10 + " " + "y" * (model_routing._EVIDENCE_MAX_LENGTH + 5)
+    assert model_routing.grounded_evidence([line], line) == [line]
