@@ -60,6 +60,10 @@ CLOUD_RULES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 LOCAL_ROUTE_TIMEOUT_SECONDS = 600
 
 _CANDIDATE_KEYS = {"task_class", "summary", "evidence", "suggestions"}
+
+#: Longest evidence quote the decoding grammar lets the model emit.
+_EVIDENCE_MAX_LENGTH = 200
+
 def _candidate_schema(task_class: str) -> dict[str, Any]:
     """The decoding grammar for one task class.
 
@@ -98,10 +102,12 @@ def _candidate_schema(task_class: str) -> dict[str, Any]:
             # 100s+. That risk is real but input-sized: over the uncapped 20
             # runs on ~3 KB of docs context, eval_count ran 399-742 (median 624)
             # and 16-45s. Larger inputs are unmeasured. maxLength still bounds
-            # each quote, and a truncated prefix is still verbatim.
+            # each quote. A quote cut at it is NOT a clean prefix: the decoder
+            # fills the last allowed character with a wrong token, so
+            # grounded_evidence drops that partial word before checking.
             "evidence": {
                 "type": "array",
-                "items": {"type": "string", "maxLength": 200},
+                "items": {"type": "string", "maxLength": _EVIDENCE_MAX_LENGTH},
             },
             "suggestions": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
         },
@@ -312,6 +318,11 @@ def grounded_evidence(evidence: list[str], context: str) -> list[str]:
     haystack = _normalize(context)
     verified = []
     for item in evidence:
+        if len(item) == _EVIDENCE_MAX_LENGTH:
+            # Cut by our grammar, not chosen by the model: measured 2026-10-16,
+            # "mismatch" ended as "mismn". Drop the partial last word; what is
+            # left is checked, and handed on, exactly like any other quote.
+            item = item.rsplit(None, 1)[0] if len(item.split()) > 1 else item
         quote = _normalize(item)
         if len(quote) >= _MIN_QUOTE_LENGTH and quote in haystack:
             verified.append(item)
@@ -366,8 +377,13 @@ def _shadow_prompt(task: str, task_class: str, context: str | None = None) -> st
     )
     if context is None:
         return prompt
+    # The floor is stated here, never forced by the grammar: a minItems array
+    # is a repetition rule the decoder fills (see _candidate_schema). Unstated,
+    # it judged the model by a rule it was not given — on a small audit qwen3
+    # returned two citations, which fail even when both are grounded.
     return (
-        prompt + " Every entry in evidence must be copied verbatim from the material "
+        prompt + f" evidence must contain at least {_MIN_GROUNDED_EVIDENCE} entries. "
+        "Every entry in evidence must be copied verbatim from the material "
         "below, long enough to identify the line it came from. Do not paraphrase. "
         f"Material: {json.dumps(context)}"
     )
