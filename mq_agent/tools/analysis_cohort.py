@@ -188,6 +188,20 @@ ERAS: tuple[Era, ...] = (
             "remain readiness history, not quality evidence."
         ),
     ),
+    Era(
+        name="stated-evidence-floor",
+        starts_at=datetime(2026, 10, 16, 19, 3, 24, tzinfo=UTC),
+        commit="ac73c5028466aa99741cb8aa2cc1f494fe80ab33",
+        why=(
+            "mq-agent #421 states the five-item evidence floor in the "
+            "local-shadow prompt and stops the 200-character grammar cap from "
+            "corrupting a quote's last word. Before it the model was judged by "
+            "a floor it was never told, and verbatim quotes failed on a "
+            "decoder-filled final character: three docs-review observations "
+            "at 1/2 grounded. They remain history; the deterministic route is "
+            "unchanged but restarts here so both routes share one runtime."
+        ),
+    ),
 )
 
 
