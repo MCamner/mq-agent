@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,7 +10,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-MQ_STACK_REPOS: list[dict[str, str]] = [
+_DEFAULT_STACK_REPOS: list[dict[str, str]] = [
     {"name": "mqlaunch",        "path": "~/macos-scripts",    "role": "Terminal entrypoint"},
     {"name": "mq-agent",        "path": "~/mq-agent",         "role": "Orchestrator"},
     {"name": "mq-mcp",          "path": "~/mq-mcp",           "role": "Runtime/review truth"},
@@ -19,6 +20,18 @@ MQ_STACK_REPOS: list[dict[str, str]] = [
     {"name": "mq-ums",          "path": "~/mq-ums",           "role": "UMS/IGEL tooling"},
     {"name": "mqobsidian",      "path": "~/mqobsidian",       "role": "Second brain"},
 ]
+
+
+def _with_mcp_override(repos: list[dict[str, str]], env) -> list[dict[str, str]]:
+    """Point mq-mcp at MQ_STACK_MCP_REPO_PATH when set; never guess between checkouts."""
+    mcp_path = env.get("MQ_STACK_MCP_REPO_PATH", "").strip()
+    if not mcp_path:
+        return list(repos)
+    return [{**entry, "path": mcp_path} if entry["name"] == "mq-mcp" else entry for entry in repos]
+
+
+# Resolved once at import so every stack command checks the same checkouts.
+MQ_STACK_REPOS = _with_mcp_override(_DEFAULT_STACK_REPOS, os.environ)
 
 OBSIDIAN_STATUS = Path.home() / "mqobsidian" / "mq-stack" / "05_RELEASE_STATUS.md"
 STACK_RELEASE_CHECK_SCHEMA = "mq_stack_release_check.v1"
