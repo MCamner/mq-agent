@@ -56,6 +56,13 @@ that exact boundary in `mq_agent/tools/analysis_cohort.py`. The preceding
 Only newly measured complete, successfully verified executions may count as
 quality evidence. The era boundary alone does not establish readiness.
 
+mq-agent #421 (`ac73c5028466aa99741cb8aa2cc1f494fe80ab33`,
+2026-10-16T19:03:24Z) opens `stated-evidence-floor`. The local-shadow prompt
+now states the five-item evidence floor, and a quote cut by the 200-character
+grammar cap drops its broken last word before the verbatim check. Observations
+from `docs-audit-complete-success` stay history and are not rewritten; the
+ten-run and fourteen-day requirements restart at this boundary for both routes.
+
 Then use real audits of a declared scope that can complete: at least ten complete
 successful executions for each of `deterministic-local` and `local-shadow`,
 spanning at least fourteen days in the new era. Both commands still use OpenAI
