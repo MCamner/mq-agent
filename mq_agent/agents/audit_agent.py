@@ -46,7 +46,17 @@ class AuditAgent:
 
         state.plan = self.planner.create_plan(state, read_only_tools)
         executor.run_plan(state)
-        verification = self.verifier.verify_plan(state.plan)
+
+        if dry_run:
+            verification = {
+                "results": [],
+                "all_passed": False,
+                "failures": [],
+                "status": "not_verified",
+                "reason": "Dry-run: tools were not executed or verified",
+            }
+        else:
+            verification = self.verifier.verify_plan(state.plan)
 
         result = {
             "repo": path,
@@ -68,5 +78,13 @@ class AuditAgent:
             "passed": verification["all_passed"],
         }
 
-        memory.set(f"audit:{path}", {"summary": summary, "passed": result["passed"]}, persistent=True)
+        result["dry_run"] = dry_run
+
+        if not dry_run:
+            memory.set(
+                f"audit:{path}",
+                {"summary": summary, "passed": result["passed"]},
+                persistent=True,
+            )
+
         return result
