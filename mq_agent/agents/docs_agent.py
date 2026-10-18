@@ -8,7 +8,7 @@ from ..core.safety import SafetyGate
 from ..core.state import AgentState, SafetyMode, StepStatus
 from ..core.verification import Verifier
 from ..tools import TOOL_REGISTRY
-from ..tools.applied_routing import DEFAULT_ROUTE
+from ..tools.applied_routing import DEFAULT_ROUTE, ROUTE_EVIDENCE_PLANNER_MODEL
 from ..tools.material_selection import select_material
 from ..tools.execution_outcome import execution_completeness_from_steps
 from ..tools.repo_tools import find_files
@@ -135,7 +135,18 @@ class DocsAgent:
         # the read-only steps just gathered. Per ADR-010 D1 the route governs
         # this decision, not the whole audit — the plan, the tool calls and the
         # verification all stay on the canonical path.
-        if execution_run_id is not None:
+        planner_model = getattr(self.planner, "model", None)
+        if execution_run_id is not None and planner_model != ROUTE_EVIDENCE_PLANNER_MODEL:
+            # Not routed and not recorded: the observation would describe a
+            # different pipeline from the one the comparison measures.
+            result["route_evidence"] = {
+                "recorded": False,
+                "reason": (
+                    f"planner {planner_model} is not {ROUTE_EVIDENCE_PLANNER_MODEL}; "
+                    "set MQ_AGENT_PROVIDER=openai to record route evidence"
+                ),
+            }
+        elif execution_run_id is not None:
             routed = self._routed_docs_review(
                 steps, execution_run_id, state.safety_mode, route
             )
