@@ -56,7 +56,7 @@ def _config(root: Path) -> dict[str, Any]:
         raise ValueError(f"Missing or invalid {CONFIG}") from exc
     if not isinstance(config, dict) or config.get("schema") != "mq.verification-config.v1":
         raise ValueError("Unsupported verification config schema")
-    if set(config) - {"schema", "checks", "python_project"}:
+    if set(config) - {"schema", "checks", "python_project", "runtime_data"}:
         raise ValueError("Unknown verification config field")
     checks = config.get("checks")
     if not isinstance(checks, list) or not 1 <= len(checks) <= 64:
@@ -82,12 +82,30 @@ def _config(root: Path) -> dict[str, Any]:
         if any(Path(v).is_absolute() or ".." in Path(v).parts for v in check["paths"]):
             raise ValueError("Matching patterns must be repo-relative")
         for value in check["targets"]:
-            _target(root, value)
+            target = _target(root, value)
+            if not target.is_file() and not (check["runner"] == "pytest" and target.is_dir()):
+                raise ValueError(f"Check {name}: target must be an existing file (pytest also accepts directories): {value}")
         if check["runner"] in {"bash", "bash-syntax", "python"} and len(check["targets"]) != 1:
             raise ValueError("Script runners take exactly one script")
         timeout = check["timeout_seconds"]
         if type(timeout) is not int or not 1 <= timeout <= 900:
             raise ValueError("Check timeout must be an integer between 1 and 900 seconds")
+    runtime = config.get("runtime_data", [])
+    if not isinstance(runtime, list) or len(runtime) > 64:
+        raise ValueError("runtime_data must be a list of at most 64 exact paths")
+    runtime_paths = set()
+    for entry in runtime:
+        if not isinstance(entry, dict) or set(entry) != {"path", "reason"}:
+            raise ValueError("Runtime data declarations require path and reason")
+        path, reason = entry["path"], entry["reason"]
+        if not isinstance(path, str) or not path or any(c in path for c in "*?["):
+            raise ValueError("Runtime data requires an exact repo-relative file path")
+        target = _target(root, path)
+        if path != Path(path).as_posix() or target.is_dir() or path in runtime_paths:
+            raise ValueError("Runtime data paths must be unique normalized file paths")
+        if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+            raise ValueError("Runtime data requires a nonempty reason of at most 500 characters")
+        runtime_paths.add(path)
     return config
 
 
@@ -193,17 +211,21 @@ def verify(path: Path, *, base: str = "HEAD", plan_only: bool = False) -> dict[s
     root = _root(path)
     before = _snapshot(root, base)
     config = _config(root)
+    runtime = [{**entry, "status": "NOT_VERIFIED"} for entry in config.get("runtime_data", [])
+               if entry["path"] in before["changed_files"]]
+    runtime_paths = {entry["path"] for entry in runtime}
+    code_files = [f for f in before["changed_files"] if f not in runtime_paths]
     selected = [c for c in config["checks"] if any(
-        fnmatch.fnmatchcase(f, pattern) for f in before["changed_files"] for pattern in c["paths"]
+        fnmatch.fnmatchcase(f, pattern) for f in code_files for pattern in c["paths"]
     )]
-    uncovered = [f for f in before["changed_files"] if not any(
+    uncovered = [f for f in code_files if not any(
         fnmatch.fnmatchcase(f, pattern) for c in selected for pattern in c["paths"]
     )]
     # Validate every selected target before executing any check.
     commands = [_command(root, c, config) for c in selected]
     result: dict[str, Any] = {
         "schema": RECEIPT_SCHEMA, **before, "status": "PLAN" if plan_only else "NO_CHANGES",
-        "uncovered_files": uncovered, "checks": [],
+        "uncovered_files": uncovered, "runtime_data": runtime, "code_status": "PLAN" if plan_only else "NO_CHANGES", "checks": [],
         "not_verified": ["API credential validity", "ignored files and external dependencies", "unmatched files"],
     }
     for check, command in zip(selected, commands):
@@ -223,6 +245,9 @@ def verify(path: Path, *, base: str = "HEAD", plan_only: bool = False) -> dict[s
         result["status"] = "INCOMPLETE"
     elif selected:
         result["status"] = "PASS"
+    result["code_status"] = result["status"]
+    if runtime and result["status"] in {"PASS", "NO_CHANGES"}:
+        result["status"] = "INCOMPLETE"
     _save(root, result)
     return result
 
@@ -241,5 +266,5 @@ def check_receipt(path: Path, *, base: str = "HEAD") -> dict[str, Any]:
     if result.get("receipt_id") != _digest(unsigned):
         raise ValueError("Receipt checksum mismatch")
     if result.get("fingerprint") != _snapshot(root, base)["fingerprint"]:
-        return {**result, "status": "STALE"}
+        return {**result, "status": "STALE", "code_status": "STALE"}
     return result

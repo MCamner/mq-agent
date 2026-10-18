@@ -189,3 +189,115 @@ def test_linked_worktree_gets_its_own_receipt(repo, tmp_path):
     change(linked)
     assert verify(linked)["status"] == "PASS"
     assert check_receipt(repo)["status"] == "PASS"
+
+
+def test_plan_validates_unselected_targets_before_running_any_check(repo):
+    config_path = repo / ".mq/verification.json"
+    config = json.loads(config_path.read_text())
+    config["checks"].append({"id": "missing", "runner": "bash",
+        "targets": ["tests/missing.sh"], "paths": ["elsewhere/*"], "timeout_seconds": 2})
+    config_path.write_text(json.dumps(config))
+    # Even a clean tree must reject the broken, unselected rule.
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "broken rule")
+    with pytest.raises(ValueError, match="missing"):
+        verify(repo, plan_only=True)
+    assert check_receipt(repo)["status"] == "MISSING"
+
+
+def test_script_target_must_be_a_file(repo):
+    config_path = repo / ".mq/verification.json"
+    config = json.loads(config_path.read_text())
+    config["checks"][0]["targets"] = ["tests"]
+    config_path.write_text(json.dumps(config))
+    with pytest.raises(ValueError, match="file"):
+        verify(repo, plan_only=True)
+
+
+def declare_runtime(repo):
+    config_path = repo / ".mq/verification.json"
+    config = json.loads(config_path.read_text())
+    config["runtime_data"] = [{"path": "history.json", "reason": "Runtime review history; inspect separately."}]
+    config_path.write_text(json.dumps(config))
+    (repo / "history.json").write_text("[]\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "runtime declaration")
+
+
+def test_runtime_is_explicit_and_never_counts_as_verified_code(repo):
+    declare_runtime(repo)
+    change(repo)
+    (repo / "history.json").write_text('[{"event": "review"}]\n')
+    result = verify(repo)
+    assert result["code_status"] == "PASS"
+    assert result["status"] == "INCOMPLETE"
+    assert result["uncovered_files"] == []
+    assert result["runtime_data"] == [{"path": "history.json", "reason": "Runtime review history; inspect separately.", "status": "NOT_VERIFIED"}]
+    assert check_receipt(repo)["status"] == "INCOMPLETE"
+    (repo / "history.json").write_text("[]\n")
+    stale = check_receipt(repo)
+    assert stale["status"] == stale["code_status"] == "STALE"
+
+
+def test_runtime_only_does_not_run_code_checks_even_with_broad_rule(repo):
+    declare_runtime(repo)
+    p = repo / ".mq/verification.json"
+    config = json.loads(p.read_text())
+    config["checks"][0]["paths"] = ["*"]
+    p.write_text(json.dumps(config))
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "broad rule")
+    (repo / "history.json").write_text("[1]\n")
+    result = verify(repo)
+    assert result["checks"] == []
+    assert result["code_status"] == "NO_CHANGES"
+    assert result["status"] == "INCOMPLETE"
+    assert len(result["runtime_data"]) == 1
+
+
+@pytest.mark.parametrize("entry", [
+    {"path": "*.json", "reason": "too broad"},
+    {"path": "../outside", "reason": "outside"},
+    {"path": "history.json", "reason": ""},
+    {"path": "history.json"},
+])
+def test_runtime_declaration_requires_an_exact_path_and_reason(repo, entry):
+    p = repo / ".mq/verification.json"
+    config = json.loads(p.read_text())
+    config["runtime_data"] = [entry]
+    p.write_text(json.dumps(config))
+    with pytest.raises(ValueError):
+        verify(repo, plan_only=True)
+
+
+def test_runtime_and_code_results_are_visible_in_human_cli(repo):
+    from mq_agent.main import app
+    declare_runtime(repo)
+    change(repo)
+    (repo / "history.json").write_text("[1]\n")
+    result = CliRunner().invoke(app, ["verify-changes", str(repo)])
+    assert result.exit_code == 1
+    assert "Code verification: PASS" in result.stdout
+    assert "RUNTIME DATA (NOT_VERIFIED): history.json" in result.stdout
+
+
+def test_code_failure_takes_priority_over_pending_runtime(repo):
+    declare_runtime(repo)
+    (repo / "history.json").write_text("[1]\n")
+    (repo / "tests/check.sh").write_text("exit 7\n")
+    result = verify(repo)
+    assert result["status"] == result["code_status"] == "FAIL"
+    assert result["runtime_data"][0]["status"] == "NOT_VERIFIED"
+
+
+def test_missing_rule_blocks_otherwise_selected_checks(repo):
+    change(repo)
+    (repo / "tests/check.sh").write_text("touch executed-marker\n")
+    p = repo / ".mq/verification.json"
+    config = json.loads(p.read_text())
+    config["checks"].append({"id": "missing", "runner": "bash", "targets": ["missing.sh"],
+                             "paths": ["elsewhere/*"], "timeout_seconds": 2})
+    p.write_text(json.dumps(config))
+    with pytest.raises(ValueError, match="missing"):
+        verify(repo)
+    assert not (repo / "executed-marker").exists()
