@@ -24,7 +24,7 @@ REFERENCE = REPO_ROOT / "docs" / "generated" / "Command-Reference.md"
 # The command surface as of the introspection contract. A new Typer command or
 # group changes these numbers and turns the suite red until the reference is
 # regenerated.
-EXPECTED_TOP_LEVEL_COMMANDS = 16
+EXPECTED_TOP_LEVEL_COMMANDS = 17
 EXPECTED_TOP_LEVEL_GROUPS = 22
 
 

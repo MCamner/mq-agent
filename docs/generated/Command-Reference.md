@@ -48,6 +48,7 @@ This page is a projection of it.
 | [`mq-agent task`](#mq-agent-task) | group | Run declarative YAML task workflows. |
 | [`mq-agent tools`](#mq-agent-tools) | command | List registered tools. Use --describe `<name>` for details, --mcp to include MCP tools. |
 | [`mq-agent tui`](#mq-agent-tui) | command | Launch the Textual TUI dashboard. |
+| [`mq-agent verify-changes`](#mq-agent-verify-changes) | command | Run repo-owned checks for changed files and bind results to the working tree. |
 | [`mq-agent workflow`](#mq-agent-workflow) | group | Bounded multi-step workflow templates (list/show/plan). Read-only in v1. |
 
 ## `mq-agent agent-views`
@@ -3501,6 +3502,26 @@ List registered tools. Use --describe `<name>` for details, --mcp to include MCP
 ## `mq-agent tui`
 
 Launch the Textual TUI dashboard.
+
+## `mq-agent verify-changes`
+
+Run repo-owned checks for changed files and bind results to the working tree.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `PATH` | No | `.` | Repository or a directory inside it. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | — | Explicit repository; overrides PATH. |
+| `--base` | No | `HEAD` | Compare changes against this commit/ref. |
+| `--plan` | No | `false` | Preview selected checks without running or writing. |
+| `--check-receipt` | No | `false` | Validate the last receipt without running tests. |
+| `--json` | No | `false` | Emit one JSON document. |
 
 ## `mq-agent workflow`
 
