@@ -1975,7 +1975,7 @@ Ollama model runtime commands.
 |---|---|
 | [`mq-agent models bench`](#mq-agent-models-bench) | Benchmark a local Ollama model with timing and token metrics. |
 | [`mq-agent models current`](#mq-agent-models-current) | Show the active model profile. |
-| [`mq-agent models doctor`](#mq-agent-models-doctor) | Run read-only diagnostics for Ollama, model profiles, and mq-learn. |
+| [`mq-agent models doctor`](#mq-agent-models-doctor) | Run read-only diagnostics for Ollama, model profiles, and local Learning. |
 | [`mq-agent models list`](#mq-agent-models-list) | List locally available Ollama models. |
 | [`mq-agent models switch`](#mq-agent-models-switch) | Switch the active profile, or assign a model to a profile. |
 
@@ -2010,13 +2010,13 @@ Show the active model profile.
 
 ## `mq-agent models doctor`
 
-Run read-only diagnostics for Ollama, model profiles, and mq-learn.
+Run read-only diagnostics for Ollama, model profiles, and local Learning.
 
 ### Options
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
-| `--smoke`, `--no-smoke` | No | `true` | Run mq-learn JSON smoke test |
+| `--smoke`, `--no-smoke` | No | `true` | Run Learning JSON smoke test |
 | `--timeout` | No | `60` | Smoke-test timeout in seconds |
 | `--json` | No | `false` | — |
 

@@ -12,7 +12,7 @@ PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "planner.md"
 
 
 class Planner:
-    """Uses OpenAI to decompose a goal into a sequence of tool-backed steps."""
+    """Uses the selected provider to decompose a goal into a sequence of tool-backed steps."""
 
     def __init__(self, client: OpenAI):
         self.client = client

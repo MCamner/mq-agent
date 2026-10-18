@@ -138,9 +138,9 @@ memory
 Runtime roles:
 
 ```text
-qwen3:4b-instruct → general fast, planner, and review work
-mq-learn → structured pattern extraction
-bakllava → vision only
+qwen3.5:9b → general fast, planner, review, and routing work
+qwen3.5:9b → structured pattern extraction (original mq-learn safety prompt)
+qwen3.5:9b → local vision
 llama3.2 → base/fallback model; no separate MQ profile
 ```
 
@@ -162,9 +162,9 @@ Runtime surface:
 mq-agent models list
 mq-agent models current
 mq-agent models doctor
-mq-agent models switch qwen3:4b-instruct --profile review --approve
+mq-agent models switch qwen3.5:9b --profile review --approve
 mq-agent models bench
-mq-agent models bench mq-learn --json
+mq-agent models bench qwen3.5:9b --json
 ```
 
 The benchmark uses Ollama's local generate API and returns load/total duration,

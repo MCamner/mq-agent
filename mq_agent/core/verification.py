@@ -4,6 +4,8 @@ from pathlib import Path
 
 from openai import OpenAI
 
+from mq_agent.config import load_config
+
 from .state import PlanStep, StepStatus
 
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "verifier.md"
@@ -22,11 +24,13 @@ Return JSON: {"success": true/false, "reason": "brief explanation", "issues": []
 
 
 class Verifier:
-    """Uses OpenAI to verify whether each step's output indicates success."""
+    """Uses the selected provider to verify whether each step's output indicates success."""
 
     def __init__(self, client: OpenAI):
         self.client = client
-        self._model = os.environ.get("MQ_AGENT_VERIFIER_MODEL", _DEFAULT_MODEL)
+        config = load_config()
+        default_model = _DEFAULT_MODEL if config.effective_provider() == "openai" else config.effective_model()
+        self._model = os.environ.get("MQ_AGENT_VERIFIER_MODEL", default_model)
         self._system_prompt = (
             PROMPT_PATH.read_text() if PROMPT_PATH.exists() else _FALLBACK_SYSTEM
         )

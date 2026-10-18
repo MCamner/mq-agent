@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -26,10 +26,10 @@ def test_default_models_config(monkeypatch, tmp_path):
     config = load_models_config()
 
     assert config["current_profile"] == "fast"
-    assert config["profiles"]["fast"] == "qwen3:4b-instruct"
-    assert config["profiles"]["review"] == "qwen3:4b-instruct"
-    assert config["profiles"]["planner"] == "qwen3:4b-instruct"
-    assert config["profiles"]["memory"] == "mq-learn"
+    assert config["profiles"]["fast"] == "qwen3.5:9b"
+    assert config["profiles"]["review"] == "qwen3.5:9b"
+    assert config["profiles"]["planner"] == "qwen3.5:9b"
+    assert config["profiles"]["memory"] == "qwen3.5:9b"
 
 
 def test_switch_model_dry_run_does_not_write(monkeypatch, tmp_path):
@@ -66,7 +66,7 @@ def test_models_current_json(monkeypatch, tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["profile"] == "fast"
-    assert data["profiles"]["planner"] == "qwen3:4b-instruct"
+    assert data["profiles"]["planner"] == "qwen3.5:9b"
 
 
 def test_models_switch_requires_approve_to_write(monkeypatch, tmp_path):
@@ -138,7 +138,7 @@ def test_models_bench_json(monkeypatch, tmp_path):
     data = json.loads(result.output)
     assert data["ok"] is True
     assert data["schema"] == "ollama_model_benchmark.v1"
-    assert data["model"] == "qwen3:4b-instruct"
+    assert data["model"] == "qwen3.5:9b"
     assert data["output"] == "OK"
     assert data["metrics"] == {
         "total_duration_ms": 2000.0,
@@ -210,7 +210,7 @@ def test_model_doctor_passes_with_installed_profiles(monkeypatch, tmp_path):
             ("ollama", "list"): (
                 "NAME ID SIZE MODIFIED\n"
                 "qwen3:4b-instruct abc 2.5GB today\n"
-                "mq-learn:latest def 2.0GB today\n"
+                "qwen3.5:9b def 7.6GB today\n"
             ),
             ("ollama", "ps"): "NAME ID SIZE PROCESSOR CONTEXT UNTIL\n",
         }
@@ -270,7 +270,7 @@ def test_models_doctor_json_fails_for_missing_profile_models(monkeypatch, tmp_pa
     def fake_run(args, **kwargs):
         outputs = {
             ("ollama", "--version"): "ollama version is 0.32.1\n",
-            ("ollama", "list"): "NAME ID SIZE MODIFIED\nmq-learn:latest def 2.0GB today\n",
+            ("ollama", "list"): "NAME ID SIZE MODIFIED\nmq-learn:latest def 2GB today\n",
             ("ollama", "ps"): "NAME ID SIZE PROCESSOR CONTEXT UNTIL\n",
         }
         return subprocess.CompletedProcess(args=args, returncode=0, stdout=outputs[tuple(args)], stderr="")
@@ -282,4 +282,20 @@ def test_models_doctor_json_fails_for_missing_profile_models(monkeypatch, tmp_pa
     assert result.exit_code == 1
     data = json.loads(result.output)
     assert data["ok"] is False
-    assert data["profiles"]["missing"] == ["qwen3:4b-instruct"]
+    assert data["profiles"]["missing"] == ["qwen3.5:9b"]
+
+
+def test_qwen_learning_request_preserves_system_prompt(monkeypatch, tmp_path):
+    from mq_agent.tools import model_runtime as runtime
+    source = tmp_path / "Modelfile.mq-learn"
+    source.write_text('FROM llama3.2\nSYSTEM """Preserved learning safety rules"""\n')
+    monkeypatch.setattr(runtime, "_mq_learn_modelfile_path", lambda: source)
+    response = MagicMock()
+    response.__enter__.return_value.read.return_value = b'{"response":"{}"}'
+    with patch("mq_agent.tools.model_runtime.urllib.request.urlopen", return_value=response) as opened:
+        runtime._ollama_generate_json("qwen3.5:9b", "review", 30)
+    payload = json.loads(opened.call_args.args[0].data)
+    assert payload["system"] == "Preserved learning safety rules"
+    assert payload["think"] is False
+    assert payload["options"]["top_p"] == 0.8
+    assert payload["options"]["repeat_penalty"] == 1.1
