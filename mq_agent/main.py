@@ -41,6 +41,41 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
+@app.command(name="verify-changes")
+def verify_changes_command(
+    path: Annotated[Path, typer.Argument(help="Repository or a directory inside it.")] = Path("."),
+    repo: Annotated[Path | None, typer.Option("--repo", help="Explicit repository; overrides PATH.")] = None,
+    base: Annotated[str, typer.Option(help="Compare changes against this commit/ref.")] = "HEAD",
+    plan: Annotated[bool, typer.Option("--plan", help="Preview selected checks without running or writing.")] = False,
+    receipt: Annotated[bool, typer.Option("--check-receipt", help="Validate the last receipt without running tests.")] = False,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit one JSON document.")] = False,
+):
+    """Run repo-owned checks for changed files and bind results to the working tree."""
+    from mq_agent.verify_changes import check_receipt, verify
+
+    try:
+        if plan and receipt:
+            raise ValueError("--plan and --check-receipt are mutually exclusive")
+        target = repo if repo is not None else path
+        result = check_receipt(target, base=base) if receipt else verify(target, base=base, plan_only=plan)
+    except (ValueError, OSError) as exc:
+        result = {"schema": "mq.verification-receipt.v1", "status": "ERROR", "error": str(exc)}
+    if json_out:
+        typer.echo(json.dumps(result, indent=2))
+    else:
+        typer.echo(f"Verification: {result['status']}")
+        for check in result.get("checks", []):
+            typer.echo(f"  {check.get('status', 'PLANNED')}: {check['id']} ({check['runner']})")
+        for name in result.get("uncovered_files", []):
+            typer.echo(f"  UNCOVERED: {name}")
+        if "error" in result:
+            typer.echo(result["error"], err=True)
+        else:
+            typer.echo("Not verified: " + "; ".join(result.get("not_verified", [])))
+    status = result["status"]
+    raise typer.Exit(0 if status in {"PASS", "PLAN", "NO_CHANGES"} else 2 if status == "ERROR" else 1)
+
+
 mcp_app = typer.Typer(help="Inspect and manage the local mq-mcp tool server.")
 app.add_typer(mcp_app, name="mcp")
 

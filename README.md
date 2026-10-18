@@ -1033,3 +1033,16 @@ for local inference. Routing allowlists and execution safety gates are unchanged
 OpenAI vector-store status/refresh also requires explicit
 `MQ_AGENT_PROVIDER=openai`. Existing remote stores are preserved; local Nomic
 indexes are not rebuilt or changed by this consolidation.
+
+## Verify changed files
+
+Run repo-owned checks selected from changed files and validate local receipts:
+
+```bash
+mq-agent verify-changes . --plan
+mq-agent verify-changes .
+mq-agent verify-changes . --check-receipt
+```
+
+[Verification rules, receipts and limits](docs/VERIFY_CHANGES.md).
+`mqlaunch verify-changes` delegates to the same command with the caller's repo.
