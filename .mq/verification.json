@@ -5,13 +5,17 @@
       "id": "verification-contracts",
       "runner": "pytest",
       "targets": [
-        "tests/test_verify_changes.py"
+        "tests/test_verify_changes.py",
+        "tests/test_command_reference.py"
       ],
       "paths": [
         "mq_agent/verify_changes.py",
         "mq_agent/main.py",
         "tests/test_verify_changes.py",
-        ".mq/verification.json"
+        ".mq/verification.json",
+        "tests/test_command_reference.py",
+        "tools/generate_command_reference.py",
+        "docs/generated/Command-Reference.md"
       ],
       "timeout_seconds": 60
     },
