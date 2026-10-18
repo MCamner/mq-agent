@@ -53,7 +53,10 @@ Supported runners:
 Commands are built as argument lists with no shell evaluation. Inline commands,
 custom executables, option injection and targets escaping the repo are refused.
 Each timeout is an integer from 1 to 900 seconds. At most 64 checks are allowed.
-Targets must exist before any selected check starts. A missing tool or nonzero
+Every configured target is validated during `--plan` and normal execution,
+even when the rule is not selected or the tree is clean. Script targets must be
+files; pytest targets may be files or directories. Invalid configuration stops
+the run before any check starts. A missing tool or nonzero
 exit fails the check; a timeout terminates its process group. Stdin is closed.
 Tests can create their usual temporary/generated files; this is not a sandbox.
 
@@ -88,7 +91,7 @@ plan/config to rerun it directly and inspect the diagnostic output.
 | `PLAN` | Preview only; inspect uncovered files before running | 0 |
 | `NO_CHANGES` | Nothing differs from the selected base; no checks ran | 0 |
 | `FAIL` | At least one selected check failed, timed out or could not start | 1 |
-| `INCOMPLETE` | Some changed files have no matching rule | 1 |
+| `INCOMPLETE` | Source files lack rules or declared runtime data awaits separate handling | 1 |
 | `STALE` | The source/index/base/verifier differs from the receipt | 1 |
 | `MISSING` | No previous receipt for this worktree | 1 |
 | `ERROR` | Invalid configuration, receipt or Git invocation | 2 |
@@ -104,9 +107,42 @@ service health, external dependency freshness or full release readiness.
 
 - macos-scripts: doctor/auth regression checks, terminal delegation and command
   registry/stack boundaries.
-- mq-mcp: Learn extraction and context contracts; nested Python environment.
+- mq-mcp: Learn contracts, README version/tool consistency and explicit runtime-data reporting.
 - mq-agent: verification regression tests and documentation consistency.
 
 These are deliberately bounded rule sets. Unrelated edits produce
 `INCOMPLETE`; add reviewed rules rather than a catch-all that hides gaps.
 Review and release provider selection is unchanged: this command calls no LLM.
+
+## Runtime data is separate from source verification
+
+Repositories can explicitly classify a small number of exact paths:
+
+```json
+"runtime_data": [
+  {
+    "path": "review_engine/memory/review_history.json",
+    "reason": "Generated review history; inspect separately from source verification."
+  }
+]
+```
+
+This optional field belongs at the config root. Wildcards, escaping paths,
+directories, duplicates and empty reasons are rejected. Older mq-agent versions
+without this field reject the config: update mq-agent before consuming it.
+
+Changed paths declared here appear under `runtime_data` with status
+`NOT_VERIFIED` and the configured reason. They do not select code tests, even
+if a broad code pattern matches them. They remain part of the fingerprint;
+changing history still invalidates a receipt. No file is edited or ignored.
+
+`code_status` reports the source-check result independently. With code checks
+passing and runtime data pending, the output says `code_status: PASS` and
+`status: INCOMPLETE` (exit 1). Runtime-only changes say `code_status: NO_CHANGES`
+and still `INCOMPLETE`; they never produce a vacuous PASS. A code failure or
+stale fingerprint retains priority over runtime classification. Receipt rechecks
+also set `code_status: STALE` when the evidence is no longer current.
+
+The mq-mcp rules now cover README version, runtime tool count and documented
+tool names using the repository's existing read-only scripts. This is bounded
+consistency checking, not an assertion that all documentation is correct.

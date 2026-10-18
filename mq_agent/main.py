@@ -64,6 +64,10 @@ def verify_changes_command(
         typer.echo(json.dumps(result, indent=2))
     else:
         typer.echo(f"Verification: {result['status']}")
+        if "code_status" in result:
+            typer.echo(f"Code verification: {result['code_status']}")
+        for entry in result.get("runtime_data", []):
+            typer.echo(f"  RUNTIME DATA (NOT_VERIFIED): {entry['path']} — {entry['reason']}")
         for check in result.get("checks", []):
             typer.echo(f"  {check.get('status', 'PLANNED')}: {check['id']} ({check['runner']})")
         for name in result.get("uncovered_files", []):
