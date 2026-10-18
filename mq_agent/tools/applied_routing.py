@@ -52,6 +52,13 @@ APPLIED_ROUTE_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
 #: so an operator who asks for nothing gets what the policy advised.
 DEFAULT_ROUTE = "local-shadow"
 
+#: The planner every counted docs-review observation was gathered under. The
+#: routes differ only in who reviews the material the planner collected, so a
+#: run planned by another model measures a different pipeline. #424 made Ollama
+#: the default provider; without MQ_AGENT_PROVIDER=openai a docs-audit planned
+#: with qwen3.5:9b, and such a run must not join the comparison.
+ROUTE_EVIDENCE_PLANNER_MODEL = "gpt-4o"
+
 _OFF_VALUES = frozenset({"0", "off", "false", "no"})
 
 

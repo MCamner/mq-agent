@@ -2562,6 +2562,9 @@ def docs_audit(
         print_steps(console, result["steps"], title="Docs Audit")
         recorded = "recorded" if result["execution_outcome_recorded"] else "NOT recorded"
         console.print(f"[dim]Execution: {result['execution_run_id']} ({recorded})[/dim]")
+        route_evidence = result.get("route_evidence") or {}
+        if route_evidence.get("recorded") is False:
+            console.print(f"[yellow]Route evidence NOT recorded: {route_evidence['reason']}[/yellow]")
         if passed:
             console.print("\n[bold green]✓ Docs audit complete and passed[/bold green]")
         else:
