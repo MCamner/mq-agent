@@ -22,7 +22,11 @@ def _agent(tmp_path, planner_model: str, calls: list) -> DocsAgent:
     agent = DocsAgent.__new__(DocsAgent)
     agent.planner = cast(Any, SimpleNamespace(model=planner_model, create_plan=lambda state, tools: plan))
     agent.verifier = cast(Any, SimpleNamespace(verify_plan=lambda plan: {"all_passed": True}))
-    agent._routed_docs_review = lambda *a, **k: calls.append(a) or None  # type: ignore[method-assign]
+
+    def _record(*args: Any, **kwargs: Any) -> None:
+        calls.append(args)
+
+    agent._routed_docs_review = _record  # type: ignore[method-assign]
     return agent
 
 
