@@ -13,10 +13,10 @@ from typing import Any
 from mq_agent.core.mq_mcp_layout import mq_mcp_layout
 
 DEFAULT_PROFILES: dict[str, str] = {
-    "fast": "qwen3:4b-instruct",
-    "review": "qwen3:4b-instruct",
-    "planner": "qwen3:4b-instruct",
-    "memory": "mq-learn",
+    "fast": "qwen3.5:9b",
+    "review": "qwen3.5:9b",
+    "planner": "qwen3.5:9b",
+    "memory": "qwen3.5:9b",
 }
 
 DOCTOR_SMOKE_PROMPT = (
@@ -214,6 +214,7 @@ def _ollama_generate(
     json_format: bool | dict[str, Any] = False,
     keep_alive: int | str = 0,
     num_ctx: int | None = None,
+    learning: bool = False,
 ) -> dict[str, Any]:
     request_data: dict[str, Any] = {
         "model": model,
@@ -225,6 +226,19 @@ def _ollama_generate(
         request_data["options"] = {"num_ctx": num_ctx}
     if json_format:
         request_data["format"] = json_format if isinstance(json_format, dict) else "json"
+    if model == "qwen3.5:9b":
+        request_data["think"] = False
+    if learning and model == "qwen3.5:9b":
+        source = _mq_learn_modelfile_path().read_text(encoding="utf-8")
+        system = source.split('SYSTEM """', 1)[1].split('"""', 1)[0].strip()
+        if not system:
+            raise ValueError("Learning system prompt is empty")
+        request_data["system"] = system
+        request_data["think"] = False
+        request_data["options"] = {
+            "temperature": 0.1, "top_p": 0.8, "repeat_penalty": 1.1,
+            "num_ctx": num_ctx or 4096, "num_predict": 700, "seed": 42,
+        }
     body = json.dumps(request_data).encode("utf-8")
     request = urllib.request.Request(
         f"{_ollama_base_url()}/api/generate",
@@ -237,7 +251,7 @@ def _ollama_generate(
 
 
 def _ollama_generate_json(model: str, prompt: str, timeout: int) -> dict[str, Any]:
-    return _ollama_generate(model, prompt, timeout, json_format=True)
+    return _ollama_generate(model, prompt, timeout, json_format=True, learning=True)
 
 
 def _model_installed(model: str, installed: list[str]) -> bool:
@@ -270,6 +284,20 @@ def _check_mq_learn_modelfile(model: str, installed: list[str]) -> dict[str, Any
         }
     if not _model_installed(model, installed):
         return {"status": "FAIL", "detail": f"{model} is not installed", "source": str(source_path)}
+
+    if model == "qwen3.5:9b":
+        try:
+            source = source_path.read_text(encoding="utf-8")
+            system = source.split('SYSTEM """', 1)[1].split('"""', 1)[0].strip()
+            if not system:
+                raise ValueError("empty Learning system prompt")
+        except (OSError, IndexError, ValueError) as exc:
+            return {"status": "FAIL", "detail": str(exc), "source": str(source_path)}
+        return {
+            "status": "PASS",
+            "detail": "Learning system prompt supplied per request from repo Modelfile",
+            "source": str(source_path),
+        }
 
     result = _ollama_command(["show", "--modelfile", model])
     if result.returncode != 0:
@@ -361,9 +389,9 @@ def model_doctor(
                 "status": "PASS" if schema_valid else "FAIL",
                 "json_valid": json_valid,
                 "schema_valid": schema_valid,
-                "detail": "valid mq-learn JSON schema" if schema_valid else "invalid mq-learn JSON schema",
+                "detail": "valid Learning JSON schema" if schema_valid else "invalid Learning JSON schema",
             })
-        except (json.JSONDecodeError, TimeoutError, urllib.error.URLError) as exc:
+        except (ValueError, OSError, IndexError) as exc:
             smoke_result.update({"status": "FAIL", "detail": str(exc)})
         items.append({"check": "mq-learn-json-smoke", "status": smoke_result["status"], "detail": smoke_result.get("detail", "")})
 
@@ -408,8 +436,9 @@ def bench_model(
             timeout,
             json_format=should_validate,
             keep_alive=keep_alive,
+            learning=should_validate,
         )
-    except (json.JSONDecodeError, TimeoutError, urllib.error.URLError) as exc:
+    except (ValueError, OSError, IndexError) as exc:
         return {
             "schema": "ollama_model_benchmark.v1",
             "ok": False,

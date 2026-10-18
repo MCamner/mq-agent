@@ -127,7 +127,11 @@ def repo_signal_available() -> bool:
 
 
 def _openai_client() -> Any | None:
-    """Build a hermetic OpenAI client, or None when no process key exists."""
+    """Build the cloud memory client only for an explicitly selected provider."""
+    from mq_agent.config import load_config
+
+    if load_config().effective_provider() != "openai":
+        return None
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return None

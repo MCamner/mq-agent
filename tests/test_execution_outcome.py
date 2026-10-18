@@ -550,6 +550,7 @@ def test_an_entrypoint_that_never_starts_records_nothing(store, monkeypatch) -> 
 def store_without_credentials(tmp_path, monkeypatch) -> Path:
     destination = tmp_path / "execution-outcomes.jsonl"
     monkeypatch.setenv("MQ_AGENT_EXECUTION_OUTCOMES", str(destination))
+    monkeypatch.setenv("MQ_AGENT_PROVIDER", "openai")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     return destination
 

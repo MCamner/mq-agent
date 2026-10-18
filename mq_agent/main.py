@@ -323,6 +323,11 @@ def _require_recordable_runtime() -> dict[str, Any] | None:
 
 
 def _client():
+    from mq_agent.config import load_config
+    from mq_agent.core.local_llm import OllamaClient
+
+    if load_config().effective_provider() == "ollama":
+        return OllamaClient()
     from openai import OpenAI
 
     key = os.environ.get("OPENAI_API_KEY")
@@ -6974,11 +6979,11 @@ def models_current_cmd(
 
 @models_app.command("doctor")
 def models_doctor_cmd(
-    smoke: Annotated[bool, typer.Option("--smoke/--no-smoke", help="Run mq-learn JSON smoke test")] = True,
+    smoke: Annotated[bool, typer.Option("--smoke/--no-smoke", help="Run Learning JSON smoke test")] = True,
     timeout: Annotated[int, typer.Option("--timeout", help="Smoke-test timeout in seconds")] = 60,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
-    """Run read-only diagnostics for Ollama, model profiles, and mq-learn."""
+    """Run read-only diagnostics for Ollama, model profiles, and local Learning."""
     from mq_agent.tools.model_runtime import model_doctor
 
     data = model_doctor(smoke=smoke, timeout=timeout)

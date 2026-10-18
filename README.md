@@ -906,9 +906,9 @@ time, so an execution record can say which build produced it.
 
 ## v0.5.1 status
 
-- [x] Planner (OpenAI gpt-4o, structured JSON output)
+- [x] Planner (local Qwen3.5:9b by default, structured JSON output)
 - [x] Executor (tool registry, dry-run, safety gate)
-- [x] Verifier (OpenAI gpt-4o-mini, per-step verification)
+- [x] Verifier (local Qwen3.5:9b by default, per-step verification)
 - [x] Memory (session + persistent JSON)
 - [x] Safety (read-only / suggest / execute / dangerous)
 - [x] Git tools, shell tools, repo tools
@@ -1019,3 +1019,17 @@ mq-agent stack compatibility --repo-path "mq-mcp=$HOME/mq-mcp-main" --live
 Unknown repository names, duplicate overrides and missing directories are
 rejected. Without this option, repository discovery is unchanged. The option
 only reads the selected worktrees and does not switch branches or modify them.
+
+## Local model consolidation
+
+Routing, planning, verification and all local profiles default to `qwen3.5:9b`.
+Local failures do not fall back to OpenAI. Nomic embeddings are unchanged.
+Use `MQ_AGENT_PROVIDER=openai MQ_AGENT_MODEL=<cloud-model> mq-agent plan <goal>`
+only for an explicitly selected cloud task; the existing OpenAI credentials are
+required for that selection. Set `MQ_AGENT_VERIFIER_MODEL` separately when a
+cloud task needs a different verification model. Credentials are not required
+for local inference. Routing allowlists and execution safety gates are unchanged.
+
+OpenAI vector-store status/refresh also requires explicit
+`MQ_AGENT_PROVIDER=openai`. Existing remote stores are preserved; local Nomic
+indexes are not rebuilt or changed by this consolidation.
