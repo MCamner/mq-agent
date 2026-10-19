@@ -299,3 +299,17 @@ def test_qwen_learning_request_preserves_system_prompt(monkeypatch, tmp_path):
     assert payload["think"] is False
     assert payload["options"]["top_p"] == 0.8
     assert payload["options"]["repeat_penalty"] == 1.1
+
+
+def test_generate_turns_thinking_off_for_any_model():
+    # The check used to be `model == "qwen3.5:9b"`, so any other thinking
+    # model or tag (qwen3.5:27b, a renamed profile) thought by default again.
+    # Ollama accepts think=false for models without thinking; only true errors.
+    from mq_agent.tools import model_runtime as runtime
+    response = MagicMock()
+    response.__enter__.return_value.read.return_value = b'{"response":"ok"}'
+    for model in ("qwen3.5:27b", "mq-learn:latest"):
+        with patch("mq_agent.tools.model_runtime.urllib.request.urlopen", return_value=response) as opened:
+            runtime._ollama_generate(model, "hello", 30)
+        payload = json.loads(opened.call_args.args[0].data)
+        assert payload["think"] is False, model

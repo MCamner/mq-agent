@@ -87,6 +87,7 @@ class OllamaResearchSynthesizer:
                 "model": self.model,
                 "prompt": prompt,
                 "stream": False,
+                "think": False,
                 "format": "json",
                 "keep_alive": 0,
             }

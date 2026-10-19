@@ -220,21 +220,21 @@ def _ollama_generate(
         "model": model,
         "prompt": prompt,
         "stream": False,
+        # Not only for qwen3.5:9b: any thinking model thinks by default, and
+        # Ollama accepts think=false for models that cannot think.
+        "think": False,
         "keep_alive": keep_alive,
     }
     if num_ctx is not None:
         request_data["options"] = {"num_ctx": num_ctx}
     if json_format:
         request_data["format"] = json_format if isinstance(json_format, dict) else "json"
-    if model == "qwen3.5:9b":
-        request_data["think"] = False
     if learning and model == "qwen3.5:9b":
         source = _mq_learn_modelfile_path().read_text(encoding="utf-8")
         system = source.split('SYSTEM """', 1)[1].split('"""', 1)[0].strip()
         if not system:
             raise ValueError("Learning system prompt is empty")
         request_data["system"] = system
-        request_data["think"] = False
         request_data["options"] = {
             "temperature": 0.1, "top_p": 0.8, "repeat_penalty": 1.1,
             "num_ctx": num_ctx or 4096, "num_predict": 700, "seed": 42,
