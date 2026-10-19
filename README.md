@@ -141,8 +141,7 @@ mq-agent doctor
 # Score a repo (no API key needed)
 mq-agent score .
 
-# Full AI-backed repo assessment
-export OPENAI_API_KEY=sk-...
+# AI-backed repo assessment (local Qwen via Ollama by default)
 mq-agent signal .
 
 # Read-only audit
@@ -184,7 +183,10 @@ pipx install git+https://github.com/MCamner/mq-agent.git
 pipx install mq-agent   # coming soon
 ```
 
-Requires `OPENAI_API_KEY` for AI commands. `score`, `doctor`, `repo-summary` and `tools` work without it.
+Planning and verification default to local `qwen3.5:9b` via Ollama and need no
+OpenAI credentials. Select `MQ_AGENT_PROVIDER=openai` explicitly for cloud
+planning; OpenAI-backed commands, including mq-mcp reviews, require OpenAI
+credentials. `score`, `doctor`, `repo-summary` and `tools` work without them.
 
 ## Demo
 
@@ -263,9 +265,9 @@ dangerous   → no restrictions (requires explicit flag)
 mq_agent/
 ├── core/
 │   ├── state.py          # AgentState, PlanStep, SafetyMode, StepStatus
-│   ├── planner.py        # OpenAI-backed plan generation
+│   ├── planner.py        # Plan generation via selected provider
 │   ├── executor.py       # Tool routing + safety enforcement
-│   ├── verification.py   # OpenAI-backed result verification
+│   ├── verification.py   # Result verification via selected provider
 │   ├── memory.py         # Session + persistent memory
 │   └── safety.py         # Safety gate (mode enforcement)
 ├── tools/
