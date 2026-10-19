@@ -334,3 +334,32 @@ def test_cli_live_runtime_delegates_without_drive_or_ollama_call(tmp_path, monke
     payload = json.loads(result.stdout)
     assert payload["status"] == "DELEGATE_RUNTIME"
     assert payload["retrieval"]["trace"]["fetched"] == 0
+
+
+def test_ollama_synthesizer_turns_thinking_off(monkeypatch):
+    # qwen3.5 thinks by default; with the 60 s timeout a synthesis spent most
+    # of its budget thinking. The request must ask for an answer, not a trace.
+    import urllib.request
+
+    from mq_agent.notebook_corpus_research import OllamaResearchSynthesizer
+
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({"response": "{}"}).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data)
+        return FakeResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    OllamaResearchSynthesizer(model="qwen3.5:9b", host="http://127.0.0.1:11434").synthesize("q", [])
+
+    assert captured["payload"]["think"] is False
