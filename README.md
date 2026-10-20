@@ -240,7 +240,7 @@ mq-agent stack loop --execute --approve
 mqlaunch agent → 19                 # Manual stack loop plan from the menu
 mq-agent tui                       # Launch Textual dashboard
 
-# All commands support --dry-run and --json
+# Examples of commands with explicit --dry-run support
 mq-agent audit . --dry-run
 mq-agent run-tool read_repo_file --arg path=README.md --dry-run
 ```
@@ -301,7 +301,8 @@ mq_agent/
 - `mq-agent audit . --dry-run` — safe, read-only plan generation
 - `mq-agent signal . --dry-run` — repo-signal assessment without execution
 - Safety modes documented and enforced — dangerous patterns blocked at tool level
-- `--dry-run` and `--json` supported on all commands
+- `--dry-run` and `--json` are command-specific; check `mq-agent <command> --help`.
+  For example, `doctor` supports neither flag; `tools` supports `--json` but not `--dry-run`.
 
 ```bash
 uv run pytest tests/ -v
@@ -916,7 +917,7 @@ time, so an execution record can say which build produced it.
 - [x] Git tools, shell tools, repo tools
 - [x] MCP bridge (mq-mcp over HTTP) with safety classification
 - [x] Audit agent, Release agent, CI agent, Docs agent, Signal agent
-- [x] Textual TUI, JSON output, `--dry-run` on all commands
+- [x] Textual TUI, with JSON output and dry-run options on supported commands
 - [x] `mq-agent doctor` — full environment check
 - [x] `mq-agent mcp status` / `mq-agent mcp tools` — MCP inspection
 - [x] `mq-agent tools --describe <name>` — tool metadata and safety class
@@ -993,15 +994,17 @@ for bridge details.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
-Current direction:
+Current release is v1.35.0: MCP tool contracts and evidence-gate hardening.
+The next focus is collecting current-era `docs-review` routing evidence:
+ten complete successful runs per route across at least fourteen days.
+Automatic routing remains disabled pending explicit operator promotion review.
 
-v1.31.0 adds Evidence-Gated Activation and Recovery on top of the v1.30
-Feedback Engine. Activation is explicit, task-class scoped, bound to human
-approval plus post-approval canary evidence, and remains opt-in at the context
-consumer boundary. Autonomous/global activation remains absent.
+The current development tree also provides `verify-changes`: repo-owned checks
+and source-bound receipts, with stale evidence detected before reuse.
+See [verification rules and limits](docs/VERIFY_CHANGES.md).
 
-Across both milestones, mq-agent owns orchestration, mqobsidian owns truth,
-mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
+Across these workflows, mq-agent owns orchestration, mqobsidian owns durable
+memory, mq-mcp owns review and runtime reasoning, and mqlaunch remains a thin
 delegation surface.
 
 ## Notes
