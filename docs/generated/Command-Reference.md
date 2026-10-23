@@ -1865,6 +1865,7 @@ Show the mqobsidian scoring review state: tier tally + held review queues (read-
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--vault` | No | — | mqobsidian vault path (or $MQ_OBSIDIAN_DIR) |
+| `--json` | No | `false` | Machine-readable output |
 
 ## `mq-agent memory search`
 

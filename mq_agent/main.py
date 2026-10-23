@@ -3324,6 +3324,7 @@ def obsidian_deprecate_cmd(
 @memory_app.command("review-status")
 def memory_review_status_cmd(
     vault: Annotated[str | None, typer.Option("--vault", help="mqobsidian vault path (or $MQ_OBSIDIAN_DIR)")] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
 ):
     """Show the mqobsidian scoring review state: tier tally + held review queues (read-only).
 
@@ -3332,7 +3333,11 @@ def memory_review_status_cmd(
     """
     from mq_agent.memory.inbox_pipeline import run_review_status
 
-    result = run_review_status(vault=vault)
+    result = run_review_status(vault=vault, as_json=as_json)
+    if as_json:
+        # Plain print: the document must stay parseable even when the delegate fails.
+        print(json.dumps(result, indent=2))
+        raise typer.Exit(0 if result["ok"] else 1)
     _print_delegated("MQ memory review status", result)
     raise typer.Exit(0 if result["ok"] else 1)
 

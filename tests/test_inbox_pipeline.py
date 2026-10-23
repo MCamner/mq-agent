@@ -138,6 +138,36 @@ def test_review_status_delegates_status(tmp_path):
     assert cli.calls == [["status"]] and res["ok"] is True
 
 
+_STATUS_DOC = {"schema": "mqobsidian.memory-status.v1", "held": {"total": 1, "promotion-review": 1}}
+
+
+def test_review_status_json_passes_flag_and_parses(tmp_path):
+    calls = []
+
+    def cli(vault, args):
+        calls.append(args)
+        return 0, json.dumps(_STATUS_DOC), ""
+
+    res = ip.run_review_status(vault=tmp_path, as_json=True, cli_runner=cli)
+    assert calls == [["status", "--json"]]
+    assert res["ok"] is True and res["status"] == _STATUS_DOC
+
+
+def test_review_status_json_rejects_unparseable_output(tmp_path):
+    res = ip.run_review_status(vault=tmp_path, as_json=True,
+                               cli_runner=lambda v, a: (0, "Memory status (text)", ""))
+    assert res["ok"] is False and res["status"] is None and "JSON" in res["error"]
+
+
+def test_review_status_cli_json_stays_parseable_when_failing(tmp_path):
+    # tmp vault has no memory_cli.py → rc=127; --json output must still be one JSON doc.
+    r = runner.invoke(app, ["memory", "review-status", "--json", "--vault", str(tmp_path)])
+    assert r.exit_code == 1
+    doc = json.loads(r.output)
+    assert doc["ok"] is False and doc["rc"] == 127 and doc["status"] is None
+    assert "mqobsidian CLI not found" in doc["error"]
+
+
 def test_promote_from_review_dry_run_by_default(tmp_path):
     cli = _RecordingCLI()
     ip.run_promote_from_review("cochange-x", vault=tmp_path, cli_runner=cli)
