@@ -19,13 +19,14 @@ def test_memory_status_runs(monkeypatch, tmp_path):
 
 
 def test_memory_status_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("MQ_AGENT_PROVIDER", "ollama")
     monkeypatch.setenv("OPENAI_VECTOR_STORE_ID", "vs_test")
     import mq_agent.memory.semantic as sem
     monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
     result = runner.invoke(app, ["memory", "status", str(tmp_path), "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
-    assert data["status"] == "degraded"
+    assert data["status"] == "skipped"
     assert data["enabled"] is False
     assert data["configured"] is True
     assert data["reachable"] is None

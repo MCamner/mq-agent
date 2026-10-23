@@ -105,13 +105,14 @@ def test_resolution_reads_only_the_one_variable(monkeypatch):
 
 
 def test_status_always_has_an_id_and_a_source(monkeypatch, tmp_path):
+    monkeypatch.setenv("MQ_AGENT_PROVIDER", "ollama")
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
     monkeypatch.setattr(sem, "repo_signal_available", lambda: True)
 
     state = status(tmp_path)
     assert state.vector_store_id == CANONICAL_VECTOR_STORE_ID
     assert state.vector_store_source == "canonical"
-    assert state.status == "degraded"
+    assert state.status == "skipped"
     assert state.enabled is False
     assert state.configured is True
     assert state.reachable is None
@@ -120,11 +121,12 @@ def test_status_always_has_an_id_and_a_source(monkeypatch, tmp_path):
 
 def test_status_no_longer_reports_a_missing_store(monkeypatch, tmp_path):
     """mq-agent is never without a memory, so the state cannot occur."""
+    monkeypatch.setenv("MQ_AGENT_PROVIDER", "ollama")
     monkeypatch.delenv("OPENAI_VECTOR_STORE_ID", raising=False)
     monkeypatch.setattr(sem, "repo_signal_available", lambda: False)
 
     state = status(tmp_path)
-    assert state.status == "degraded"
+    assert state.status == "skipped"
     assert state.configured is True
     assert state.reachable is None
     assert state.freshness == "unknown"

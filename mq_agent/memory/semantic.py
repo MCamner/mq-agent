@@ -10,9 +10,11 @@ import os
 import re
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 
@@ -86,6 +88,7 @@ class _IdentityInspection:
 class _FilenameIndex:
     names: dict[str, str] = field(default_factory=dict)
     loaded: bool = False
+    lock: Any = field(default_factory=Lock, repr=False)
 
 
 CANONICAL_VECTOR_STORE_ID = "vs_69ffa9a4ef5c81919d7d237c3ecdc260"
@@ -187,6 +190,11 @@ def _attributes(item: Any) -> dict[str, Any]:
 
 def _load_filename_index(client: Any, index: _FilenameIndex) -> bool:
     """Load OpenAI file id -> filename once for legacy identity fallback."""
+    with index.lock:
+        return _load_filename_index_locked(client, index)
+
+
+def _load_filename_index_locked(client: Any, index: _FilenameIndex) -> bool:
     if index.loaded:
         return True
 
@@ -272,12 +280,30 @@ def _inspect_identity(
     repo_name = _repo_name(repo)
     filename_index = _FilenameIndex()
 
-    authoritative, authoritative_complete = _identity_files(
-        client,
-        authoritative_store_id,
-        repo_name,
-        filename_index,
-    )
+    # Independent store reads overlap; legacy filename discovery remains shared.
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        authoritative_read = pool.submit(
+            _identity_files, client, authoritative_store_id, repo_name, filename_index,
+        )
+        try:
+            stores = _page_items(client.vector_stores.list(limit=100, order="desc"))
+            non_authoritative_complete = True
+        except Exception:
+            stores = []
+            non_authoritative_complete = False
+        other_reads = [
+            pool.submit(_identity_files, client, str(store.id), repo_name, filename_index)
+            for store in stores
+            if getattr(store, "id", "") and str(store.id) != authoritative_store_id
+        ]
+        authoritative, authoritative_complete = authoritative_read.result()
+        known_non_authoritative = 0
+        for read in other_reads:
+            files, complete = read.result()
+            non_authoritative_complete = non_authoritative_complete and complete
+            known_non_authoritative += sum(
+                1 for item in files if getattr(item, "status", "") == "completed"
+            )
     active = [
         item
         for item in authoritative
@@ -295,31 +321,6 @@ def _inspect_identity(
             key=lambda item: int(getattr(item, "created_at", 0) or 0),
         )
         latest_upload = _iso_from_epoch(getattr(latest, "created_at", None))
-
-    known_non_authoritative = 0
-    non_authoritative_complete = True
-    try:
-        stores = _page_items(client.vector_stores.list(limit=100, order="desc"))
-    except Exception:
-        stores = []
-        non_authoritative_complete = False
-
-    for store in stores:
-        store_id = str(getattr(store, "id", ""))
-        if not store_id or store_id == authoritative_store_id:
-            continue
-        files, complete = _identity_files(
-            client,
-            store_id,
-            repo_name,
-            filename_index,
-        )
-        non_authoritative_complete = non_authoritative_complete and complete
-        known_non_authoritative += sum(
-            1
-            for item in files
-            if getattr(item, "status", "") == "completed"
-        )
 
     scope_complete = authoritative_complete and non_authoritative_complete
 
@@ -380,7 +381,11 @@ def status(repo_path: str | Path = ".") -> SemanticMemoryStatus:
         else None
     )
 
-    if not configured or reachable is False:
+    from mq_agent.config import load_config
+
+    if client is None and load_config().effective_provider() != "openai":
+        state = "skipped"
+    elif not configured or reachable is False:
         state = "unavailable"
     elif reachable is True and freshness == "fresh" and has_repo_signal:
         state = "ready"
