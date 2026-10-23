@@ -11,6 +11,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Semantic memory status reports `skipped` when the local provider deliberately omits the cloud probe. OpenAI status overlaps independent store metadata reads while preserving complete generation and legacy-file checks.
+
 - The notebook research synthesizer sends `think: false` to Ollama. qwen3.5 thinks by default, and a two-source synthesis hit the 60 s timeout; with thinking off it answers in about 20 s, including the cold load that `keep_alive: 0` forces.
 - `tools/model_runtime.py` sends `think: false` for every model, not only when the name is exactly `qwen3.5:9b`. Another thinking model or tag thought by default again. Ollama accepts `think: false` for models that cannot think; only `true` is refused.
 

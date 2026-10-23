@@ -17,6 +17,8 @@ audit / release-check / score with repo context
 
 ---
 
+Semantic status reports `skipped` with the local provider: no cloud health claim is made. Use `MQ_AGENT_PROVIDER=openai mq-agent memory status <repo> --json` for an explicit cloud check. Independent store reads run concurrently; missing metadata still prevents a fresh verdict.
+
 ## Commands
 
 ```bash
@@ -34,7 +36,7 @@ mq-agent memory doctor --json   # machine-readable diagnostics
 ```text
 $ mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       degraded                                                       │
+│ status:       skipped                                                        │
 │ configured:   true                                                           │
 │ reachable:    unknown                                                        │
 │ freshness:    unknown                                                        │
@@ -59,7 +61,7 @@ Add --no-dry-run to execute, or use memory refresh --approve.
 
 $ OPENAI_VECTOR_STORE_ID=vs_abc mq-agent memory status
 ╭────────────────────────────── Semantic Memory ───────────────────────────────╮
-│ status:       degraded                                                       │
+│ status:       skipped                                                        │
 │ configured:   true                                                           │
 │ reachable:    unknown                                                        │
 │ freshness:    unknown                                                        │

@@ -433,3 +433,24 @@ def test_cleanup_never_deletes_underlying_openai_file_objects(monkeypatch, tmp_p
 
     assert result.returncode == 0
     assert client.files.filenames["file_old"] == "macos-scripts-symbol-memory.md"
+
+
+def test_status_overlaps_independent_store_reads(monkeypatch, tmp_path):
+    from threading import Barrier
+
+    store = sem.CANONICAL_VECTOR_STORE_ID
+    client = FakeClient({store: [item("current", 20, revision="rev-new")],
+                         "other-a": [], "other-b": []}, {})
+    original = client.vector_stores.files.list
+    rendezvous = Barrier(2, timeout=2)
+
+    def read(store_id, **kwargs):
+        if store_id != store:
+            rendezvous.wait()
+        return original(store_id, **kwargs)
+
+    client.vector_stores.files.list = read
+    _patch_identity(monkeypatch, client)
+    state = sem.status(tmp_path)
+    assert state.status == "ready"
+    assert state.non_authoritative_retrieval_count == 0

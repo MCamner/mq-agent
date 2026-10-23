@@ -3524,7 +3524,7 @@ def memory_status_cmd(
         "green"
         if state.status == "ready"
         else "yellow"
-        if state.status == "degraded"
+        if state.status in {"degraded", "skipped"}
         else "red"
     )
     reachable = "unknown" if state.reachable is None else str(state.reachable).lower()
