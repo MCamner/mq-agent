@@ -449,7 +449,7 @@ def test_status_overlaps_independent_store_reads(monkeypatch, tmp_path):
             rendezvous.wait()
         return original(store_id, **kwargs)
 
-    client.vector_stores.files.list = read
+    monkeypatch.setattr(client.vector_stores.files, "list", read)
     _patch_identity(monkeypatch, client)
     state = sem.status(tmp_path)
     assert state.status == "ready"
