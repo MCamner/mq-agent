@@ -513,11 +513,26 @@ def run_pipeline(
 # (one per verb), deliberately NOT a generic "pass any mqobsidian command through".
 
 
-def run_review_status(*, vault: str | Path | None = None,
+def run_review_status(*, vault: str | Path | None = None, as_json: bool = False,
                       cli_runner: Callable[..., tuple[int, str, str]] = run_mqobsidian_cli) -> dict:
-    """Delegate to mqobsidian `status` — tier tally + held review queues (read-only)."""
+    """Delegate to mqobsidian `status` — tier tally + held review queues (read-only).
+
+    With ``as_json`` the document mqobsidian prints (``mqobsidian.memory-status.v1``)
+    is parsed into ``status``; mq-agent never reads the human text layout.
+    """
     v = resolve_vault(vault)
-    return {"vault": str(v), **_cli_stage(cli_runner, v, ["status"])}
+    if not as_json:
+        return {"vault": str(v), **_cli_stage(cli_runner, v, ["status"])}
+    stage = _cli_stage(cli_runner, v, ["status", "--json"])
+    result = {"ok": stage["ok"], "vault": str(v), "rc": stage["rc"], "status": None, "error": ""}
+    if not stage["ok"]:
+        result["error"] = stage["stderr"] or stage["stdout"]
+        return result
+    try:
+        result["status"] = json.loads(stage["stdout"])
+    except json.JSONDecodeError as exc:
+        result.update(ok=False, error=f"mqobsidian status did not return JSON: {exc}")
+    return result
 
 
 def run_promote_from_review(memory_id: str, *, apply: bool = False, vault: str | Path | None = None,
