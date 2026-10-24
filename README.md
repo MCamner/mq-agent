@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.35.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.36.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -430,6 +430,23 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.36.0 status
+
+v1.36.0 adds changed-file verification with receipts and a machine-readable
+memory review queue.
+
+- [x] `verify-changes` runs the repo-owned checks in `.mq/verification.json` for
+  files changed against a base, and binds the result to the working tree in a
+  receipt under `.git/`
+- [x] `verify-changes --check-receipt` validates the last receipt without
+  running tests; repo-signal `doctor --verification` reads it
+- [x] `memory review-status --json` forwards mqobsidian's
+  `mqobsidian.memory-status.v1`; macos-scripts Pulse reads the held queues from it
+- [x] semantic memory status reports `skipped` when the local provider omits
+  the cloud probe
+- [x] the notebook research synthesizer and `tools/model_runtime.py` send
+  `think: false` to Ollama for every model
 
 ## v1.35.0 status
 
@@ -994,7 +1011,7 @@ for bridge details.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the current roadmap.
 
-Current release is v1.35.0: MCP tool contracts and evidence-gate hardening.
+Current release is v1.36.0: changed-file verification receipts and a machine-readable memory review queue.
 The next focus is collecting current-era `docs-review` routing evidence:
 ten complete successful runs per route across at least fourteen days.
 Automatic routing remains disabled pending explicit operator promotion review.
