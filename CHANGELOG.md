@@ -9,6 +9,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Repo reviews use a bounded per-file HTTP read budget instead of timing out after 120 seconds during sequential local-model calls.
+
 ## [v1.36.0] — 2026-10-24
 
 ### Fixed
