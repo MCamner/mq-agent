@@ -234,10 +234,17 @@ class MCPBridge:
             return "httpx not installed; cannot reach mq-mcp"
         import httpx
         try:
+            timeout = 120
+            if tool_name == "review_repo":
+                # mq-mcp reviews up to five files by default, sequentially.
+                # Its local model has a 180s per-call deadline; a 120s HTTP
+                # read deadline can abandon a healthy review after one file.
+                files = min(max(1, int(args.get("max_files", 5))), 20)
+                timeout = 180 * files + 30
             response = httpx.post(
                 f"{self.endpoint}/tools/{tool_name}",
                 json=args,
-                timeout=120,
+                timeout=timeout,
             )
             response.raise_for_status()
             return response.json()

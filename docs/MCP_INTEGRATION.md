@@ -97,6 +97,12 @@ mq-agent review diff --risk
 If the required mq-mcp review tool is missing, mq-agent exits with a clear
 error and suggests upgrading or starting mq-mcp.
 
+`review_repo` gets an HTTP read budget of 180 seconds per requested file
+(default five, capped at twenty), plus 30 seconds for overhead. This covers
+the local model's per-call deadline across sequential file reviews. Other tools
+retain the 120-second read timeout. A timeout never retries a review or saves
+a missing result to brain.
+
 ## Learn through mq-mcp
 
 mq-agent learn commands are also pass-through and read-only:
