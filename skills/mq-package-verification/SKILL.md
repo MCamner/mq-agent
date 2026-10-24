@@ -47,7 +47,7 @@ coverage, failures and skipped checks. A passing checkout suite is separate
 evidence from a passing installed-package smoke test. Return to the target
 repo's release skill for the remaining release gates.
 
-## Routing examples
+## Evals
 
 - "Test the wheel after adding a schema" → use this skill.
 - "The installed CLI cannot find a template" → use this skill.
