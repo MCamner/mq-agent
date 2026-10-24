@@ -5,18 +5,19 @@
 # Contract mode (--json): emits a repo_release_check.v1 object on stdout and
 #   exits 0 (the `status` field carries the verdict). Consumed by mq-agent's
 #   `stack release --all --preflight`.
-# --dry-run is accepted for contract compatibility; this check never mutates,
-#   so it is a no-op here.
+# --dry-run skips the one network step (the GitHub release lookup); every
+#   other check is local and never mutates.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 VERSION="$(cat "$ROOT/VERSION")"
 
 JSON=0
+DRY_RUN=0
 for arg in "$@"; do
   case "$arg" in
     --json) JSON=1 ;;
-    --dry-run) : ;;
+    --dry-run) DRY_RUN=1 ;;
     *) ;;
   esac
 done
@@ -61,6 +62,17 @@ if [[ "$LOCK_VERSION" == "$VERSION" ]]; then
   ok "uv.lock package version matches VERSION ($VERSION)"
 else
   fail "uv.lock mq-agent version '$LOCK_VERSION' != VERSION '$VERSION'"
+fi
+
+say ""
+say "--- GitHub release publication ---"
+# Is VERSION already published, and was the previous CHANGELOG version ever
+# published. Network, so --dry-run, --json (the stack preflight) and CI skip it;
+# main sits between releases there and the answer would always be "bump".
+if [[ "$DRY_RUN" -eq 1 || "$JSON" -eq 1 || -n "${CI:-}" ]]; then
+  say "SKIP: GitHub release lookup (dry-run, --json or CI)"
+else
+  run_check "check-github-releases.sh" bash "$ROOT/scripts/check-github-releases.sh"
 fi
 
 say ""
