@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.36.0] — 2026-10-24
+
 ### Fixed
 
 - Semantic memory status reports `skipped` when the local provider deliberately omits the cloud probe. OpenAI status overlaps independent store metadata reads while preserving complete generation and legacy-file checks.
