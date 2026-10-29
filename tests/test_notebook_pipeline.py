@@ -442,3 +442,21 @@ def test_notebook_operator_commands_are_registered():
     assert result.exit_code == 0
     for command in ("build", "status", "sync", "evidence", "atlas", "search"):
         assert command in result.stdout
+
+
+def test_incremental_semantic_sync_passes_progress_through(tmp_path: Path):
+    catalog, _ = build_from_document(_d3())
+    events = []
+
+    incremental_semantic_sync(
+        catalog,
+        None,
+        {"added": [], "changed": [], "removed": [], "unchanged": ["source-a"]},
+        FakeTextProvider({"source-a": "bootstrap semantic material"}),
+        FakeEmbeddings(),
+        output_path=tmp_path / "semantic.json",
+        progress=lambda stage, done, total: events.append((stage, done, total)),
+    )
+
+    assert ("fetch", 1, 1) in events
+    assert events[-1][0] == "embed"

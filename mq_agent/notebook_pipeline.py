@@ -12,7 +12,7 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from mq_agent.notebook_corpus import materialize, validate_catalog
 from mq_agent.notebook_corpus_retrieval import retrieve_evidence
@@ -270,6 +270,7 @@ def incremental_semantic_sync(
     max_total_bytes: int = 16_777_216,
     chunk_chars: int = 2_000,
     overlap_chars: int = 200,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> dict[str, Any]:
     """P3 semantic delta: reuse unchanged vectors and embed only changed files."""
     validate_catalog(catalog)
@@ -322,6 +323,7 @@ def incremental_semantic_sync(
             max_total_bytes=max_total_bytes,
             chunk_chars=chunk_chars,
             overlap_chars=overlap_chars,
+            progress=progress,
         )
         new_chunks = list(delta_index["chunks"])
         delta_trace = dict(delta_index["trace"])
