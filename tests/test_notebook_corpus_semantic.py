@@ -422,3 +422,25 @@ def test_unavailable_trace_separates_budget_limited_from_empty_documents():
         trace["files_unavailable_complete"]
         == trace["files_unavailable"] - 1
     )
+
+
+def test_semantic_index_reports_fetch_and_embed_progress():
+    events = []
+
+    index = build_semantic_index(
+        _catalog(),
+        _texts(),
+        KeywordEmbedding(),
+        chunk_chars=64,
+        overlap_chars=8,
+        progress=lambda stage, done, total: events.append((stage, done, total)),
+    )
+
+    selected = index["trace"]["files_selected"]
+    chunks = len(index["chunks"])
+    fetch = [event for event in events if event[0] == "fetch"]
+    assert fetch == [("fetch", n, selected) for n in range(1, selected + 1)]
+    assert [event for event in events if event[0] == "embed"] == [
+        ("embed", 0, chunks),
+        ("embed", chunks, chunks),
+    ]

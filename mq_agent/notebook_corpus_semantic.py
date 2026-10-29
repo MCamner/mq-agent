@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from mq_agent.notebook_corpus import validate_catalog
 from mq_agent.notebook_corpus_retrieval import is_text_fetchable_mime
@@ -192,7 +192,11 @@ def build_semantic_index(
     chunk_chars: int = 2_000,
     overlap_chars: int = 200,
     max_files_per_notebook: int = DEFAULT_MAX_FILES_PER_NOTEBOOK,
+    progress: Callable[[str, int, int], None] | None = None,
 ) -> dict[str, Any]:
+    # progress(stage, done, total): "fetch" once per attempted file, then
+    # "embed" before and after the single embedding call. Fetching is a slow
+    # sequential Drive loop with no output, so a long run looked hung.
     validate_catalog(catalog)
     titles = {str(n["notebook_id"]): str(n["title"]) for n in catalog["notebooks"]}
     selected, selection_trace = _select_semantic_items(
@@ -225,6 +229,8 @@ def build_semantic_index(
             str(item["mime_type"]),
             max_bytes=min(max_bytes_per_file, remaining),
         )
+        if progress:
+            progress("fetch", fetched + unavailable + 1, len(selected))
         if str(result.get("status")) != "ok":
             unavailable += 1
             reason = str(result.get("reason") or "unknown")
@@ -260,7 +266,11 @@ def build_semantic_index(
             )
             chunk_texts.append(chunk)
 
+    if progress:
+        progress("embed", 0, len(chunk_texts))
     vectors = embedding_provider.embed(chunk_texts)
+    if progress:
+        progress("embed", len(chunk_texts), len(chunk_texts))
     for row, vector in zip(chunks, vectors):
         row["vector"] = vector
 

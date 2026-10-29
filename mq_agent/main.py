@@ -3935,6 +3935,30 @@ def notebook_status_cmd(
     )
 
 
+def _notebook_progress_printer():
+    """One self-overwriting stderr line for semantic fetch/embed, TTY only.
+
+    stderr keeps --json on stdout clean, and a pipe or log gets nothing.
+    """
+    import sys
+
+    if not sys.stderr.isatty():
+        return None
+    labels = {"fetch": "fetching from Drive", "embed": "embedding with Ollama"}
+
+    def report(stage: str, done: int, total: int) -> None:
+        label = labels.get(stage, stage)
+        starting = stage == "embed" and done == 0
+        line = f"{label}: {total} chunks…" if starting else f"{label}: {done}/{total}"
+        sys.stderr.write(f"\r\033[K{line}")
+        # The embed-finished event is always the last one; end the line there.
+        if stage == "embed" and not starting:
+            sys.stderr.write("\n")
+        sys.stderr.flush()
+
+    return report
+
+
 @notebook_app.command("sync")
 def notebook_sync_cmd(
     catalog: Annotated[str, typer.Option("--catalog")] = ".mq/notebook-corpus/catalog.json",
@@ -3994,6 +4018,7 @@ def notebook_sync_cmd(
                 GoogleDriveSelectiveFetcher(token),
                 embeddings,
                 output_path=semantic_path,
+                progress=_notebook_progress_printer(),
             )
 
         committed = sync_catalog(
