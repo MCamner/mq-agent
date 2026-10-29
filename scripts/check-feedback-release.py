@@ -7,6 +7,7 @@ import re
 import sys
 import tomllib
 from pathlib import Path
+from typing import NoReturn
 
 import click
 import typer
@@ -76,7 +77,7 @@ SECRET_LIKE = re.compile(
 )
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"FAIL: {message}")
     raise SystemExit(1)
 
