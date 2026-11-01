@@ -22,6 +22,8 @@ _MAX_SUMMARY_LEN = 280
 _MAX_TEXT_LEN = 2000
 #: mq-mcp tools embed their exit status as a leading "[exit N ...]" marker.
 _EXIT_RE = re.compile(r"\[exit\s+(\d+)")
+#: The exit code mq-mcp tools use for a subprocess that hit its time limit.
+_TIMEOUT_EXIT = "124"
 
 
 def _extract_mcp_text(raw: list) -> str:
@@ -46,6 +48,13 @@ def _normalize_text(text: str) -> dict[str, Any]:
     if not text:
         return {"ok": True, "summary": "(no output)", "code": "DONE", "data": {}}
     match = _EXIT_RE.search(text)
+    if match is not None and match.group(1) == _TIMEOUT_EXIT:
+        return {
+            "ok": False,
+            "summary": text.splitlines()[0][:_MAX_SUMMARY_LEN],
+            "code": "TIMEOUT",
+            "data": {"text": text[:_MAX_TEXT_LEN]},
+        }
     if match is not None:
         ok = match.group(1) == "0"
     else:
