@@ -91,6 +91,15 @@ def _infer_default_tool_source(tool_name: str, fallback: str) -> str:
     return fallback
 
 
+#: HTTP read deadlines for tools that legitimately run past 120 s. Each sits
+#: above mq-mcp's own subprocess limit for the tool, so mq-mcp's timeout fires
+#: first and its message reaches the caller (#438).
+TOOL_HTTP_TIMEOUTS: dict[str, int] = {
+    # mqlaunch selftest takes ~126 s; mq-mcp allows it 300 s.
+    "run_mqlaunch_selftest": 330,
+}
+
+
 class MCPBridge:
     """Routes tool calls to a running mq-mcp server over HTTP."""
 
@@ -234,7 +243,7 @@ class MCPBridge:
             return "httpx not installed; cannot reach mq-mcp"
         import httpx
         try:
-            timeout = 120
+            timeout = TOOL_HTTP_TIMEOUTS.get(tool_name, 120)
             if tool_name == "review_repo":
                 # mq-mcp reviews up to five files by default, sequentially.
                 # Its local model has a 180s per-call deadline; a 120s HTTP

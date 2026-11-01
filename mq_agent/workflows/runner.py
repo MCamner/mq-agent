@@ -46,6 +46,12 @@ from .storage import WorkflowStore
 #: Runner-level hard cap on executed steps, independent of the plan's max_steps.
 RUNNER_MAX_STEPS = 6
 DEFAULT_STEP_TIMEOUT = 120.0
+#: Step deadlines for tools that run longer than the default. Each sits above
+#: the bridge's HTTP deadline for the tool, so the innermost timeout fires first
+#: and its message reaches the run record (#438).
+TOOL_STEP_TIMEOUTS: dict[str, float] = {
+    "run_mqlaunch_selftest": 360.0,
+}
 
 _TERMINAL_STEP = frozenset(
     {
@@ -326,7 +332,9 @@ class Runner:
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(self.executor, step.tool, call_args, run.plan.repo)
             try:
-                raw = future.result(timeout=self.step_timeout)
+                raw = future.result(
+                    timeout=max(self.step_timeout, TOOL_STEP_TIMEOUTS.get(step.tool, 0.0))
+                )
             except FuturesTimeout:
                 timed_out = True
             except Exception as exc:  # noqa: BLE001 - tool failures are data
