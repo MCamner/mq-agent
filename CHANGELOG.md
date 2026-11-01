@@ -13,6 +13,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - Repo reviews use a bounded per-file HTTP read budget instead of timing out after 120 seconds during sequential local-model calls.
 - `repo-preflight` no longer fails at `run_mqlaunch_selftest` on a timeout reported as a test failure (#438). `mqlaunch selftest` takes about two minutes; the selftest step now gets a 330 s HTTP and 360 s step deadline, above mq-mcp's 300 s limit, and a tool result marked `[exit 124` is recorded as `TIMEOUT` instead of `FAIL`. Requires MCamner/mq-mcp#142 for the 300 s limit.
+- A workflow step's recorded output keeps its start and its end when it exceeds 2000 characters. It kept only the first 2000, so a selftest that failed after about 52,000 characters of passing checks was recorded without its error (#440).
 
 ## [v1.36.0] — 2026-10-24
 

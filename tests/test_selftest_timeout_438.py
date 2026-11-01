@@ -96,3 +96,26 @@ def test_selftest_timeout_is_persisted_and_retrievable(tmp_path):
     assert step.result is not None
     assert step.result["code"] == "TIMEOUT"
     assert "timed out after 300s" in step.result["data"]["text"]
+
+
+# --- #440: long output keeps its end, where failures are ----------------------
+
+
+def test_long_output_keeps_the_failing_tail():
+    from mq_agent.workflows.evaluator import _MAX_TEXT_LEN
+
+    head = "mqlaunch selftest [exit 2 (failures)]\n\n"
+    filler = "".join(f"  ok: check {i}\n" for i in range(5000))
+    tail = "ERROR: OPENAI_API_KEY is already exported in this shell."
+    result = normalize_result(_mcp_text(head + filler + tail))
+    kept = result["data"]["text"]
+    assert result["code"] == "FAIL"
+    assert kept.startswith("mqlaunch selftest [exit 2")
+    assert kept.endswith(tail)
+    assert "middle omitted" in kept
+    assert len(kept) <= _MAX_TEXT_LEN
+
+
+def test_short_output_is_kept_whole():
+    text = "mqlaunch doctor [exit 0 (healthy)]\n\nall good"
+    assert normalize_result(_mcp_text(text))["data"]["text"] == text

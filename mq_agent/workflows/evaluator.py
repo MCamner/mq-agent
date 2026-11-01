@@ -26,6 +26,23 @@ _EXIT_RE = re.compile(r"\[exit\s+(\d+)")
 _TIMEOUT_EXIT = "124"
 
 
+#: Of the kept text, how much comes from the start; the rest is the end.
+_HEAD_LEN = 500
+
+
+def _bounded_text(text: str) -> str:
+    """Keep the start and the end of long output.
+
+    A failing check usually prints its error last, after thousands of passing
+    lines, so a plain prefix would keep everything except the reason (#440).
+    """
+    if len(text) <= _MAX_TEXT_LEN:
+        return text
+    marker = f"\n… [{len(text)} chars, middle omitted] …\n"
+    tail_len = _MAX_TEXT_LEN - _HEAD_LEN - len(marker)
+    return text[:_HEAD_LEN] + marker + text[-tail_len:]
+
+
 def _extract_mcp_text(raw: list) -> str:
     """Concatenate text from (possibly nested) MCP content blocks."""
     texts: list[str] = []
@@ -53,7 +70,7 @@ def _normalize_text(text: str) -> dict[str, Any]:
             "ok": False,
             "summary": text.splitlines()[0][:_MAX_SUMMARY_LEN],
             "code": "TIMEOUT",
-            "data": {"text": text[:_MAX_TEXT_LEN]},
+            "data": {"text": _bounded_text(text)},
         }
     if match is not None:
         ok = match.group(1) == "0"
@@ -65,7 +82,7 @@ def _normalize_text(text: str) -> dict[str, Any]:
         "ok": ok,
         "summary": summary,
         "code": "PASS" if ok else "FAIL",
-        "data": {"text": text[:_MAX_TEXT_LEN]},
+        "data": {"text": _bounded_text(text)},
     }
 
 
