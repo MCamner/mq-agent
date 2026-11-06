@@ -16,6 +16,11 @@
       --soft-red: #fff0f0;
       --border: #ffb3b3;
       --code-bg: #fff7f7;
+      --console: #1c0404;
+      --console-fg: #ffd9d9;
+      --console-dim: #c98a8a;
+      --console-rule: #4a1010;
+      --glow: #ff4a4a;
     }
 
     * { box-sizing: border-box; }
@@ -211,6 +216,120 @@
 
     .comment { opacity: 0.55; }
 
+    /* The one moving thing on the page: a real recorded run. */
+    .run {
+      margin: 8px 0 10px;
+      border: 2px solid var(--red);
+      background: var(--console);
+      color: var(--console-fg);
+      box-shadow: 8px 8px 0 var(--soft-red);
+    }
+
+    .run-cmd {
+      margin: 0;
+      padding: 10px 14px;
+      background: var(--console);
+      border: 0;
+      border-bottom: 1px solid var(--console-rule);
+      color: var(--console-fg);
+      font-size: 0.8rem;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .run-cmd .prompt { color: var(--glow); }
+
+    .run-out {
+      margin: 0;
+      padding: 12px 14px;
+      background: none;
+      border: 0;
+      color: var(--console-fg);
+      font-size: clamp(0.56rem, 1.25vw, 0.74rem);
+      line-height: 1.18;
+      overflow-x: auto;
+    }
+
+    .run-out .ln { white-space: pre; }
+    .run-out .meta { color: var(--console-dim); }
+    .run-out .pass { color: var(--glow); font-weight: 700; }
+
+    .run-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 22px;
+      margin: 0;
+      padding: 9px 14px;
+      border-top: 1px solid var(--console-rule);
+      list-style: none;
+      font-size: 0.76rem;
+      color: var(--console-dim);
+    }
+
+    .run-facts strong { color: var(--console-fg); font-weight: 600; }
+
+    .run-caption {
+      margin: 0 0 28px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .run-out .ln {
+        animation: line-in 0.01s linear both;
+        animation-delay: calc(var(--i) * 110ms + 300ms);
+      }
+      @keyframes line-in { from { visibility: hidden; } to { visibility: visible; } }
+    }
+
+    /* Safety ladder: each rung allows more, and reads redder. */
+    .ladder {
+      list-style: none;
+      margin: 18px 0 8px;
+      padding: 0;
+    }
+
+    .rung {
+      display: grid;
+      grid-template-columns: 9.5rem 1fr;
+      gap: 4px 18px;
+      /* Wider bar, less padding: the text column stays aligned on every rung. */
+      padding: 12px 16px 12px calc(30px - var(--bar));
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+      border-left: var(--bar) solid var(--red);
+      background: var(--tint);
+    }
+
+    .rung code {
+      align-self: start;
+      justify-self: start;
+      font-weight: 700;
+      color: var(--red);
+      background: #fff;
+    }
+
+    .rung p { margin: 0; font-size: 0.86rem; line-height: 1.55; }
+    .rung .still { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--muted); }
+
+    .rung.r1 { --bar: 3px;  --tint: #fff; }
+    .rung.r2 { --bar: 6px;  --tint: var(--code-bg); }
+    .rung.r3 { --bar: 10px; --tint: var(--soft-red); }
+    .rung.r4 {
+      --bar: 16px;
+      --tint: var(--red);
+      border-color: var(--red-dark);
+      color: #fff;
+    }
+    .rung.r4 code { color: var(--red-dark); }
+    .rung.r4 .still { color: #ffd6d6; }
+
+    .ladder-note { font-size: 0.82rem; color: var(--muted); }
+
+    @media (max-width: 560px) {
+      .rung { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 720px) {
       body { margin: 28px auto; }
       .frame { padding: 18px 18px 28px; box-shadow: 5px 5px 0 var(--soft-red); }
@@ -235,6 +354,37 @@
 
     <h1>mq-agent</h1>
     <div class="sub">Terminal-native AI agent orchestrator for the mq ecosystem.</div>
+
+    <figure class="run" aria-label="Recorded run of mq-agent docs-audit">
+      <pre class="run-cmd"><span class="prompt">$</span> mq-agent docs-audit mq_agent/feedback --route deterministic-local</pre>
+      <pre class="run-out"><span class="ln" style="--i:1">                                           Docs Audit</span>
+<span class="ln" style="--i:2">┏━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓</span>
+<span class="ln" style="--i:3">┃ #   ┃ Step                                ┃ Status     ┃ Note                                ┃</span>
+<span class="ln" style="--i:4">┡━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩</span>
+<span class="ln" style="--i:5">│ 1   │ Discover source files for inline    │ success    │ mq_agent/feedback/__init__.py       │</span>
+<span class="ln" style="--i:6">│     │ docstrings using the specified      │            │ mq_agent/feedback/approvals.py      │</span>
+<span class="ln" style="--i:7">│     │ discovery tool and arguments.       │            │ mq_agent/feedback/canary.py         │</span>
+<span class="ln" style="--i:8">│     │                                     │            │ mq_agent/feedback/candidates.py     │</span>
+<span class="ln" style="--i:9">│ 2   │ Read each discovered source file to │ success    │ === mq_agent/feedback/__init__.py   │</span>
+<span class="ln" style="--i:10">│     │ audit inline docstrings.            │            │ ===                                 │</span>
+<span class="ln" style="--i:11">│     │                                     │            │ &quot;&quot;&quot;Feedback engine contracts,       │</span>
+<span class="ln" style="--i:12">│     │                                     │            │ runtime evidence and operator       │</span>
+<span class="ln" style="--i:13">│     │                                     │            │ surfaces.&quot;&quot;&quot;                        │</span>
+<span class="ln" style="--i:14">│     │                                     │            │                                     │</span>
+<span class="ln" style="--i:15">│     │                                     │            │ from .ca                            │</span>
+<span class="ln" style="--i:16">└─────┴─────────────────────────────────────┴────────────┴─────────────────────────────────────┘</span>
+<span class="ln meta" style="--i:17">Execution: 6f63d0a4-ac86-4adb-b043-e59ed361fdbe (recorded)</span>
+<span class="ln" style="--i:18"> </span>
+<span class="ln pass" style="--i:19">✓ Docs audit complete and passed</span></pre>
+      <ul class="run-facts">
+        <li>route <strong>deterministic-local</strong></li>
+        <li>review check <strong>PASS</strong></li>
+        <li><strong>5 of 5</strong> quotes found in the material</li>
+        <li>recorded <strong>2026-11-06</strong></li>
+      </ul>
+    </figure>
+    <p class="run-caption">A real run from this repository's evidence log, not a mock-up.
+      The plan was made, every step ran read-only, and the result was checked before it was reported.</p>
 
     <div class="badges">
       <a class="badge" href="https://github.com/MCamner/mq-agent/actions/workflows/tests.yml"><strong>CI</strong> GitHub Actions</a>
@@ -266,10 +416,6 @@
         <span class="env">MQ_AGENT_VERIFIER_MODEL</span>
       </div>
       <div class="card">
-        <h3>Safety</h3>
-        <p>Four modes: read-only → suggest → execute → dangerous.</p>
-      </div>
-      <div class="card">
         <h3>Memory</h3>
         <p>Persistent JSON store — carries context across sessions.</p>
       </div>
@@ -278,6 +424,24 @@
         <p>Routes tool calls to mq-mcp with safety classification.</p>
       </div>
     </div>
+
+    <h2>How far it is allowed to go</h2>
+    <p>Every run has one safety mode. Nothing moves up a rung on its own.</p>
+    <ol class="ladder">
+      <li class="rung r1"><code>read-only</code>
+        <p>Reads and nothing else: git status, log and diff, file reads, repo-signal scans.
+          <span class="still">Any tool outside that list is refused.</span></p></li>
+      <li class="rung r2"><code>suggest</code>
+        <p>Plans every step and runs none of them, so you see the whole plan first.
+          <span class="still">Nothing executes.</span></p></li>
+      <li class="rung r3"><code>execute</code>
+        <p>Runs the plan.
+          <span class="still">A shell command that pushes, hard-resets, cleans, deletes, publishes or deploys stops until you pass <code>--approve</code>.</span></p></li>
+      <li class="rung r4"><code>dangerous</code>
+        <p>No gate on the plan. You have to ask for it by name.
+          <span class="still">Even here the shell tool refuses <code>rm -rf /</code>, <code>mkfs</code>, <code>dd if=</code> and a fork bomb.</span></p></li>
+    </ol>
+    <p class="ladder-note">Details in the <a href="https://github.com/MCamner/mq-agent/blob/main/docs/SAFETY.md">safety contract</a>.</p>
 
     <h2>Quick start</h2>
     <pre><span class="prompt">$</span> uv pip install -e ".[dev,signal]"
