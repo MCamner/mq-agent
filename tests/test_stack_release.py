@@ -1600,3 +1600,38 @@ class TestReleaseModeValues:
         data = execute_stack_release_all(approve=True)
         assert any("manual" in b for b in data["repos"][0]["blockers"])
         assert (repos[0] / "VERSION").read_text().strip() == "1.0.0"
+
+
+class TestUpdateChangelogPreservesHandWrittenNotes:
+    """v1.37.0: the drafted commit list used `*` in a `-` file and sat on top of
+    hand-written Unreleased notes. A markdownlint --fix pre-commit hook (MD004
+    consistent) then rewrote every marker in the file to match the first one."""
+
+    def test_handwritten_unreleased_notes_become_the_release_section(self, tmp_path):
+        from mq_agent.tools.stack_release import _update_changelog
+
+        (tmp_path / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- A hand-written note.\n\n"
+            "## [v1.0.0] — 2026-01-01\n\n- initial\n"
+        )
+        _update_changelog(tmp_path, "1.1.0", ["abc1234 fix: something (#1)"])
+        text = (tmp_path / "CHANGELOG.md").read_text()
+
+        unreleased, release = text.split("## [v1.1.0]", 1)
+        release = release.split("## [v1.0.0]", 1)[0]
+        assert unreleased.rstrip().endswith("## [Unreleased]")
+        assert "### Fixed\n\n- A hand-written note." in release
+        assert "abc1234" not in text
+        assert "* " not in text
+
+    def test_drafted_commit_list_uses_the_files_existing_marker(self, tmp_path):
+        from mq_agent.tools.stack_release import _update_changelog
+
+        (tmp_path / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [Unreleased]\n\n## [v1.0.0] — 2026-01-01\n\n- initial\n"
+        )
+        _update_changelog(tmp_path, "1.1.0", ["abc1234 fix: something (#1)"])
+        text = (tmp_path / "CHANGELOG.md").read_text()
+
+        assert "- abc1234 fix: something (#1)" in text
+        assert "* " not in text
