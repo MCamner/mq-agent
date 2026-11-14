@@ -31,6 +31,7 @@ This page is a projection of it.
 | [`mq-agent notebook`](#mq-agent-notebook) | group | Build local source packs for optional synthesis providers. |
 | [`mq-agent obsidian`](#mq-agent-obsidian) | group | Read and action the mqobsidian promotion inbox. |
 | [`mq-agent plan`](#mq-agent-plan) | command | Create a plan for a goal using the AI planner. |
+| [`mq-agent queue`](#mq-agent-queue) | group | Coordinate agent tasks, isolated worktrees, verification and handoffs. |
 | [`mq-agent release-check`](#mq-agent-release-check) | command | Validate the repo is ready for a release. |
 | [`mq-agent release-plan`](#mq-agent-release-plan) | command | Show the standard release plan. |
 | [`mq-agent repo-summary`](#mq-agent-repo-summary) | command | Print a concise repo summary. |
@@ -2571,6 +2572,175 @@ Create a plan for a goal using the AI planner.
 | Option | Required | Default | Description |
 |---|---:|---|---|
 | `--json` | No | `false` | — |
+
+## `mq-agent queue`
+
+Coordinate agent tasks, isolated worktrees, verification and handoffs.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent queue add`](#mq-agent-queue-add) | Queue a task at the repository's current commit without executing it. |
+| [`mq-agent queue cancel`](#mq-agent-queue-cancel) | Cancel a task and release its reservation; retain worktrees and branches. |
+| [`mq-agent queue claim`](#mq-agent-queue-claim) | Claim or resume a task; create an isolated worktree unless one is supplied. |
+| [`mq-agent queue complete`](#mq-agent-queue-complete) | Complete only with a fresh PASS verification receipt against the task base. |
+| [`mq-agent queue handoff`](#mq-agent-queue-handoff) | Record a structured handoff without starting the receiving agent. |
+| [`mq-agent queue link-run`](#mq-agent-queue-link-run) | Link existing workflow state; never execute or approve the workflow. |
+| [`mq-agent queue list`](#mq-agent-queue-list) | List persisted tasks and their owners. |
+| [`mq-agent queue pause`](#mq-agent-queue-pause) | Pause work while retaining the owner and worktree reservation. |
+| [`mq-agent queue show`](#mq-agent-queue-show) | Show task state, worktree, verification and handoff history. |
+
+## `mq-agent queue add`
+
+Queue a task at the repository's current commit without executing it.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `GOAL` | Yes | — | Bounded task goal. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | Yes | — | Source Git repository. |
+| `--budget-minutes` | No | `60` | Advisory time budget. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue cancel`
+
+Cancel a task and release its reservation; retain worktrees and branches.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | No | — | Required for an owned task. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue claim`
+
+Claim or resume a task; create an isolated worktree unless one is supplied.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Agent claiming or owning this task. |
+| `--worktree` | No | — | Use an existing separate linked worktree. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue complete`
+
+Complete only with a fresh PASS verification receipt against the task base.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Agent claiming or owning this task. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue handoff`
+
+Record a structured handoff without starting the receiving agent.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Agent claiming or owning this task. |
+| `--to` | Yes | — | Named agent allowed to accept this handoff. |
+| `--summary` | Yes | — | Completed work and review context. |
+| `--remaining` | Yes | — | Outstanding work or problems. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue link-run`
+
+Link existing workflow state; never execute or approve the workflow.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+| `RUN_ID` | Yes | — | Existing workflow run targeting this task's worktree. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Agent claiming or owning this task. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue list`
+
+List persisted tasks and their owners.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue pause`
+
+Pause work while retaining the owner and worktree reservation.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--owner` | Yes | — | Agent claiming or owning this task. |
+| `--json` | No | `false` | Emit JSON. |
+
+## `mq-agent queue show`
+
+Show task state, worktree, verification and handoff history.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `TASK_ID` | Yes | — | Task id returned by queue add. |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--json` | No | `false` | Emit JSON. |
 
 ## `mq-agent release-check`
 

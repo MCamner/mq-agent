@@ -26,6 +26,7 @@ from mq_agent.cli.render import (
 )
 from mq_agent.core.diagnostics import required_checks_pass, run_checks
 from mq_agent.feedback.cli import app as feedback_app
+from mq_agent.queue_cli import queue_app
 from mq_agent.skills.cli import app as skills_app
 from mq_agent.tools.applied_routing import DEFAULT_ROUTE
 from mq_agent.tools.model_routing import LOCAL_ROUTE_TIMEOUT_SECONDS
@@ -118,6 +119,7 @@ stack_app = typer.Typer(help="mq-stack repo inventory, status, and Obsidian expo
 app.add_typer(stack_app, name="stack")
 
 app.add_typer(workflow_app, name="workflow")
+app.add_typer(queue_app, name="queue")
 
 obsidian_app = typer.Typer(help="Read and action the mqobsidian promotion inbox.")
 app.add_typer(obsidian_app, name="obsidian")

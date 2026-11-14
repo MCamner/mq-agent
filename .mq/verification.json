@@ -27,9 +27,27 @@
       ],
       "paths": [
         "README.md",
-        "docs/*"
+        "docs/*",
+        "CHANGELOG.md"
       ],
       "timeout_seconds": 120
+    },
+    {
+      "id": "task-queue",
+      "runner": "pytest",
+      "targets": [
+        "tests/test_task_queue.py",
+        "tests/test_task_queue_cli.py"
+      ],
+      "paths": [
+        "mq_agent/task_queue.py",
+        "mq_agent/queue_cli.py",
+        "mq_agent/main.py",
+        "tests/test_task_queue.py",
+        "tests/test_task_queue_cli.py",
+        ".mq/verification.json"
+      ],
+      "timeout_seconds": 60
     }
   ]
 }

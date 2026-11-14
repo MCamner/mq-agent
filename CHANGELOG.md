@@ -9,6 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `queue` coordinates persistent task ownership, separate Git worktrees, advisory
+  time budgets, linked workflow state and structured Codex/Claude handoffs.
+  Concurrent claims cannot reserve the same task or worktree twice. Completion
+  requires a current passing `verify-changes` receipt against the task base;
+  cancellation retains worktrees and branches for deliberate cleanup.
+
 ### Fixed
 
 - Repo reviews use a bounded per-file HTTP read budget instead of timing out after 120 seconds during sequential local-model calls.
