@@ -100,6 +100,20 @@ mq-agent skills route "fix CI and open PR" --repo mq-agent --target codex --expl
 Supports `--json`, observed Codex/Claude discovery, and required safety skills.
 Requires mqobsidian's skill-selection contracts. See [Skill Selection](docs/SKILL_SELECTION.md).
 
+## Shared task queue
+
+Coordinate Codex and Claude work with explicit ownership and separate worktrees:
+
+```bash
+mq-agent queue add "Fix the CI failure" --repo . --budget-minutes 60 --json
+mq-agent queue claim TASK_ID --owner codex --json
+mq-agent queue show TASK_ID --json
+```
+
+Pause/resume retains the reservation; structured handoffs name the next agent.
+Completion requires a fresh passing `verify-changes` receipt. The queue does not
+start agents automatically. See [Shared task queue](docs/TASK_QUEUE.md).
+
 ## Why
 
 Most AI coding tools either wrap a model around shell commands or hide execution behind a chat UI.
