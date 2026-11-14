@@ -742,6 +742,19 @@ def _window_records(
     ]
 
 
+def _answered(outcome: dict[str, Any]) -> bool:
+    """Whether the strategy produced something to verify.
+
+    `deterministic-local` runs no model, so `model_output_received` is honestly
+    false for it, yet every run it attempts ends in a verified PASS or FAIL.
+    Leaving those out of the denominator while their PASS stays in the numerator
+    pushed the verification rate above 1.
+    """
+    return bool(outcome["model_output_received"]) or (
+        bool(outcome["attempted"]) and outcome["selected_route"] == "deterministic-local"
+    )
+
+
 def route_report(
     source: Path | None = None, *, since: str | None = None, now: datetime | None = None
 ) -> dict[str, Any]:
@@ -775,8 +788,12 @@ def route_report(
         bucket["accepted_by_operator"] += int(outcome["accepted_by_operator"])
         bucket["escalated"] += int(outcome["escalated"])
     report_by_task: dict[str, dict[str, int | float]] = {}
+    answered: dict[str, int] = {}
+    for outcome in outcomes:
+        task_class = str(outcome["task_class"])
+        answered[task_class] = answered.get(task_class, 0) + int(_answered(outcome))
     for task_class, counts in by_task.items():
-        responded = counts["model_output_received"]
+        responded = answered[task_class]
         verified = counts["verified"]
         report_by_task[task_class] = {
             **counts,
@@ -1059,7 +1076,7 @@ def review_route_evidence(task_class: str, source: Path | None = None) -> dict[s
         # Other advisory task classes have no declared complete-audit producer.
         quality, quality_exclusions, execution_path = outcomes, {}, path
     attempted = sum(int(item["attempted"]) for item in outcomes)
-    responded = sum(int(item["model_output_received"]) for item in quality)
+    responded = sum(int(_answered(item)) for item in quality)
     verified = sum(int(item["verification"]["status"] == "PASS") for item in quality)
     # Attempts the model never answered are Ollama availability, not model quality,
     # so they belong in attempted_outcomes but not in the success-rate denominator.

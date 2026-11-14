@@ -974,6 +974,53 @@ def test_malformed_evidence_makes_the_escalation_gate_meaningful(tmp_path) -> No
     assert "all-malformed-outputs-escalated" not in review["vacuous_gates"]
 
 
+def test_verification_rate_counts_deterministic_runs_in_its_denominator(
+    tmp_path, monkeypatch
+) -> None:
+    """A strategy that runs no model still answers; its PASS needs a denominator."""
+    decision = model_routing.inspect_route("Review README documentation")
+
+    def deterministic(status: str) -> dict:
+        return model_routing._outcome(
+            decision,
+            attempted=True,
+            model_output_received=False,
+            schema_valid=True,
+            verification_status=status,
+            verification_checks=["candidate-schema", "task-class-match"],
+            escalated=status != "PASS",
+            escalation_reason=None if status == "PASS" else "verification-failed",
+            application="applied",
+            selected_route="deterministic-local",
+            local_model=None,
+        )
+
+    server_down = model_routing._outcome(
+        decision,
+        attempted=True,
+        model_output_received=False,
+        verification_status="UNAVAILABLE",
+        escalated=True,
+        escalation_reason="model-unavailable",
+    )
+    records = [deterministic("PASS"), deterministic("PASS"), deterministic("FAIL"), server_down]
+    source = tmp_path / "outcomes.jsonl"
+    source.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "mq_agent.tools.route_quality.current_docs_quality",
+        lambda outcomes, source: (outcomes, {}, source, "test-era"),
+    )
+
+    report = model_routing.route_report(source)["by_task_class"]["docs-review"]
+    review = model_routing.review_route_evidence("docs-review", source)
+
+    # No model ran, and the report keeps saying so.
+    assert report["model_output_received"] == 0
+    assert report["verification_rate"] == 0.667
+    assert review["responded_outcomes"] == 3
+    assert review["verification_success_rate"] == 0.667
+
+
 def test_evidence_review_detects_unescalated_malformed_output(tmp_path) -> None:
     decision = model_routing.inspect_route("Review README documentation")
     malformed = model_routing._outcome(
