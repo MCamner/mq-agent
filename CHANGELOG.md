@@ -9,21 +9,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.37.0] — 2026-11-14
+
+* 2cbff94 fix(route): count deterministic-local runs in the verification-rate denominator (#444)
+* 1beac85 docs(pages): show a real recorded run and the safety ladder; test page claims (#443)
+* 84782a3 docs(pages): AI commands use local Ollama by default, not OPENAI_API_KEY (#442)
+* 44b1c0d fix(workflows): keep the end of long step output, where failures are (#441)
+* 1ae9071 fix(workflows): give the selftest step room and record timeouts as TIMEOUT (#439)
+* c865c1a fix: annotate release failure helper as NoReturn (#437)
+* 0a4b188 feat(notebook): show progress during semantic sync (#436)
+* 66e7324 fix(mcp): budget repo review reads across sequential model calls (#435)
+
 ### Fixed
 
-- Repo reviews use a bounded per-file HTTP read budget instead of timing out after 120 seconds during sequential local-model calls.
-- `repo-preflight` no longer fails at `run_mqlaunch_selftest` on a timeout reported as a test failure (#438). `mqlaunch selftest` takes about two minutes; the selftest step now gets a 330 s HTTP and 360 s step deadline, above mq-mcp's 300 s limit, and a tool result marked `[exit 124` is recorded as `TIMEOUT` instead of `FAIL`. Requires MCamner/mq-mcp#142 for the 300 s limit.
-- `route report` and `route evidence-review` count `deterministic-local` runs in the verification-rate denominator. Those runs record no model output, so their PASS results were counted against a denominator that left them out: `route report` showed a `docs-review` rate of 1.533 and `route evidence-review docs-review` failed its own schema with a rate of 2.0. `model_output_received` is unchanged in both outputs.
-- A workflow step's recorded output keeps its start and its end when it exceeds 2000 characters. It kept only the first 2000, so a selftest that failed after about 52,000 characters of passing checks was recorded without its error (#440).
+* Repo reviews use a bounded per-file HTTP read budget instead of timing out after 120 seconds during sequential local-model calls.
+* `repo-preflight` no longer fails at `run_mqlaunch_selftest` on a timeout reported as a test failure (#438). `mqlaunch selftest` takes about two minutes; the selftest step now gets a 330 s HTTP and 360 s step deadline, above mq-mcp's 300 s limit, and a tool result marked `[exit 124` is recorded as `TIMEOUT` instead of `FAIL`. Requires MCamner/mq-mcp#142 for the 300 s limit.
+* `route report` and `route evidence-review` count `deterministic-local` runs in the verification-rate denominator. Those runs record no model output, so their PASS results were counted against a denominator that left them out: `route report` showed a `docs-review` rate of 1.533 and `route evidence-review docs-review` failed its own schema with a rate of 2.0. `model_output_received` is unchanged in both outputs.
+* A workflow step's recorded output keeps its start and its end when it exceeds 2000 characters. It kept only the first 2000, so a selftest that failed after about 52,000 characters of passing checks was recorded without its error (#440).
 
 ## [v1.36.0] — 2026-10-24
 
 ### Fixed
 
-- Semantic memory status reports `skipped` when the local provider deliberately omits the cloud probe. OpenAI status overlaps independent store metadata reads while preserving complete generation and legacy-file checks.
+* Semantic memory status reports `skipped` when the local provider deliberately omits the cloud probe. OpenAI status overlaps independent store metadata reads while preserving complete generation and legacy-file checks.
 
-- The notebook research synthesizer sends `think: false` to Ollama. qwen3.5 thinks by default, and a two-source synthesis hit the 60 s timeout; with thinking off it answers in about 20 s, including the cold load that `keep_alive: 0` forces.
-- `tools/model_runtime.py` sends `think: false` for every model, not only when the name is exactly `qwen3.5:9b`. Another thinking model or tag thought by default again. Ollama accepts `think: false` for models that cannot think; only `true` is refused.
+* The notebook research synthesizer sends `think: false` to Ollama. qwen3.5 thinks by default, and a two-source synthesis hit the 60 s timeout; with thinking off it answers in about 20 s, including the cold load that `keep_alive: 0` forces.
+* `tools/model_runtime.py` sends `think: false` for every model, not only when the name is exactly `qwen3.5:9b`. Another thinking model or tag thought by default again. Ollama accepts `think: false` for models that cannot think; only `true` is refused.
 
 ## [v1.35.0] — 2026-10-15
 
@@ -31,30 +42,30 @@ Theme: MCP tool contracts and evidence-gate hardening. The stack compatibility g
 
 ### Added
 
-- MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
-- `stack compatibility --live` also compares each running MCP server with its committed tool surface. It reads `/tools` and `/runtime-identity` and reports MQC024 with both commits for tools that are not running, running tools that are not committed, and class or parameter differences. This catches a server started from a stale checkout. Drift is WARN. A server that does not answer is listed as UNAVAILABLE and changes no status. `--live` never blocks a release.
-- `stack compatibility --repo-path NAME=PATH` (repeatable) points the gate at another checkout of a stack repo, such as a worktree on `main` when the usual checkout is on a feature branch. The same paths feed the static check and `--live`. Unknown names, duplicates and non-directories are refused.
+* MCP tool-surface compatibility gate validates declared tool names, classes and argument contracts against versioned producer manifests, with finding codes MQC019–MQC023. The check reads manifests without contacting a live MCP server.
+* `stack compatibility --live` also compares each running MCP server with its committed tool surface. It reads `/tools` and `/runtime-identity` and reports MQC024 with both commits for tools that are not running, running tools that are not committed, and class or parameter differences. This catches a server started from a stale checkout. Drift is WARN. A server that does not answer is listed as UNAVAILABLE and changes no status. `--live` never blocks a release.
+* `stack compatibility --repo-path NAME=PATH` (repeatable) points the gate at another checkout of a stack repo, such as a worktree on `main` when the usual checkout is on a feature branch. The same paths feed the static check and `--live`. Unknown names, duplicates and non-directories are refused.
 
 ### Changed
 
-- `learn store` takes an explicit candidate ID: `mq-agent learn store <candidate-id> --validation "<how you verified it>" --approve`. It reads the candidate's draft from mq-mcp's `learn_inbox_draft`, stores it with `record_learning` together with the operator's validation, and then removes it from the inbox with `learn_inbox_drop`. The command never stores "the last" candidate. A path or a missing ID aborts before anything is called. The draft's `MANUAL VALIDATION REQUIRED` text is never sent as validation. Until now `learn store` sent `record_learning` a `relative_path` it does not take (MQC021/MQC022). Requires mq-mcp with `candidate_id` (mq-mcp #104).
-- `learn extract <path> --approve` queues a candidate from the file's last review in mq-mcp's learn inbox and prints its ID. `learn list` shows pending candidates. `learn extract-review` remains the read-only preview.
+* `learn store` takes an explicit candidate ID: `mq-agent learn store <candidate-id> --validation "<how you verified it>" --approve`. It reads the candidate's draft from mq-mcp's `learn_inbox_draft`, stores it with `record_learning` together with the operator's validation, and then removes it from the inbox with `learn_inbox_drop`. The command never stores "the last" candidate. A path or a missing ID aborts before anything is called. The draft's `MANUAL VALIDATION REQUIRED` text is never sent as validation. Until now `learn store` sent `record_learning` a `relative_path` it does not take (MQC021/MQC022). Requires mq-mcp with `candidate_id` (mq-mcp #104).
+* `learn extract <path> --approve` queues a candidate from the file's last review in mq-mcp's learn inbox and prints its ID. `learn list` shows pending candidates. `learn extract-review` remains the read-only preview.
 
 ### Fixed
 
-- `review file`, `review diff` and `review repo` exit 1 when mq-mcp reports a failure as text inside the MCP wrapper (`review_file failed: Blocked path outside allowed roots …`, `File not found: …`, `risk_review_diff failed: …`), in both `--json` and rendered mode. They printed the failure and exited 0, and `mqlaunch review` passed that through. Rendered mode now also exits 1 on `{"ok": false}` errors. "Nothing to review" (`no changed files`, `no Python files`) still exits 0. A failed review is no longer recorded with `--brain`, and a failed `review repo` records its step as `failed` instead of `unmeasured`.
-- `route divergence` now enforces the fourteen-day window for the era, as `docs/execution-completeness.md` requires: ten complete successful runs per route are not compared until they span fourteen days in the current era, and the report says how many days they span (`window_days`, `minimum_window_days`). No tool checked this before. `route readiness` measures its window over all history by design (currently 44 days), so it could not show the era requirement.
-- `review repo --risk` calls mq-mcp's `risk_review_repo` (mq-mcp #105) with `mode=risk`, or `security`/`architecture` when that flag is given. Before mq-mcp #105 the tool did not exist; the earlier path would also have sent the plain-review default `mode=comment`, which the risk tool refuses. A server without the tool gets a clear error and nothing is called. `risk_review_repo` is declared in `schemas/mcp_tool_requirements.json` again, as class A.
-- `stack compatibility --live` now detects class drift on servers that send the ADR-003 letter as `class` (mq-image-analyze) instead of a `safety_class` label. The letter is compared directly, because A and B share the `read-only` label and an A → B change was invisible. Found live: a running mq-image-analyze still serving class A for `analyze_image`, `reverse_prompt` and `compare_images`, which main declares B, produced no MQC024.
-- `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
-- `docs-audit` now requires measured complete coverage and successful verification
+* `review file`, `review diff` and `review repo` exit 1 when mq-mcp reports a failure as text inside the MCP wrapper (`review_file failed: Blocked path outside allowed roots …`, `File not found: …`, `risk_review_diff failed: …`), in both `--json` and rendered mode. They printed the failure and exited 0, and `mqlaunch review` passed that through. Rendered mode now also exits 1 on `{"ok": false}` errors. "Nothing to review" (`no changed files`, `no Python files`) still exits 0. A failed review is no longer recorded with `--brain`, and a failed `review repo` records its step as `failed` instead of `unmeasured`.
+* `route divergence` now enforces the fourteen-day window for the era, as `docs/execution-completeness.md` requires: ten complete successful runs per route are not compared until they span fourteen days in the current era, and the report says how many days they span (`window_days`, `minimum_window_days`). No tool checked this before. `route readiness` measures its window over all history by design (currently 44 days), so it could not show the era requirement.
+* `review repo --risk` calls mq-mcp's `risk_review_repo` (mq-mcp #105) with `mode=risk`, or `security`/`architecture` when that flag is given. Before mq-mcp #105 the tool did not exist; the earlier path would also have sent the plain-review default `mode=comment`, which the risk tool refuses. A server without the tool gets a clear error and nothing is called. `risk_review_repo` is declared in `schemas/mcp_tool_requirements.json` again, as class A.
+* `stack compatibility --live` now detects class drift on servers that send the ADR-003 letter as `class` (mq-image-analyze) instead of a `safety_class` label. The letter is compared directly, because A and B share the `read-only` label and an A → B change was invisible. Found live: a running mq-image-analyze still serving class A for `analyze_image`, `reverse_prompt` and `compare_images`, which main declares B, produced no MQC024.
+* `run-tool` no longer guesses the class of an mq-mcp or mq-image-analyze tool from its name. Both producers declare an ADR-003 class for every tool. When that class is missing (an older server, no per-tool endpoint, a server that is down), the tool is `unknown` and blocked. Before this fix, `extract_coding_conventions`, declared C, read as read-only from its `extract_` prefix and passed the gate without `--approve`. When a server has no `/tools/<name>` endpoint, the class is read from its `/tools` listing. Third-party servers keep name guessing.
+* `docs-audit` now requires measured complete coverage and successful verification
   for execution PASS and exits nonzero on partial or failed audits. It reports
   the actual execution id and recording confirmation. Docs-review quality
   resolves exact successful complete executions, with explicit exclusions,
   independent safety evidence and unchanged applied-routing readiness.
-- mq-agent now sends the parameter names mq-mcp declares: `get_architecture_decision` sends `adr_id` (it sent `id`, which live mq-mcp answered with a 500), and `store_semantic_memory` sends `content` (it sent `value`). The MCP tool contract check found both.
-- Route quality opens the `docs-audit-complete-success` era at the verified #401 merge (`f8f92df`, 2026-10-15T09:51:13Z). Only complete, successfully verified `docs-audit` executions from that boundary count as quality evidence; stored evidence is not rewritten.
-- `stack status` verifies mq-agent's `main` HEAD against the full-stack gate (`Contract and release gates`) that pushes to `main` run, instead of the PR-only CI-mode check. Pull-request branch protection is unchanged.
+* mq-agent now sends the parameter names mq-mcp declares: `get_architecture_decision` sends `adr_id` (it sent `id`, which live mq-mcp answered with a 500), and `store_semantic_memory` sends `content` (it sent `value`). The MCP tool contract check found both.
+* Route quality opens the `docs-audit-complete-success` era at the verified #401 merge (`f8f92df`, 2026-10-15T09:51:13Z). Only complete, successfully verified `docs-audit` executions from that boundary count as quality evidence; stored evidence is not rewritten.
+* `stack status` verifies mq-agent's `main` HEAD against the full-stack gate (`Contract and release gates`) that pushes to `main` run, instead of the PR-only CI-mode check. Pull-request branch protection is unchanged.
 
 ## [v1.34.0] — 2026-10-14
 
@@ -67,32 +78,32 @@ Checkpoints, State Recovery v2 and Perception Review v2.
 
 ### Added
 
-- `feedback canary-run` binds every canary execution to a real, successful
+* `feedback canary-run` binds every canary execution to a real, successful
   `repo-review` execution with `--execution-run-id` (repeat once per planned
   execution). Materiality baselines come from the execution evidence the
   approval's readiness already bound, so the canary judges latency by the same
   rule that qualified the candidate instead of a stricter retrieval-only one.
 
-- `context prepare` runs `agent-views rebuild`, `context export` and the
+* `context prepare` runs `agent-views rebuild`, `context export` and the
   agent-views drift check as one repeatable step, for agent runs and CI. Export
   is skipped if the rebuild reports errors. A second run changes nothing, and
   the command exits non-zero on any error or on a view that is still stale.
-- `review repo` records one `mq.execution-outcome.v1` with the new task class
+* `review repo` records one `mq.execution-outcome.v1` with the new task class
   `repo-review` (vendored from mqobsidian; not mapped onto `audit`).
   `--with-execution` reports the run id minted before the review and whether
   its outcome was actually recorded; with `--json` it wraps mq-mcp's unchanged
   payload as `{execution, review}`. Default `--json` output is unchanged.
-- Separate promotion approval. `feedback promotion-approve` issues
+* Separate promotion approval. `feedback promotion-approve` issues
   `mq.feedback-promotion-approval.v1` only for a PASS Canary v2 RESULT, bound to
   the exact candidate, canary, RESULT fingerprint, strategy pair and policy
   snapshot. `feedback promotion-status` is read-only, and `feedback
   approval-revoke` revokes either kind of approval.
-- `feedback canary-preflight <canary-id>` checks a planned Canary v2 without
+* `feedback canary-preflight <canary-id>` checks a planned Canary v2 without
   running it: plan hash, no existing RESULT, shared approval status, plan to
   candidate binding, policy snapshot, bounded budget and rollback target. It
   returns `CANARY_READY` or a `BLOCKED_*` status, never executes an experiment
   and never appends a record.
-- Feedback approval lifecycle: `feedback approve` now writes
+* Feedback approval lifecycle: `feedback approve` now writes
   `mq.feedback-approval.v2`, which binds the `repository@commit` snapshots
   readiness evaluated. `feedback approval-status` is a read-only status
   evaluation (`VALID`, `REVOKED`, `EXPIRED`, `STALE_CANDIDATE`,
@@ -101,14 +112,14 @@ Checkpoints, State Recovery v2 and Perception Review v2.
   record without modifying the approval. Canary plan/run, canary-check and
   activate share that one validator. Historical v1 approvals stay readable but
   can no longer authorize a canary.
-- Hybrid Retrieval challenge candidate discovery adds
+* Hybrid Retrieval challenge candidate discovery adds
   `mq.hybrid-retrieval-challenge-candidates.v1` and
   `memory hybrid-evidence challenge-candidates`. It queries active semantic
   memory plus configured Notebook keyword/vector and CodeGraph channels in
   zero-effect mode, returns real normalized refs with bounded local Notebook
   metadata and optional-channel overlap, and never persists candidates or writes
   relevance fixtures automatically.
-- Hybrid Retrieval discriminating challenges add
+* Hybrid Retrieval discriminating challenges add
   `mq.hybrid-retrieval-challenge.v1` plus
   `memory hybrid-evidence challenge|challenge-status`. Operator-curated suite
   cases can target Notebook keyword, Notebook vector or CodeGraph; the runner
@@ -117,93 +128,93 @@ Checkpoints, State Recovery v2 and Perception Review v2.
   targeted non-ceiling case shows measured quality gain with no regression.
   Challenge evidence is content-addressed, zero-effect and cannot enable runtime
   consumption.
-- The 2026-10-08 Hybrid Retrieval policy-plan closure audit verified the exact
+* The 2026-10-08 Hybrid Retrieval policy-plan closure audit verified the exact
   ci, docs and repo-review plans with no errors against admission
   `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`.
   All three remain ACTIVE_ONLY, optional effective selections remain false, and
   runtime consumption is unavailable. The roadmap therefore advances to a
   discriminating zero-effect challenge suite rather than a runtime consumer.
-- Hybrid Retrieval policy-plan closure auditing adds
+* Hybrid Retrieval policy-plan closure auditing adds
   `memory hybrid-evidence policy-plan-audit`. One read-only audit re-verifies
   an exact operator-supplied plan set and refuses missing/duplicate task
   classes, admission drift, non-ACTIVE_ONLY decisions, eligible optional
   channels, or any proposed/effective selection other than active-only.
-- Hybrid Retrieval runtime policy planning adds content-addressed
+* Hybrid Retrieval runtime policy planning adds content-addressed
   `mq.hybrid-retrieval-policy-plan.v1` plus
   `memory hybrid-evidence policy-plan|policy-plan-status`. Plans require a
   verified admission and exact task class, keep proposed and effective channel
   selections separate, and never make optional eligibility effective: no apply
   command or runtime consumer exists in this slice.
-- The live admission
+* The live admission
   `sha256:371494446413675d7f08984623b02233b3f472ee63e9995d9a24b06efeed6022`
   is now recorded as VERIFIED with no errors. ci, docs and repo-review all
   remain ACTIVE_ONLY with no eligible optional channels.
-- Evidence-Gated Channel Admission adds content-addressed
+* Evidence-Gated Channel Admission adds content-addressed
   `mq.hybrid-retrieval-admission.v1` plus
   `memory hybrid-evidence admission|admission-status`. The read-only gate
   re-verifies one ablation and singleton evidence per task class, allowing a
   channel to become ELIGIBLE only for measured quality gain with no
   precision/recall/contradiction/stale regression. It reports token/latency
   cost without inventing a budget threshold and cannot activate runtime policy.
-- The live 2026-10-08 channel ablation is now recorded as active-only
+* The live 2026-10-08 channel ablation is now recorded as active-only
   precision/recall 1.0/1.0 versus 0.1/1.0 for every singleton optional channel;
   the measured singleton token deltas were +1643.67 keyword, +1319.0 vector and
   +5760.67 CodeGraph, so no fusion-policy change is justified.
-- Hybrid Retrieval channel ablation adds explicit Notebook keyword/vector and
+* Hybrid Retrieval channel ablation adds explicit Notebook keyword/vector and
   CodeGraph selection to new v2 runs plus `memory hybrid-evidence ablate`.
   The fixed matrix measures an active-only baseline and all seven optional-channel
   combinations against one unchanged suite, persists each underlying evidence
   set, and binds them into content-addressed
   `mq.hybrid-retrieval-ablation.v1` with verified per-variant metric deltas.
-- Live Hybrid Retrieval evidence now proves CodeGraph available in all three
+* Live Hybrid Retrieval evidence now proves CodeGraph available in all three
   unchanged fixture-backed task classes. The measured quality stayed flat
   (precision 0.10, recall 1.0, contradiction/stale 0.0) while mean token delta
   versus the active baseline rose to +8722.33 from +2962.67 in the balanced-D8
   run, so the roadmap advances to per-channel ablation rather than RRF tuning or
   promotion.
-- Hybrid Retrieval v2 now reaches CodeGraph from non-MCP operator runs: it prefers
+* Hybrid Retrieval v2 now reaches CodeGraph from non-MCP operator runs: it prefers
   an already-connected `codegraph_explore` MCP tool and otherwise falls back to
   the local read-only `codegraph explore` CLI against the selected repository
   index. Suite/CLI input may set `codegraph_root`; local paths remain input-only.
-- New Hybrid Retrieval v2 writes bind the exact Notebook catalog and semantic-index
+* New Hybrid Retrieval v2 writes bind the exact Notebook catalog and semantic-index
   JSON bytes consumed by each measured run with SHA-256 fingerprints, and evidence
   sets project and verify the same bindings without persisting local paths.
-- Hybrid Retrieval v2 evidence collection adds
+* Hybrid Retrieval v2 evidence collection adds
   `mq.hybrid-retrieval-suite.v1` and content-addressed
   `mq.hybrid-retrieval-evidence-set.v1` with exact run/query/fixture binding.
-- `memory hybrid-evidence collect|status` executes and verifies fixture-backed
+* `memory hybrid-evidence collect|status` executes and verifies fixture-backed
   multi-task-class evidence while keeping raw queries, local paths and retrieved
   bodies out of the persisted evidence set.
-- Hybrid Retrieval v2 adds packaged `mq.hybrid-retrieval.v2` zero-effect
+* Hybrid Retrieval v2 adds packaged `mq.hybrid-retrieval.v2` zero-effect
   evidence across mq-mcp semantic vector, Notebook keyword/vector and CodeGraph
   MCP channels with deterministic reciprocal-rank fusion and exact provenance.
-- `memory hybrid-retrieval` reports per-channel latency and retrieval-payload
+* `memory hybrid-retrieval` reports per-channel latency and retrieval-payload
   token estimates; an optional relevance fixture unlocks precision, recall,
   contradiction and stale-rate metrics while missing measurement remains null.
-- Feedback activation readiness now derives task-class promotion criteria from
+* Feedback activation readiness now derives task-class promotion criteria from
   real `mq.execution-outcome.v1` records explicitly correlated through
   `comparison -> experiment -> execution_run_id`, replacing the provisional
   global two-comparison/two-snapshot evidence floor.
-- Outcome-derived readiness exposes a content fingerprint, calibrated sample
+* Outcome-derived readiness exposes a content fingerprint, calibrated sample
   size, temporal coverage and success-rate baseline; `feedback run` accepts
   `--execution-run-id` to bind shadow evidence to the real task execution.
-- Session Checkpoints add content-addressed `mq.workflow-checkpoint.v1` records
+* Session Checkpoints add content-addressed `mq.workflow-checkpoint.v1` records
   over paused/failed workflow runs, binding exact run bytes, workflow template,
   explicit owner label, expiry, current step, passed steps and resumable steps.
-- `workflow checkpoint create|status|resume` adds bounded continuity without
+* `workflow checkpoint create|status|resume` adds bounded continuity without
   copying workflow args, results, task prose, transcripts, file bodies or repo
   paths into the checkpoint artifact.
-- `workflow checkpoint resume --dry-run` verifies all resume preconditions
+* `workflow checkpoint resume --dry-run` verifies all resume preconditions
   without changing run state or executing tools.
-- State Recovery v2 introduces content-addressed `mq.state-snapshot.v2`
+* State Recovery v2 introduces content-addressed `mq.state-snapshot.v2`
   manifests with explicit per-component format/schema identity and per-file
   SHA-256 fingerprints.
-- Portable recovery now includes allowlisted Notebook Drive inventory,
+* Portable recovery now includes allowlisted Notebook Drive inventory,
   corpus catalog/checkpoint, incremental sync state, and the local disposable
   semantic index. Historical `mq.state-snapshot.v1` snapshots remain readable.
-- `state restore --dry-run` performs full verification and target resolution
+* `state restore --dry-run` performs full verification and target resolution
   without writing runtime state.
-- Perception Review v2 completes the visual review chain: `review perception`
+* Perception Review v2 completes the visual review chain: `review perception`
   obtains content-addressed `perception.v1` from mq-image-analyze, delegates
   risk/architecture review to mq-mcp, validates `mq.perception-review.v1`, and
   can require `mq.perception-review-receipt.v1` bound to the exact perception,
@@ -211,58 +222,58 @@ Checkpoints, State Recovery v2 and Perception Review v2.
 
 ### Changed
 
-- Learned-routing readiness calibration now derives the total observation floor
+* Learned-routing readiness calibration now derives the total observation floor
   from the independent balance requirements: 2 applied routes x 10 samples per
   route = 20 observations, replacing the redundant 30-total threshold. The
   10-per-route and 14-day gates remain unchanged, and a passing readiness report
   still grants no eligibility or automatic routing.
-- `feedback activate` now requires `--promotion-approval-id` in addition to the
+* `feedback activate` now requires `--promotion-approval-id` in addition to the
   canary `--approval-id`; a canary approval alone can no longer activate.
   Activation and rollback events are written as `mq.feedback-policy-event.v2`
   with `canary_approval_id` and `promotion_approval_id`; v1 events stay readable.
 
 ### Fixed
 
-- `agent-views rebuild` makes committed views reproducible. A system that
+* `agent-views rebuild` makes committed views reproducible. A system that
   declares `agent_view: versioned` in its `hot.md` or `index.md` gets a view
   built from those two files only, never from gitignored local lessons, and
   every view dates itself from its sources' newest `updated:` instead of the
   rebuild day. `agent-views check` no longer reports a view stale the day after
   it was built (mqobsidian DEC-007).
 
-- `docs-audit` now projects the executor's measured step coverage into
+* `docs-audit` now projects the executor's measured step coverage into
   `mq.execution-outcome.v1.completeness`. A capped fan-out such as 25/133 is
   recorded as `partial -> FAIL/error` even when verification of the material
   that did run passes. A fully executed plan records `complete` and may remain
   `PASS/ok`. Applied route observations are still recorded unchanged, so
   routing history remains intact while incomplete whole-audit runs stop being
   usable as execution-quality evidence.
-- `review repo` now consumes mq-mcp's measured structured coverage when the
+* `review repo` now consumes mq-mcp's measured structured coverage when the
   server advertises the optional `structured` input. Complete coverage can
   produce execution `PASS/ok`; capped coverage stays `partial -> FAIL/error`.
   Older mq-mcp servers keep working but remain `unmeasured -> FAIL/error`.
   The operator-facing review payload is unchanged.
-- Route-quality analysis opens a new `execution-completeness` era at
+* Route-quality analysis opens a new `execution-completeness` era at
   mq-agent #396 (`de36d326`, 2026-10-14T00:54:27Z). Earlier applied routing
   observations remain readiness/history evidence but are excluded from the
   current quality-divergence cohort.
 
-- Repo-review execution telemetry now fails closed on unmeasured coverage: the
+* Repo-review execution telemetry now fails closed on unmeasured coverage: the
   current mq-mcp text-only `review_repo` response is recorded as partial /
   unmeasured and cannot become execution `PASS`. Feedback experiments,
   activation readiness and Canary v2 additionally require an exact linked
   execution with measured complete coverage and `PASS/ok`, so historical
   records remain untouched but cannot be reused as complete quality evidence.
-- `review repo` resolves its repo argument to an absolute directory before
+* `review repo` resolves its repo argument to an absolute directory before
   delegating to mq-mcp. A relative path such as `.` was read against mq-mcp's
   own working directory and reviewed the mq-mcp checkout instead of the
   caller's repo. A target that is not a directory now fails before mq-mcp is
   called or an execution outcome is recorded.
-- D8 semantic builds now fail closed when provider reads produce no usable chunks:
+* D8 semantic builds now fail closed when provider reads produce no usable chunks:
   the CLI does not overwrite the existing local index, and Hybrid Retrieval v2
   treats an empty Notebook vector index as unavailable instead of a successful
   zero-result channel.
-- D8 semantic-index builds now filter to Drive text-fetchable MIME types before
+* D8 semantic-index builds now filter to Drive text-fetchable MIME types before
   selection and sample notebooks round-robin instead of taking the first
   lexicographically sorted corpus items. The bounded build therefore avoids one
   early notebook monopolizing a small vector index and reports notebook coverage
@@ -270,25 +281,25 @@ Checkpoints, State Recovery v2 and Perception Review v2.
 
 ### Safety
 
-- Promotion evidence never maps the feedback task-class vocabulary onto the
+* Promotion evidence never maps the feedback task-class vocabulary onto the
   execution-outcome task-class enum. Missing or ambiguous execution correlation
   is insufficient evidence, not a guessed mapping.
-- New approvals bind the exact outcome-derived readiness fingerprint. Historical
+* New approvals bind the exact outcome-derived readiness fingerprint. Historical
   approvals remain schema-readable but cannot authorize a new canary until they
   are reissued; later task-class evidence drift expires the approval.
-- Checkpoint resume fails closed on owner mismatch, expiry, checkpoint tamper,
+* Checkpoint resume fails closed on owner mismatch, expiry, checkpoint tamper,
   run-file drift, template drift, repository identity drift, step-state drift or
   a missing run. Actual resume requires explicit `--approve`.
-- A checkpoint becomes stale before resumed tool execution begins because the
+* A checkpoint becomes stale before resumed tool execution begins because the
   authoritative run is persisted first, changing its exact fingerprint and
   making the checkpoint single-use.
-- Notebook recovery fails closed on schema/version drift, manifest tamper,
+* Notebook recovery fails closed on schema/version drift, manifest tamper,
   undeclared files, credential-like keys, and semantic-index raw-text payloads.
-- Credentials/environment state, generic memory, Notebook source bodies, and
+* Credentials/environment state, generic memory, Notebook source bodies, and
   remote vector-store state/contents remain explicitly excluded. Restore
   writes only manifest-declared allowlisted targets and never deletes unrelated
   current state.
-- mq-agent no longer synthesizes perception review findings or verdicts. It
+* mq-agent no longer synthesizes perception review findings or verdicts. It
   preserves mq-mcp output and fails closed on malformed evidence, contract
   drift, mismatched content addresses, missing review output or a refused
   requested receipt. Receipt payloads contain references only, never OCR bodies,
@@ -301,24 +312,24 @@ snapshots and rollback addresses one exact activation event.
 
 ### Added
 
-- `mq.feedback-policy-snapshot.v1` records one content-fingerprinted,
+* `mq.feedback-policy-snapshot.v1` records one content-fingerprinted,
   append-only task-class policy state.
-- Every new activation records immutable before/after snapshots and binds the
+* Every new activation records immutable before/after snapshots and binds the
   policy event to both snapshot ids.
-- `feedback policy` exposes snapshot count and the current policy snapshot.
-- Rollback now targets an exact activation policy event id and records the
+* `feedback policy` exposes snapshot count and the current policy snapshot.
+* Rollback now targets an exact activation policy event id and records the
   rollback source, target snapshot and resulting snapshot.
 
 ### Safety
 
-- Rollback refuses non-activation ids, historical/non-current activations and
+* Rollback refuses non-activation ids, historical/non-current activations and
   legacy activations that predate snapshot binding.
-- Snapshot fingerprints are re-verified before rollback.
-- Policy events are appended only after their referenced snapshots exist, so a
+* Snapshot fingerprints are re-verified before rollback.
+* Policy events are appended only after their referenced snapshots exist, so a
   committed event cannot point at a future/missing snapshot.
-- Rollback remains append-only and cannot toggle a previously rolled-back
+* Rollback remains append-only and cannot toggle a previously rolled-back
   activation back on.
-- Existing `context pack --codegraph auto` behavior remains unchanged.
+* Existing `context pack --codegraph auto` behavior remains unchanged.
 
 ## [v1.32.0] — 2026-10-07
 
@@ -327,32 +338,32 @@ PLAN/RESULT lifecycle rather than one successful comparison.
 
 ### Added
 
-- `mq.feedback-canary.v1` binds one canary to the exact candidate,
+* `mq.feedback-canary.v1` binds one canary to the exact candidate,
   candidate fingerprint, human approval, task class, strategy pair and current
   policy snapshot.
-- `feedback canary-plan`, `canary-run` and `canary-status` expose a
+* `feedback canary-plan`, `canary-run` and `canary-status` expose a
   bounded execution budget, minimum evidence count, maximum duration and
   maximum failure rate.
-- Canary results aggregate measured execution counts, success/failure/
+* Canary results aggregate measured execution counts, success/failure/
   inconclusive counts, latency delta, grounding delta, context-byte delta,
   regressions and evidence references. Fallback delta remains explicitly
   unavailable until a correlated feedback measurement exists.
-- Activation now requires a deterministic Canary v2 `PASS` and re-verifies
+* Activation now requires a deterministic Canary v2 `PASS` and re-verifies
   referenced feedback experiments and comparisons before appending a policy
   event.
-- Three agent-discoverable MQ control skills for both Codex and Claude:
+* Three agent-discoverable MQ control skills for both Codex and Claude:
   `mq-feedback-control-plane`, `mq-contract-owner-migration`, and
   `mq-state-recovery-audit`, with canonical instructions, dual discovery
   symlinks and `mq.skill-profile.v1` routing profiles.
 
 ### Safety
 
-- Canary PLAN and RESULT are append-only; a canary can have at most one result.
-- Policy or approval drift makes the canary fail closed.
-- PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic and never model-decided.
-- Legacy `canary-check` remains read-only but cannot authorize v1.32
+* Canary PLAN and RESULT are append-only; a canary can have at most one result.
+* Policy or approval drift makes the canary fail closed.
+* PASS/FAIL/INSUFFICIENT_EVIDENCE is deterministic and never model-decided.
+* Legacy `canary-check` remains read-only but cannot authorize v1.32
   activation.
-- Existing `context pack --codegraph auto` behavior remains unchanged.
+* Existing `context pack --codegraph auto` behavior remains unchanged.
 
 ## [v1.31.0] — 2026-10-07
 
@@ -362,40 +373,40 @@ without introducing autonomous routing or automatic memory promotion.
 
 ### Added
 
-- Evidence-Gated Activation: content-bound, expiring
+* Evidence-Gated Activation: content-bound, expiring
   `mq.feedback-approval.v1` receipts; post-approval zero-effect canary runs;
   append-only `mq.feedback-policy-event.v1` activation and rollback; explicit
   `feedback post-activation-check`; and the non-destructive
   `MQ_FEEDBACK_ACTIVATION=off` kill switch.
-- Feedback-controlled context policy consumption is opt-in through
+* Feedback-controlled context policy consumption is opt-in through
   `context pack --codegraph policy`. Existing `--codegraph auto` behavior is
   unchanged, so merely installing v1.31 does not alter production context.
-- Structured measured fallback evidence in `mq.execution-outcome.v1`, with
+* Structured measured fallback evidence in `mq.execution-outcome.v1`, with
   `from`, `to`, `reason`, `stage` and `source=measured`; the canonical
   contract remains owned by mqobsidian.
-- `review perception` delegates `perception.v1` production to
+* `review perception` delegates `perception.v1` production to
   mq-image-analyze and preserves producer risk signals and limitations without
   introducing a second vision/review engine.
-- Portable allowlisted runtime state inventory, content-hashed snapshot,
+* Portable allowlisted runtime state inventory, content-hashed snapshot,
   verification and explicit restore through `mq-agent state`. Generic memory,
   HAL free-form notes, credentials/environment data and remote vector-store
   contents are excluded by default.
-- Typed `memory session-handoff` submits bounded verified session facts as
+* Typed `memory session-handoff` submits bounded verified session facts as
   `memory-observation.v1` candidates for the existing mqobsidian review and
   promotion path; it never captures raw transcripts or auto-promotes memory.
-- `memory hybrid-shadow` compares authoritative mq-mcp semantic retrieval with
+* `memory hybrid-shadow` compares authoritative mq-mcp semantic retrieval with
   optional Notebook lexical/semantic channels in zero-effect shadow mode and
   records only result identities, provenance coverage, latency and divergence.
 
 ### Safety
 
-- Human approval is required for approval issuance, activation, rollback and
+* Human approval is required for approval issuance, activation, rollback and
   state restore writes.
-- Canary evidence must be recorded after the exact approval receipt and match
+* Canary evidence must be recorded after the exact approval receipt and match
   the candidate's task class and approved current/proposed strategies.
-- Activation is task-class scoped; there is no global or autonomous routing
+* Activation is task-class scoped; there is no global or autonomous routing
   switch.
-- Rollback appends a new event and never rewrites evidence history.
+* Rollback appends a new event and never rewrites evidence history.
 
 ## [v1.30.0] — 2026-10-06
 
@@ -407,19 +418,19 @@ write protected `main` directly.
 
 ### Added
 
-- Stack protection governance now inspects workflow source in addition to the
+* Stack protection governance now inspects workflow source in addition to the
   declared protection and observed check surface. A push-to-main workflow that
   contains a direct commit/push mechanism is reported as
   `WORKFLOW_MUTATION_RISK`, preventing automation from quietly depending on
   writes that protected `main` will reject.
 
-- `memory-observation.v1` and `context-pack.v1` join the vendored contracts
+* `memory-observation.v1` and `context-pack.v1` join the vendored contracts
   (`schemas/vendored-contracts.json`): mq-agent produces both, mqobsidian owns
   them. The co-change observation and a generated context pack's frontmatter
   are now validated against the schemas themselves, not only against key lists
   copied by hand, and `check-vendored-contracts.py` fails CI on drift.
 
-- Feedback activation readiness v1: `feedback activation-readiness`
+* Feedback activation readiness v1: `feedback activation-readiness`
   evaluates one context-strategy candidate without changing policy. The
   versioned `mq.feedback-activation-readiness.v1` contract requires repeated
   evidence across distinct Git snapshots, exact task-class/strategy identity,
@@ -427,7 +438,7 @@ write protected `main` directly.
   `READY_FOR_HUMAN_APPROVAL`. Every result still requires human approval and
   canary execution and explicitly reports `activation_available=false`.
 
-- `review file`, `review diff`, and `review repo` gain `--receipt`.
+* `review file`, `review diff`, and `review repo` gain `--receipt`.
   mq-agent delegates receipt creation to mq-mcp, verifies the returned
   `mq.review-receipt.v1` content address, and atomically persists only
   `ISSUED` receipts by content address under the operator-local receipt store.
@@ -436,49 +447,49 @@ write protected `main` directly.
   mq-mcp's current `mode` contract instead of forwarding obsolete boolean
   parameters.
 
-- Stack status v2 replaces heuristic readiness in mq-agent stack status with
+* Stack status v2 replaces heuristic readiness in mq-agent stack status with
   exact-HEAD verification evidence. Required GitHub Actions scopes come from
   the branch-protection contract; clean, fresh, fully successful evidence is
   VERIFIED, old complete evidence is STALE, missing or inaccessible evidence
   is UNVERIFIED, and a failed required check is FAIL. JSON now publishes the
   versioned mq.stack-status.v2 contract for mqlaunch/HAL consumers.
 
-- Feedback Engine F0 foundation: `mq.feedback-experiment.v1`, a bounded
+* Feedback Engine F0 foundation: `mq.feedback-experiment.v1`, a bounded
   append-only runtime evidence store under `~/.mq/feedback`, schema validation,
   secret/private-path redaction, serialized writes, retention/rotation, corrupt
   record reporting, purge primitives, and pytest isolation from operator state.
 
-- Feedback Engine F1 read-only operator surface: `feedback status`, `inspect`,
+* Feedback Engine F1 read-only operator surface: `feedback status`, `inspect`,
   `recent`, and `report`; retained-rotation history reads; immutable store
   references; explicit degraded-state reporting; and the packaged
   `mq.feedback-report.v1` aggregate contract with unavailable metrics kept
   distinct from measured zeroes.
 
-- Feedback Engine F2-F4: zero-effect active-versus-shadow context experiments
+* Feedback Engine F2-F4: zero-effect active-versus-shadow context experiments
   on a clean pinned Git snapshot; bounded context/source/time budgets; immutable
   \`mq.feedback-comparison.v1\` evidence with deterministic per-metric verdicts;
   explicit relevance, negative-query, stale and contradictory-source fixtures;
   advisory Atlas evidence binding; and append-only
   \`mq.feedback-candidate.v1\` review proposals with no activation path.
 
-- Feedback Engine F5 ecosystem access: one authoritative mq-agent result is
+* Feedback Engine F5 ecosystem access: one authoritative mq-agent result is
   consumed through mq-mcp by Codex/Claude, rendered read-only by mq-hal,
   delegated by mqlaunch, and exposed directly to scripts through stable JSON;
   no client duplicates comparison or activation policy.
 
-- Feedback Engine F6 release hardening: end-to-end and mutation fixtures,
+* Feedback Engine F6 release hardening: end-to-end and mutation fixtures,
   installed-wheel feedback schema/CLI verification, a canonical feedback
   release gate, public-safe documentation, historical v1 readability, and
   real zero-effect shadow-run CI evidence across mq-agent and mq-mcp.
 
 ### Fixed
 
-- The shell tool's hard-coded denylist now matches
+* The shell tool's hard-coded denylist now matches
   `docs/SAFETY_CONTRACT.md`: `rm -rf`, `sudo`, `chmod 777`,
   `curl | bash`, `wget | sh`, raw-device overwrite, `mkfs`, `dd if=`
   and the fork bomb are blocked regardless of approval mode.
 
-- `mq-agent memory search` (and `mqlaunch srm search`) no longer crashes with
+* `mq-agent memory search` (and `mqlaunch srm search`) no longer crashes with
   `AttributeError: 'list' object has no attribute 'get'`. mq-mcp returns the
   search as text wrapped by the HTTP bridge; the command now prints that text
   and exits 1 when the tool reports `search_semantic_memory failed:`.
@@ -493,47 +504,47 @@ handoff.
 
 ### Added
 
-- NotebookLM corpus stages D3-D8: deterministic corpus materialization,
+* NotebookLM corpus stages D3-D8: deterministic corpus materialization,
   metadata/text search, quota-aware Google Drive inventory, bounded selective
   evidence retrieval, cross-notebook research, interaction-gap analysis, and a
   disposable local semantic retrieval experiment backed by Ollama embeddings.
 
-- Operational P0-P5 NotebookLM pipeline through `mq-agent notebook`:
+* Operational P0-P5 NotebookLM pipeline through `mq-agent notebook`:
   `build`, `status`, `sync`, `evidence`, and `atlas`. P0 materializes
   the canonical `notebook-corpus-index.v1`; P1 builds the local semantic
   index; P2 exposes corpus search; P3 computes NEW/CHANGED/REMOVED/UNCHANGED
   state and reuses unchanged vectors; P4 retrieves bounded evidence; P5 emits
   an Atlas-safe claim/evidence bundle and optional immutable evidence workspace.
 
-- Reconciled NotebookLM manifest overlay. The manifest acts as an integrity
+* Reconciled NotebookLM manifest overlay. The manifest acts as an integrity
   gate for notebook/item/role accounting, applies verified SHA-256 hashes where
   available, supports both legacy and canonical NotebookLM layouts, and fails
   closed on unknown roles or corpus drift.
 
-- Atlas evidence capture with explicit full-capture bounds. Only grounded
+* Atlas evidence capture with explicit full-capture bounds. Only grounded
   `source` material is claim-eligible; derived artifacts, interaction history,
   and truncated captures cannot be promoted into proof.
 
 ### Changed
 
-- `signal --brain` now binds producer provenance to an identified live mq-mcp
+* `signal --brain` now binds producer provenance to an identified live mq-mcp
   receiver before writeback. Receiver probing, endpoint selection, and the
   actual write target use the same resolved mq-mcp endpoint.
 
-- Shared Codex/Claude skills are canonicalized, the release gate is exercised
+* Shared Codex/Claude skills are canonicalized, the release gate is exercised
   on macOS where the stack actually runs, and local/workflow gate parity is
   enforced in CI.
 
-- The optional `signal` dependency uses the published `repo-signal>=1.7.1`
+* The optional `signal` dependency uses the published `repo-signal>=1.7.1`
   package.
 
 ### Fixed
 
-- Co-change and mq-mcp path resolution accept `MQ_MCP_DIR` as either the
+* Co-change and mq-mcp path resolution accept `MQ_MCP_DIR` as either the
   repository root or executable project directory, avoiding duplicated
   `/mq-mcp` paths and worktree/repository confusion.
 
-- Receiver identity handling distinguishes an answering-but-unidentified
+* Receiver identity handling distinguishes an answering-but-unidentified
   process from an identified runtime and keeps provenance admission fail
   closed.
 
@@ -546,7 +557,7 @@ compared one edge at a time, and reduced to one status and one next action.
 
 ### Added
 
-- Runtime provenance, Phase 0 through Phase 5.
+* Runtime provenance, Phase 0 through Phase 5.
 
   Two contracts, frozen before any code. `mq.runtime-identity.v1` says what one
   runtime is: component, version and commit, because two builds can carry the
@@ -572,14 +583,14 @@ compared one edge at a time, and reduced to one status and one next action.
   appears — `dir_info` without `editable: true` and an index install with no
   record at all both stay `unknown` rather than being inferred.
 
-- `mq-agent stack provenance`, with `--json`. Read-only, local and
+* `mq-agent stack provenance`, with `--json`. Read-only, local and
   network-free, and it always exits 0: provenance reports facts and owns no
   blocking decision, which stays with the release cockpit and `runtime_guard`.
   `--refresh` is the only step that touches the network, and it uses
   `git ls-remote` rather than `fetch` — a query does not change the checkout
   being observed.
 
-- Live runtime identity. `mq-mcp` reports `mq.runtime-identity.v1` about itself
+* Live runtime identity. `mq-mcp` reports `mq.runtime-identity.v1` about itself
   over its existing loopback observability route, and `mq-agent` compares
   `running` against `installed` and `checkout`. The identity is taken once at
   process start and never re-read: a producer that read `VERSION` and `HEAD`
@@ -588,7 +599,7 @@ compared one edge at a time, and reduced to one status and one next action.
   release exists to expose. `mq-mcp` does not import the `mq-agent` package —
   the contract crosses the repository boundary, the implementation does not.
 
-- Runtime fingerprints on execution records. `mq.execution-outcome.v1` gains an
+* Runtime fingerprints on execution records. `mq.execution-outcome.v1` gains an
   optional fingerprint — `component`, `version`, `commit`, `identity_quality` —
   as an additive `v1` extension per mqobsidian DEC-006, with no historical
   record rewritten or backfilled. The fingerprint is a projection of the
@@ -596,12 +607,12 @@ compared one edge at a time, and reduced to one status and one next action.
   observing again at write time would attribute a run to whatever the checkout
   had since become.
 
-- Deterministic `skills inventory`, `skills profile`, and `skills route`
+* Deterministic `skills inventory`, `skills profile`, and `skills route`
   commands, eight skill profiles, observed Codex/Claude discovery,
   required-skill handling, JSON output, explanations, and skill selection in
   context-pack Markdown. Vocabulary and schemas are owned by mqobsidian.
 
-- `.mq/repo-contract.json` declares `mq.stack-provenance.v1` under the contracts
+* `.mq/repo-contract.json` declares `mq.stack-provenance.v1` under the contracts
   this repository produces. mq-agent had produced it since Phase 0 without
   saying so, and the compatibility engine reads `contracts` as what a repo
   produces — so a consumer declaring the other half would have produced
@@ -610,11 +621,11 @@ compared one edge at a time, and reduced to one status and one next action.
   first turns the same pair into an edge, which is what `mq-hal` v2.4.0 then
   consumed.
 
-- Branch protection is declared as a workflow rather than as console state.
+* Branch protection is declared as a workflow rather than as console state.
 
 ### Changed
 
-- mq-agent owns a canonical vector store and always has a memory.
+* mq-agent owns a canonical vector store and always has a memory.
 
   The store id previously existed only in gitignored `.env` files. With none
   present, `memory status` reported `missing-vector-store` and mq-agent had no
@@ -639,67 +650,67 @@ compared one edge at a time, and reduced to one status and one next action.
   doctor item is `vector store` rather than `OPENAI_VECTOR_STORE_ID`, and both
   `--json` payloads gain `vector_store_source`.
 
-- Pushing a `v*` tag publishes the GitHub release. Publishing was a manual
+* Pushing a `v*` tag publishes the GitHub release. Publishing was a manual
   `gh release create`, and a manual step gets skipped — across the MQ stack
   every missing release sat in a repo that published by hand. The notes come
   from that version's CHANGELOG section and never from the commit range, since
   a tag placed late makes the range describe the wrong work.
 
-- A changelog section that is missing, empty, or over the size limit now fails
+* A changelog section that is missing, empty, or over the size limit now fails
   the publication with exit 6 instead of publishing a truncated remainder.
   Automation cannot promise a release under every condition; what it can
   promise is that a forgotten publication is impossible and every other
   publication error is loud.
 
-- CI lints `tests/` as well as `mq_agent/`, and `./scripts/check-skills.sh`
+* CI lints `tests/` as well as `mq_agent/`, and `./scripts/check-skills.sh`
   runs as a blocking gate. The script existed but ran in no workflow, so a
   skill could be added without its `SKILLS.md` row or its `.agents/` mirror and
   still show a green PR.
 
-- `remediation` for a running↔checkout mismatch narrows to a restart only where
+* `remediation` for a running↔checkout mismatch narrows to a restart only where
   the running process's `source_path` is the checkout being compared, and
   otherwise widens to verifying the installation first. Restart and
   reinstall-then-restart are both consistent with the same observation, and the
   wrong one looks like it worked.
 
-- An unobserved `installed` layer renders as `not observed` rather than `—`,
+* An unobserved `installed` layer renders as `not observed` rather than `—`,
   which read as a layer that was looked at and found empty. `--json` is
   unchanged.
 
 ### Fixed
 
-- OpenAI credential resolution prefers an explicit process credential and
+* OpenAI credential resolution prefers an explicit process credential and
   otherwise reads the macOS Keychain, so a stale `.env` secret can no longer
   override a rotated key. The Keychain read is a fixed-argv call to
   `/usr/bin/security` with a two-second timeout and no shell; the secret is
   never printed, and its non-secret source is reported instead.
 
-- `mq-mcp` startup fails closed when port 8765 is already owned. The PID is not
+* `mq-mcp` startup fails closed when port 8765 is already owned. The PID is not
   published until the child survives the immediate-failure window, and listener
   ownership is verified after spawn where observable. Covers stale listeners,
   bind races, immediate failures and invalid port configuration.
 
-- Runtime schemas are proven to ship in the built wheel. v1.27 shipped
+* Runtime schemas are proven to ship in the built wheel. v1.27 shipped
   `execution_outcome.schema.json` without a force-include line: the loader fell
   back to the repo root, every test passed from a checkout, and every installed
   runtime silently recorded nothing. Two invariants now compare the declaration
   against a real built wheel in both directions.
 
-- A runtime's identity is bound to the code it imported, not to a distribution
+* A runtime's identity is bound to the code it imported, not to a distribution
   name. Version, commit and install type come from the distribution shown to
   own the imported file, which is the precondition for trusting the signal at
   all — a stranger distribution sharing the name used to fabricate an
   installed↔checkout difference that was not there.
 
-- A revision the contract cannot express is absent rather than coerced, so a
+* A revision the contract cannot express is absent rather than coerced, so a
   non-git VCS install no longer produces a record this repository's own
   validator rejects.
 
-- The vector-store refresh skill no longer tells a reader to recover a missing
+* The vector-store refresh skill no longer tells a reader to recover a missing
   `OPENAI_API_KEY` by sourcing a dotfile through a login shell, and names the
   target repository through a variable instead of one machine's checkout path.
 
-- No test reads this machine's Keychain. Resolving `OPENAI_API_KEY` on macOS
+* No test reads this machine's Keychain. Resolving `OPENAI_API_KEY` on macOS
   reads the login Keychain, and seven tests reached that call without stating a
   credential of their own, so their outcome depended on what this machine held.
   CI never saw it — resolution returns early off `sys.platform`, so the only
@@ -715,178 +726,178 @@ now leaves one outcome record, and the work that followed made those records —
 and the routing evidence beside them — say only what the runtime can actually
 prove.
 
-- ebe80c9 chore(release): prepare v1.27.0 and renumber the roadmap (#259)
-- c0bfd3c feat(routing): open the evidence-integrity era (#258)
-- 2269309 docs(roadmap): record the execution evidence integrity work (#257)
-- 6d9dd36 fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
-- bc74d17 fix(cli): a run that never started is not a failed execution (#255)
-- fc8f821 feat(routing): a model that ran out of time was not unavailable (#254)
-- 8a43900 fix(routing): give the local route a budget its slow draws can finish inside (#253)
-- afb7af5 docs(roadmap): record operational verification of the verifier excerpt fix (#252)
-- 9567066 docs(roadmap): record verifier excerpt integrity fix (#250) (#251)
-- 92688b1 fix: separate verifier excerpts from execution completeness (#250)
-- c7c95e7 feat(routing): open the collection-integrity era (#249)
-- 1dcb973 fix: enforce declared collection integrity (#248)
-- 7f34a4b fix: back two claims the code did not actually make (#246)
-- 522687a feat(routing): open the era in which a review reads what it declared (#245)
-- a232fbb fix(docs): tell the audit what it is auditing (#244)
-- 3be9b0d feat(routing): open the era in which a review cannot be handed a secret (#243)
-- 49e6c67 fix(tools): stop offering secret files to a reader (#241)
-- dae09cf feat(routing): open the era in which a docs-review reads what it planned to (#239)
-- 6c67086 feat(executor): make a plan dependency something the runtime can execute (#238)
-- aa0c09f feat(planner): tell the planner what the tools actually take (#236)
-- c4d2f67 feat(routing): record the plan-validation era at its real merge point (#234)
-- 0a1721b fix(executor): reject a call the tool cannot accept, before making it (#233)
-- 28f12e4 feat(routing): report how two routes differ, at two levels and without a verdict (#231)
-- 16b1997 feat(routing): make the quality population expressible without touching readiness (#230)
-- 7fe49bf feat(routing): give a routed decision only what it can finish reading (#227)
-- d34e1dd fix(routing): give the model the material the verifier checks against (#226)
-- 25490f6 chore(contracts): sync the vendored route outcome to canonical (#225)
-- 8a55d4d fix(routing): pin the task class in the grammar instead of asking for it (#224)
-- 1e89ca6 feat(routing): add a second applied route that runs no model (ADR-010 D8) (#223)
-- a55c7f3 chore(contracts): sync the vendored route outcome to canonical (ADR-010 D8) (#222)
-- 6e9daf2 fix(routing): bound evidence by what verifies, not by how much the model writes (#221)
-- 52d7b5f feat(routing): apply a route for real, and move readiness to the routing layer (#220)
-- 97afe21 feat(contracts): vendor D6/D7 and stop the swarm claiming a route (#219)
-- 741615f chore(contracts): vendor the routing contract's execution correlation (#218)
-- f909c4a feat(contracts): vendor canonical contracts and gate them against mqobsidian (#216) (#217)
-- 8b2b4a3 feat(telemetry): record the model an execution actually used (#213) (#215)
-- bb9a8be feat: mq.execution-outcome.v1 — contract, one truthful emit point, and separate reporting (#206)
-- c1b0b4a fix(context): state CodeGraph intentions, never tool names (#212)
-- c6b8035 feat(context): read the selection vocabulary from mqobsidian (#211)
-- 18888da feat: record how much evidence was grounded, not just pass/fail (#210)
-- 7445075 feat: emit feedback-signal.v1 pack-usage records (#209)
-- 4b281ef fix: emit plain-text source headers, not HTML comments (#208)
-- b3870ff feat: build local notebook packs from mqobsidian's profile (#207)
-- d16a5c4 fix: resolve repo-signal from uv tool runtime
-- 589b629 docs: sync roadmaps after v1.26.0 and open v1.27.0 (#204)
+* ebe80c9 chore(release): prepare v1.27.0 and renumber the roadmap (#259)
+* c0bfd3c feat(routing): open the evidence-integrity era (#258)
+* 2269309 docs(roadmap): record the execution evidence integrity work (#257)
+* 6d9dd36 fix(evidence): a runtime that cannot be identified writes no production evidence (#256)
+* bc74d17 fix(cli): a run that never started is not a failed execution (#255)
+* fc8f821 feat(routing): a model that ran out of time was not unavailable (#254)
+* 8a43900 fix(routing): give the local route a budget its slow draws can finish inside (#253)
+* afb7af5 docs(roadmap): record operational verification of the verifier excerpt fix (#252)
+* 9567066 docs(roadmap): record verifier excerpt integrity fix (#250) (#251)
+* 92688b1 fix: separate verifier excerpts from execution completeness (#250)
+* c7c95e7 feat(routing): open the collection-integrity era (#249)
+* 1dcb973 fix: enforce declared collection integrity (#248)
+* 7f34a4b fix: back two claims the code did not actually make (#246)
+* 522687a feat(routing): open the era in which a review reads what it declared (#245)
+* a232fbb fix(docs): tell the audit what it is auditing (#244)
+* 3be9b0d feat(routing): open the era in which a review cannot be handed a secret (#243)
+* 49e6c67 fix(tools): stop offering secret files to a reader (#241)
+* dae09cf feat(routing): open the era in which a docs-review reads what it planned to (#239)
+* 6c67086 feat(executor): make a plan dependency something the runtime can execute (#238)
+* aa0c09f feat(planner): tell the planner what the tools actually take (#236)
+* c4d2f67 feat(routing): record the plan-validation era at its real merge point (#234)
+* 0a1721b fix(executor): reject a call the tool cannot accept, before making it (#233)
+* 28f12e4 feat(routing): report how two routes differ, at two levels and without a verdict (#231)
+* 16b1997 feat(routing): make the quality population expressible without touching readiness (#230)
+* 7fe49bf feat(routing): give a routed decision only what it can finish reading (#227)
+* d34e1dd fix(routing): give the model the material the verifier checks against (#226)
+* 25490f6 chore(contracts): sync the vendored route outcome to canonical (#225)
+* 8a55d4d fix(routing): pin the task class in the grammar instead of asking for it (#224)
+* 1e89ca6 feat(routing): add a second applied route that runs no model (ADR-010 D8) (#223)
+* a55c7f3 chore(contracts): sync the vendored route outcome to canonical (ADR-010 D8) (#222)
+* 6e9daf2 fix(routing): bound evidence by what verifies, not by how much the model writes (#221)
+* 52d7b5f feat(routing): apply a route for real, and move readiness to the routing layer (#220)
+* 97afe21 feat(contracts): vendor D6/D7 and stop the swarm claiming a route (#219)
+* 741615f chore(contracts): vendor the routing contract's execution correlation (#218)
+* f909c4a feat(contracts): vendor canonical contracts and gate them against mqobsidian (#216) (#217)
+* 8b2b4a3 feat(telemetry): record the model an execution actually used (#213) (#215)
+* bb9a8be feat: mq.execution-outcome.v1 — contract, one truthful emit point, and separate reporting (#206)
+* c1b0b4a fix(context): state CodeGraph intentions, never tool names (#212)
+* c6b8035 feat(context): read the selection vocabulary from mqobsidian (#211)
+* 18888da feat: record how much evidence was grounded, not just pass/fail (#210)
+* 7445075 feat: emit feedback-signal.v1 pack-usage records (#209)
+* 4b281ef fix: emit plain-text source headers, not HTML comments (#208)
+* b3870ff feat: build local notebook packs from mqobsidian's profile (#207)
+* d16a5c4 fix: resolve repo-signal from uv tool runtime
+* 589b629 docs: sync roadmaps after v1.26.0 and open v1.27.0 (#204)
 
 ### Added
 
-- `mq.execution-outcome.v1` — one record per real execution, with routing as a
+* `mq.execution-outcome.v1` — one record per real execution, with routing as a
   field on the record rather than its subject, so route evaluation, skill
   evaluation and tool performance read one contract instead of growing
   separate telemetry formats. `mq.model-route-outcome.v1` is untouched: the
   separation between shadow experiment and production is by contract, so no
   `kind` discriminator was needed and no historical record was migrated.
-- Execution instrumentation across every entrypoint: `swarm run`, `audit`,
+* Execution instrumentation across every entrypoint: `swarm run`, `audit`,
   `fix-ci`, `docs-audit`, `release-check`, `signal` and `task run`. One
   execution is one operator action and the outermost level owns the record —
   agents are instrumented at the CLI, never in the agent classes, and
   `Executor.run_plan` is not instrumented at all, since it is only ever
   reached from inside an agent. Nesting is therefore impossible by
   construction rather than by convention.
-- `route report` and `route history` read both outcome contracts and present
+* `route report` and `route history` read both outcome contracts and present
   them in separate tables, under an `execution` key in `--json`, grouped by
   task class and route, with 7-, 30- and 90-day windows and median and p90
   latency. Shadow and execution records are never merged into one rate.
-- `route readiness` reports the distance to every eligibility threshold. A
+* `route readiness` reports the distance to every eligibility threshold. A
   passing gate yields `AWAITING_OPERATOR_APPROVAL`, never an automatic
   promotion.
-- Retention: the outcome file is bounded by size with rotation (10 MiB, three
+* Retention: the outcome file is bounded by size with rotation (10 MiB, three
   prior files), overridable through `MQ_AGENT_OUTCOME_MAX_BYTES`.
-- A second applied route that runs no model, so two routes can be compared at
+* A second applied route that runs no model, so two routes can be compared at
   two levels without the report issuing a verdict.
-- Canonical contracts are vendored into the repo and gated against
+* Canonical contracts are vendored into the repo and gated against
   `mqobsidian`, including the routing contract's execution correlation and the
   ADR-010 D6/D7/D8 decisions.
-- Local notebook packs built from `mqobsidian`'s profile, `feedback-signal.v1`
+* Local notebook packs built from `mqobsidian`'s profile, `feedback-signal.v1`
   pack-usage records, and a selection vocabulary read from `mqobsidian` rather
   than hard-coded.
 
 ### Changed
 
-- Telemetry observes a run and never changes it: emission swallows every
+* Telemetry observes a run and never changes it: emission swallows every
   failure, so a broken evidence store costs a record and nothing else, and
   `MQ_AGENT_TELEMETRY=off` disables it entirely.
-- A counter the runtime does not measure is absent, not zero — a zero reads as
+* A counter the runtime does not measure is absent, not zero — a zero reads as
   "no retries happened" rather than "nobody counted". `tool_calls`, `retries`,
   `fallbacks`, `tokens` and `cost` are therefore optional, and an agent that
   never ran carries no latency at all.
-- An outcome record answers "could the run be carried out", not "is the repo
+* An outcome record answers "could the run be carried out", not "is the repo
   healthy". An audit that finds problems records `PASS`; a failing task step
   records `FAIL`, because there the runtime could not do what it was asked.
-- `--dry-run` on an agent means "make no writes", not "run nothing", so those
+* `--dry-run` on an agent means "make no writes", not "run nothing", so those
   runs record. Only the swarm and task-runner dry runs execute nothing, and
   only those record nothing.
-- Routing evidence is bounded by what verifies rather than by how much the
+* Routing evidence is bounded by what verifies rather than by how much the
   model writes, the task class is pinned in the grammar instead of being asked
   for, and a routed decision is given only what it can finish reading.
-- The local route was given a budget its slow draws can finish inside.
-- The planner is told what the tools actually take, and a plan dependency is
+* The local route was given a budget its slow draws can finish inside.
+* The planner is told what the tools actually take, and a plan dependency is
   now something the runtime can execute.
 
 ### Fixed
 
-- The test suite no longer writes to the operator's evidence store. Three
+* The test suite no longer writes to the operator's evidence store. Three
   tests drive a real `SwarmRunner.run`, so every `pytest` run had been
   appending records indistinguishable from real runs to
   `~/.mq-agent/execution-outcomes.jsonl`. Learned routing is meant to read
   that file, so those were corrupted evidence, not untidiness.
-- The execution outcome schema is force-included in the wheel. Without it the
+* The execution outcome schema is force-included in the wheel. Without it the
   installed schema path did not exist, emission swallowed the
   `FileNotFoundError`, and every installed runtime recorded nothing while the
   repo's tests stayed green.
-- An execution record found in a routing source no longer inflates
+* An execution record found in a routing source no longer inflates
   `invalid_records`. It is a valid record of another contract, so it counts as
   neither a valid routing outcome nor an invalid one.
-- A run that never started is not a failed execution.
-- A runtime that cannot be identified writes no production evidence.
-- A model that ran out of time was not unavailable — a generation timeout is
+* A run that never started is not a failed execution.
+* A runtime that cannot be identified writes no production evidence.
+* A model that ran out of time was not unavailable — a generation timeout is
   no longer misclassified.
-- The executor rejects a call the tool cannot accept before making it.
-- Secret-bearing files are no longer offered to a reader, and a review cannot
+* The executor rejects a call the tool cannot accept before making it.
+* Secret-bearing files are no longer offered to a reader, and a review cannot
   be handed a secret.
-- A docs review reads what it planned to read, a review reads what it
+* A docs review reads what it planned to read, a review reads what it
   declared, and declared collection integrity is enforced.
-- Verifier excerpts are separated from execution completeness.
-- Two claims the code did not actually make were withdrawn.
-- `repo-signal` resolves from the `uv` tool runtime.
-- Source headers are emitted as plain text, not HTML comments, and CodeGraph
+* Verifier excerpts are separated from execution completeness.
+* Two claims the code did not actually make were withdrawn.
+* `repo-signal` resolves from the `uv` tool runtime.
+* Source headers are emitted as plain text, not HTML comments, and CodeGraph
   intentions are stated rather than tool names.
 
 ## [v1.26.0] — 2026-08-14
 
-- 941368f feat(stack): extend the compatibility gate across the whole stack — Phase 6 (#202)
-- 477f270 fix(stack): a repo with no Python dependencies is SKIPPED, not UNAVAILABLE (#201)
-- c8ec7ea feat(stack): enforce blocks_release in the release path — Phase 6 (#200)
-- ca9116c feat(stack): operator surfaces and CI gates for compatibility — Phase 5 (#199)
-- 0cfcd47 feat(stack): fresh resolve for the compatibility gate — Phase 4 (#198)
-- 82bccaf ci(tests): type-check tests/ and fix the errors it surfaced (#197)
-- 9e6f64b feat(stack): compatibility relationships and range overlap — Phase 3 (#196)
-- c9fa38d docs(agents): forbid direct access to the CodeGraph database (#195)
-- bbe8536 feat(stack): stack compatibility gate — Phase 0-2 (#194)
-- 505ad9f feat(docs): generate the command reference from the Typer app (#193)
-- 5331ccc docs: sync roadmaps after v1.25.1 and open v1.26.0 (#192)
+* 941368f feat(stack): extend the compatibility gate across the whole stack — Phase 6 (#202)
+* 477f270 fix(stack): a repo with no Python dependencies is SKIPPED, not UNAVAILABLE (#201)
+* c8ec7ea feat(stack): enforce blocks_release in the release path — Phase 6 (#200)
+* ca9116c feat(stack): operator surfaces and CI gates for compatibility — Phase 5 (#199)
+* 0cfcd47 feat(stack): fresh resolve for the compatibility gate — Phase 4 (#198)
+* 82bccaf ci(tests): type-check tests/ and fix the errors it surfaced (#197)
+* 9e6f64b feat(stack): compatibility relationships and range overlap — Phase 3 (#196)
+* c9fa38d docs(agents): forbid direct access to the CodeGraph database (#195)
+* bbe8536 feat(stack): stack compatibility gate — Phase 0-2 (#194)
+* 505ad9f feat(docs): generate the command reference from the Typer app (#193)
+* 5331ccc docs: sync roadmaps after v1.25.1 and open v1.26.0 (#192)
 
 ### Added
 
-- Generated command reference: `tools/generate_command_reference.py`
+* Generated command reference: `tools/generate_command_reference.py`
   introspects the live Typer app and renders
   `docs/generated/Command-Reference.md`. No hand-maintained command list is
   involved, and the render is deterministic.
-- `scripts/publish-wiki-command-ref.sh` projects that one page to the GitHub
+* `scripts/publish-wiki-command-ref.sh` projects that one page to the GitHub
   Wiki. Idempotent, diff-driven and warn-only, so a publishing failure never
   invalidates a release.
-- CI gate: `tests.yml` fails when the checked-in reference drifts from the
+* CI gate: `tests.yml` fails when the checked-in reference drifts from the
   code.
-- `mq-agent stack compatibility` — read-only dependency compatibility gate
+* `mq-agent stack compatibility` — read-only dependency compatibility gate
   across MQ repositories, implementing Phase 0 (the
   `mq.stack-compatibility.v1` contract) and Phase 1 (repository inventory) of
   the v1.26.0 roadmap. Reports declared and locked versions with per-file
   provenance, flags unbounded ranges and lockfiles outside their declared
   range, and reports missing repos or sources as `UNAVAILABLE` rather than as
   incompatibility. Never modifies dependencies, lockfiles or working trees.
-- `schemas/mq_stack_compatibility.schema.json` with stable finding codes and
+* `schemas/mq_stack_compatibility.schema.json` with stable finding codes and
   an explicit `blocks_release` flag per finding.
-- Phase 2 — declared compatibility. `.mq/repo-contract.json` accepts an
+* Phase 2 — declared compatibility. `.mq/repo-contract.json` accepts an
   optional `compatibility` block (`protocols`, `dependencies`, `produces`,
   `consumes`). The gate validates it against `pyproject.toml` and separates
   missing metadata (`MQC009`, WARN, non-blocking during rollout) from
   inconsistent metadata (`MQC011`, FAIL) and from a range that contradicts its
   own protocol track (`MQC012`, FAIL).
 
-- Phase 3 — stack relationships. The report's `relationships` array is now
+* Phase 3 — stack relationships. The report's `relationships` array is now
   populated: produced contracts are matched to the repos that consume them,
   and every pair of repos sharing a tracked dependency is assessed for range
   overlap. Ranges that share no version fail as `MQC007`; parallel protocol
@@ -894,11 +905,11 @@ prove.
   wired together through a produced/consumed contract); a consumed contract
   nobody produces raises the new non-blocking `MQC013`. Repos that could not
   be read are skipped rather than treated as incompatible.
-- `stack compatibility` prints a Relationships section in human mode, so a
+* `stack compatibility` prints a Relationships section in human mode, so a
   cross-repo verdict shows the observed ranges on both sides instead of only a
   summary status.
 
-- Phase 4 — fresh resolve. `mq-agent stack compatibility --fresh-resolve`
+* Phase 4 — fresh resolve. `mq-agent stack compatibility --fresh-resolve`
   answers what a *new* installation would select, which a lockfile can hide
   indefinitely. It compiles the declared ranges with `uv` in a temporary
   directory outside every working tree, records the result as each
@@ -907,7 +918,7 @@ prove.
   a fresh install picks), `MQC016` (FAIL — the declared import breaks against
   the resolved version), `MQC017` (FAIL — the declared ranges cannot be
   resolved together) and `MQC014` (UNAVAILABLE — the check could not be run).
-- `.mq/repo-contract.json` accepts `compatibility.import_probes`, a map of
+* `.mq/repo-contract.json` accepts `compatibility.import_probes`, a map of
   dependency to import statement. Any Python statement works, so a repo can
   smoke its own contract rather than only its imports. Repos that declare
   nothing get `mcp` → `from mcp.server.fastmcp import FastMCP`; declaring an
@@ -915,22 +926,22 @@ prove.
 
 ### Changed
 
-- CI type-checks `tests/` alongside `mq_agent/`. The test suite already had
+* CI type-checks `tests/` alongside `mq_agent/`. The test suite already had
   four type errors that no gate would have caught; they are fixed and the
   gate now holds the line.
-- `schemas/mq_stack_repo_contract.schema.json` gained the optional
+* `schemas/mq_stack_repo_contract.schema.json` gained the optional
   `compatibility` property. Contracts without it stay valid; the schema
   previously set `additionalProperties: false`, so a repo adding the block
   would have been rejected by the contract gate.
-- Declare `packaging` explicitly in `dependencies`. It was already imported
+* Declare `packaging` explicitly in `dependencies`. It was already imported
   transitively; the compatibility gate parses version specifiers with it.
-- `uv.lock` records `packaging` as a direct dependency. It was declared in
+* `uv.lock` records `packaging` as a direct dependency. It was declared in
   `pyproject.toml` without the lockfile being regenerated — the gate's own
   repo carrying exactly the drift the gate looks for.
 
 ### Added (Phase 5)
 
-- Operator surfaces and gates. `mq-agent dashboard` carries a Compatibility row
+* Operator surfaces and gates. `mq-agent dashboard` carries a Compatibility row
   and the static verdict in its JSON payload; only a proven `FAIL` counts
   against the dashboard's overall status, since `WARN` is the normal state
   while repos are still declaring their boundary. The stack gate workflow runs
@@ -938,40 +949,40 @@ prove.
   nightly schedule and on manual dispatch, where a registry is reachable. Pull
   requests deliberately do not run it: only the checkout exists there, so every
   sibling would report `UNAVAILABLE`.
-- `stack compatibility --strict` exits 1 on `WARN`, and an interrupted run
+* `stack compatibility --strict` exits 1 on `WARN`, and an interrupted run
   exits 130 instead of reporting a verdict it never reached.
-- `docs/STACK_CONTRACT_GATE.md` documents every status, exit code and finding
+* `docs/STACK_CONTRACT_GATE.md` documents every status, exit code and finding
   against what it blocks.
 
 ### Added (Phase 6)
 
-- `blocks_release` is now enforced by the release path, not only by CI.
+* `blocks_release` is now enforced by the release path, not only by CI.
   `mq-agent stack release-check` refuses a repository implicated in a proven
   incompatibility, and the release cockpit (`mq-agent ship status|proof|audit`)
   reports `COMPATIBILITY_BLOCKED` with the compatibility command as its next
   action. Both read the static check only — no network, no resolution.
-- `release_blockers()` groups blocking findings by every repository they
+* `release_blockers()` groups blocking findings by every repository they
   implicate. Pairwise findings (`MQC007`, `MQC008`) now carry a `repos` list
   alongside `repo`: naming only the left-hand repo would have blocked one half
   of an incompatible pair and let the other half release.
-- Both surfaces treat a compatibility report that could not be produced as
+* Both surfaces treat a compatibility report that could not be produced as
   `UNAVAILABLE` and let the release proceed. Unknown is not incompatible, and a
   gate that cannot run must not refuse every release.
-- `release-check --ci` resolves the checkout under test the same way its repo
+* `release-check --ci` resolves the checkout under test the same way its repo
   entries do, so a pull request is gated on its own single-repo findings
   instead of reporting the repo under test as `UNAVAILABLE`.
-- The cockpit reads the repository from the checkout under review, so
+* The cockpit reads the repository from the checkout under review, so
   `ship status --repo <worktree>` no longer judges whatever sits in
   `~/<repo>`. `checks.compatibility` is that repository's own verdict; the
   whole-stack status is kept in `checks.evidence.compatibility.stack_status`.
-- The gate now discovers which dependencies to assess instead of reading one
+* The gate now discovers which dependencies to assess instead of reading one
   hardcoded name. It tracks every dependency declared by two or more repos —
   the only ones that can disagree across a repository boundary — plus every
   dependency any contract names. `mq-agent`, `repo-signal` and `mqobsidian`
   were previously reported `PASS` having had nothing assessed at all, which is
   a verdict shape for an absence of one; they are now assessed against the
   seven dependencies the stack actually shares.
-- Dependencies carry `critical`. Only critical ones — those named in a
+* Dependencies carry `critical`. Only critical ones — those named in a
   `compatibility` block, plus `mcp` by default — raise `MQC005` (unbounded
   range) and `MQC009` (missing metadata). Nearly every `>=` range in the stack
   is technically unbounded, and warning about all of them would bury the one
@@ -979,32 +990,32 @@ prove.
   assessed for proven pairwise incompatibility, which needs no declaration to
   be true. Declaring a boundary in one repo makes that dependency critical
   stack-wide: the exposure lives in whichever repo left its range open.
-- `produces` falls back to the contract's existing `contracts` list when no
+* `produces` falls back to the contract's existing `contracts` list when no
   `compatibility.produces` is declared. All eight repos already register what
   they produce; requiring a parallel declaration first left the JSON side of
   the gate dead. `mq-ums` and the shell repos now contribute their contracts
   even though their Python status is `SKIPPED`.
-- New code `MQC018_CONTRACT_VERSION_SKEW` (FAIL, blocks both repos): a consumer
+* New code `MQC018_CONTRACT_VERSION_SKEW` (FAIL, blocks both repos): a consumer
   still on `X.v1` when the producer has moved to `X.v2`. Previously this
   surfaced as `MQC013_CONTRACT_UNPRODUCED` (WARN), which is the wrong
   diagnosis — the contract exists, it changed underneath its consumer. Unlike
   `MQC013`, a skew is reported even from a narrowed inventory: it needs both
   halves present to be observed, so seeing it is already proof.
-- Contract ids match on family and version with separators normalised.
+* Contract ids match on family and version with separators normalised.
   mq-agent reads mqobsidian's `inbox-manifest.v1` while mqobsidian registers it
   as `inbox_manifest.v1` — matching raw strings reported a correctly wired
   contract as produced by nobody.
-- `.mq/repo-contract.json` declares the five mqobsidian export contracts
+* `.mq/repo-contract.json` declares the five mqobsidian export contracts
   `mq_agent/memory/inbox_pipeline.py` reads, so that wiring is now assessed
   rather than assumed.
-- Human output collapses the Relationships section to the pairs that disagree,
+* Human output collapses the Relationships section to the pairs that disagree,
   with the rest counted on one line. Every pair of repos sharing any dependency
   is a relationship, so the full list is dozens of rows that all say the same
   thing and bury the one that does not. `--json` still carries all of them.
-- The `(unbounded)` marker is shown only for critical dependencies — the ones
+* The `(unbounded)` marker is shown only for critical dependencies — the ones
   the gate actually warns about. Marking every `>=` range implied an action the
   gate does not ask for.
-- The MCP incident is preserved as a regression fixture: both repos on the
+* The MCP incident is preserved as a regression fixture: both repos on the
   FastMCP 1.x track with open ranges, one with no lock and one held green by
   `uv.lock`. The fixture asserts the gate still fails, that the locked repo is
   blocked from releasing, and that the same stack with `<2` actually declared
@@ -1013,125 +1024,125 @@ prove.
 
 ### Fixed
 
-- A repository with no Python dependency source is now `SKIPPED`, not
+* A repository with no Python dependency source is now `SKIPPED`, not
   `UNAVAILABLE`. `mqlaunch` and `mq-hal` are shell, `mq-ums` is Node; the gate
   reads them successfully and simply has nothing to assess. Calling that "could
   not assess" exited 3 and would have failed the `main` job the moment the two
   MCP repos declared their boundary and their `WARN` — which outranks
   `UNAVAILABLE` — stopped masking it. It also masked the repos whose check
   genuinely did not run. Findings may now carry `SKIPPED` severity.
-- A dependency declared with no version at all (`dependencies = ['mcp']`) was
+* A dependency declared with no version at all (`dependencies = ['mcp']`) was
   read as *not declared*: it vanished from the report and the repo came back
   `PASS` with no findings. That is the most exposed declaration there is —
   it admits every future major — and it is the shape of the incident this gate
   exists to catch. An empty specifier is now distinguished from absence and
   raises `MQC005`, plus `MQC012` when a protocol track contradicts it.
-- An explicitly requested `--fresh-resolve` that could not run no longer
+* An explicitly requested `--fresh-resolve` that could not run no longer
   collapses into an unrelated `WARN` and exits 0. `UNAVAILABLE` ranks below
   `WARN` in the static ladder, which is right for an unreadable repo and wrong
   for a check the caller asked for; the report now says `UNAVAILABLE` (exit 3)
   unless something actually failed, and `next_action` points at the check that
   did not run.
-- An import probe is only `FAIL` when Python ran and the declared statement
+* An import probe is only `FAIL` when Python ran and the declared statement
   failed. uv failing to build a wheel or reach the registry previously read as
   a broken repository contract, blaming the repo for the machine's problem.
-- A fresh resolution targets the repository's own `requires-python` rather than
+* A fresh resolution targets the repository's own `requires-python` rather than
   the interpreter running the gate. uv reports an unsatisfiable interpreter
   through the same "No solution found" headline as a range conflict, so the
   mismatch was reported as `MQC017` — a release-blocking FAIL against ranges
   that were fine.
-- `import_probes` keys are matched by canonical package name, so a contract
+* `import_probes` keys are matched by canonical package name, so a contract
   spelling it `MCP` no longer silently skips its own probe.
 
 ## [v1.25.1] — 2026-08-10
 
-- f8f14fb fix(ship): audit completed releases as up to date (#190)
+* f8f14fb fix(ship): audit completed releases as up to date (#190)
 
 ## [v1.25.0] — 2026-08-10
 
-- 9fd754f feat(ship): add v1.25 release cockpit (#188)
-- 26f21eb chore(skills): make the repo's skills discoverable by Claude Code (#187)
-- caa561f fix(types): clear the two mypy errors in the test suite (#186)
-- de139d3 feat(memory): expose learn-writeback as its own delegator (#185)
-- f80d420 fix(mcp): tell an unreachable server apart from a missing tool (#184)
-- adf6926 feat(routing): expose per-decision routing history (#183)
-- e24f23a feat(routing): make local-first routing evidence mean something (#182)
-- 6b46a4e feat(routing): add evidence promotion review (#181)
-- eb87ca5 feat(routing): add advisory shadow routing commands (#179)
-- 03b6a7f feat(routing): define versioned model routing contracts (#178)
-- a343494 fix(context): consume blocker declarations (#177)
-- aa94e0b fix(run-tool): exit non-zero when the tool did not succeed (#176)
-- 9e4ced7 fix(codegraph): consume MCP-native task guidance (#175)
-- 7ad89ce fix(stack): clarify repository product-readiness sweep (#174)
+* 9fd754f feat(ship): add v1.25 release cockpit (#188)
+* 26f21eb chore(skills): make the repo's skills discoverable by Claude Code (#187)
+* caa561f fix(types): clear the two mypy errors in the test suite (#186)
+* de139d3 feat(memory): expose learn-writeback as its own delegator (#185)
+* f80d420 fix(mcp): tell an unreachable server apart from a missing tool (#184)
+* adf6926 feat(routing): expose per-decision routing history (#183)
+* e24f23a feat(routing): make local-first routing evidence mean something (#182)
+* 6b46a4e feat(routing): add evidence promotion review (#181)
+* eb87ca5 feat(routing): add advisory shadow routing commands (#179)
+* 03b6a7f feat(routing): define versioned model routing contracts (#178)
+* a343494 fix(context): consume blocker declarations (#177)
+* aa94e0b fix(run-tool): exit non-zero when the tool did not succeed (#176)
+* 9e4ced7 fix(codegraph): consume MCP-native task guidance (#175)
+* 7ad89ce fix(stack): clarify repository product-readiness sweep (#174)
 
 ## [v1.24.1] — 2026-07-23
 
-- fa38d5f fix(ci): align Ruff check with repository default rules (#172)
-- bc41b25 fix(ci): include mqobsidian in stack gate checkout (#171)
-- acee4a8 fix(stack): stabilize post-v1.24 release planning (#170)
+* fa38d5f fix(ci): align Ruff check with repository default rules (#172)
+* bc41b25 fix(ci): include mqobsidian in stack gate checkout (#171)
+* acee4a8 fix(stack): stabilize post-v1.24 release planning (#170)
 
 ## [v1.24.0] — 2026-07-22
 
-- e593d73 fix(stack): route single-repo releases by contract (#169)
-- 3c90a0f fix(release): sync docs during prepare (#167)
-- 9e9db86 docs(release): plan mq-agent v1.24.0 (#166)
-- 1bcaf40 feat(stack): route protected releases through pull requests (#165)
-- 7c2c185 fix(stack): block missing repo contracts and validate release_mode (#164)
-- f5232ec docs(readme): update current release direction (#163)
-- 6629b5e docs(release): sync v1.23 status surfaces (#162)
-- 71068d4 feat(models): harden Ollama runtime diagnostics (#161)
-- 9d92a60 feat(stack): close the release_mode value set and name what each one means (#160)
-- ff72b2e fix(release): re-gate on the repo's own release-check after the bump (#159)
-- cc9ae84 docs(roadmap): record the release-mode gap and what v1.23.0 taught (#158)
-- 2a6800c feat(stack): make branch protection a release contract, not a push error (#157)
+* e593d73 fix(stack): route single-repo releases by contract (#169)
+* 3c90a0f fix(release): sync docs during prepare (#167)
+* 9e9db86 docs(release): plan mq-agent v1.24.0 (#166)
+* 1bcaf40 feat(stack): route protected releases through pull requests (#165)
+* 7c2c185 fix(stack): block missing repo contracts and validate release_mode (#164)
+* f5232ec docs(readme): update current release direction (#163)
+* 6629b5e docs(release): sync v1.23 status surfaces (#162)
+* 71068d4 feat(models): harden Ollama runtime diagnostics (#161)
+* 9d92a60 feat(stack): close the release_mode value set and name what each one means (#160)
+* ff72b2e fix(release): re-gate on the repo's own release-check after the bump (#159)
+* cc9ae84 docs(roadmap): record the release-mode gap and what v1.23.0 taught (#158)
+* 2a6800c feat(stack): make branch protection a release contract, not a push error (#157)
 
 ### Added
 
-- `mq-agent models doctor [--json]` — read-only Ollama runtime diagnostics for
+* `mq-agent models doctor [--json]` — read-only Ollama runtime diagnostics for
   version, installed/loaded models, profile resolution, mq-learn Modelfile
   drift, and a structured JSON smoke test.
-- `mq-agent models bench` now reports load/total duration, prompt/output token
+* `mq-agent models bench` now reports load/total duration, prompt/output token
   counts, tokens per second, and JSON/schema validity through
   `ollama_model_benchmark.v1`.
 
 ### Changed
 
-- Default `fast`, `review`, and `planner` profiles now use the installed exact
+* Default `fast`, `review`, and `planner` profiles now use the installed exact
   model name `qwen3:4b-instruct` instead of the unresolved `qwen3` alias.
-- Model benchmarks now use Ollama's local generate API with `keep_alive=0` by
+* Model benchmarks now use Ollama's local generate API with `keep_alive=0` by
   default; `--keep-alive` can override that runtime setting.
-- Runtime policy keeps `qwen3:4b-instruct` for general fast/planner/review work,
+* Runtime policy keeps `qwen3:4b-instruct` for general fast/planner/review work,
   `mq-learn` for structured extraction, `bakllava` for vision only, and
   `llama3.2` as an unprofiled fallback. Vector storage and deep learn variants
   remain gated on measured retrieval and context-window needs.
 
 ## [v1.23.0] — 2026-07-19
 
-- e59e8e4 fix(release): sync uv.lock version so a release cannot ship its own drift (#155)
-- b527694 feat(stack): multi-repo release execute behind --execute --approve (#154)
-- 5c351b6 docs(roadmap): v1.23.0 checkpoint — 4/5 slices done, execute deferred (#153)
-- 269430b docs(roadmap): close tag disposition — known-bad kept, fixed forward (#152)
-- f5433c3 docs(roadmap): mark release-check.sh rollout done (3/8 -> 8/8) (#151)
-- 3eb620b fix(stack): raise preflight release-check timeout 120s -> 300s (#150)
-- b89de0b docs(roadmap): mark agent-context-pipeline prepare steps done (#149)
-- e3867f9 docs(roadmap): reconcile v1.23.0 state (converge done, rollout 3/8) (#148)
-- 6098088 feat(release): make release-check.sh conform to repo_release_check.v1 (#147)
-- 700d7dc feat(stack): read-only multi-repo release preflight hook (#146)
-- ad68beb docs(stack): lock multi-repo execute design (--all --execute) (#145)
-- f84faf6 feat(stack): re-verify on-main and clean tree before executing a release (#144)
-- e37b702 feat(stack): refuse a release plan when the target tag already exists (#143)
-- b253e57 chore(lint): enforce markdown consistency in CI (#142)
-- bbc6111 feat(stack): plan a release for the whole stack at once (#141)
-- dc8ab48 docs(roadmap): reframe v1.23.0 around release-path convergence (#140)
-- 966cc66 docs(workflow): add fence language to WORKFLOW_CONTRACT code blocks (#139)
+* e59e8e4 fix(release): sync uv.lock version so a release cannot ship its own drift (#155)
+* b527694 feat(stack): multi-repo release execute behind --execute --approve (#154)
+* 5c351b6 docs(roadmap): v1.23.0 checkpoint — 4/5 slices done, execute deferred (#153)
+* 269430b docs(roadmap): close tag disposition — known-bad kept, fixed forward (#152)
+* f5433c3 docs(roadmap): mark release-check.sh rollout done (3/8 -> 8/8) (#151)
+* 3eb620b fix(stack): raise preflight release-check timeout 120s -> 300s (#150)
+* b89de0b docs(roadmap): mark agent-context-pipeline prepare steps done (#149)
+* e3867f9 docs(roadmap): reconcile v1.23.0 state (converge done, rollout 3/8) (#148)
+* 6098088 feat(release): make release-check.sh conform to repo_release_check.v1 (#147)
+* 700d7dc feat(stack): read-only multi-repo release preflight hook (#146)
+* ad68beb docs(stack): lock multi-repo execute design (--all --execute) (#145)
+* f84faf6 feat(stack): re-verify on-main and clean tree before executing a release (#144)
+* e37b702 feat(stack): refuse a release plan when the target tag already exists (#143)
+* b253e57 chore(lint): enforce markdown consistency in CI (#142)
+* bbc6111 feat(stack): plan a release for the whole stack at once (#141)
+* dc8ab48 docs(roadmap): reframe v1.23.0 around release-path convergence (#140)
+* 966cc66 docs(workflow): add fence language to WORKFLOW_CONTRACT code blocks (#139)
 
 ### Changed
 
-- The multi-repo preflight's per-repo `release-check.sh` timeout is raised from
+* The multi-repo preflight's per-repo `release-check.sh` timeout is raised from
   120s to 300s. Repos with heavy dependencies (ML imports) running their full
   suite legitimately exceed a minute on a cold cache; the tighter limit reported
   them as timeout-BLOCKED false positives.
-- `release-check.sh` now conforms to the `repo_release_check.v1` contract:
+* `release-check.sh` now conforms to the `repo_release_check.v1` contract:
   `--json` emits the machine-readable object (`schema`, `repo`, `status`,
   `blockers`, `warnings`, `evidence`) on stdout and exits 0; `--dry-run` is
   accepted (the check is already read-only). Human mode is unchanged. mq-agent
@@ -1139,7 +1150,7 @@ prove.
 
 ### Added
 
-- `mq-agent stack release --all --execute --approve` — multi-repo release,
+* `mq-agent stack release --all --execute --approve` — multi-repo release,
   completing v1.23.0. `execute_stack_release_all` runs the read-only preflight,
   fail-fast gates on any `BLOCKED` repo before a single mutation, then releases
   the `READY` repos in explicit `MQ_STACK_REPOS` (dependency) order with
@@ -1149,15 +1160,15 @@ prove.
   `--execute` without `--approve` prints what would be released and touches
   nothing (exit 1). Reported via `mq_stack_release_all_execute.v1` with
   `released_count`, `failed_count`, `skipped_count`, and `aborted_phase`.
-- `plan_stack_release` now refuses a target version whose tag already exists
+* `plan_stack_release` now refuses a target version whose tag already exists
   (locally or on `origin`), so `stack release` cannot re-cut an existing tag.
   Without it, `execute` built the release commit and only then aborted at the
   tag step, leaving a dangling commit — the drift shape v1.23.0 targets.
-- `execute_stack_release` re-verifies the on-main and clean-tree preconditions
+* `execute_stack_release` re-verifies the on-main and clean-tree preconditions
   against the live repo before any mutation, so a plan built on main cannot
   release once the checkout has moved to a feature branch or gone dirty. It
   aborts with a clear reason, creating no commit, tag, or push.
-- `stack release --all --preflight` — read-only multi-repo release preflight
+* `stack release --all --preflight` — read-only multi-repo release preflight
   (`preflight_stack_release_all`, schema `mq_stack_release_all_execute.v1`). The
   strict fail-fast refusal surface: dirty, off-main, unpushed commits, target
   tag exists, `VERSION`/contract mismatch, and each repo's read-only
@@ -1169,21 +1180,21 @@ prove.
 
 ### Added
 
-- `mq-agent obsidian inbox list|read|rank` — the promotion inbox surface
+* `mq-agent obsidian inbox list|read|rank` — the promotion inbox surface
   `mqlaunch` delegates to, read from mqobsidian's canonical exports through the
   single `truth-export-index.json` entrypoint. No raw-vault fallback; reads fail
   closed on stale, missing, or drifted truth.
-- `mq-agent obsidian promote|reject|defer|rollback|deprecate` — five explicit
+* `mq-agent obsidian promote|reject|defer|rollback|deprecate` — five explicit
   transition verbs, never a generic passthrough. Preview by default; `--confirm`
   applies. Writes are delegated to mqobsidian, which owns the state machine.
-- `schemas/inbox_promotion_orchestration.v1.json` — the ranked-inbox contract,
+* `schemas/inbox_promotion_orchestration.v1.json` — the ranked-inbox contract,
   registered in `.mq/repo-contract.json`. Policy weights and thresholds are
   mqobsidian data; the formula and bucket routing are mq-agent code. Nothing is
   hardcoded here.
 
 ### Notes
 
-- v1.22 Task 8 (generalized evidence adapters) is **blocked by producer
+* v1.22 Task 8 (generalized evidence adapters) is **blocked by producer
   contracts**, not deferred — see mqobsidian DEC-004. `mq-mcp review_file`
   returns prose rather than JSON, and `repo-signal` declares
   `readiness_score.v1` / `publish_checklist.v1` while emitting neither, so an
@@ -1200,164 +1211,164 @@ released — the package stayed on 1.18.0 while the roadmap moved to v1.21.
 
 #### Operator contracts (v1.21.0)
 
-- Stable additive JSON Schemas for the five mq-hal operator read surfaces.
-- Approved stack-loop executions append compact `mq_stack_loop_audit.v1`
+* Stable additive JSON Schemas for the five mq-hal operator read surfaces.
+* Approved stack-loop executions append compact `mq_stack_loop_audit.v1`
   records for read-only display by mq-hal.
-- `mq_hal_operator_contract.v1` in the repo contract, plus the documented
+* `mq_hal_operator_contract.v1` in the repo contract, plus the documented
   `mq-agent → mq-hal` read contract and `next_action` section.
 
 #### Operator dashboard and autonomous stack (v1.19.0, v1.20.0)
 
-- `mq-agent dashboard` — read-only snapshot of stack health, release, brain,
+* `mq-agent dashboard` — read-only snapshot of stack health, release, brain,
   Ollama, repos and contracts, with refresh-oriented TUI panels.
-- `mq-agent stack loop` — controlled planning and approved one-step execution
+* `mq-agent stack loop` — controlled planning and approved one-step execution
   with command-specific rollback.
-- `next-action` contract propagated through cockpit and dashboard.
+* `next-action` contract propagated through cockpit and dashboard.
 
 #### Workflow engine
 
-- `workflow-plan.v1` contract, local workflow state and storage, three fixed
+* `workflow-plan.v1` contract, local workflow state and storage, three fixed
   templates and a workflow CLI.
-- Read-only runner with conditions, result normalization, policy-based gates,
+* Read-only runner with conditions, result normalization, policy-based gates,
   and limited adaptive planning.
-- `workflow-observation.v1` emitted after runs.
+* `workflow-observation.v1` emitted after runs.
 
 #### Co-change memory loop
 
-- `memory-observation.v1` co-change observation emitter.
-- `mq-agent memory inbox-cochange` — operator-triggered co-change inbox
+* `memory-observation.v1` co-change observation emitter.
+* `mq-agent memory inbox-cochange` — operator-triggered co-change inbox
   pipeline, with the cluster floor separated from the emission floor.
-- Explicit review/resolution surface for the memory loop.
+* Explicit review/resolution surface for the memory loop.
 
 #### Context and agent surfaces
 
-- Task-specific context packs (`mq-agent context pack`), Phase 11 exclusions
+* Task-specific context packs (`mq-agent context pack`), Phase 11 exclusions
   and block metadata, and concrete CodeGraph queries.
-- Repo-local context snapshot export.
-- Published mq-agent agent entrypoints and compressed agent-view cards, with a
+* Repo-local context snapshot export.
+* Published mq-agent agent entrypoints and compressed agent-view cards, with a
   drift-check guard and per-system rebuild triggers.
 
 #### mqobsidian inbox (v1.22.0 groundwork)
 
-- Read-only reads of canonical mqobsidian inbox exports through the single
+* Read-only reads of canonical mqobsidian inbox exports through the single
   `exports/truth-export-index.json` entrypoint.
 
 #### Skills
 
-- `stack-operations` skill — owns the stack suite (sweep, report, alert,
+* `stack-operations` skill — owns the stack suite (sweep, report, alert,
   history, cockpit, gates, release pipeline, loop, brain-gate, truth-export)
   and the `.mq/repo-contract.json` contract rules; the surface had no skill
   owner since v1.6.
-- `scripts/check-skills.sh` — validates skill frontmatter, cross-references,
+* `scripts/check-skills.sh` — validates skill frontmatter, cross-references,
   referenced paths, and the generated SKILLS.md table; wired into
   `release-check.sh`. `--fix` regenerates the table.
-- `mq-agent stack skills-check` — cross-repo skill consistency gate. Runs each
+* `mq-agent stack skills-check` — cross-repo skill consistency gate. Runs each
   stack repo's `scripts/check-skills.sh`; DRIFT/BLOCKED fail the gate, REVIEW
   (skills without a validator) does not. Supports `--json` and `--ci`. New
   `skills_gate.v1` contract.
-- Evals and When to use / When not to use sections in every skill.
+* Evals and When to use / When not to use sections in every skill.
 
 ### Changed
 
-- `release-readiness` skill rebuilt around the actual gates: `release-check.sh`,
+* `release-readiness` skill rebuilt around the actual gates: `release-check.sh`,
   `mq-agent stack contract-check`, `stack release-notes`, and the orchestrated
   `stack release` pipeline.
-- SKILLS.md converted to the stack-standard generated table format; the stale
+* SKILLS.md converted to the stack-standard generated table format; the stale
   "future `mq-agent review`" claim replaced with the shipped
   `mq-agent review file/diff/repo` commands.
-- `mq-agent learn` and `review` forward the repo path for cross-repo review and
+* `mq-agent learn` and `review` forward the repo path for cross-repo review and
   learn extraction.
 
 ### Fixed
 
-- Stack-loop tests no longer write real audit records into the operator's
+* Stack-loop tests no longer write real audit records into the operator's
   `~/.mq-agent/stack-loop-history.jsonl`. The test ran an approved execution
   without isolating `MQ_AGENT_STATE_DIR`, so every suite run appended a
   fabricated `stack-release` entry that `mq-hal history` rendered as a genuine
   release.
-- Co-change resolves the repo correctly for relative target paths.
-- The workflow runner injects `repo_name` so `run_tests` resolves.
-- Review forwards the repo path through the bridge to mq-mcp `review_repo`.
+* Co-change resolves the repo correctly for relative target paths.
+* The workflow runner injects `repo_name` so `run_tests` resolves.
+* Review forwards the repo path through the bridge to mq-mcp `review_repo`.
 
 ## [v1.18.0] — 2026-06-12
 
 ### Added
 
-- `mq-agent memory ingest` — read-only mqobsidian Markdown index across truth,
+* `mq-agent memory ingest` — read-only mqobsidian Markdown index across truth,
   reviews, learn, releases, architecture, decisions and stack runs.
-- `mq-agent memory query` / `memory search-vault` — local vault search without
+* `mq-agent memory query` / `memory search-vault` — local vault search without
   requiring mq-mcp or a vector store.
-- `mq-agent memory summarize` — section-level memory summary with note counts,
+* `mq-agent memory summarize` — section-level memory summary with note counts,
   word counts and top tags.
-- `mq-agent memory link` — read-only link candidates between related notes.
-- `memory_engine.v1` repo contract capability and `docs/MEMORY_ENGINE.md`.
+* `mq-agent memory link` — read-only link candidates between related notes.
+* `memory_engine.v1` repo contract capability and `docs/MEMORY_ENGINE.md`.
 
 ### Changed
 
-- Write-backed vault links are deferred to a later explicit approval flow;
+* Write-backed vault links are deferred to a later explicit approval flow;
   v1.18.0 keeps the memory engine read-only.
 
 ## [v1.17.0] — 2026-06-12
 
 ### Added
 
-- `mq-agent models` — first-class Ollama runtime surface with `list`,
+* `mq-agent models` — first-class Ollama runtime surface with `list`,
   `current`, `switch`, and `bench`.
-- `~/.mq-agent/models.json` model profiles for `fast`, `review`, `planner`,
+* `~/.mq-agent/models.json` model profiles for `fast`, `review`, `planner`,
   and `memory`; `models switch` requires `--approve` before writing config.
-- `mq-agent stack run` now includes the active model profile in the Ollama
+* `mq-agent stack run` now includes the active model profile in the Ollama
   runtime check payload.
 
 ## [v1.16.0] — 2026-06-11
 
 ### Added
 
-- `mq-agent stack run` — v1.16 stack runtime gate for repo-signal, mq-mcp,
+* `mq-agent stack run` — v1.16 stack runtime gate for repo-signal, mq-mcp,
   Ollama, brain export rendering and release readiness. Read-only by default;
   supports `--dry-run`, `--json`, `--markdown`, `--brain`, `--ci`, and
   `--approve`.
-- `mq-agent run --stack` — canonical root alias for the stack runtime pipeline.
-- `docs/MQ_CONTROL_PLANE.md` — system map for signal, review, learn, memory
+* `mq-agent run --stack` — canonical root alias for the stack runtime pipeline.
+* `docs/MQ_CONTROL_PLANE.md` — system map for signal, review, learn, memory
   and release across the MQ stack.
 
 ## [v1.15.0] — 2026-06-11
 
 ### Fixed
 
-- `mq-agent signal --brain --dry-run` no longer writes to the brain — the
+* `mq-agent signal --brain --dry-run` no longer writes to the brain — the
   brain note is skipped on dry-run, per the flag contract.
 
 ### Added
 
-- Flag contract enforced across write-capable commands: `--dry-run` never
+* Flag contract enforced across write-capable commands: `--dry-run` never
   writes, `--json` is machine-readable, `--brain` respects `--dry-run`,
   `--approve` is required for primary-write commands. Structural rules are
   locked by `tests/test_flag_contract.py` (Typer introspection: every
   `--brain` command must offer `--dry-run` and `--json`).
-- `mq-agent learn extract-review --dry-run` / `learn review-flow --dry-run` —
+* `mq-agent learn extract-review --dry-run` / `learn review-flow --dry-run` —
   preview the mq-mcp calls (and the would-be brain write) without executing.
-- `mq-agent decide` now requires `--approve` (Class C write to
+* `mq-agent decide` now requires `--approve` (Class C write to
   mqobsidian/decisions/), matching `brain record-review`.
-- `mq-agent brain record-review --json` — machine-readable result.
-- Stack cockpit — `mq-agent stack cockpit` merges git state, contract gate,
+* `mq-agent brain record-review --json` — machine-readable result.
+* Stack cockpit — `mq-agent stack cockpit` merges git state, contract gate,
   release gate, unreleased work and mqobsidian truth-note freshness into one
   read-only table with a recommended next action per repo
   (`mq_agent/tools/stack_cockpit.py`, registered as the `stack_cockpit` tool).
   Later the input to mq-hal. `--json` for a machine-readable snapshot.
-- `docs/STACK_COCKPIT.md` — reference documentation.
-- `docs/COMMAND_SURFACE.md` — added the missing `stack release` section and
+* `docs/STACK_COCKPIT.md` — reference documentation.
+* `docs/COMMAND_SURFACE.md` — added the missing `stack release` section and
   the new `stack cockpit` section.
-- 17 new tests (`tests/test_stack_cockpit.py`).
-- Standard mqobsidian export structure — `mq-agent brain structure` checks
+* 17 new tests (`tests/test_stack_cockpit.py`).
+* Standard mqobsidian export structure — `mq-agent brain structure` checks
   the vault against the standard layout (`memory/stack-truth/`,
   `memory/reviews/`, `memory/learn/`, `mq-stack/runs/`, `mq-stack/roadmaps/`),
   reports legacy vault-root directories, and creates the missing directories
   with `--init --approve` (`mq_agent/tools/vault_structure.py`, registered as
   the `vault_structure` tool). Gate-friendly exit codes; `--json` output.
-- `docs/VAULT_STRUCTURE.md` — reference documentation; Brain Commands section
+* `docs/VAULT_STRUCTURE.md` — reference documentation; Brain Commands section
   in `docs/COMMAND_SURFACE.md`.
-- 15 new tests (`tests/test_vault_structure.py`).
-- Brain release gate — `mq-agent stack brain-gate` runs the pre-release
+* 15 new tests (`tests/test_vault_structure.py`).
+* Brain release gate — `mq-agent stack brain-gate` runs the pre-release
   checklist for the brain-integrated stack: contract-check READY,
   release-check GO, truth-export dry-run renders, vault structure complete,
   and the review→brain write path wired (mq-mcp reachable with both
@@ -1365,288 +1376,288 @@ released — the package stayed on 1.18.0 while the roadmap moved to v1.21.
   codes, `--json`
   (`mq_agent/tools/brain_gate.py`, registered as the `brain_release_gate`
   tool).
-- `docs/BRAIN_GATE.md` — reference documentation.
-- 12 new tests (`tests/test_brain_gate.py`).
+* `docs/BRAIN_GATE.md` — reference documentation.
+* 12 new tests (`tests/test_brain_gate.py`).
 
 ## [v1.14.0] — 2026-06-11
 
 ### Added
 
-- Stack release orchestration — `mq-agent stack release --repo <name>` runs a
+* Stack release orchestration — `mq-agent stack release --repo <name>` runs a
   gated single-repo release pipeline: release-check pre-gate, version bump
   (`--bump patch|minor|major` or explicit `--version`), contract sync,
   changelog section drafted from commits since the last tag, release commit,
   tag, push, and a closing stack truth-export to mqobsidian
   (`mq_agent/tools/stack_release.py`, registered as the `stack_release` tool).
-- Dry-run by default — `--execute` applies the plan; any failed step aborts
+* Dry-run by default — `--execute` applies the plan; any failed step aborts
   the run and pre-commit file edits are rolled back, so no repo is left
   half-released. `--json` for machine-readable output and CI exit codes.
-- `docs/STACK_RELEASE.md` — reference documentation.
-- 27 new tests (`tests/test_stack_release.py`).
+* `docs/STACK_RELEASE.md` — reference documentation.
+* 27 new tests (`tests/test_stack_release.py`).
 
 ## [v1.13.0] — 2026-06-11
 
 ### Added
 
-- Stack truth export — `stack export` upgraded from a status table to a durable
+* Stack truth export — `stack export` upgraded from a status table to a durable
   truth snapshot combining contract-check and release-check, written as a dated
   Markdown note to mqobsidian (`mq_agent/tools/stack_truth.py`, registered as
   the `stack_truth_export` tool).
-- `mq-agent stack truth-export` — primary name for the stack truth export;
+* `mq-agent stack truth-export` — primary name for the stack truth export;
   `stack export` is kept as a backwards-compatible alias.
-- `docs/STACK_TRUTH_EXPORT.md` — reference documentation.
-- `mq-agent stack contract-check --ci` / `stack release-check --ci` — CI mode:
+* `docs/STACK_TRUTH_EXPORT.md` — reference documentation.
+* `mq-agent stack contract-check --ci` / `stack release-check --ci` — CI mode:
   sibling repos missing from the workspace are reported as SKIPPED instead of
   failing the gate; the CI checkout itself is detected via its directory name
   and fully validated.
-- `_ci_repo_path()` helper in `stack_tools.py`.
-- `mode` field (`ci` / `local`) in the JSON output of both gates.
-- 21 new tests (`tests/test_stack_ci_mode.py`).
+* `_ci_repo_path()` helper in `stack_tools.py`.
+* `mode` field (`ci` / `local`) in the JSON output of both gates.
+* 21 new tests (`tests/test_stack_ci_mode.py`).
 
 ### Fixed
 
-- `stack truth-export` / `stack export` now defaults to the dated note path
+* `stack truth-export` / `stack export` now defaults to the dated note path
   (`~/mqobsidian/memory/stack-truth/YYYY-MM-DD-mq-stack-truth.md`) as documented;
   previously the CLI always passed the old `05_RELEASE_STATUS.md` path.
 
 ### Changed
 
-- `.github/workflows/mq-stack-gate.yml` split into two jobs: `pr-gate` runs the
+* `.github/workflows/mq-stack-gate.yml` split into two jobs: `pr-gate` runs the
   fast `--ci` gates on pull requests (isolated from sibling-repo drift);
   `full-stack-gate` keeps the multi-repo checkout for pushes to `main`, a
   nightly cron run, and manual dispatch.
-- `stack contract-check` status model extended with SKIPPED (CI mode only).
+* `stack contract-check` status model extended with SKIPPED (CI mode only).
 
 ## [v1.12.0] — 2026-06-10
 
 ### Added
 
-- `.github/workflows/mq-stack-gate.yml` — GitHub Actions workflow for MQ stack gates.
-- CI checks out the active MQ stack repos into one workspace.
-- CI links the checked-out repos into the `~/...` layout expected by `MQ_STACK_REPOS`.
-- `mq-agent stack contract-check --json` now runs on pull requests and pushes to `main`.
-- `mq-agent stack release-check --json` now runs on pull requests and pushes to `main`.
-- `.mq/repo-contract.json` now declares `ci_stack_gate.v1` for mq-agent.
+* `.github/workflows/mq-stack-gate.yml` — GitHub Actions workflow for MQ stack gates.
+* CI checks out the active MQ stack repos into one workspace.
+* CI links the checked-out repos into the `~/...` layout expected by `MQ_STACK_REPOS`.
+* `mq-agent stack contract-check --json` now runs on pull requests and pushes to `main`.
+* `mq-agent stack release-check --json` now runs on pull requests and pushes to `main`.
+* `.mq/repo-contract.json` now declares `ci_stack_gate.v1` for mq-agent.
 
 ### Changed
 
-- Version bumped to `1.12.0` in `VERSION`, `pyproject.toml`, README badge and repo contract.
-- Roadmap marks v1.12.0 as complete and sets v1.13.0 as mqobsidian stack truth export.
+* Version bumped to `1.12.0` in `VERSION`, `pyproject.toml`, README badge and repo contract.
+* Roadmap marks v1.12.0 as complete and sets v1.13.0 as mqobsidian stack truth export.
 
 ## [v1.11.0] — 2026-06-10
 
 ### Added
 
-- `mq-agent stack contract-check` — validates `.mq/repo-contract.json` manifests across MQ stack repos.
-- `mq-agent stack contract-check --json` — machine-readable output.
-- `_contract_entry()` helper in `stack_tools.py` — READY / REVIEW / DRIFT / BLOCKED per repo.
-- `REQUIRED_CONTRACT_FIELDS` constant in `stack_tools.py`.
-- `schemas/mq_stack_repo_contract.schema.json` — JSON Schema for repo contract manifests.
-- `.mq/repo-contract.json` in all active MQ stack repos.
-- `docs/STACK_CONTRACT_GATE.md` — reference documentation.
+* `mq-agent stack contract-check` — validates `.mq/repo-contract.json` manifests across MQ stack repos.
+* `mq-agent stack contract-check --json` — machine-readable output.
+* `_contract_entry()` helper in `stack_tools.py` — READY / REVIEW / DRIFT / BLOCKED per repo.
+* `REQUIRED_CONTRACT_FIELDS` constant in `stack_tools.py`.
+* `schemas/mq_stack_repo_contract.schema.json` — JSON Schema for repo contract manifests.
+* `.mq/repo-contract.json` in all active MQ stack repos.
+* `docs/STACK_CONTRACT_GATE.md` — reference documentation.
 
 ## [v1.10.0] — 2026-06-10
 
 ### Added
 
-- `mq-agent stack release-notes` — draft release notes from git commits since last tag.
-- `mq-agent stack release-notes --repo <name>` — single repo filter.
-- `mq-agent stack release-notes --json` — machine-readable output.
-- `docs/STACK_RELEASE_NOTES.md` — reference documentation.
+* `mq-agent stack release-notes` — draft release notes from git commits since last tag.
+* `mq-agent stack release-notes --repo <name>` — single repo filter.
+* `mq-agent stack release-notes --json` — machine-readable output.
+* `docs/STACK_RELEASE_NOTES.md` — reference documentation.
 
 ## [v1.9.0] — 2026-06-10
 
 ### Added
 
-- `mq-agent stack report` — consolidated per-repo score, trend, alert and readiness view.
-- `mq-agent stack release-check` — local release gate across all stack repos.
-- JSON output for stack report and release gate.
-- `docs/STACK_REPORT.md` — reference documentation.
+* `mq-agent stack report` — consolidated per-repo score, trend, alert and readiness view.
+* `mq-agent stack release-check` — local release gate across all stack repos.
+* JSON output for stack report and release gate.
+* `docs/STACK_REPORT.md` — reference documentation.
 
 ## [v1.8.0] — 2026-06-10
 
 ### Added
 
-- `mq-agent stack alert` — threshold-based regression detection.
-- `mq-agent stack sweep --alert` — inline alert at end of sweep.
-- Configurable `--threshold`, `--min-score` and JSON output.
-- `docs/STACK_ALERT.md` — reference documentation.
+* `mq-agent stack alert` — threshold-based regression detection.
+* `mq-agent stack sweep --alert` — inline alert at end of sweep.
+* Configurable `--threshold`, `--min-score` and JSON output.
+* `docs/STACK_ALERT.md` — reference documentation.
 
 ## [v1.7.0] — 2026-06-10
 
 ### Added
 
-- Stack sweep history persisted to `~/.mq-agent/sweep-history.jsonl`.
-- `mq-agent stack history` — trend table across past sweeps.
-- `mq-agent stack history --diff` and `--json`.
-- `docs/STACK_HISTORY.md` — reference documentation.
+* Stack sweep history persisted to `~/.mq-agent/sweep-history.jsonl`.
+* `mq-agent stack history` — trend table across past sweeps.
+* `mq-agent stack history --diff` and `--json`.
+* `docs/STACK_HISTORY.md` — reference documentation.
 
 ## [v1.6.0] — 2026-06-10
 
 ### Added
 
-- `mq-agent stack sweep` — run repo-signal over every MQ stack repo.
-- `--brain`, `--decide`, `--dry-run` and `--json` modes for stack sweep.
-- mqlaunch agent menu item 18 — stack health sweep.
-- `docs/STACK_HEALTH.md` — reference documentation.
+* `mq-agent stack sweep` — run repo-signal over every MQ stack repo.
+* `--brain`, `--decide`, `--dry-run` and `--json` modes for stack sweep.
+* mqlaunch agent menu item 18 — stack health sweep.
+* `docs/STACK_HEALTH.md` — reference documentation.
 
 ## [v1.5.0] — 2026-06-10
 
 ### Added
 
-- End-to-end MQ stack demo flow: signal → review → release-check.
-- mqlaunch demo-flow command and menu integration.
-- `docs/DEMO.md` rewritten as canonical walkthrough.
+* End-to-end MQ stack demo flow: signal → review → release-check.
+* mqlaunch demo-flow command and menu integration.
+* `docs/DEMO.md` rewritten as canonical walkthrough.
 
 ## [v1.4.0] — 2026-06-04
 
 ### Added
 
-- mq-image-analyze MCP endpoint registration.
-- Visual architecture context in review commands via `--architecture-image` / `--visual`.
-- Read-only safety classification for visual perception tool families.
+* mq-image-analyze MCP endpoint registration.
+* Visual architecture context in review commands via `--architecture-image` / `--visual`.
+* Read-only safety classification for visual perception tool families.
 
 ## [v1.3.0] — 2026-05-31
 
 ### Added
 
-- Architecture-memory context surfaced after review findings.
-- `--fast` review mode routing through mq-mcp Class A policy.
-- Learn status/search/explain commands.
-- Optional bridge helpers for architecture decisions and learned patterns.
+* Architecture-memory context surfaced after review findings.
+* `--fast` review mode routing through mq-mcp Class A policy.
+* Learn status/search/explain commands.
+* Optional bridge helpers for architecture decisions and learned patterns.
 
 ## [v1.2.0] — 2026-05-31
 
 ### Added
 
-- Semantic memory search/store commands.
-- MCP status enrichment with semantic memory and orchestration contract checks.
-- Docs and examples for semantic memory workflows.
+* Semantic memory search/store commands.
+* MCP status enrichment with semantic memory and orchestration contract checks.
+* Docs and examples for semantic memory workflows.
 
 ## [v1.1.0] — 2026-05-31
 
 ### Added
 
-- Review file/diff/repo orchestration through mq-mcp.
-- Security, architecture and risk flags forwarded to mq-mcp review contracts.
-- Dry-run support for review commands.
-- Orchestration contract validation in `mq-agent doctor`.
+* Review file/diff/repo orchestration through mq-mcp.
+* Security, architecture and risk flags forwarded to mq-mcp review contracts.
+* Dry-run support for review commands.
+* Orchestration contract validation in `mq-agent doctor`.
 
 ## [v1.0.0] — 2026-05-26
 
 ### Added
 
-- Stable orchestration platform release.
-- Rich CLI rendering helpers and diagnostics module extracted from `main.py`.
-- Configuration-driven model selection.
-- Full architecture, examples and safety documentation.
+* Stable orchestration platform release.
+* Rich CLI rendering helpers and diagnostics module extracted from `main.py`.
+* Configuration-driven model selection.
+* Full architecture, examples and safety documentation.
 
 ## [v0.9.0] — 2026-05-26
 
 ### Added
 
-- Orchestration contract suite for PlanStep, StepResult, AgentManifest, AgentState and tool registry.
-- `MqAgentConfig` config model with environment override support.
-- Runtime boundary documentation for Executor loop and SwarmRunner.
+* Orchestration contract suite for PlanStep, StepResult, AgentManifest, AgentState and tool registry.
+* `MqAgentConfig` config model with environment override support.
+* Runtime boundary documentation for Executor loop and SwarmRunner.
 
 ## [v0.8.0] — 2026-05-24
 
 ### Added
 
-- Controlled swarm orchestration: list, plan, run, audit and release-check.
-- Browser-safe URL inspection and release verification workflows.
-- Declarative swarm audit task workflow.
+* Controlled swarm orchestration: list, plan, run, audit and release-check.
+* Browser-safe URL inspection and release verification workflows.
+* Declarative swarm audit task workflow.
 
 ## [v0.7.0] — 2026-05-24
 
 ### Added
 
-- Browser inspection, summarization and release verification commands.
-- Browser tool registry integration and URL safety gates.
+* Browser inspection, summarization and release verification commands.
+* Browser tool registry integration and URL safety gates.
 
 ## [v0.6.0] — 2026-05-24
 
 ### Added
 
-- Declarative YAML task runner.
-- `mq-agent task list` and `mq-agent task run` with dry-run and JSON output.
+* Declarative YAML task runner.
+* `mq-agent task list` and `mq-agent task run` with dry-run and JSON output.
 
 ## [v0.5.2] — 2026-05-24
 
 ### Added
 
-- `mq-agent mcp start`, `mq-agent mcp stop` and background process management.
-- PID-file based mq-mcp lifecycle helpers.
+* `mq-agent mcp start`, `mq-agent mcp stop` and background process management.
+* PID-file based mq-mcp lifecycle helpers.
 
 ## [v0.5.1] — 2026-05-24
 
 ### Added
 
-- Memory doctor diagnostics and JSON output.
-- Semantic memory status hardening and docs updates.
+* Memory doctor diagnostics and JSON output.
+* Semantic memory status hardening and docs updates.
 
 ## [v0.5.0] — 2026-05-24
 
 ### Added
 
-- Semantic repository memory via repo-signal.
-- Memory build/refresh commands with explicit approval gates.
+* Semantic repository memory via repo-signal.
+* Memory build/refresh commands with explicit approval gates.
 
 ## [v0.4.1] — 2026-05-23
 
 ### Added
 
-- Command surface documentation and docs consistency checks.
-- `mq-agent docs-audit` command.
-- Model override environment variables.
+* Command surface documentation and docs consistency checks.
+* `mq-agent docs-audit` command.
+* Model override environment variables.
 
 ## [v0.4.0] — 2026-05-23
 
 ### Added
 
-- mqlaunch integration and direct prompt command surface.
-- `scripts/smoke-mqlaunch.sh` and bridge documentation.
+* mqlaunch integration and direct prompt command surface.
+* `scripts/smoke-mqlaunch.sh` and bridge documentation.
 
 ## [v0.3.0] — 2026-05-23
 
 ### Added
 
-- Local MCP tool orchestration layer.
-- MCP status, MCP tools, tool description and run-tool commands.
-- Tool safety classification model.
+* Local MCP tool orchestration layer.
+* MCP status, MCP tools, tool description and run-tool commands.
+* Tool safety classification model.
 
 ## [v0.2.4] — 2026-05-23
 
 ### Added
 
-- Release hygiene and docs consistency checks.
-- Release-check gate and documentation hardening.
+* Release hygiene and docs consistency checks.
+* Release-check gate and documentation hardening.
 
 ## [v0.2.3] — 2026-05-23
 
 ### Added
 
-- Proof section and install smoke test.
-- GitHub Actions install smoke workflow.
+* Proof section and install smoke test.
+* GitHub Actions install smoke workflow.
 
 ## [v0.2.2] — 2026-05-23
 
 ### Added
 
-- Demo polish, command docs, safety contract and MQ ecosystem docs.
-- Skills directory and release-readiness examples.
+* Demo polish, command docs, safety contract and MQ ecosystem docs.
+* Skills directory and release-readiness examples.
 
 ## [v0.2.0] — 2026-05-23
 
 ### Added
 
-- repo-signal integration.
-- README scoring, publish checklist and signal commands.
+* repo-signal integration.
+* README scoring, publish checklist and signal commands.
 
 ## [v0.1.0] — 2026-05-23
 
 ### Added
 
-- Core orchestration layer: Planner, Executor, Verifier, Memory and SafetyGate.
-- Git, shell, repo and MCP bridge tools.
-- Initial Typer CLI, Textual TUI and GitHub Actions CI.
+* Core orchestration layer: Planner, Executor, Verifier, Memory and SafetyGate.
+* Git, shell, repo and MCP bridge tools.
+* Initial Typer CLI, Textual TUI and GitHub Actions CI.

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.36.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.37.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -430,6 +430,17 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.37.0 status
+
+- [x] fix(route): count deterministic-local runs in the verification-rate denominator (#444)
+- [x] docs(pages): show a real recorded run and the safety ladder; test page claims (#443)
+- [x] docs(pages): AI commands use local Ollama by default, not OPENAI_API_KEY (#442)
+- [x] fix(workflows): keep the end of long step output, where failures are (#441)
+- [x] fix(workflows): give the selftest step room and record timeouts as TIMEOUT (#439)
+- [x] fix: annotate release failure helper as NoReturn (#437)
+- [x] feat(notebook): show progress during semantic sync (#436)
+- [x] fix(mcp): budget repo review reads across sequential model calls (#435)
 
 ## v1.36.0 status
 
