@@ -25,7 +25,7 @@ REFERENCE = REPO_ROOT / "docs" / "generated" / "Command-Reference.md"
 # group changes these numbers and turns the suite red until the reference is
 # regenerated.
 EXPECTED_TOP_LEVEL_COMMANDS = 17
-EXPECTED_TOP_LEVEL_GROUPS = 22
+EXPECTED_TOP_LEVEL_GROUPS = 23
 
 
 def _load_generator():

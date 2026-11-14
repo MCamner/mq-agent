@@ -100,6 +100,20 @@ mq-agent skills route "fix CI and open PR" --repo mq-agent --target codex --expl
 Supports `--json`, observed Codex/Claude discovery, and required safety skills.
 Requires mqobsidian's skill-selection contracts. See [Skill Selection](docs/SKILL_SELECTION.md).
 
+## Shared task queue
+
+Coordinate Codex and Claude work with explicit ownership and separate worktrees:
+
+```bash
+mq-agent queue add "Fix the CI failure" --repo . --budget-minutes 60 --json
+mq-agent queue claim TASK_ID --owner codex --json
+mq-agent queue show TASK_ID --json
+```
+
+Pause/resume retains the reservation; structured handoffs name the next agent.
+Completion requires a fresh passing `verify-changes` receipt. The queue does not
+start agents automatically. See [Shared task queue](docs/TASK_QUEUE.md).
+
 ## Why
 
 Most AI coding tools either wrap a model around shell commands or hide execution behind a chat UI.
@@ -433,14 +447,20 @@ perception extraction.
 
 ## v1.37.0 status
 
-- [x] fix(route): count deterministic-local runs in the verification-rate denominator (#444)
-- [x] docs(pages): show a real recorded run and the safety ladder; test page claims (#443)
-- [x] docs(pages): AI commands use local Ollama by default, not OPENAI_API_KEY (#442)
-- [x] fix(workflows): keep the end of long step output, where failures are (#441)
-- [x] fix(workflows): give the selftest step room and record timeouts as TIMEOUT (#439)
-- [x] fix: annotate release failure helper as NoReturn (#437)
-- [x] feat(notebook): show progress during semantic sync (#436)
-- [x] fix(mcp): budget repo review reads across sequential model calls (#435)
+v1.37.0 adds a shared task queue for agent handoffs and fixes the route
+verification rate, workflow timeouts and truncated step output.
+
+- [x] `queue` coordinates task ownership, separate Git worktrees and structured
+  Codex/Claude handoffs; completion requires a passing `verify-changes` receipt
+  (#445)
+- [x] `notebook sync --semantic` shows progress while fetching and embedding
+  (#436)
+- [x] `route report` and `route evidence-review` count `deterministic-local`
+  runs in the verification-rate denominator (#444)
+- [x] `repo-preflight` gives the selftest step room and records timeouts as
+  `TIMEOUT` instead of `FAIL` (#439)
+- [x] a workflow step's recorded output keeps its end, where failures are (#441)
+- [x] repo reviews budget HTTP reads across sequential model calls (#435)
 
 ## v1.36.0 status
 
