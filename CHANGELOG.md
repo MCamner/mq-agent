@@ -9,8 +9,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.37.0] — 2026-11-14
+
 ### Added
 
+- `notebook sync --semantic` shows progress while it fetches and embeds files. It prints one self-overwriting line to stderr, only when stderr is a TTY, so `--json` output and logs are unchanged.
 - `queue` coordinates persistent task ownership, separate Git worktrees, advisory
   time budgets, linked workflow state and structured Codex/Claude handoffs.
   Concurrent claims cannot reserve the same task or worktree twice. Completion
