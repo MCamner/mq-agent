@@ -246,6 +246,11 @@ def _ollama_generate(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    # This direct runtime path does not expose its usage to the local collector.
+    # Do not attribute planner/verifier subtotals to the whole local model scope.
+    from mq_agent.core.execution_metrics import invalidate_model_usage
+
+    invalidate_model_usage()
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 

@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from mq_agent.config import load_config
 
+from .execution_metrics import create_chat_completion
 from .state import PlanStep, StepStatus
 
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "verifier.md"
@@ -60,7 +61,7 @@ class Verifier:
                 "complete": step.fan_out_complete,
             }
 
-        response = self.client.chat.completions.create(
+        response = create_chat_completion(self.client,
             model=self._model,
             messages=[
                 {"role": "system", "content": self._system_prompt},

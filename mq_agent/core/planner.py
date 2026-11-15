@@ -5,6 +5,7 @@ from openai import OpenAI
 
 from mq_agent.config import load_config
 
+from .execution_metrics import create_chat_completion
 from .state import AgentState, PlanStep
 from .tool_contract import describe_tool, produced_kind
 
@@ -66,7 +67,7 @@ class Planner:
             indent=2,
         )
 
-        response = self.client.chat.completions.create(
+        response = create_chat_completion(self.client,
             model=self._model,
             messages=[
                 {"role": "system", "content": self._system_prompt},

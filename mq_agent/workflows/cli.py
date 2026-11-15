@@ -119,6 +119,12 @@ def _default_observer():
             }
             fallbacks = 1
 
+        from mq_agent.core.execution_metrics import scope_events
+
+        tool_calls = meta.get("tool_calls")
+        if type(tool_calls) is not int or tool_calls < 0:
+            tool_calls = None
+        fields = {"tool_calls": tool_calls} if tool_calls is not None else {}
         duration = meta.get("duration_ms")
         emit_execution_outcome(
             runtime="task-runner",
@@ -128,6 +134,8 @@ def _default_observer():
             latency_ms=max(0, int(duration or 0)),
             fallbacks=fallbacks,
             fallback=fallback,
+            tool_calls=tool_calls,
+            events=scope_events(fields),
         )
 
     return _observe

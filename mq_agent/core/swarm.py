@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .execution_metrics import collect_execution_metrics, current_metrics_fields, scope_events
+
 
 @dataclass
 class AgentManifest:
@@ -144,6 +146,18 @@ class SwarmRunner:
         approve: bool = False,
         runtime_fingerprint: dict[str, Any] | None = None,
     ) -> SwarmResult:
+        """Execute one measured swarm, retaining one existing outcome owner."""
+        with collect_execution_metrics():
+            return self._run(config, path, dry_run, approve, runtime_fingerprint)
+
+    def _run(
+        self,
+        config: SwarmConfig,
+        path: str = ".",
+        dry_run: bool = False,
+        approve: bool = False,
+        runtime_fingerprint: dict[str, Any] | None = None,
+    ) -> SwarmResult:
         """Run every agent in the config and record one outcome for the swarm.
 
         `runtime_fingerprint` arrives already projected from the identity the
@@ -170,7 +184,8 @@ class SwarmRunner:
 
             start = time.monotonic()
             try:
-                output = self._run_agent(manifest, path, dry_run=False, approve=approve)
+                with collect_execution_metrics(merge_into_parent=True):
+                    output = self._run_agent(manifest, path, dry_run=False, approve=approve)
                 results.append(AgentResult(
                     agent=manifest.name,
                     status="ok",
@@ -235,6 +250,7 @@ class SwarmRunner:
         else:
             outcome, exit_status = "PASS", "ok"
 
+        fields = current_metrics_fields()
         emit_execution_outcome(
             runtime="swarm",
             task_class=config.name,
@@ -250,6 +266,9 @@ class SwarmRunner:
             # `mq.model-route-outcome.v1`, correlated back by `execution_run_id`.
             agents=[_agent_record(r) for r in result.results],
             runtime_fingerprint=runtime_fingerprint,
+            tool_calls=fields.get("tool_calls"),
+            tokens=fields.get("tokens"),
+            events=scope_events(fields),
         )
 
     def plan(self, config: SwarmConfig, path: str = ".") -> list[dict]:

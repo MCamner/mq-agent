@@ -53,4 +53,12 @@ class OllamaClient:
         content = body.get("message", {}).get("content", "")
         if not isinstance(content, str) or not content.strip():
             raise ValueError("Local model returned empty output")
-        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+        usage = {}
+        for source, target in (("prompt_eval_count", "prompt_tokens"), ("eval_count", "completion_tokens")):
+            value = body.get(source)
+            if type(value) is int and value >= 0:
+                usage[target] = value
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+            usage=SimpleNamespace(**usage),
+        )

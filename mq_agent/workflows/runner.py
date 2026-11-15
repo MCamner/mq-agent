@@ -131,12 +131,14 @@ class Runner:
         # Wall-clock start (set in run()) and approvals taken, for the observation.
         self._start: float | None = None
         self._approval_count = 0
+        self._tool_calls = 0
 
     # -- public ---------------------------------------------------------
 
     def run(self, run: WorkflowRun) -> WorkflowRun:
         """Execute the run from its current state. Persists after every change."""
         self._start = time.monotonic()
+        self._tool_calls = 0
         # 1. Fetch tool policy BEFORE doing anything (deny/allow source of truth).
         current = self.policy_provider.load()
         plan_tools = {s.tool for s in run.plan.steps}
@@ -280,7 +282,8 @@ class Runner:
             return
         duration_ms = (time.monotonic() - self._start) * 1000 if self._start else None
         self._observer(
-            run, {"duration_ms": duration_ms, "approval_count": self._approval_count}
+            run, {"duration_ms": duration_ms, "approval_count": self._approval_count,
+                  "tool_calls": self._tool_calls}
         )
 
     # -- selection / policy --------------------------------------------
@@ -331,6 +334,7 @@ class Runner:
         raw: Any = None
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(self.executor, step.tool, call_args, run.plan.repo)
+            self._tool_calls += 1
             try:
                 raw = future.result(
                     timeout=max(self.step_timeout, TOOL_STEP_TIMEOUTS.get(step.tool, 0.0))

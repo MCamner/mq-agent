@@ -168,7 +168,7 @@ def _execution_outcome(
     same agent runs standalone and inside a swarm, and a swarm record already
     carries per-agent results — emitting from both would count a wide swarm as
     more runs than a narrow one. For the same reason `Executor.run_plan` is
-    never instrumented; it is only ever reached from inside an agent.
+    never emits its own outcome; it is only reached from inside an agent.
 
     Wrap the run itself, not the rendering that follows it, so a `typer.Exit`
     raised to set the shell status is not mistaken for an aborted run. The
@@ -213,33 +213,40 @@ def _execution_outcome(
         "exit_status": "ok",
         "run_id": str(uuid.uuid4()),
     }
-    start = time.monotonic()
-    try:
-        yield record
-    except (KeyboardInterrupt, SystemExit):
-        record.update(result="FAIL", exit_status="aborted")
-        raise
-    except BaseException:
-        record.update(result="FAIL", exit_status="error")
-        raise
-    finally:
-        # emit_execution_outcome swallows failures and returns None, so a run
-        # id alone does not prove a record exists. Callers that hand the id to
-        # an operator report this alongside it.
-        record["outcome_recorded"] = False
-        if not dry_run:
-            record["outcome_recorded"] = emit_execution_outcome(
-                run_id=record["run_id"],
-                runtime=runtime,
-                task_class=task_class,
-                result=record["result"],
-                exit_status=record["exit_status"],
-                latency_ms=int((time.monotonic() - start) * 1000),
-                model=record.get("model"),
-                fallback=record.get("fallback"),
-                runtime_fingerprint=fingerprint,
-                completeness=record.get("completeness"),
-            ) is not None
+    from mq_agent.core.execution_metrics import collect_execution_metrics, scope_events
+
+    with collect_execution_metrics() as metrics:
+        start = time.monotonic()
+        try:
+            yield record
+        except (KeyboardInterrupt, SystemExit):
+            record.update(result="FAIL", exit_status="aborted")
+            raise
+        except BaseException:
+            record.update(result="FAIL", exit_status="error")
+            raise
+        finally:
+            # emit_execution_outcome swallows failures and returns None, so a run
+            # id alone does not prove a record exists. Callers that hand the id to
+            # an operator report this alongside it.
+            record["outcome_recorded"] = False
+            if not dry_run:
+                fields = metrics.fields()
+                record["outcome_recorded"] = emit_execution_outcome(
+                    run_id=record["run_id"],
+                    runtime=runtime,
+                    task_class=task_class,
+                    result=record["result"],
+                    exit_status=record["exit_status"],
+                    latency_ms=int((time.monotonic() - start) * 1000),
+                    model=record.get("model"),
+                    fallback=record.get("fallback"),
+                    runtime_fingerprint=fingerprint,
+                    completeness=record.get("completeness"),
+                    tool_calls=fields.get("tool_calls"),
+                    tokens=fields.get("tokens"),
+                    events=scope_events(fields, record.get("events")),
+                ) is not None
 
 
 def _render_ship(payload: dict[str, Any]) -> None:
@@ -6842,6 +6849,35 @@ def execution_report_cmd(
     if not data["by_task_class"]:
         table.add_row("—", "—", "0", "—", "—", "—", "—")
     console.print(table)
+
+
+@execution_app.command("efficiency")
+def execution_efficiency_cmd(
+    source: Annotated[Path | None, typer.Option("--source", help="Execution JSON/JSONL source, including retained rotations")] = None,
+    routing_source: Annotated[Path | None, typer.Option("--routing-source", help="Separate routing observation source")] = None,
+    since: Annotated[str | None, typer.Option("--since", help="Time window: 7d, 30d or 90d")] = None,
+    task_class: Annotated[str | None, typer.Option("--task-class", help="Execution task class only; routing remains independent")] = None,
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Separate observed quality, resources and missing measurements without changing policy."""
+    from mq_agent.cli.execution_efficiency import render_efficiency
+    from mq_agent.tools.execution_efficiency import execution_efficiency
+
+    try:
+        data = execution_efficiency(source, routing_source=routing_source,
+                                    since=since, task_class=task_class)
+    except (ValueError, OSError) as exc:
+        if json_out:
+            typer.echo(json.dumps({"schema": "mq.execution-efficiency.v1", "status": "ERROR", "error": str(exc)}))
+        else:
+            typer.echo(str(exc), err=True)
+        raise typer.Exit(2) from exc
+    if json_out:
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        render_efficiency(data, console)
+    if data["status"] == "DEGRADED":
+        raise typer.Exit(1)
 
 
 @execution_app.command("compare")

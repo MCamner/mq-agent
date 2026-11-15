@@ -9,6 +9,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `execution efficiency` separates runtime completion, resource measurements and
+  missing-data coverage; execution cohorts retain runtime/model/commit identity
+  and routing observations remain a separate population.
+- Scoped local runtime counters record actual tool dispatch attempts and complete
+  provider-reported token fields without estimating cost or rework. Missing or
+  unsupported measurements remain absent in existing outcome contracts.
+
 ### Fixed
 
 - `stack release --execute` keeps hand-written `[Unreleased]` notes as the release section instead of drafting a commit list on top of them, and a drafted commit list uses the list marker `CHANGELOG.md` already uses. At v1.37.0 the draft used `*` in a `-` file; the markdownlint `--fix` pre-commit hook then rewrote every list marker in the file, a 975-line diff.

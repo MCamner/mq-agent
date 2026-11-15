@@ -48,6 +48,37 @@
         ".mq/verification.json"
       ],
       "timeout_seconds": 60
+    },
+    {
+      "id": "execution-efficiency",
+      "runner": "pytest",
+      "targets": [
+        "tests/test_execution_efficiency.py",
+        "tests/test_execution_metrics.py",
+        "tests/test_execution_outcome.py",
+        "tests/test_execution_completeness.py",
+        "tests/test_core.py",
+        "tests/test_workflow_observation.py"
+      ],
+      "paths": [
+        "mq_agent/core/execution_metrics.py",
+        "mq_agent/core/planner.py",
+        "mq_agent/core/verification.py",
+        "mq_agent/core/executor.py",
+        "mq_agent/core/task_runner.py",
+        "mq_agent/core/local_llm.py",
+        "mq_agent/core/swarm.py",
+        "mq_agent/workflows/runner.py",
+        "mq_agent/workflows/cli.py",
+        "mq_agent/tools/model_runtime.py",
+        "mq_agent/tools/execution_efficiency.py",
+        "mq_agent/cli/execution_efficiency.py",
+        "mq_agent/main.py",
+        "tests/test_execution_efficiency.py",
+        "tests/test_execution_metrics.py",
+        ".mq/verification.json"
+      ],
+      "timeout_seconds": 90
     }
   ]
 }
