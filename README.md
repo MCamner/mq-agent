@@ -447,9 +447,17 @@ perception extraction.
 
 ## v1.39.0 status
 
-- [x] feat(pr): advisory read-only pull request review (#455)
-- [x] docs(queue): record the Claude-to-Codex handoff acceptance run (#454)
-- [x] feat(context): record what a task pack was built from and check it (#453)
+v1.39.0 adds an advisory pull request review and a freshness check for task
+packs, and records the first end-to-end Claude-to-Codex queue handoff.
+
+- [x] `pr review <number>` classifies a PR's changed files by risk, plans the
+  repo's `verify-changes` selection against the merge base and reports
+  findings; it runs nothing from the PR and posts only with `--post` (#455)
+- [x] task packs record the repo commit, clean/dirty state, contract version,
+  vault commit and task class they were built from; `context check` answers
+  `FRESH`, `STALE` or `UNKNOWN` (#453)
+- [x] the queue handoff acceptance run is recorded in
+  `docs/queue-handoff-acceptance-evidence.md` (#454)
 
 ## v1.38.0 status
 
