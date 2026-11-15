@@ -132,6 +132,8 @@ app.add_typer(agent_views_app, name="agent-views")
 
 context_app = typer.Typer(help="Export compact repo-local .mq/context snapshots.")
 app.add_typer(context_app, name="context")
+pr_app = typer.Typer(help="Review pull requests: advisory, read-only, posts only on request.")
+app.add_typer(pr_app, name="pr")
 
 notebook_app = typer.Typer(help="Build local source packs for optional synthesis providers.")
 app.add_typer(notebook_app, name="notebook")
@@ -5253,6 +5255,39 @@ def context_pack_cmd(
         console.print(f"codegraph hint: {'yes' if result['codegraph_applied'] else 'no'}")
     else:
         typer.echo(result["content"])
+
+
+@pr_app.command("review")
+def pr_review_cmd(
+    number: Annotated[int, typer.Argument(help="Pull request number")],
+    repo: Annotated[Path, typer.Option("--repo", help="Repository checkout whose origin holds the PR")] = Path("."),
+    post: Annotated[bool, typer.Option("--post", help="Post the report as one comment on the PR")] = False,
+    state_dir: Annotated[str, typer.Option("--state-dir", help="Where the temporary worktree is created (default: system temp)")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Classify a PR's changed files by risk and plan its checks, without running them.
+
+    Fetches the PR head into a temporary detached worktree, plans the repo's
+    `verify-changes` selection against the merge base and reports risk per
+    file, recommended checks, uncovered files and findings. Nothing from the
+    PR is executed. Exit 0 when the report was produced, 2 on error.
+    """
+    from mq_agent.tools.pr_review import post_report, render_markdown, review_pr
+
+    try:
+        report = review_pr(repo, number, state_dir=Path(state_dir) if state_dir else None)
+        if post:
+            report["posted"] = post_report(repo, number, report)
+    except (ValueError, OSError, TimeoutError) as exc:
+        console.print(f"[bold red]{exc}[/bold red]")
+        raise typer.Exit(2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(report, indent=2))
+    else:
+        typer.echo(render_markdown(report))
+        if report["posted"]:
+            typer.echo(f"posted: {report['posted']}")
 
 
 _PACK_CHECK_EXIT = {"FRESH": 0, "STALE": 1, "UNKNOWN": 3}

@@ -31,6 +31,7 @@ This page is a projection of it.
 | [`mq-agent notebook`](#mq-agent-notebook) | group | Build local source packs for optional synthesis providers. |
 | [`mq-agent obsidian`](#mq-agent-obsidian) | group | Read and action the mqobsidian promotion inbox. |
 | [`mq-agent plan`](#mq-agent-plan) | command | Create a plan for a goal using the AI planner. |
+| [`mq-agent pr`](#mq-agent-pr) | group | Review pull requests: advisory, read-only, posts only on request. |
 | [`mq-agent queue`](#mq-agent-queue) | group | Coordinate agent tasks, isolated worktrees, verification and handoffs. |
 | [`mq-agent release-check`](#mq-agent-release-check) | command | Validate the repo is ready for a release. |
 | [`mq-agent release-plan`](#mq-agent-release-plan) | command | Show the standard release plan. |
@@ -2591,6 +2592,35 @@ Create a plan for a goal using the AI planner.
 
 | Option | Required | Default | Description |
 |---|---:|---|---|
+| `--json` | No | `false` | — |
+
+## `mq-agent pr`
+
+Review pull requests: advisory, read-only, posts only on request.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| [`mq-agent pr review`](#mq-agent-pr-review) | Classify a PR's changed files by risk and plan its checks, without running them. Fetches the PR head into a temporary detached worktree, plans the repo's `verify-changes` selection against the merge base and reports risk per file, recommended checks, uncovered files and findings. Nothing from the PR is executed. Exit 0 when the report was produced, 2 on error. |
+
+## `mq-agent pr review`
+
+Classify a PR's changed files by risk and plan its checks, without running them. Fetches the PR head into a temporary detached worktree, plans the repo's `verify-changes` selection against the merge base and reports risk per file, recommended checks, uncovered files and findings. Nothing from the PR is executed. Exit 0 when the report was produced, 2 on error.
+
+### Arguments
+
+| Argument | Required | Default | Description |
+|---|---:|---|---|
+| `NUMBER` | Yes | — | Pull request number |
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--repo` | No | `.` | Repository checkout whose origin holds the PR |
+| `--post` | No | `false` | Post the report as one comment on the PR |
+| `--state-dir` | No | `""` | Where the temporary worktree is created (default: system temp) |
 | `--json` | No | `false` | — |
 
 ## `mq-agent queue`
