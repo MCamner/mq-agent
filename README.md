@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.38.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.39.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -444,6 +444,20 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.39.0 status
+
+v1.39.0 adds an advisory pull request review and a freshness check for task
+packs, and records the first end-to-end Claude-to-Codex queue handoff.
+
+- [x] `pr review <number>` classifies a PR's changed files by risk, plans the
+  repo's `verify-changes` selection against the merge base and reports
+  findings; it runs nothing from the PR and posts only with `--post` (#455)
+- [x] task packs record the repo commit, clean/dirty state, contract version,
+  vault commit and task class they were built from; `context check` answers
+  `FRESH`, `STALE` or `UNKNOWN` (#453)
+- [x] the queue handoff acceptance run is recorded in
+  `docs/queue-handoff-acceptance-evidence.md` (#454)
 
 ## v1.38.0 status
 
