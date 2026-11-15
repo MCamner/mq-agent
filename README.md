@@ -100,6 +100,20 @@ mq-agent skills route "fix CI and open PR" --repo mq-agent --target codex --expl
 Supports `--json`, observed Codex/Claude discovery, and required safety skills.
 Requires mqobsidian's skill-selection contracts. See [Skill Selection](docs/SKILL_SELECTION.md).
 
+## Execution efficiency
+
+Inspect quality, resources and missing measurements separately:
+
+```bash
+mq-agent execution efficiency --since 30d
+mq-agent execution efficiency --task-class docs --json
+```
+
+The report reads existing evidence and shows measurement coverage. New runtime
+records capture actual local tool dispatches and provider-reported usage where
+observable; absent cost and rework stay unknown. No report changes routing.
+See [Execution efficiency](docs/EXECUTION_EFFICIENCY.md) for scope and limits.
+
 ## Shared task queue
 
 Coordinate Codex and Claude work with explicit ownership and separate worktrees:

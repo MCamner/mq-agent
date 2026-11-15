@@ -445,6 +445,7 @@ Inspect observed execution outcomes.
 | Subcommand | Description |
 |---|---|
 | [`mq-agent execution compare`](#mq-agent-execution-compare) | Compare two observed routes without selecting a winner. |
+| [`mq-agent execution efficiency`](#mq-agent-execution-efficiency) | Separate observed quality, resources and missing measurements without changing policy. |
 | [`mq-agent execution report`](#mq-agent-execution-report) | Report execution metrics without mixing in shadow outcomes. |
 
 ## `mq-agent execution compare`
@@ -460,6 +461,20 @@ Compare two observed routes without selecting a winner.
 | `--right` | Yes | — | Second route |
 | `--source` | No | — | JSON or JSONL execution outcome source |
 | `--since` | No | — | Time window: 7d, 30d, or 90d |
+| `--json` | No | `false` | — |
+
+## `mq-agent execution efficiency`
+
+Separate observed quality, resources and missing measurements without changing policy.
+
+### Options
+
+| Option | Required | Default | Description |
+|---|---:|---|---|
+| `--source` | No | — | Execution JSON/JSONL source, including retained rotations |
+| `--routing-source` | No | — | Separate routing observation source |
+| `--since` | No | — | Time window: 7d, 30d or 90d |
+| `--task-class` | No | — | Execution task class only; routing remains independent |
 | `--json` | No | `false` | — |
 
 ## `mq-agent execution report`

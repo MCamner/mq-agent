@@ -9,6 +9,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `execution efficiency` separates runtime completion, resource measurements and
+  missing-data coverage; execution cohorts retain runtime/model/commit identity
+  and routing observations remain a separate population.
+- Scoped local runtime counters record actual tool dispatch attempts and complete
+  provider-reported token fields without estimating cost or rework. Missing or
+  unsupported measurements remain absent in existing outcome contracts.
+
 ## [v1.37.0] — 2026-11-14
 
 ### Added

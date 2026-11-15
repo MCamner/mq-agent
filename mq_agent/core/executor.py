@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from .execution_metrics import mark_tool_scope, record_tool_call
 from .safety import SafetyGate
 from .state import AgentState, PlanStep, StepStatus
 from .tool_contract import invalid_arguments, produced_items
@@ -161,6 +162,7 @@ class Executor:
         outputs = []
         for args in calls:
             try:
+                record_tool_call()
                 outputs.append(tool_fn(**args))
             except Exception as exc:
                 step.status = StepStatus.FAILED
@@ -202,6 +204,8 @@ class Executor:
         return step
 
     def run_plan(self, state: AgentState) -> AgentState:
+        if not self.dry_run:
+            mark_tool_scope()
         for i, step in enumerate(state.plan):
             state.current_step = i
             self.run_step(step, state)

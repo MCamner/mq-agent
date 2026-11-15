@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .execution_metrics import mark_tool_scope, record_tool_call
+
 _TEMPLATE_RE = re.compile(r"\{\{step:([^}]+)\}\}")
 
 
@@ -80,6 +82,8 @@ def load_task(path: Path) -> Task:
 def run_task(task: Task, dry_run: bool = False) -> list[StepResult]:
     from mq_agent.tools import TOOL_REGISTRY
 
+    if not dry_run:
+        mark_tool_scope()
     results: list[StepResult] = []
     step_outputs: dict[str, str] = {}
 
@@ -105,6 +109,7 @@ def run_task(task: Task, dry_run: bool = False) -> list[StepResult]:
 
         try:
             resolved_args = _resolve_templates(step.args, step_outputs)
+            record_tool_call()
             output = fn(**resolved_args)
             output_str = str(output)
             step_outputs[step.name] = output_str
