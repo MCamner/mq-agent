@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.40.0] — 2026-11-15
+
 ### Added
 
 - `pr review --model-review` adds an advisory model review: the PR's diff against the merge base is sent as text to mq-mcp `review_patch` (`--review-mode` risk, security, architecture or comment), and the findings are reported under `model_review` without changing the path-based risk. A diff over 200 KB is not sent (`SKIPPED`); a refused or unreachable review is `ERROR`, never an empty pass. Requires mq-mcp with `review_patch`; `schemas/mcp_tool_requirements.json` declares it.
