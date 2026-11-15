@@ -11,6 +11,7 @@ import io
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 from typer.testing import CliRunner
 
@@ -115,7 +116,7 @@ def test_planner_records_the_usage_of_its_model_call() -> None:
         chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **k: response))
     )
     with token_meter() as meter:
-        Planner(client).create_plan(AgentState(goal="g", working_dir="."), [])
+        Planner(cast(Any, client)).create_plan(AgentState(goal="g", working_dir="."), [])
     assert meter_tokens(meter) == {"input": 200, "output": 10}
 
 
@@ -137,11 +138,21 @@ def _audit(calls):
     return run
 
 
+def _two_reported_calls() -> None:
+    _call(300, 30)
+    _call(100, 10)
+
+
+def _one_unreported_call() -> None:
+    _call(300, 30)
+    model_call_started()
+
+
 def test_a_cli_run_records_the_tokens_its_model_calls_reported(tmp_path, monkeypatch) -> None:
     store = _store(tmp_path, monkeypatch)
     monkeypatch.setattr(
         "mq_agent.agents.audit_agent.AuditAgent.run",
-        _audit(lambda: (_call(300, 30), _call(100, 10))),
+        _audit(_two_reported_calls),
     )
     assert cli.invoke(app, ["audit", ".", "--json"]).exit_code == 0
     assert _records(store)[0]["tokens"] == {"input": 400, "output": 40}
@@ -151,7 +162,7 @@ def test_a_cli_run_with_an_unreported_call_records_no_tokens(tmp_path, monkeypat
     store = _store(tmp_path, monkeypatch)
     monkeypatch.setattr(
         "mq_agent.agents.audit_agent.AuditAgent.run",
-        _audit(lambda: (_call(300, 30), model_call_started())),
+        _audit(_one_unreported_call),
     )
     assert cli.invoke(app, ["audit", ".", "--json"]).exit_code == 0
     assert "tokens" not in _records(store)[0]
@@ -159,7 +170,7 @@ def test_a_cli_run_with_an_unreported_call_records_no_tokens(tmp_path, monkeypat
 
 def test_route_report_sums_tokens_over_measured_records_only(tmp_path) -> None:
     source = tmp_path / "executions.jsonl"
-    base = {"runtime": "agent", "task_class": "ci", "result": "PASS",
+    base: dict[str, Any] = {"runtime": "agent", "task_class": "ci", "result": "PASS",
             "exit_status": "ok", "latency_ms": 10,
             "route": {"selected": "codex", "policy": "static", "confidence": None}}
     records = [
