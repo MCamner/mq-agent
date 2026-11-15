@@ -37,6 +37,46 @@ def mq_image_bin() -> str | None:
     return str(candidate) if candidate.is_file() and os.access(candidate, os.X_OK) else None
 
 
+#: Mirrors mq-image-analyze's IMAGE_EXTENSIONS (mq_image_analyze/formats.py).
+IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif"})
+
+
+class ImagePathError(ValueError):
+    """An image path mq-agent will not hand to mq-image."""
+
+
+def _allowed_roots() -> list[Path]:
+    """Directories from MQ_IMAGE_ALLOWED_ROOTS (os.pathsep-separated); empty means no limit."""
+    raw = os.environ.get("MQ_IMAGE_ALLOWED_ROOTS", "")
+    return [Path(r).expanduser().resolve() for r in raw.split(os.pathsep) if r.strip()]
+
+
+def validate_image_path(path: str) -> Path:
+    """The resolved image path, under the rules mq-image-analyze's server applied.
+
+    The server checked MQ_IMAGE_ALLOWED_ROOTS and the extension; its CLI only
+    checks that the file exists. The built-in image tools can be chosen by the
+    planner, so mq-agent applies the same rules before starting a subprocess.
+    Every check runs on the resolved target, so a symlink can neither leave
+    the allowed roots nor dress a non-image up as one. The roots are checked
+    before existence, so a refusal says nothing about what is on disk.
+    """
+    p = Path(path).expanduser().resolve()
+    roots = _allowed_roots()
+    if roots and not any(p.is_relative_to(root) for root in roots):
+        raise ImagePathError(f"Image path is outside MQ_IMAGE_ALLOWED_ROOTS: {path}")
+    if not p.exists():
+        raise ImagePathError(f"Image not found: {p}")
+    if not p.is_file():
+        raise ImagePathError(f"Image path is not a file: {p}")
+    if p.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise ImagePathError(
+            f"Unsupported image format: {p.suffix or '(none)'} "
+            f"(allowed: {', '.join(sorted(IMAGE_EXTENSIONS))})"
+        )
+    return p
+
+
 def _mq_image_available() -> bool:
     return mq_image_bin() is not None
 
@@ -84,12 +124,20 @@ def image_analyze(image_path: str, mode: str = "local-fast") -> str:
 
     mode: local-fast | local-deep | cloud-verify
     """
-    return _run(["analyze", image_path, "--json", "--mode", mode])
+    try:
+        image = validate_image_path(image_path)
+    except ImagePathError as exc:
+        return str(exc)
+    return _run(["analyze", str(image), "--json", "--mode", mode])
 
 
 def image_observe_architecture(diagram_path: str) -> str:
     """Parse an architecture diagram — returns visual_architecture_observation.v1 JSON."""
-    return _run(["observe-architecture", diagram_path, "--json"])
+    try:
+        image = validate_image_path(diagram_path)
+    except ImagePathError as exc:
+        return str(exc)
+    return _run(["observe-architecture", str(image), "--json"])
 
 
 def _run_json(args: list[str]) -> dict[str, Any]:
@@ -120,14 +168,22 @@ def _run_json(args: list[str]) -> dict[str, Any]:
 
 def observe_architecture_json(image_path: str) -> dict[str, Any]:
     """visual_architecture_observation.v1 for a diagram, via the mq-image CLI."""
-    return _run_json(["observe-architecture", image_path, "--json"])
+    try:
+        image = validate_image_path(image_path)
+    except ImagePathError as exc:
+        return {"ok": False, "error": str(exc)}
+    return _run_json(["observe-architecture", str(image), "--json"])
 
 
 def image_perception_record(
     image_path: str, *, producer: str, source_type: str | None = None,
 ) -> dict[str, Any]:
     """perception.v1 from one producer (ui, architecture, ocr), via the mq-image CLI."""
-    args = ["perceive", image_path, "--producer", producer]
+    try:
+        image = validate_image_path(image_path)
+    except ImagePathError as exc:
+        return {"ok": False, "error": str(exc)}
+    args = ["perceive", str(image), "--producer", producer]
     if source_type:
         args += ["--source-type", source_type]
     return _run_json(args)
@@ -135,12 +191,20 @@ def image_perception_record(
 
 def image_analyze_ui(screenshot_path: str) -> str:
     """Analyze a UI screenshot — returns layout regions, WCAG contrast, hierarchy JSON."""
-    return _run(["analyze-ui", screenshot_path, "--json"])
+    try:
+        image = validate_image_path(screenshot_path)
+    except ImagePathError as exc:
+        return str(exc)
+    return _run(["analyze-ui", str(image), "--json"])
 
 
 def image_compare(before_path: str, after_path: str) -> str:
     """Compare two images for visual drift — returns JSON diff."""
-    return _run(["compare", before_path, after_path, "--json"])
+    try:
+        before, after = validate_image_path(before_path), validate_image_path(after_path)
+    except ImagePathError as exc:
+        return str(exc)
+    return _run(["compare", str(before), str(after), "--json"])
 
 
 def image_status() -> str:

@@ -12,6 +12,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - mq-agent runs mq-image-analyze's `mq-image` CLI per call instead of calling its MCP server. `review --architecture-image` uses `mq-image observe-architecture --json` and `review perception` uses `mq-image perceive`; nothing has to listen on `:8766`, which atlas-one also uses. The binary is `MQ_IMAGE_BIN`, else `mq-image` on `PATH`, else `~/mq-image-analyze/.venv/bin/mq-image`, as mq-mcp resolves it. `get_mcp_servers()` no longer adds a default `mq-image-analyze` entry (an explicitly configured one is still used), and `observe_architecture` and `image_perception` leave `schemas/mcp_tool_requirements.json`. A missing install now says mq-image-analyze is missing instead of telling the operator to start mq-mcp.
+- Every image path is checked before `mq-image` starts, with the rules the mq-image-analyze server applied: the resolved target must lie under `MQ_IMAGE_ALLOWED_ROOTS` when it is set (checked before existence), be a regular file, and have an image extension. Checks run on the resolved target, so a symlink can neither leave the roots nor pass a non-image off as one. This covers the planner-callable `image_analyze`, `image_observe_architecture`, `image_analyze_ui` and `image_compare` too.
 
 ### Fixed
 

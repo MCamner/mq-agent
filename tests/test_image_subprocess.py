@@ -72,15 +72,17 @@ OBSERVATION = {"schema_version": "visual_architecture_observation.v1", "image_ty
 
 def test_observe_architecture_runs_the_cli_with_json(tmp_path, monkeypatch):
     monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, json.dumps(OBSERVATION))))
+    image = _png(tmp_path / "docs" / "arch.png")
 
-    assert image_tools.observe_architecture_json("docs/arch.png") == OBSERVATION
-    assert _argv(tmp_path) == ["observe-architecture", "docs/arch.png", "--json"]
+    assert image_tools.observe_architecture_json(str(image)) == OBSERVATION
+    assert _argv(tmp_path) == ["observe-architecture", str(image.resolve()), "--json"]
 
 
 def test_the_builtin_tool_asks_for_json_too(tmp_path, monkeypatch):
     monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, json.dumps(OBSERVATION))))
 
-    assert json.loads(image_tools.image_observe_architecture("docs/arch.png")) == OBSERVATION
+    image = _png(tmp_path / "docs" / "arch.png")
+    assert json.loads(image_tools.image_observe_architecture(str(image))) == OBSERVATION
     assert _argv(tmp_path)[-1] == "--json"
 
 
@@ -92,33 +94,36 @@ PERCEPTION = {"schema_version": "perception.v1", "evidence_id": "sha256:x"}
 def test_perception_passes_producer_and_source_type(tmp_path, monkeypatch):
     monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, json.dumps(PERCEPTION))))
 
-    record = image_tools.image_perception_record("s.png", producer="ocr", source_type="terminal")
+    image = _png(tmp_path / "s.png")
+    record = image_tools.image_perception_record(str(image), producer="ocr", source_type="terminal")
 
     assert record == PERCEPTION
-    assert _argv(tmp_path) == ["perceive", "s.png", "--producer", "ocr",
+    assert _argv(tmp_path) == ["perceive", str(image.resolve()), "--producer", "ocr",
                                "--source-type", "terminal"]
 
 
 def test_perception_without_source_type_omits_it(tmp_path, monkeypatch):
     monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, json.dumps(PERCEPTION))))
 
-    image_tools.image_perception_record("s.png", producer="ui")
+    image = _png(tmp_path / "s.png")
+    image_tools.image_perception_record(str(image), producer="ui")
 
-    assert _argv(tmp_path) == ["perceive", "s.png", "--producer", "ui"]
+    assert _argv(tmp_path) == ["perceive", str(image.resolve()), "--producer", "ui"]
 
 
 # ── failures name mq-image-analyze, never mq-mcp ────────────────────────────
 
 @pytest.mark.parametrize("call", [
-    lambda: image_tools.observe_architecture_json("a.png"),
-    lambda: image_tools.image_perception_record("a.png", producer="ui"),
+    lambda p: image_tools.observe_architecture_json(p),
+    lambda p: image_tools.image_perception_record(p, producer="ui"),
 ])
 def test_a_missing_install_is_a_clear_error(call, tmp_path, monkeypatch):
+    image = _png(tmp_path / "a.png")
     monkeypatch.delenv("MQ_IMAGE_BIN", raising=False)
     monkeypatch.setattr(image_tools.shutil, "which", lambda name: None)
     monkeypatch.setattr(image_tools.Path, "home", lambda: tmp_path)
 
-    result = call()
+    result = call(str(image))
 
     assert result["ok"] is False
     assert "mq-image-analyze" in result["error"]
@@ -126,17 +131,18 @@ def test_a_missing_install_is_a_clear_error(call, tmp_path, monkeypatch):
 
 
 def test_a_failing_cli_reports_its_stderr(tmp_path, monkeypatch):
-    monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, stderr="File not found: a.png", code=1)))
+    monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, stderr="model missing", code=1)))
+    image = _png(tmp_path / "a.png")
 
-    result = image_tools.image_perception_record("a.png", producer="ui")
+    result = image_tools.image_perception_record(str(image), producer="ui")
 
-    assert result == {"ok": False, "error": "mq-image perceive failed: File not found: a.png"}
+    assert result == {"ok": False, "error": "mq-image perceive failed: model missing"}
 
 
 def test_output_that_is_not_a_json_object_is_an_error(tmp_path, monkeypatch):
     monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(tmp_path, "Image type  diagram")))
 
-    result = image_tools.observe_architecture_json("a.png")
+    result = image_tools.observe_architecture_json(str(_png(tmp_path / "a.png")))
 
     assert result["ok"] is False
     assert "JSON" in result["error"]
@@ -150,7 +156,7 @@ def test_a_hung_cli_is_an_error(monkeypatch, tmp_path):
 
     monkeypatch.setattr(image_tools.subprocess, "run", hang)
 
-    result = image_tools.observe_architecture_json("a.png")
+    result = image_tools.observe_architecture_json(str(_png(tmp_path / "a.png")))
 
     assert result["ok"] is False
     assert "timed out" in result["error"]
@@ -181,3 +187,119 @@ def test_nothing_in_mq_agent_calls_the_image_server_tools():
     ]
     assert offenders == []
 
+
+
+# ── file access is checked before any subprocess starts ─────────────────────
+#
+# The mq-image-analyze server validated paths (MQ_IMAGE_ALLOWED_ROOTS, image
+# extensions); the CLI only checks that the file exists. The built-in image
+# tools can be chosen by the planner, so mq-agent applies the same rules
+# itself, on the resolved target, before starting mq-image.
+
+def _png(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    return path
+
+
+@pytest.fixture
+def cli(tmp_path, monkeypatch):
+    """A fake mq-image that must not be reached when a path is refused."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    monkeypatch.setenv("MQ_IMAGE_BIN", str(_fake_bin(bin_dir, json.dumps(OBSERVATION))))
+    monkeypatch.delenv("MQ_IMAGE_ALLOWED_ROOTS", raising=False)
+    return bin_dir
+
+
+def _ran(bin_dir: Path) -> bool:
+    return (bin_dir / "argv.json").exists()
+
+
+def test_an_allowed_image_runs_with_its_resolved_path(tmp_path, cli, monkeypatch):
+    image = _png(tmp_path / "root" / "a.png")
+    monkeypatch.setenv("MQ_IMAGE_ALLOWED_ROOTS", str(tmp_path / "root"))
+
+    assert image_tools.observe_architecture_json(str(image)) == OBSERVATION
+    assert _argv(cli)[1] == str(image.resolve())
+
+
+def test_a_path_outside_the_allowed_roots_is_refused_before_existence(tmp_path, cli, monkeypatch):
+    monkeypatch.setenv("MQ_IMAGE_ALLOWED_ROOTS", str(tmp_path / "root"))
+
+    result = image_tools.observe_architecture_json(str(tmp_path / "elsewhere" / "missing.png"))
+
+    assert result["ok"] is False
+    assert "MQ_IMAGE_ALLOWED_ROOTS" in result["error"]
+    assert "not found" not in result["error"]
+    assert not _ran(cli)
+
+
+def test_a_symlink_inside_the_roots_pointing_outside_is_refused(tmp_path, cli, monkeypatch):
+    outside = _png(tmp_path / "outside" / "secret.png")
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "link.png").symlink_to(outside)
+    monkeypatch.setenv("MQ_IMAGE_ALLOWED_ROOTS", str(root))
+
+    result = image_tools.image_perception_record(str(root / "link.png"), producer="ui")
+
+    assert result["ok"] is False
+    assert "MQ_IMAGE_ALLOWED_ROOTS" in result["error"]
+    assert not _ran(cli)
+
+
+def test_a_symlink_named_png_to_a_non_image_is_refused(tmp_path, cli):
+    target = tmp_path / "notes.txt"
+    target.write_text("not an image", encoding="utf-8")
+    (tmp_path / "trick.png").symlink_to(target)
+
+    result = image_tools.observe_architecture_json(str(tmp_path / "trick.png"))
+
+    assert result["ok"] is False
+    assert "Unsupported image format" in result["error"]
+    assert not _ran(cli)
+
+
+@pytest.mark.parametrize("name", ["config.json", "id_rsa", "archive.png.zip"])
+def test_non_image_extensions_are_refused(tmp_path, cli, name):
+    path = tmp_path / name
+    path.write_text("x", encoding="utf-8")
+
+    result = image_tools.observe_architecture_json(str(path))
+
+    assert result["ok"] is False
+    assert "Unsupported image format" in result["error"]
+    assert not _ran(cli)
+
+
+def test_a_missing_file_or_a_directory_is_refused(tmp_path, cli):
+    (tmp_path / "dir.png").mkdir()
+
+    for path in (tmp_path / "missing.png", tmp_path / "dir.png"):
+        result = image_tools.image_perception_record(str(path), producer="ui")
+        assert result["ok"] is False
+        assert "not found" in result["error"] or "not a file" in result["error"]
+    assert not _ran(cli)
+
+
+def test_without_allowed_roots_any_existing_image_is_accepted(tmp_path, cli):
+    image = _png(tmp_path / "anywhere" / "b.webp")
+
+    assert image_tools.observe_architecture_json(str(image)) == OBSERVATION
+
+
+@pytest.mark.parametrize("call", [
+    lambda p: image_tools.image_analyze(p),
+    lambda p: image_tools.image_observe_architecture(p),
+    lambda p: image_tools.image_analyze_ui(p),
+    lambda p: image_tools.image_compare(p, p),
+])
+def test_the_planner_callable_tools_refuse_the_same_paths(tmp_path, cli, call):
+    path = tmp_path / "config.json"
+    path.write_text("{}", encoding="utf-8")
+
+    result = call(str(path))
+
+    assert "Unsupported image format" in result
+    assert not _ran(cli)
