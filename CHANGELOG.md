@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.39.0] — 2026-11-15
+
 ### Added
 
 - `mq-agent pr review <number>` writes an advisory review of one pull request: risk per changed file from its path and size, the repository's `verify-changes` selection planned against the merge base, files no check covers, and findings such as source changed without tests or a PR that changes its own verification config. It fetches the PR head into a temporary detached worktree, refuses when the fetched head differs from the one GitHub reported, executes nothing from the PR, and posts the report as one PR comment only with `--post`. There is no model review of the diff yet. See `docs/PR_REVIEW.md`.
