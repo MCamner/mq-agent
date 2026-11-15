@@ -9,6 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [v1.38.0] — 2026-11-15
+
 ### Added
 
 - Execution records carry measured token usage. `audit`, `release-check`, `ci`, `review repo`, `signal`, `docs-audit` and swarm runs count the input and output tokens every model call reports (OpenAI `usage`, Ollama `prompt_eval_count`/`eval_count`) and write them as `tokens`. The field is written only when every model call the run started reported its counts: a call that raised, timed out or returned none leaves `tokens` absent, because a partial sum would record a cheaper run than the one that ran. `route report --json` sums tokens per route as `{measured_outcomes, input, output}` over the records that measured them, or `null` when none did. `cost`, `retries`, `fallbacks` and `tool_calls` are still not measured.
