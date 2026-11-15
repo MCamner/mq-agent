@@ -170,11 +170,27 @@ def _update_changelog(repo_path: Path, new_version: str, commits: list[str]) -> 
     if not cl.exists():
         return None
     today = datetime.now(UTC).date().isoformat()
-    section_lines = [f"## [v{new_version}] — {today}", ""]
-    section_lines.extend(f"* {c}" for c in commits)
+    heading = f"## [v{new_version}] — {today}"
+    text = cl.read_text()
+
+    # Hand-written Unreleased notes are the release notes. Drafting a commit
+    # list on top of them duplicated every entry.
+    unreleased = re.search(
+        r"^## \[Unreleased\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.MULTILINE | re.DOTALL,
+    )
+    if unreleased and unreleased.group(1).strip():
+        text = text[: unreleased.start(1)] + f"\n{heading}\n" + text[unreleased.start(1) :]
+        cl.write_text(text)
+        return cl
+
+    # Match the file's own list marker: a markdownlint --fix hook (MD004
+    # consistent) rewrites every list in the file to match the first one.
+    marker = re.search(r"^([-*]) ", text, re.MULTILINE)
+    bullet = marker.group(1) if marker else "*"
+    section_lines = [heading, ""]
+    section_lines.extend(f"{bullet} {c}" for c in commits)
     section = "\n".join(section_lines)
 
-    text = cl.read_text()
     if "## [Unreleased]" in text:
         text = text.replace("## [Unreleased]", f"## [Unreleased]\n\n{section}", 1)
     else:

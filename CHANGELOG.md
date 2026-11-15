@@ -18,6 +18,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   provider-reported token fields without estimating cost or rework. Missing or
   unsupported measurements remain absent in existing outcome contracts.
 
+### Fixed
+
+- `stack release --execute` keeps hand-written `[Unreleased]` notes as the release section instead of drafting a commit list on top of them, and a drafted commit list uses the list marker `CHANGELOG.md` already uses. At v1.37.0 the draft used `*` in a `-` file; the markdownlint `--fix` pre-commit hook then rewrote every list marker in the file, a 975-line diff.
+
 ## [v1.37.0] — 2026-11-14
 
 ### Added
