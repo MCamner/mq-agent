@@ -4,9 +4,10 @@ The PR head is fetched into a temporary detached worktree, every changed file
 is classified by path and size, and the repository's own `verify-changes`
 selection is planned against the merge base. Nothing from the PR is executed:
 the planned checks come from configuration the PR itself can change, so running
-them would run the PR's code under the PR's own rules. A model review of the
-diff is not part of this report; mq-mcp's diff review reads only its own
-working tree.
+them would run the PR's code under the PR's own rules. With a reviewer, the
+PR's diff is sent as text to mq-mcp `review_patch` for an advisory model
+review; the model sees only the diff, and its findings never change the
+path-based risk.
 
 Path classification is a heuristic for where a reviewer should look first, not
 a verdict on the change.
@@ -19,12 +20,18 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 SCHEMA = "mq.pr-review.v1"
 RISK_ORDER = ("low", "medium", "high")
 LARGE_FILE_LINES = 400
 LARGE_PR_LINES = 1000
+#: Mirrors mq-mcp review_patch's limit, so an oversized diff is not sent at all.
+REVIEW_PATCH_MAX_BYTES = 200_000
+REVIEW_MODES = ("risk", "security", "architecture", "comment")
+
+Reviewer = Callable[[str, str, str], Any]
 
 # First match wins. Each rule: (patterns, risk, reason).
 _RULES: tuple[tuple[tuple[str, ...], str, str], ...] = (
@@ -117,7 +124,60 @@ def _findings(files: list[dict[str, Any]], plan: dict[str, Any]) -> list[str]:
     return findings
 
 
-def review_pr(repo: Path, number: int, *, state_dir: Path | None = None) -> dict[str, Any]:
+def _review_payload(result: Any) -> dict[str, Any] | None:
+    """The review_patch answer as a dict, from a dict or mq-mcp's text wrapper."""
+    if isinstance(result, dict) and "ok" in result:
+        return result
+    if isinstance(result, list):
+        for item in result:
+            payload = _review_payload(item)
+            if payload is not None:
+                return payload
+            if isinstance(item, dict) and item.get("type") == "text":
+                try:
+                    parsed = json.loads(item.get("text") or "")
+                except ValueError:
+                    continue
+                if isinstance(parsed, dict) and "ok" in parsed:
+                    return parsed
+    return None
+
+
+def _model_review(patch: str, reviewer: Reviewer, mode: str, label: str) -> dict[str, Any]:
+    size = len(patch.encode("utf-8"))
+    if size > REVIEW_PATCH_MAX_BYTES:
+        return {"status": "SKIPPED", "mode": mode, "findings": [],
+                "reason": f"diff is {size} bytes; review_patch accepts at most "
+                          f"{REVIEW_PATCH_MAX_BYTES}"}
+    try:
+        answer = reviewer(patch, mode, label)
+    except Exception as exc:  # the bridge reports most failures as values
+        answer = f"review_patch failed: {exc}"
+    payload = _review_payload(answer)
+    if payload is None or not payload.get("ok"):
+        error = (payload or {}).get("error") or str(answer)[:300] or "no answer"
+        return {"status": "ERROR", "mode": mode, "findings": [], "error": error}
+    return {
+        "status": "OK",
+        "mode": payload.get("mode", mode),
+        "model": payload.get("model"),
+        "reviewed_bytes": payload.get("reviewed_bytes", size),
+        "findings": [
+            {"severity": str(f.get("severity", "")), "location": str(f.get("location", "")),
+             "body": str(f.get("body", ""))}
+            for f in payload.get("findings") or [] if isinstance(f, dict)
+        ],
+    }
+
+
+def review_pr(
+    repo: Path,
+    number: int,
+    *,
+    state_dir: Path | None = None,
+    reviewer: Reviewer | None = None,
+    review_mode: str = "risk",
+) -> dict[str, Any]:
     """Build the review report for PR `number` of the repository at `repo`.
 
     Raises ValueError when the PR cannot be fetched, or when its head on the
@@ -142,6 +202,10 @@ def review_pr(repo: Path, number: int, *, state_dir: Path | None = None) -> dict
                 f"origin has {fetched[:12]}; rerun the review"
             )
         merge_base = _git(repo, "merge-base", head, f"refs/mq-pr-review/{number}-base")
+        patch = (
+            _git(repo, "diff", "--no-color", "--no-ext-diff", merge_base, head) + "\n"
+            if reviewer is not None else ""
+        )
 
         root = Path(state_dir).expanduser() if state_dir else None
         if root is not None:
@@ -158,6 +222,19 @@ def review_pr(repo: Path, number: int, *, state_dir: Path | None = None) -> dict
         for ref in (f"refs/mq-pr-review/{number}", f"refs/mq-pr-review/{number}-base"):
             subprocess.run(["git", "-C", str(repo), "update-ref", "-d", ref],
                            capture_output=True, check=False)
+
+    model_review = (
+        _model_review(patch, reviewer, review_mode, f"{repo.name}#{number}")
+        if reviewer is not None else None
+    )
+    if model_review is None:
+        model_note = "no model review of the diff"
+    elif model_review["status"] == "OK":
+        model_note = ("the model review saw only the diff, not the files around it; "
+                      "its findings are advisory and can be false positives")
+    else:
+        reason = model_review.get("reason") or model_review.get("error")
+        model_note = f"no model review of the diff: {reason}"
 
     files = [
         classify_file(f["path"], additions=int(f.get("additions") or 0),
@@ -179,9 +256,10 @@ def review_pr(repo: Path, number: int, *, state_dir: Path | None = None) -> dict
         ],
         "uncovered_files": plan["uncovered_files"],
         "findings": _findings(files, plan),
+        "model_review": model_review,
         "not_verified": [
             "planned checks were not run: they come from configuration the PR can change",
-            "no model review of the diff",
+            model_note,
             "risk is a path and size heuristic, not a judgment of the change",
         ],
         "posted": None,
@@ -209,6 +287,17 @@ def render_markdown(report: dict[str, Any]) -> str:
     if report["findings"]:
         lines += ["", "### Findings", ""]
         lines += [f"- {f}" for f in report["findings"]]
+    review = report.get("model_review")
+    if review is not None:
+        lines += ["", "### Model review (advisory)", ""]
+        if review["status"] == "OK":
+            lines.append(f"`{review['mode']}` review by {review.get('model') or 'unknown model'}"
+                         f" of {review.get('reviewed_bytes')} bytes of diff.")
+            lines.append("")
+            lines += [f"- **{f['severity']}** `{f['location']}`: {f['body']}"
+                      for f in review["findings"]] or ["- no findings"]
+        else:
+            lines.append(f"{review['status']}: {review.get('reason') or review.get('error')}")
     lines += ["", "### Not verified", ""]
     lines += [f"- {n}" for n in report["not_verified"]]
     return "\n".join(lines) + "\n"

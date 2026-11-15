@@ -5262,6 +5262,8 @@ def pr_review_cmd(
     number: Annotated[int, typer.Argument(help="Pull request number")],
     repo: Annotated[Path, typer.Option("--repo", help="Repository checkout whose origin holds the PR")] = Path("."),
     post: Annotated[bool, typer.Option("--post", help="Post the report as one comment on the PR")] = False,
+    model_review: Annotated[bool, typer.Option("--model-review", help="Send the PR diff to mq-mcp review_patch for an advisory model review")] = False,
+    review_mode: Annotated[str, typer.Option("--review-mode", help="Contract for --model-review: risk, security, architecture or comment")] = "risk",
     state_dir: Annotated[str, typer.Option("--state-dir", help="Where the temporary worktree is created (default: system temp)")] = "",
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ):
@@ -5270,12 +5272,24 @@ def pr_review_cmd(
     Fetches the PR head into a temporary detached worktree, plans the repo's
     `verify-changes` selection against the merge base and reports risk per
     file, recommended checks, uncovered files and findings. Nothing from the
-    PR is executed. Exit 0 when the report was produced, 2 on error.
+    PR is executed. With --model-review the diff is sent as text to mq-mcp
+    `review_patch` for advisory findings. Exit 0 when the report was produced,
+    2 on error.
     """
-    from mq_agent.tools.pr_review import post_report, render_markdown, review_pr
+    from mq_agent.tools.pr_review import REVIEW_MODES, post_report, render_markdown, review_pr
 
+    if review_mode not in REVIEW_MODES:
+        console.print(f"[bold red]--review-mode must be one of {', '.join(REVIEW_MODES)}[/bold red]")
+        raise typer.Exit(2)
+    reviewer = None
+    if model_review:
+        from mq_agent.tools.mcp_bridge import MultiMCPBridge
+
+        bridge = MultiMCPBridge()
+        reviewer = lambda patch, mode, label: bridge.review_patch(patch, mode=mode, label=label)  # noqa: E731
     try:
-        report = review_pr(repo, number, state_dir=Path(state_dir) if state_dir else None)
+        report = review_pr(repo, number, state_dir=Path(state_dir) if state_dir else None,
+                           reviewer=reviewer, review_mode=review_mode)
         if post:
             report["posted"] = post_report(repo, number, report)
     except (ValueError, OSError, TimeoutError) as exc:
