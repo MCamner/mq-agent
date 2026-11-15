@@ -301,3 +301,19 @@ def test_missing_rule_blocks_otherwise_selected_checks(repo):
     with pytest.raises(ValueError, match="missing"):
         verify(repo)
     assert not (repo / "executed-marker").exists()
+
+
+def test_repo_config_covers_code_and_runs_pytest_in_the_project_env() -> None:
+    """mq-agent's own .mq/verification.json must select a check for every
+    tracked file under the code, test, schema and skill trees, and run pytest
+    in the repo's environment: the installed uv tool has no pytest."""
+    import fnmatch
+
+    root = Path(__file__).resolve().parents[1]
+    config = json.loads((root / ".mq/verification.json").read_text())
+    assert config.get("python_project") == "."
+    patterns = [p for check in config["checks"] for p in check["paths"]]
+    tracked = git(root, "ls-files", "mq_agent", "tests", "schemas", "skills",
+                  ".claude/skills", ".agents/skills", "pyproject.toml", "uv.lock").splitlines()
+    uncovered = [f for f in tracked if not any(fnmatch.fnmatchcase(f, p) for p in patterns)]
+    assert tracked and uncovered == []

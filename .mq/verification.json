@@ -1,5 +1,6 @@
 {
   "schema": "mq.verification-config.v1",
+  "python_project": ".",
   "checks": [
     {
       "id": "verification-contracts",
@@ -20,6 +21,36 @@
       "timeout_seconds": 60
     },
     {
+      "id": "python-suite",
+      "runner": "pytest",
+      "targets": [
+        "tests"
+      ],
+      "paths": [
+        "mq_agent/*",
+        "tests/*",
+        "schemas/*",
+        "pyproject.toml",
+        "uv.lock"
+      ],
+      "timeout_seconds": 900
+    },
+    {
+      "id": "skills",
+      "runner": "bash",
+      "targets": [
+        "scripts/check-skills.sh"
+      ],
+      "paths": [
+        "skills/*",
+        ".claude/skills/*",
+        ".agents/skills/*",
+        "SKILLS.md",
+        "scripts/check-skills.sh"
+      ],
+      "timeout_seconds": 120
+    },
+    {
       "id": "docs-consistency",
       "runner": "bash",
       "targets": [
@@ -28,26 +59,10 @@
       "paths": [
         "README.md",
         "docs/*",
-        "CHANGELOG.md"
+        "VERSION",
+        "pyproject.toml"
       ],
       "timeout_seconds": 120
-    },
-    {
-      "id": "task-queue",
-      "runner": "pytest",
-      "targets": [
-        "tests/test_task_queue.py",
-        "tests/test_task_queue_cli.py"
-      ],
-      "paths": [
-        "mq_agent/task_queue.py",
-        "mq_agent/queue_cli.py",
-        "mq_agent/main.py",
-        "tests/test_task_queue.py",
-        "tests/test_task_queue_cli.py",
-        ".mq/verification.json"
-      ],
-      "timeout_seconds": 60
     }
   ]
 }
