@@ -10,27 +10,51 @@ Gracefully degrades when mq-image-analyze is not installed.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+from pathlib import Path
+from typing import Any
+
+#: Perception and architecture observation run the vision pipeline, which can
+#: take far longer than the quick commands below.
+PIPELINE_TIMEOUT_S = 300
+
+
+def mq_image_bin() -> str | None:
+    """The `mq-image` executable: MQ_IMAGE_BIN, else PATH, else the checkout venv.
+
+    mq-mcp resolves the same checkout venv, so both consumers find the install
+    that `uv sync` in ~/mq-image-analyze produces even when it is not on PATH.
+    """
+    override = os.environ.get("MQ_IMAGE_BIN", "").strip()
+    if override:
+        return override
+    found = shutil.which("mq-image")
+    if found:
+        return found
+    candidate = Path.home() / "mq-image-analyze" / ".venv" / "bin" / "mq-image"
+    return str(candidate) if candidate.is_file() and os.access(candidate, os.X_OK) else None
 
 
 def _mq_image_available() -> bool:
-    return shutil.which("mq-image") is not None
+    return mq_image_bin() is not None
 
 
 def _not_available_msg() -> str:
     return (
-        "mq-image-analyze not installed or not on PATH. "
-        "Install: cd ~/mq-image-analyze && pip install -e ."
+        "mq-image-analyze is not installed: no mq-image on PATH, in MQ_IMAGE_BIN "
+        "or in ~/mq-image-analyze/.venv. Install: cd ~/mq-image-analyze && uv sync"
     )
 
 
 def _run(args: list[str], capture: bool = True) -> str:
-    if not _mq_image_available():
+    binary = mq_image_bin()
+    if binary is None:
         return _not_available_msg()
     try:
         result = subprocess.run(
-            ["mq-image", *args],
+            [binary, *args],
             capture_output=capture,
             text=True,
             timeout=60,
@@ -65,7 +89,48 @@ def image_analyze(image_path: str, mode: str = "local-fast") -> str:
 
 def image_observe_architecture(diagram_path: str) -> str:
     """Parse an architecture diagram — returns visual_architecture_observation.v1 JSON."""
-    return _run(["observe-architecture", diagram_path])
+    return _run(["observe-architecture", diagram_path, "--json"])
+
+
+def _run_json(args: list[str]) -> dict[str, Any]:
+    """Run one pipeline command and return its JSON object, or {"ok": False, "error"}."""
+    binary = mq_image_bin()
+    if binary is None:
+        return {"ok": False, "error": _not_available_msg()}
+    label = f"mq-image {args[0]}"
+    try:
+        result = subprocess.run(
+            [binary, *args], capture_output=True, text=True, timeout=PIPELINE_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": f"{label} timed out after {PIPELINE_TIMEOUT_S}s"}
+    except OSError as exc:
+        return {"ok": False, "error": f"{label} could not start: {exc}"}
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        return {"ok": False, "error": f"{label} failed: {detail}"}
+    try:
+        payload = json.loads(result.stdout)
+    except ValueError:
+        return {"ok": False, "error": f"{label} did not print JSON"}
+    if not isinstance(payload, dict):
+        return {"ok": False, "error": f"{label} did not print a JSON object"}
+    return payload
+
+
+def observe_architecture_json(image_path: str) -> dict[str, Any]:
+    """visual_architecture_observation.v1 for a diagram, via the mq-image CLI."""
+    return _run_json(["observe-architecture", image_path, "--json"])
+
+
+def image_perception_record(
+    image_path: str, *, producer: str, source_type: str | None = None,
+) -> dict[str, Any]:
+    """perception.v1 from one producer (ui, architecture, ocr), via the mq-image CLI."""
+    args = ["perceive", image_path, "--producer", producer]
+    if source_type:
+        args += ["--source-type", source_type]
+    return _run_json(args)
 
 
 def image_analyze_ui(screenshot_path: str) -> str:

@@ -75,9 +75,17 @@ def test_review_file_json_invokes_mcp_bridge_with_flags():
     assert data["findings"][0]["severity"] == "RISK"
 
 
+def _observation(image_path: str) -> dict[str, Any]:
+    return {"schema": "visual_architecture_observation.v1", "image_path": image_path}
+
+
 def test_review_file_architecture_image_passes_visual_context_to_mcp():
     bridge = FakeReviewBridge()
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+    with (
+        patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge),
+        patch("mq_agent.tools.image_tools.observe_architecture_json",
+              side_effect=_observation) as observe,
+    ):
         result = runner.invoke(app, [
             "review",
             "file",
@@ -88,26 +96,22 @@ def test_review_file_architecture_image_passes_visual_context_to_mcp():
         ])
 
     assert result.exit_code == 0
-    assert bridge.tool_calls == [
-        ("observe_architecture", {"image_path": "docs/arch.png"})
-    ]
+    # The observation comes from the mq-image CLI, not an MCP server.
+    observe.assert_called_once_with("docs/arch.png")
+    assert bridge.tool_calls == []
     flags = bridge.calls[0][2]
     assert flags["architecture"] is True
     assert flags["visual_architecture_observation"]["schema"] == "visual_architecture_observation.v1"
     assert flags["visual_architecture_observation"]["image_path"] == "docs/arch.png"
 
 
-def test_review_diff_architecture_image_unwraps_json_string_payload():
-    class JsonStringBridge(FakeReviewBridge):
-        def call_tool(self, tool: str, args: dict[str, str]) -> Any:
-            self.tool_calls.append((tool, args))
-            return json.dumps({
-                "schema": "visual_architecture_observation.v1",
-                "image_path": args["image_path"],
-            })
-
-    bridge = JsonStringBridge()
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge):
+def test_review_diff_visual_alias_attaches_the_cli_observation():
+    bridge = FakeReviewBridge()
+    with (
+        patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge),
+        patch("mq_agent.tools.image_tools.observe_architecture_json",
+              side_effect=_observation),
+    ):
         result = runner.invoke(app, [
             "review",
             "diff",
@@ -120,6 +124,22 @@ def test_review_diff_architecture_image_unwraps_json_string_payload():
     flags = bridge.calls[0][2]
     assert flags["architecture"] is True
     assert flags["visual_architecture_observation"]["schema"] == "visual_architecture_observation.v1"
+
+
+def test_a_failed_observation_stops_the_review_and_names_mq_image_analyze():
+    bridge = FakeReviewBridge()
+    with (
+        patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge),
+        patch("mq_agent.tools.image_tools.observe_architecture_json",
+              return_value={"ok": False, "error": "mq-image-analyze is not installed"}),
+    ):
+        result = runner.invoke(app, [
+            "review", "file", "README.md", "--architecture-image", "docs/arch.png", "--json",
+        ])
+
+    assert result.exit_code == 1
+    assert bridge.calls == []
+    assert "mq-image-analyze is not installed" in result.output
 
 
 def test_review_repo_architecture_image_dry_run_prints_visual_step():

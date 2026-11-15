@@ -51,7 +51,6 @@ def get_mcp_servers() -> dict[str, str]:
     if "mq-mcp" not in servers:
         # Ensure default is always there unless explicitly overridden
         servers["mq-mcp"] = "http://localhost:8765"
-    if "mq-image-analyze" not in servers:
-        # Visual perception tools. mq-agent delegates; it does not analyze images locally.
-        servers["mq-image-analyze"] = "http://localhost:8766"
+    # No default for mq-image-analyze: mq-agent runs its CLI per call
+    # (tools/image_tools.py). An explicitly configured server is still used.
     return servers

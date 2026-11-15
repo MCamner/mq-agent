@@ -60,7 +60,7 @@ and storage approval; mq-agent only exposes read-only learn status/search/explai
 | `mqlaunch` | Active | 19-item agent menu + 6 prompt commands |
 | `mq-mcp` | Active | HTTP bridge at `:8765`; 66 tools, safety classes A–D |
 | `mq-hal` | Active | `hal_repo_report` via mq-mcp bridge |
-| `mq-image-analyze` | Active | HTTP bridge at `:8766`; `observe_architecture`, `image_ocr` visual context |
+| `mq-image-analyze` | Active | `mq-image` CLI per call; architecture observation and perception.v1 visual context |
 | `mqobsidian` | Active | Standard export structure (`mq-agent brain structure`); truth notes, reviews and learn notes via `--brain` / `truth-export`; gated by `mq-agent stack brain-gate` |
 
 ## mqlaunch integration
@@ -109,14 +109,16 @@ mq-agent doctor   # shows mq-mcp: ✓ OK
 
 ## mq-image-analyze bridge
 
-When `mq-image-analyze` is running as an MCP server on `:8766`, `mq-agent`
-routes visual perception tools through `run-tool`:
+`mq-agent` runs the `mq-image` CLI per call; no mq-image-analyze server has to
+run. `review --architecture-image` calls `mq-image observe-architecture --json`
+and `review perception` calls `mq-image perceive`, then hands the result to
+mq-mcp. The binary is `MQ_IMAGE_BIN`, else `mq-image` on `PATH`, else
+`~/mq-image-analyze/.venv/bin/mq-image`; mq-mcp and mq-hal start it the same
+way. Port `:8766` is atlas-one's, so no mq-image-analyze server is assumed there.
 
 ```bash
-mq-image mcp --transport sse
-
-mq-agent run-tool observe_architecture --arg image_path=docs/arch.png --json
-mq-agent run-tool image_ocr --arg image_path=docs/diagram.png --json
+mq-agent review file docs/ARCHITECTURE.md --architecture-image docs/arch.png --json
+mq-agent review perception screenshot.png --producer ui --json
 ```
 
 `mq-agent` only delegates and safety-gates the call. The returned

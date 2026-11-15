@@ -202,14 +202,15 @@ def test_bridge_not_reachable_message_suggests_start():
     msg = bridge.not_reachable_message()
     assert "mq-agent mcp start" in msg
 
-def test_default_mcp_servers_include_visual_perception_server():
+def test_default_mcp_servers_do_not_assume_a_visual_perception_server():
+    # mq-agent runs mq-image-analyze's CLI per call; port 8766 is atlas-one's.
     from mq_agent.core import config
 
     with patch.object(config, "load_config", return_value={"mcp_servers": {}}):
         servers = config.get_mcp_servers()
 
     assert servers["mq-mcp"] == "http://localhost:8765"
-    assert servers["mq-image-analyze"] == "http://localhost:8766"
+    assert "mq-image-analyze" not in servers
 
 def test_default_mcp_servers_preserve_configured_visual_endpoint():
     from mq_agent.core import config

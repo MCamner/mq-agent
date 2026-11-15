@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
+from typing import Any
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -112,6 +114,27 @@ def test_execution_outcome_accepts_measured_structured_fallback() -> None:
     assert outcome["fallback"] == fallback
 
 
+@contextmanager
+def _perception_cli_and_mcp(bridge: Any):
+    """Perception now comes from the mq-image CLI; the review still goes to mq-mcp.
+
+    The fake bridge's `image_perception` stands in for the CLI's perception.v1
+    output, so each test keeps one object describing both ends.
+    """
+
+    def record(image_path: str, *, producer: str, source_type: str | None = None) -> Any:
+        raw = bridge.image_perception(image_path, producer=producer, source_type=source_type)
+        if isinstance(raw, list):
+            raw = json.loads(raw[0]["text"])
+        return raw
+
+    with (
+        patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=bridge),
+        patch("mq_agent.tools.image_tools.image_perception_record", side_effect=record),
+    ):
+        yield
+
+
 def test_review_perception_routes_content_addressed_evidence_through_mq_mcp() -> None:
     calls: list[dict] = []
 
@@ -142,7 +165,7 @@ def test_review_perception_routes_content_addressed_evidence_through_mq_mcp() ->
             )
             return [{"type": "text", "text": json.dumps(_review())}]
 
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=Bridge()):
+    with _perception_cli_and_mcp(Bridge()):
         result = runner.invoke(
             app,
             [
@@ -192,7 +215,7 @@ def test_review_perception_receipt_binds_exact_review_and_repo_commit() -> None:
             assert repo_path == "/repo"
             return {"review": _review(), "receipt": _receipt()}
 
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=Bridge()):
+    with _perception_cli_and_mcp(Bridge()):
         result = runner.invoke(
             app,
             [
@@ -233,7 +256,7 @@ def test_review_perception_refuses_an_unbound_requested_receipt() -> None:
         ):
             return {"review": _review(), "receipt": _receipt("REFUSED")}
 
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=Bridge()):
+    with _perception_cli_and_mcp(Bridge()):
         result = runner.invoke(
             app,
             [
@@ -267,7 +290,7 @@ def test_review_perception_rejects_malformed_evidence_before_review() -> None:
             called = True
             return _review()
 
-    with patch("mq_agent.tools.mcp_bridge.MultiMCPBridge", return_value=Bridge()):
+    with _perception_cli_and_mcp(Bridge()):
         result = runner.invoke(
             app,
             ["review", "perception", "screen.png", "--json"],

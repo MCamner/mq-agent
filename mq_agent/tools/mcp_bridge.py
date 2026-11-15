@@ -450,22 +450,6 @@ class MultiMCPBridge:
             return bridge.call_tool(selected, args)
         return self._call_required_tool(selected, args)
 
-    def image_perception(
-        self,
-        image_path: str,
-        *,
-        producer: str,
-        source_type: str | None = None,
-    ) -> Any:
-        """Produce mq-image-analyze perception.v1 without implementing vision here."""
-        args: dict[str, Any] = {
-            "image_path": image_path,
-            "producer": producer,
-        }
-        if source_type:
-            args["source_type"] = source_type
-        return self._call_required_tool("image_perception", args)
-
     def review_patch(self, patch: str, mode: str = "risk", label: str = "") -> Any:
         """Review a unified diff passed as text (mq-mcp review_patch, Class A)."""
         return self._call_required_tool(
