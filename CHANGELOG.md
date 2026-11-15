@@ -12,6 +12,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - `stack release --execute` keeps hand-written `[Unreleased]` notes as the release section instead of drafting a commit list on top of them, and a drafted commit list uses the list marker `CHANGELOG.md` already uses. At v1.37.0 the draft used `*` in a `-` file; the markdownlint `--fix` pre-commit hook then rewrote every list marker in the file, a 975-line diff.
+- `verify-changes` in mq-agent's own checkout now selects checks for code. `.mq/verification.json` covered only the verifier's own files and the docs, so a change under `mq_agent/` or `tests/` ended `INCOMPLETE` with the file listed as unmatched. Changes to `mq_agent/`, `tests/`, `schemas/`, `pyproject.toml` or `uv.lock` now run the full test suite, and changes to the skill trees or `SKILLS.md` run `scripts/check-skills.sh`. Pytest checks run in the repo's environment (`python_project: "."`): the installed uv tool has no pytest, so they could not pass when run from it.
 
 ## [v1.37.0] — 2026-11-14
 
