@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.39.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.40.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -444,6 +444,15 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.40.0 status
+
+v1.40.0 adds an advisory model review to `pr review`.
+
+- [x] `pr review --model-review` sends the PR's diff, as text, to mq-mcp
+  `review_patch` (mq-mcp v2.4.0) and reports the findings as advisory; they
+  never change the path-based risk, an oversized diff is `SKIPPED` and a
+  refused or unreachable review is `ERROR` (#457)
 
 ## v1.39.0 status
 
