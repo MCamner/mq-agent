@@ -195,7 +195,9 @@ def _execution_outcome(
     """
     from mq_agent.tools.execution_outcome import (
         emit_execution_outcome,
+        meter_tokens,
         project_runtime_fingerprint,
+        token_meter,
     )
 
     fingerprint = (
@@ -214,32 +216,34 @@ def _execution_outcome(
         "run_id": str(uuid.uuid4()),
     }
     start = time.monotonic()
-    try:
-        yield record
-    except (KeyboardInterrupt, SystemExit):
-        record.update(result="FAIL", exit_status="aborted")
-        raise
-    except BaseException:
-        record.update(result="FAIL", exit_status="error")
-        raise
-    finally:
-        # emit_execution_outcome swallows failures and returns None, so a run
-        # id alone does not prove a record exists. Callers that hand the id to
-        # an operator report this alongside it.
-        record["outcome_recorded"] = False
-        if not dry_run:
-            record["outcome_recorded"] = emit_execution_outcome(
-                run_id=record["run_id"],
-                runtime=runtime,
-                task_class=task_class,
-                result=record["result"],
-                exit_status=record["exit_status"],
-                latency_ms=int((time.monotonic() - start) * 1000),
-                model=record.get("model"),
-                fallback=record.get("fallback"),
-                runtime_fingerprint=fingerprint,
-                completeness=record.get("completeness"),
-            ) is not None
+    with token_meter() as meter:
+        try:
+            yield record
+        except (KeyboardInterrupt, SystemExit):
+            record.update(result="FAIL", exit_status="aborted")
+            raise
+        except BaseException:
+            record.update(result="FAIL", exit_status="error")
+            raise
+        finally:
+            # emit_execution_outcome swallows failures and returns None, so a run
+            # id alone does not prove a record exists. Callers that hand the id to
+            # an operator report this alongside it.
+            record["outcome_recorded"] = False
+            if not dry_run:
+                record["outcome_recorded"] = emit_execution_outcome(
+                    run_id=record["run_id"],
+                    runtime=runtime,
+                    task_class=task_class,
+                    result=record["result"],
+                    exit_status=record["exit_status"],
+                    latency_ms=int((time.monotonic() - start) * 1000),
+                    model=record.get("model"),
+                    fallback=record.get("fallback"),
+                    runtime_fingerprint=fingerprint,
+                    completeness=record.get("completeness"),
+                    tokens=meter_tokens(meter),
+                ) is not None
 
 
 def _render_ship(payload: dict[str, Any]) -> None:

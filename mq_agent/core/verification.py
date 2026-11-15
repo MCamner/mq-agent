@@ -5,6 +5,7 @@ from pathlib import Path
 from openai import OpenAI
 
 from mq_agent.config import load_config
+from mq_agent.tools.execution_outcome import model_call_started, record_model_tokens, usage_tokens
 
 from .state import PlanStep, StepStatus
 
@@ -60,6 +61,7 @@ class Verifier:
                 "complete": step.fan_out_complete,
             }
 
+        model_call_started()
         response = self.client.chat.completions.create(
             model=self._model,
             messages=[
@@ -83,6 +85,7 @@ class Verifier:
             response_format={"type": "json_object"},
             temperature=0,
         )
+        record_model_tokens(*usage_tokens(response))
 
         data = json.loads(response.choices[0].message.content or "{}")
         success = bool(data.get("success", True))

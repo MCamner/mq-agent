@@ -152,47 +152,52 @@ class SwarmRunner:
         entrypoint that does not report its runtime from one that could not
         observe it.
         """
+        from ..tools.execution_outcome import meter_tokens, token_meter
+
         results: list[AgentResult] = []
         swarm_start = time.monotonic()
 
-        for manifest in config.manifests:
-            if dry_run:
-                results.append(AgentResult(agent=manifest.name, status="dry-run"))
-                continue
+        # Token usage is measured over the agents' model calls and written only
+        # when every call reported it; see `meter_tokens`.
+        with token_meter() as meter:
+            for manifest in config.manifests:
+                if dry_run:
+                    results.append(AgentResult(agent=manifest.name, status="dry-run"))
+                    continue
 
-            if manifest.requires_approve and not approve:
-                results.append(AgentResult(
-                    agent=manifest.name,
-                    status="skipped",
-                    error="requires --approve",
-                ))
-                continue
+                if manifest.requires_approve and not approve:
+                    results.append(AgentResult(
+                        agent=manifest.name,
+                        status="skipped",
+                        error="requires --approve",
+                    ))
+                    continue
 
-            start = time.monotonic()
-            try:
-                output = self._run_agent(manifest, path, dry_run=False, approve=approve)
-                results.append(AgentResult(
-                    agent=manifest.name,
-                    status="ok",
-                    output=output,
-                    elapsed_s=time.monotonic() - start,
-                ))
-            except Exception as exc:
-                elapsed = time.monotonic() - start
-                if manifest.failure_behavior == "abort":
+                start = time.monotonic()
+                try:
+                    output = self._run_agent(manifest, path, dry_run=False, approve=approve)
+                    results.append(AgentResult(
+                        agent=manifest.name,
+                        status="ok",
+                        output=output,
+                        elapsed_s=time.monotonic() - start,
+                    ))
+                except Exception as exc:
+                    elapsed = time.monotonic() - start
+                    if manifest.failure_behavior == "abort":
+                        results.append(AgentResult(
+                            agent=manifest.name,
+                            status="error",
+                            error=str(exc),
+                            elapsed_s=elapsed,
+                        ))
+                        break
                     results.append(AgentResult(
                         agent=manifest.name,
                         status="error",
                         error=str(exc),
                         elapsed_s=elapsed,
                     ))
-                    break
-                results.append(AgentResult(
-                    agent=manifest.name,
-                    status="error",
-                    error=str(exc),
-                    elapsed_s=elapsed,
-                ))
 
         swarm_result = SwarmResult(
             config=config.name,
@@ -204,7 +209,9 @@ class SwarmRunner:
 
         # A dry run executed nothing, so it has no outcome to record.
         if not dry_run:
-            self._record_outcome(config, swarm_result, runtime_fingerprint)
+            self._record_outcome(
+                config, swarm_result, runtime_fingerprint, tokens=meter_tokens(meter),
+            )
 
         return swarm_result
 
@@ -213,6 +220,7 @@ class SwarmRunner:
         config: SwarmConfig,
         result: SwarmResult,
         runtime_fingerprint: dict[str, Any] | None = None,
+        tokens: dict[str, int] | None = None,
     ) -> None:
         """Emit one mq.execution-outcome.v1 record for a completed swarm run.
 
@@ -250,6 +258,7 @@ class SwarmRunner:
             # `mq.model-route-outcome.v1`, correlated back by `execution_run_id`.
             agents=[_agent_record(r) for r in result.results],
             runtime_fingerprint=runtime_fingerprint,
+            tokens=tokens,
         )
 
     def plan(self, config: SwarmConfig, path: str = ".") -> list[dict]:
