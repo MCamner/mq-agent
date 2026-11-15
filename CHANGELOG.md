@@ -9,6 +9,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Task packs record what they were built from, and `mq-agent context check <pack>` says whether that still holds. `context pack` writes the primary repo's `source_commit`, `source_state` (`clean`/`dirty`) and `contract_version`, the vault's `vault_commit`, and `task_class` when `--task-class` is given, leaving out any key it could not read. `context check` answers `FRESH` (exit 0), `STALE` (exit 1, with the input that moved) or `UNKNOWN` (exit 3: nothing recorded to compare, or uncommitted changes); a file that is not a pack exits 2. The keys are optional `context-pack.v1` fields added in mqobsidian first and vendored here.
+
 ## [v1.38.0] — 2026-11-15
 
 ### Added

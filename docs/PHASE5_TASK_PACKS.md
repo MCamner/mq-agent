@@ -56,6 +56,27 @@ Flags: `--repo`, `--relevant-repo`, `--relevant-file`, `--note`, `--exclude`
 (`kind:item[:reason]`, repeatable), `--target` (`codex|claude|both`), `--vault`,
 `--repos-root`, `--codegraph` (`auto|on|off`), `--out`, `--json`.
 
+### Is the pack still current?
+
+A pack records what it was built from in its frontmatter: the primary repo's
+`source_commit` and `source_state` (`clean` or `dirty`), that repo's
+`contract_version`, the `vault_commit` the cards were read at, and
+`task_class` when `--task-class` was given. A key that could not be read is
+left out, not guessed.
+
+```bash
+mq-agent context check mq-mcp/.mq/context/task-pack.md [--task-class docs-review]
+```
+
+| Status | Exit | Meaning |
+|---|---|---|
+| `FRESH` | 0 | every recorded input is unchanged |
+| `STALE` | 1 | the repo commit, contract version, vault commit or task class moved |
+| `UNKNOWN` | 3 | the pack records nothing to compare, or a tree had uncommitted changes |
+
+Exit 2 means the file is not a `context-pack.v1` pack. `STALE` wins over
+`UNKNOWN`. Rebuild the pack rather than read it when it is not `FRESH`.
+
 A worked example pack is in
 [`examples/context-packs/fix-mq-mcp-brain-writer-paths.task-pack.md`](../examples/context-packs/fix-mq-mcp-brain-writer-paths.task-pack.md).
 
