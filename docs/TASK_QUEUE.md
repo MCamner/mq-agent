@@ -76,6 +76,9 @@ An existing receiving worktree must also start at the recorded HEAD. If the
 sender changes its worktree after offering the handoff, acceptance is refused;
 the sender can repeat `handoff` with an updated summary and remaining work.
 
+An end-to-end Claude-to-Codex handoff is recorded in
+[queue-handoff-acceptance-evidence.md](queue-handoff-acceptance-evidence.md).
+
 ## Cancel and recover
 
 ```bash
