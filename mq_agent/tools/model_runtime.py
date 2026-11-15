@@ -246,8 +246,14 @@ def _ollama_generate(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    from mq_agent.tools.execution_outcome import model_call_started, record_model_tokens
+
+    model_call_started()
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+        result = json.loads(response.read().decode("utf-8"))
+    if isinstance(result, dict):
+        record_model_tokens(result.get("prompt_eval_count"), result.get("eval_count"))
+    return result
 
 
 def _ollama_generate_json(model: str, prompt: str, timeout: int) -> dict[str, Any]:

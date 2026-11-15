@@ -53,4 +53,12 @@ class OllamaClient:
         content = body.get("message", {}).get("content", "")
         if not isinstance(content, str) or not content.strip():
             raise ValueError("Local model returned empty output")
-        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+        # Ollama's own counts, under the names an OpenAI response uses, so every
+        # caller reads usage the same way. Absent counts stay None.
+        usage = SimpleNamespace(
+            prompt_tokens=body.get("prompt_eval_count"),
+            completion_tokens=body.get("eval_count"),
+        )
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=content))], usage=usage,
+        )

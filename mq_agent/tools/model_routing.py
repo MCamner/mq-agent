@@ -687,6 +687,7 @@ def _execution_summary(records: list[Any], path: Path) -> dict[str, Any]:
                 "_retries": [],
                 "_fallbacks": [],
                 "_context_sizes": [],
+                "_tokens": [],
             },
         )
         route_bucket["outcomes"] += 1
@@ -701,6 +702,8 @@ def _execution_summary(records: list[Any], path: Path) -> dict[str, Any]:
                 route_bucket[private].append(int(record[field]))
         if "context" in record:
             route_bucket["_context_sizes"].append(int(record["context"]["size"]))
+        if "tokens" in record:
+            route_bucket["_tokens"].append(record["tokens"])
     for task in by_task.values():
         for route_bucket in task["by_route"].values():
             outcomes = route_bucket["outcomes"]
@@ -710,6 +713,18 @@ def _execution_summary(records: list[Any], path: Path) -> dict[str, Any]:
             route_bucket["p90_latency_ms"] = _metric(latencies, 0.9)
             route_bucket["median_context_size"] = _metric(
                 route_bucket.pop("_context_sizes")
+            )
+            # Summed over the records that measured tokens, with their count, so
+            # a total over 3 of 40 runs never reads as the cost of all 40.
+            measured_tokens = route_bucket.pop("_tokens")
+            route_bucket["tokens"] = (
+                {
+                    "measured_outcomes": len(measured_tokens),
+                    "input": sum(int(item.get("input", 0)) for item in measured_tokens),
+                    "output": sum(int(item.get("output", 0)) for item in measured_tokens),
+                }
+                if measured_tokens
+                else None
             )
             for field, private in (
                 ("tool_calls", "_tool_calls"),

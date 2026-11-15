@@ -17,6 +17,9 @@ import hashlib
 import json
 import os
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -37,6 +40,62 @@ UNCLASSIFIED = "unclassified"
 _OFF_VALUES = frozenset({"0", "off", "false", "no"})
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 MAX_ROTATED_FILES = 3
+
+
+# Token usage for the run in progress. Model call sites report into it; only
+# the level that owns an execution record opens one, so calls made outside a
+# recorded run are not counted anywhere.
+_TOKEN_METER: ContextVar[dict[str, int] | None] = ContextVar("token_meter", default=None)
+
+
+@contextmanager
+def token_meter() -> Iterator[dict[str, int]]:
+    """Count the token usage of every model call made inside the block."""
+    meter = {"started": 0, "reported": 0, "input": 0, "output": 0}
+    token = _TOKEN_METER.set(meter)
+    try:
+        yield meter
+    finally:
+        _TOKEN_METER.reset(token)
+
+
+def model_call_started() -> None:
+    """Mark a model call as begun, before it can raise or time out."""
+    meter = _TOKEN_METER.get()
+    if meter is not None:
+        meter["started"] += 1
+
+
+def record_model_tokens(input_tokens: Any, output_tokens: Any) -> None:
+    """Add one finished call's reported usage. Missing counts stay unreported."""
+    meter = _TOKEN_METER.get()
+    if meter is None:
+        return
+    counts = (input_tokens, output_tokens)
+    if all(type(value) is int and value >= 0 for value in counts):
+        meter["reported"] += 1
+        meter["input"] += input_tokens
+        meter["output"] += output_tokens
+
+
+def meter_tokens(meter: dict[str, int]) -> dict[str, int] | None:
+    """The run's token usage, or None unless every started call reported it.
+
+    A call that raised, timed out or returned no counts used tokens nobody
+    knows, and a partial sum would record a cheaper run than the one that ran.
+    """
+    if meter["started"] == 0 or meter["reported"] != meter["started"]:
+        return None
+    return {"input": meter["input"], "output": meter["output"]}
+
+
+def usage_tokens(response: Any) -> tuple[Any, Any]:
+    """Input and output tokens from an OpenAI-style response's `usage`."""
+    usage = getattr(response, "usage", None)
+    return (
+        getattr(usage, "prompt_tokens", None),
+        getattr(usage, "completion_tokens", None),
+    )
 
 
 def telemetry_enabled() -> bool:

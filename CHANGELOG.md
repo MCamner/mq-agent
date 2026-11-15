@@ -9,6 +9,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Execution records carry measured token usage. `audit`, `release-check`, `ci`, `review repo`, `signal`, `docs-audit` and swarm runs count the input and output tokens every model call reports (OpenAI `usage`, Ollama `prompt_eval_count`/`eval_count`) and write them as `tokens`. The field is written only when every model call the run started reported its counts: a call that raised, timed out or returned none leaves `tokens` absent, because a partial sum would record a cheaper run than the one that ran. `route report --json` sums tokens per route as `{measured_outcomes, input, output}` over the records that measured them, or `null` when none did. `cost`, `retries`, `fallbacks` and `tool_calls` are still not measured.
+
 ### Fixed
 
 - `stack release --execute` keeps hand-written `[Unreleased]` notes as the release section instead of drafting a commit list on top of them, and a drafted commit list uses the list marker `CHANGELOG.md` already uses. At v1.37.0 the draft used `*` in a `-` file; the markdownlint `--fix` pre-commit hook then rewrote every list marker in the file, a 975-line diff.

@@ -4,6 +4,7 @@ from pathlib import Path
 from openai import OpenAI
 
 from mq_agent.config import load_config
+from mq_agent.tools.execution_outcome import model_call_started, record_model_tokens, usage_tokens
 
 from .state import AgentState, PlanStep
 from .tool_contract import describe_tool, produced_kind
@@ -66,6 +67,7 @@ class Planner:
             indent=2,
         )
 
+        model_call_started()
         response = self.client.chat.completions.create(
             model=self._model,
             messages=[
@@ -75,6 +77,7 @@ class Planner:
             response_format={"type": "json_object"},
             temperature=0.2,
         )
+        record_model_tokens(*usage_tokens(response))
 
         raw = json.loads(response.choices[0].message.content or "{}")
         steps_data = raw.get("steps", raw) if isinstance(raw, dict) else raw
