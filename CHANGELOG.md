@@ -11,6 +11,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `mq-agent pr review <number>` writes an advisory review of one pull request: risk per changed file from its path and size, the repository's `verify-changes` selection planned against the merge base, files no check covers, and findings such as source changed without tests or a PR that changes its own verification config. It fetches the PR head into a temporary detached worktree, refuses when the fetched head differs from the one GitHub reported, executes nothing from the PR, and posts the report as one PR comment only with `--post`. There is no model review of the diff yet. See `docs/PR_REVIEW.md`.
 - Task packs record what they were built from, and `mq-agent context check <pack>` says whether that still holds. `context pack` writes the primary repo's `source_commit`, `source_state` (`clean`/`dirty`) and `contract_version`, the vault's `vault_commit`, and `task_class` when `--task-class` is given, leaving out any key it could not read. `context check` answers `FRESH` (exit 0), `STALE` (exit 1, with the input that moved) or `UNKNOWN` (exit 3: nothing recorded to compare, or uncommitted changes); a file that is not a pack exits 2. The keys are optional `context-pack.v1` fields added in mqobsidian first and vendored here.
 
 ## [v1.38.0] — 2026-11-15
