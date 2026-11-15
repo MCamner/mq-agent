@@ -447,7 +447,12 @@ perception extraction.
 
 ## v1.40.0 status
 
-- [x] feat(pr): advisory model review of the PR diff via mq-mcp review_patch (#457)
+v1.40.0 adds an advisory model review to `pr review`.
+
+- [x] `pr review --model-review` sends the PR's diff, as text, to mq-mcp
+  `review_patch` (mq-mcp v2.4.0) and reports the findings as advisory; they
+  never change the path-based risk, an oversized diff is `SKIPPED` and a
+  refused or unreachable review is `ERROR` (#457)
 
 ## v1.39.0 status
 
