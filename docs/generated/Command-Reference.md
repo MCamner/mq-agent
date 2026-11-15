@@ -2602,11 +2602,11 @@ Review pull requests: advisory, read-only, posts only on request.
 
 | Subcommand | Description |
 |---|---|
-| [`mq-agent pr review`](#mq-agent-pr-review) | Classify a PR's changed files by risk and plan its checks, without running them. Fetches the PR head into a temporary detached worktree, plans the repo's `verify-changes` selection against the merge base and reports risk per file, recommended checks, uncovered files and findings. Nothing from the PR is executed. Exit 0 when the report was produced, 2 on error. |
+| [`mq-agent pr review`](#mq-agent-pr-review) | Classify a PR's changed files by risk and plan its checks, without running them. Fetches the PR head into a temporary detached worktree, plans the repo's `verify-changes` selection against the merge base and reports risk per file, recommended checks, uncovered files and findings. Nothing from the PR is executed. With --model-review the diff is sent as text to mq-mcp `review_patch` for advisory findings. Exit 0 when the report was produced, 2 on error. |
 
 ## `mq-agent pr review`
 
-Classify a PR's changed files by risk and plan its checks, without running them. Fetches the PR head into a temporary detached worktree, plans the repo's `verify-changes` selection against the merge base and reports risk per file, recommended checks, uncovered files and findings. Nothing from the PR is executed. Exit 0 when the report was produced, 2 on error.
+Classify a PR's changed files by risk and plan its checks, without running them. Fetches the PR head into a temporary detached worktree, plans the repo's `verify-changes` selection against the merge base and reports risk per file, recommended checks, uncovered files and findings. Nothing from the PR is executed. With --model-review the diff is sent as text to mq-mcp `review_patch` for advisory findings. Exit 0 when the report was produced, 2 on error.
 
 ### Arguments
 
@@ -2620,6 +2620,8 @@ Classify a PR's changed files by risk and plan its checks, without running them.
 |---|---:|---|---|
 | `--repo` | No | `.` | Repository checkout whose origin holds the PR |
 | `--post` | No | `false` | Post the report as one comment on the PR |
+| `--model-review` | No | `false` | Send the PR diff to mq-mcp review_patch for an advisory model review |
+| `--review-mode` | No | `risk` | Contract for --model-review: risk, security, architecture or comment |
 | `--state-dir` | No | `""` | Where the temporary worktree is created (default: system temp) |
 | `--json` | No | `false` | — |
 

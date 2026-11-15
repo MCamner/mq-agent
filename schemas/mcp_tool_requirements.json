@@ -231,6 +231,16 @@
       ]
     },
     {
+      "name": "review_patch",
+      "producer": "mq-mcp",
+      "max_safety_class": "A",
+      "arguments": [
+        "patch",
+        "mode",
+        "label"
+      ]
+    },
+    {
       "name": "review_perception",
       "producer": "mq-mcp",
       "max_safety_class": "B",

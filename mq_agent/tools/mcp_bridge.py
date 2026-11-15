@@ -466,6 +466,12 @@ class MultiMCPBridge:
             args["source_type"] = source_type
         return self._call_required_tool("image_perception", args)
 
+    def review_patch(self, patch: str, mode: str = "risk", label: str = "") -> Any:
+        """Review a unified diff passed as text (mq-mcp review_patch, Class A)."""
+        return self._call_required_tool(
+            "review_patch", {"patch": patch, "mode": mode, "label": label}
+        )
+
     def review_perception(
         self,
         perception: dict[str, Any],

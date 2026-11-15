@@ -252,3 +252,126 @@ def test_a_hung_git_or_gh_is_an_error_not_a_traceback(monkeypatch, tmp_path):
         pr_review._gh(["pr", "view"], tmp_path)
     with pytest.raises(ValueError, match="failed"):
         pr_review._git(tmp_path, "fetch")
+
+
+# ── phase 2: model review through mq-mcp review_patch ───────────────────────
+
+def _wire(payload: dict) -> list:
+    """The shape mq-mcp's HTTP endpoint returns: one text item holding JSON."""
+    return [{"type": "text", "text": json.dumps(payload)}]
+
+
+class _Reviewer:
+    def __init__(self, result: Any) -> None:
+        self.result = result
+        self.calls: list[tuple[str, str, str]] = []
+
+    def __call__(self, patch: str, mode: str, label: str) -> Any:
+        self.calls.append((patch, mode, label))
+        return self.result
+
+
+OK_REVIEW = {
+    "ok": True, "mode": "risk", "label": "clone#7", "model": "qwen3.5:9b",
+    "reviewed_bytes": 10,
+    "findings": [{"severity": "RISK", "location": "src/app.py:1", "body": "Changed constant."}],
+    "output": "[RISK] src/app.py:1\nChanged constant.",
+}
+
+
+def test_without_model_review_nothing_is_sent(pr_repo, fake_gh):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+
+    report = review_pr(pr_repo["repo"], 7, state_dir=pr_repo["state"])
+
+    assert report["model_review"] is None
+    assert any("no model review" in n for n in report["not_verified"])
+
+
+def test_model_review_sends_the_pr_diff_and_reports_findings(pr_repo, fake_gh):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+    reviewer = _Reviewer(_wire(OK_REVIEW))
+
+    report = review_pr(pr_repo["repo"], 7, state_dir=pr_repo["state"], reviewer=reviewer)
+
+    patch, mode, label = reviewer.calls[0]
+    assert "+x = 2" in patch and "docs/guide.md" in patch
+    assert mode == "risk"
+    assert label == "clone#7"
+    review = report["model_review"]
+    assert review["status"] == "OK"
+    assert review["model"] == "qwen3.5:9b"
+    assert review["findings"] == OK_REVIEW["findings"]
+    assert any("saw only the diff" in n for n in report["not_verified"])
+    assert not any("no model review" in n for n in report["not_verified"])
+    # The model's view does not change the path-based risk.
+    assert report["risk"] == "high"
+
+
+def test_a_plain_dict_answer_is_accepted_too(pr_repo, fake_gh):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+
+    report = review_pr(pr_repo["repo"], 7, state_dir=pr_repo["state"],
+                       reviewer=_Reviewer(OK_REVIEW))
+
+    assert report["model_review"]["status"] == "OK"
+
+
+def test_a_refused_or_unreachable_review_is_an_error_not_a_pass(pr_repo, fake_gh):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+    for answer in (_wire({"ok": False, "error": "patch too large"}),
+                   "mq-mcp is not reachable", None):
+        report = review_pr(pr_repo["repo"], 7, state_dir=pr_repo["state"],
+                           reviewer=_Reviewer(answer))
+        assert report["model_review"]["status"] == "ERROR"
+        assert report["model_review"]["findings"] == []
+        assert any("no model review" in n for n in report["not_verified"])
+
+
+def test_an_oversized_diff_is_not_sent(pr_repo, fake_gh, monkeypatch):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+    monkeypatch.setattr(pr_review, "REVIEW_PATCH_MAX_BYTES", 10)
+    reviewer = _Reviewer(_wire(OK_REVIEW))
+
+    report = review_pr(pr_repo["repo"], 7, state_dir=pr_repo["state"], reviewer=reviewer)
+
+    assert reviewer.calls == []
+    assert report["model_review"]["status"] == "SKIPPED"
+    assert "bytes" in report["model_review"]["reason"]
+
+
+def test_markdown_shows_model_findings_as_advisory(pr_repo, fake_gh):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+    report = review_pr(pr_repo["repo"], 7, state_dir=pr_repo["state"],
+                       reviewer=_Reviewer(_wire(OK_REVIEW)))
+
+    text = render_markdown(report)
+
+    assert "### Model review (advisory)" in text
+    assert "`src/app.py:1`" in text and "Changed constant." in text
+    assert "qwen3.5:9b" in text
+
+
+def test_cli_model_review_uses_the_mq_mcp_bridge(pr_repo, fake_gh, monkeypatch):
+    _, state = fake_gh
+    state["meta"] = _meta(pr_repo)
+    sent: list = []
+
+    class _Bridge:
+        def review_patch(self, patch: str, mode: str = "risk", label: str = "") -> Any:
+            sent.append((mode, label))
+            return _wire(OK_REVIEW)
+
+    monkeypatch.setattr("mq_agent.tools.mcp_bridge.MultiMCPBridge", _Bridge)
+
+    result = _cli(pr_repo, "--model-review", "--review-mode", "security", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert sent == [("security", "clone#7")]
+    assert json.loads(result.stdout)["model_review"]["status"] == "OK"
