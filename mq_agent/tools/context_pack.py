@@ -13,6 +13,7 @@ mqobsidian-side heuristic so both ends stay consistent.
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -253,6 +254,145 @@ def _exclusion_lines(exclusions: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def _git(path: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), *args],
+            capture_output=True, text=True, check=False, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def _git_head(path: Path) -> str | None:
+    head = (_git(path, "rev-parse", "HEAD") or "").strip()
+    return head or None
+
+
+def _git_state(path: Path) -> str | None:
+    """`clean` or `dirty`, or None when git cannot say."""
+    status = _git(path, "status", "--porcelain")
+    if status is None:
+        return None
+    return "dirty" if status.strip() else "clean"
+
+
+def _contract_version(repo_dir: Path) -> str | None:
+    try:
+        data = json.loads((repo_dir / ".mq" / "repo-contract.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = data.get("version") if isinstance(data, dict) else None
+    return version if isinstance(version, str) and version else None
+
+
+def _resolve_repo_dir(repo: str, repos_root: Path | None) -> Path | None:
+    from mq_agent.skills.inventory import resolve_repo
+
+    try:
+        return resolve_repo(repo, repos_root)
+    except ValueError:
+        return None
+
+
+def pack_provenance(
+    repo: str, *, vault: Path, repos_root: Path | None, task_class: str | None = None
+) -> dict[str, str]:
+    """What a pack is built from, limited to what could be observed.
+
+    A key that could not be read is left out rather than guessed, so a reader
+    can tell "not recorded" from "unchanged". Order matches the frontmatter.
+    """
+    observed: dict[str, str | None] = {"task_class": task_class or None}
+    repo_dir = _resolve_repo_dir(repo, repos_root) if repo else None
+    if repo_dir is not None:
+        observed["source_commit"] = _git_head(repo_dir)
+        observed["source_state"] = _git_state(repo_dir) if observed["source_commit"] else None
+        observed["contract_version"] = _contract_version(repo_dir)
+    observed["vault_commit"] = _git_head(vault)
+    return {key: value for key, value in observed.items() if value}
+
+
+def check_task_pack(
+    path: Path,
+    *,
+    task_class: str | None = None,
+    vault: Path | None = None,
+    repos_root: Path | None = None,
+) -> dict[str, Any]:
+    """Say whether a pack still describes the repo and vault it was built from.
+
+    FRESH only when every recorded input is unchanged and nothing prevents
+    proving it. STALE when a recorded input moved; it wins over UNKNOWN, since
+    one moved input is enough to rebuild. UNKNOWN when the pack recorded nothing
+    to compare or the current state cannot be compared. Raises ValueError when
+    the file is not a context-pack.v1 pack.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"cannot read pack: {path}") from exc
+    recorded = parse_frontmatter(text)
+    if recorded.get("schema") != "context-pack.v1":
+        raise ValueError(f"not a context-pack.v1 pack: {path}")
+
+    vault = (vault or default_vault()).expanduser().resolve()
+    repo = recorded.get("repo", "")
+    stale: list[str] = []
+    unknown: list[str] = []
+
+    built_class = recorded.get("task_class")
+    if task_class and built_class and built_class != task_class:
+        stale.append(f"built for task class {built_class}, not {task_class}")
+    elif task_class and not built_class:
+        unknown.append("pack does not record its task class")
+
+    built_commit = recorded.get("source_commit")
+    if not built_commit:
+        unknown.append(f"pack does not record the {repo or 'source'} commit")
+    else:
+        repo_dir = _resolve_repo_dir(repo, repos_root) if repo else None
+        current = _git_head(repo_dir) if repo_dir else None
+        if current is None:
+            unknown.append(f"cannot read the current {repo or 'source'} commit")
+        elif current != built_commit:
+            stale.append(f"{repo} moved from commit {built_commit[:12]} to {current[:12]}")
+        else:
+            built_state = recorded.get("source_state")
+            if built_state == "dirty":
+                unknown.append(f"pack was built from uncommitted changes in {repo}")
+            elif built_state != "clean":
+                unknown.append(f"pack does not record whether {repo} was clean")
+            if repo_dir is not None and _git_state(repo_dir) != "clean":
+                unknown.append(f"{repo} has uncommitted changes now")
+        built_version = recorded.get("contract_version")
+        now_version = _contract_version(repo_dir) if repo_dir else None
+        if built_version and now_version and built_version != now_version:
+            stale.append(f"{repo} contract version moved from {built_version} to {now_version}")
+
+    built_vault = recorded.get("vault_commit")
+    if not built_vault:
+        unknown.append("pack does not record the vault commit")
+    else:
+        current_vault = _git_head(vault)
+        if current_vault is None:
+            unknown.append("cannot read the current vault commit")
+        elif current_vault != built_vault:
+            stale.append(f"vault moved from commit {built_vault[:12]} to {current_vault[:12]}")
+
+    status = "STALE" if stale else "UNKNOWN" if unknown else "FRESH"
+    return {
+        "status": status,
+        "reasons": stale + unknown,
+        "pack": str(path),
+        "recorded": {k: recorded[k] for k in (
+            "repo", "task_class", "source_commit", "source_state",
+            "contract_version", "vault_commit", "generated_at",
+        ) if k in recorded},
+    }
+
+
 def build_task_pack(
     task: str,
     *,
@@ -270,6 +410,7 @@ def build_task_pack(
     codegraph: str = "auto",
     codegraph_symbols: list[str] | None = None,
     generated_at: str | None = None,
+    task_class: str | None = None,
 ) -> dict[str, Any]:
     """Select context for `task` and render a `context-pack.v1` Markdown pack.
 
@@ -379,6 +520,10 @@ def build_task_pack(
         microsecond=0
     ).isoformat()
     repo_line = repo or (repos[0] if repos else "")
+    provenance = pack_provenance(
+        repo_line, vault=vault, repos_root=repos_root, task_class=task_class
+    )
+    provenance_lines = "".join(f"{key}: {value}\n" for key, value in provenance.items())
 
     content = f"""---
 schema: context-pack.v1
@@ -387,7 +532,7 @@ task: {task}
 generated_at: {generated}
 repo: {repo_line}
 summary: {pack_summary}
----
+{provenance_lines}---
 
 # Task Context Pack
 

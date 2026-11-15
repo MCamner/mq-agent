@@ -5165,7 +5165,7 @@ def context_pack_cmd(
     vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
     repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs, used to detect .codegraph/ (default: ~)")] = "",
     codegraph: Annotated[str, typer.Option("--codegraph", help="CodeGraph hint: auto, on, off, or policy (feedback-controlled)")] = "auto",
-    task_class: Annotated[str, typer.Option("--task-class", help="Task class used for feedback-controlled context policy")] = "repo-review",
+    task_class: Annotated[str, typer.Option("--task-class", help="Task class for feedback-controlled context policy (default repo-review); recorded in the pack only when given")] = "",
     symbol: Annotated[list[str], typer.Option("--symbol", help="Named symbol for a CodeGraph callers/impact query (repeatable)")] = [],
     output: Annotated[str, typer.Option("--output", "--out", help="Write the pack here instead of stdout")] = "",
     json_out: Annotated[bool, typer.Option("--json")] = False,
@@ -5203,9 +5203,10 @@ def context_pack_cmd(
 
     resolved_codegraph = codegraph
     policy_strategy = None
+    policy_task_class = task_class or "repo-review"
     if codegraph == "policy":
         from mq_agent.feedback.control import effective_strategy, strategy_codegraph
-        policy_strategy = effective_strategy(task_class)
+        policy_strategy = effective_strategy(policy_task_class)
         resolved_codegraph = strategy_codegraph(policy_strategy)
 
     try:
@@ -5221,9 +5222,10 @@ def context_pack_cmd(
             repos_root=Path(repos_root).expanduser() if repos_root else None,
             codegraph=resolved_codegraph,
             codegraph_symbols=symbol,
+            task_class=task_class or None,
         )
         result["feedback_policy"] = {
-            "task_class": task_class,
+            "task_class": policy_task_class,
             "strategy": policy_strategy,
             "codegraph": resolved_codegraph,
             "explicit_policy": codegraph == "policy",
@@ -5251,6 +5253,46 @@ def context_pack_cmd(
         console.print(f"codegraph hint: {'yes' if result['codegraph_applied'] else 'no'}")
     else:
         typer.echo(result["content"])
+
+
+_PACK_CHECK_EXIT = {"FRESH": 0, "STALE": 1, "UNKNOWN": 3}
+
+
+@context_app.command("check")
+def context_check_cmd(
+    pack: Annotated[str, typer.Argument(help="Task pack to check, e.g. .mq/context/task-pack.md")],
+    task_class: Annotated[str, typer.Option("--task-class", help="Task class the pack must have been built for")] = "",
+    vault: Annotated[str, typer.Option("--vault", help="mqobsidian vault path (default: $MQ_OBSIDIAN_DIR or ~/mqobsidian)")] = "",
+    repos_root: Annotated[str, typer.Option("--repos-root", help="Root holding <repo>/ dirs (default: ~)")] = "",
+    json_out: Annotated[bool, typer.Option("--json")] = False,
+):
+    """Say whether a task pack still matches the repo and vault it was built from.
+
+    FRESH (exit 0) when every recorded input is unchanged, STALE (exit 1) when
+    the repo commit, its contract version, the vault commit or the task class
+    moved, UNKNOWN (exit 3) when the pack records nothing to compare or the
+    working tree has uncommitted changes. Exit 2 when the file is not a pack.
+    """
+    from mq_agent.tools.context_pack import check_task_pack
+
+    try:
+        result = check_task_pack(
+            Path(pack).expanduser(),
+            task_class=task_class or None,
+            vault=Path(vault).expanduser() if vault else None,
+            repos_root=Path(repos_root).expanduser() if repos_root else None,
+        )
+    except ValueError as exc:
+        console.print(f"[bold red]{exc}[/bold red]")
+        raise typer.Exit(2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(result, indent=2))
+    else:
+        console.print(f"{result['status']}  {result['pack']}")
+        for reason in result["reasons"]:
+            console.print(f"  - {reason}")
+    raise typer.Exit(_PACK_CHECK_EXIT[result["status"]])
 
 
 # ── portable runtime state ─────────────────────────────────────────────────
