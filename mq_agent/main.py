@@ -837,13 +837,16 @@ def _coerce_mcp_json_payload(value: Any) -> Any:
 
 
 def _visual_architecture_observation(bridge: Any, image_path: str | None) -> Any:
-    """Delegate visual architecture observation to mq-image-analyze."""
+    """Delegate visual architecture observation to mq-image-analyze's CLI.
+
+    `bridge` is kept for the callers' signature; the observation no longer goes
+    through an MCP server, so no mq-image-analyze server has to be running.
+    """
     if not image_path:
         return None
-    observation = bridge.call_tool("observe_architecture", {"image_path": image_path})
-    if _is_error_result(observation):
-        return observation
-    return _coerce_mcp_json_payload(observation)
+    from mq_agent.tools.image_tools import observe_architecture_json
+
+    return observe_architecture_json(image_path)
 
 
 def _review_flags_with_visual_context(
@@ -857,7 +860,14 @@ def _review_flags_with_visual_context(
 ) -> dict[str, Any]:
     observation = _visual_architecture_observation(bridge, architecture_image)
     if _is_error_result(observation):
-        return {"ok": False, "visual_context_error": observation}
+        # `error` is what _is_error_result looks for. Without it the caller sent
+        # this dict to mq-mcp as review flags instead of stopping.
+        detail = observation.get("error") if isinstance(observation, dict) else observation
+        return {
+            "ok": False,
+            "error": f"visual architecture observation failed: {detail}",
+            "visual_context_error": observation,
+        }
     return {
         **_review_flags(
             security,
@@ -1190,7 +1200,7 @@ def review_file_cmd(
         repo_str = f" repo_path={repo}" if repo else ""
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_file {path}{repo_str}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
-            console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
+            console.print(f"[blue][dry-run][/blue] Would first run: [bold]mq-image observe-architecture {architecture_image} --json[/bold] (observe_architecture)")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
@@ -1225,7 +1235,7 @@ def review_diff_cmd(
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_diff{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
-            console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
+            console.print(f"[blue][dry-run][/blue] Would first run: [bold]mq-image observe-architecture {architecture_image} --json[/bold] (observe_architecture)")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
@@ -1285,7 +1295,7 @@ def review_repo_cmd(
         flag_str = " ".join(f"--{f}" for f in enabled_flags)
         console.print(f"[blue][dry-run][/blue] Would call: [bold]mq-mcp review_repo {path}{' ' + flag_str if flag_str else ''}[/bold]")
         if architecture_image:
-            console.print(f"[blue][dry-run][/blue] Would first call: [bold]mq-image-analyze observe_architecture image_path={architecture_image}[/bold]")
+            console.print(f"[blue][dry-run][/blue] Would first run: [bold]mq-image observe-architecture {architecture_image} --json[/bold] (observe_architecture)")
         return
     from mq_agent.tools.mcp_bridge import MultiMCPBridge
 
@@ -1374,12 +1384,12 @@ def review_perception_cmd(
     if mode not in {"risk", "architecture"}:
         raise typer.BadParameter("mode must be risk or architecture")
     if dry_run:
-        source_arg = f" source_type={source_type}" if source_type else ""
+        source_arg = f" --source-type {source_type}" if source_type else ""
         receipt_arg = " receipt=true" if receipt else ""
         repo_arg = f" repo_path={repo_path}" if repo_path else ""
         console.print(
-            f"[blue][dry-run][/blue] Would call: [bold]mq-image-analyze "
-            f"image_perception image_path={image_path} producer={producer}{source_arg}[/bold]"
+            f"[blue][dry-run][/blue] Would run: [bold]mq-image perceive "
+            f"{image_path} --producer {producer}{source_arg}[/bold]"
         )
         console.print(
             f"[blue][dry-run][/blue] Then call: [bold]mq-mcp review_perception "
@@ -1390,13 +1400,15 @@ def review_perception_cmd(
 
     from mq_agent.tools.mcp_bridge import MultiMCPBridge, tool_failure
 
+    from mq_agent.tools.image_tools import image_perception_record
+
     bridge = MultiMCPBridge()
-    perception_result = bridge.image_perception(
+    perception_result = image_perception_record(
         image_path,
         producer=producer,
         source_type=source_type,
     )
-    failure = tool_failure("image_perception", perception_result)
+    failure = perception_result.get("error") if perception_result.get("ok") is False else None
     if failure:
         error = {"ok": False, "error": failure, "stage": "perception"}
         if json_out:

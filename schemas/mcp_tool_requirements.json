@@ -88,16 +88,6 @@
       ]
     },
     {
-      "name": "image_perception",
-      "producer": "mq-image-analyze",
-      "max_safety_class": "B",
-      "arguments": [
-        "image_path",
-        "producer",
-        "source_type"
-      ]
-    },
-    {
       "name": "learn_extract_from_last_review",
       "producer": "mq-mcp",
       "max_safety_class": "B",
@@ -173,14 +163,6 @@
       "producer": "mq-mcp",
       "max_safety_class": "A",
       "arguments": []
-    },
-    {
-      "name": "observe_architecture",
-      "producer": "mq-image-analyze",
-      "max_safety_class": "B",
-      "arguments": [
-        "image_path"
-      ]
     },
     {
       "name": "record_learning",

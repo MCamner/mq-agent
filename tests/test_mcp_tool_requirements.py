@@ -92,7 +92,6 @@ def _sent_by_helpers() -> list[tuple[str, dict[str, Any]]]:
         bridge.review_file("README.md", {"receipt": True}, repo_path="/tmp/x")
         bridge.review_diff({"receipt": True})
         bridge.review_repo("/tmp/x", {"receipt": True})
-        bridge.image_perception("a.png", producer="p", source_type="screenshot")
         bridge.review_patch("diff", mode="risk", label="repo#1")
         bridge.review_perception({}, producer="p", repo_path="/tmp/x")
         bridge.search_semantic_memory("q")
