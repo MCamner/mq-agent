@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.40.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.41.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -444,6 +444,19 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.41.0 status
+
+v1.41.0 runs mq-image-analyze per call and fixes the release gate deadline.
+
+- [x] `review --architecture-image` and `review perception` start the
+  `mq-image` CLI instead of calling an MCP server on `:8766`, which atlas-one
+  also uses; no default mq-image-analyze server is configured (#459)
+- [x] every image path is checked before `mq-image` starts: allowed roots,
+  regular file, image extension, judged on the symlink target (#459)
+- [x] a failed visual observation stops the review instead of reaching mq-mcp
+  as review flags (#459)
+- [x] `stack release` gives `release-check.sh` 1200 s instead of 300 s (#460)
 
 ## v1.40.0 status
 
