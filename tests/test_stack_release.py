@@ -1635,3 +1635,53 @@ class TestUpdateChangelogPreservesHandWrittenNotes:
 
         assert "- abc1234 fix: something (#1)" in text
         assert "* " not in text
+
+
+class TestReleaseCheckTimeout:
+    """The gate runs each repo's full suite; its deadline must outlast that.
+
+    mq-agent's release-check.sh runs ~3000 tests, mypy and two smokes: 4-9
+    minutes on a loaded machine. A 300 s deadline aborted v1.41.0 with a gate
+    that passes when run directly (READY after 8 min 48 s).
+    """
+
+    def test_the_gate_gets_twenty_minutes(self, tmp_path, monkeypatch):
+        import importlib
+        import subprocess as sp
+
+        # `mq_agent.tools.stack_release` is also a function re-exported by the
+        # package, so import the module by its full name.
+        stack_release = importlib.import_module("mq_agent.tools.stack_release")
+
+        script = tmp_path / "release-check.sh"
+        script.write_text("#!/bin/sh\n", encoding="utf-8")
+        script.chmod(0o755)
+        seen: dict = {}
+
+        def fake_run(cmd, **kwargs):
+            seen["timeout"] = kwargs.get("timeout")
+            return sp.CompletedProcess(cmd, 0, stdout='{"status": "READY"}', stderr="")
+
+        monkeypatch.setattr(stack_release.subprocess, "run", fake_run)
+
+        assert stack_release._run_release_check(tmp_path) == (True, [])
+        assert seen["timeout"] == stack_release.RELEASE_CHECK_TIMEOUT_S == 1200
+
+    def test_a_timeout_names_the_deadline(self, tmp_path, monkeypatch):
+        import importlib
+        import subprocess as sp
+
+        stack_release = importlib.import_module("mq_agent.tools.stack_release")
+
+        script = tmp_path / "release-check.sh"
+        script.write_text("#!/bin/sh\n", encoding="utf-8")
+        script.chmod(0o755)
+
+        def hang(cmd, **kwargs):
+            raise sp.TimeoutExpired(cmd, kwargs["timeout"])
+
+        monkeypatch.setattr(stack_release.subprocess, "run", hang)
+
+        ok, blockers = stack_release._run_release_check(tmp_path)
+        assert ok is False
+        assert "1200" in blockers[0]
