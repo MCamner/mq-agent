@@ -429,6 +429,12 @@ def plan_stack_release_all(bump: str = "patch") -> dict[str, Any]:
     }
 
 
+#: Deadline for one repo's release-check.sh. The gate runs the repo's full
+#: suite: mq-agent's (~3000 tests, mypy, smokes) took 8 min 48 s on a loaded
+#: machine and passed, while the old 300 s aborted the v1.41.0 release.
+RELEASE_CHECK_TIMEOUT_S = 1200
+
+
 def _run_release_check(repo_path: Path) -> tuple[bool, list[str]]:
     """Run the repo's canonical read-only releasability check.
 
@@ -450,10 +456,12 @@ def _run_release_check(repo_path: Path) -> tuple[bool, list[str]]:
             ["./release-check.sh", "--dry-run", "--json"],
             # A conforming release-check runs the repo's own suite; repos with
             # heavy dependencies (ML imports, a full test run) legitimately take
-            # over a minute on a cold cache. Allow generous headroom so a real
-            # check is not reported as a timeout-BLOCKED false positive.
-            cwd=repo_path, text=True, capture_output=True, timeout=300,
+            # minutes. Allow generous headroom so a real check is not reported
+            # as a timeout-BLOCKED false positive.
+            cwd=repo_path, text=True, capture_output=True, timeout=RELEASE_CHECK_TIMEOUT_S,
         )
+    except subprocess.TimeoutExpired:
+        return False, [f"release-check.sh did not finish within {RELEASE_CHECK_TIMEOUT_S} s"]
     except Exception as exc:
         return False, [f"release-check.sh failed to run: {exc}"]
     if proc.returncode != 0:

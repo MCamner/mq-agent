@@ -16,6 +16,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `stack release` gives each repo's `release-check.sh` 1200 s instead of 300 s, and a timeout says so with the deadline. mq-agent's gate runs the full suite, mypy and smokes; it passed in 8 min 48 s on a loaded machine while the 300 s deadline aborted the v1.41.0 release.
 - A failed visual observation stops `review file|diff|repo --architecture-image` with exit 1. The error dict lacked an `error` key, so the review went on to mq-mcp with the error dict as its flags.
 - The built-in `image_observe_architecture` tool asks for `--json`; it returned the CLI's human-readable summary while documented as JSON.
 
