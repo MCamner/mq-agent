@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/MCamner/mq-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/MCamner/mq-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-v1.40.0-brightgreen)](https://mcamner.github.io/mq-agent/)
+[![Status](https://img.shields.io/badge/status-v1.41.0-brightgreen)](https://mcamner.github.io/mq-agent/)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://mcamner.github.io/mq-agent/)
 
 Terminal-native AI agent orchestrator for the mq ecosystem.
@@ -444,6 +444,11 @@ perception extraction.
 - [x] Codex and Claude consume the same mq-mcp `review_perception` tool
 - [x] receipts contain references only — no image bytes, OCR body, regions or
   local image paths
+
+## v1.41.0 status
+
+- [x] fix(release): give release-check.sh 1200 s in stack release (#460)
+- [x] feat(image): run mq-image-analyze as a subprocess, not through its MCP server (#459)
 
 ## v1.40.0 status
 
