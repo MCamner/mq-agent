@@ -447,8 +447,16 @@ perception extraction.
 
 ## v1.41.0 status
 
-- [x] fix(release): give release-check.sh 1200 s in stack release (#460)
-- [x] feat(image): run mq-image-analyze as a subprocess, not through its MCP server (#459)
+v1.41.0 runs mq-image-analyze per call and fixes the release gate deadline.
+
+- [x] `review --architecture-image` and `review perception` start the
+  `mq-image` CLI instead of calling an MCP server on `:8766`, which atlas-one
+  also uses; no default mq-image-analyze server is configured (#459)
+- [x] every image path is checked before `mq-image` starts: allowed roots,
+  regular file, image extension, judged on the symlink target (#459)
+- [x] a failed visual observation stops the review instead of reaching mq-mcp
+  as review flags (#459)
+- [x] `stack release` gives `release-check.sh` 1200 s instead of 300 s (#460)
 
 ## v1.40.0 status
 
